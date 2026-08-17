@@ -1,57 +1,66 @@
 # Universal Research Pipeline — Context & Tacit Knowledge
-### Distilled from All Past Research Pipelines & Antigravity IDE Sessions
-*Created: August 2026*
+### Design History, Meta-Research Journey & Architectural Insights
+*URP v3.0 · August 2026*
 
 ---
 
 ## 1. Why This Meta-System Exists
 
-In past software projects, creating a high-quality pre-development research pipeline required manually hunting down, reviewing, and copying context from 5+ previous repositories:
-- **Vivah / Soodh:** 8 Unbiased Discovery Sessions (U1–U8, 534 KB) proving unbiased cataloging.
-- **Pramedha:** 72 Research Modules across 12 phases proving module partitioning and test contracts.
-- **Triyantra:** 3-Model Triangulation (ChatGPT + Claude + Gemini), Grade A–E Evidence Grading, and the 6-Phase Research-to-Roadmap engine.
-- **Portfolio Website:** 16-session decision framework (`DP-01` to `DP-16`) and Universal Final Synthesis (`DP-USYN`).
-- **Forge & Rachak:** Zero-bias prompt independence, bias-resistance directives, and sovereignty filtering.
-- **Gemmra:** Drug safety AI data and training pipeline ADR validation.
-- **Yugm:** 22-session 3-tier pipeline, Prompt Library (1,190 lines), Compose+Build split, and Markdown Artifact Output Contract.
+In past software projects, creating high-quality pre-development research required manually hunting down context from 5+ previous repositories — each having independently discovered pieces of the same methodology:
 
-**The Solution:**  
-This repository centralizes and synthesizes all these methodologies into a single, cohesive, self-contained Meta-Framework.
+- **Vivah / Soodh:** 8 sessions proving unbiased discovery-first cataloging.
+- **Pramedha:** 72 modules proving systematic research partitioning.
+- **Triyantra:** 3-model triangulation and Grade A–E evidence grading.
+- **Portfolio:** 16-session decision framework with universal final synthesis.
+- **Forge & Rachak:** Zero-bias prompt independence and sovereignty filtering.
+- **Gemmra:** Drug safety AI validation proving domain-specific ADR rigor.
+- **Yugm:** 22-session pipeline proving the compose+build split and Markdown artifact contracts.
 
----
+**The Solution:** URP v1.0/v2.0 centralized these patterns into a single meta-framework.
 
-## 2. The Profound Insight: The Aspect-Isolation Law
-
-> **The Core Problem:**  
-> *"If you ask an AI model to research an entire project in one prompt, research quality degrades catastrophically."*
-
-### Why Bundled Research Collapses:
-1. **Search Budget Dilution:** A frontier model with web search typically executes 10–15 searches per turn. If 5 complex topics are asked, each topic gets 2 searches. Key edge cases, license risks, and real-world benchmarks are missed.
-2. **Context Window Attention Saturation:** When reasoning across multiple disparate domains simultaneously (e.g. database schema vs UI component accessibility), the model reverts to generic, safe, high-level summaries.
-3. **Loss of Depth:** Deep technical architecture requires analyzing GitHub commit frequency, NPM bundle sizes, cold-start latency, memory consumption, and pricing tiers. This level of depth is mathematically impossible when topics are bundled.
-
-### The Aspect-Isolation Solution:
-- Every architectural dimension gets a **dedicated, isolated session prompt**.
-- **Tier 1 (Problem & Landscape):** Dedicated sessions for direct competitors, manual workflows, user psychology, legal/regulatory, and monetization.
-- **Tier 2 (Solution & Architecture):** Dedicated sessions for Frontend, Backend, Database, Auth, UI, Realtime, Storage, Deployment, i18n, and Build-vs-Extend.
-- **Tier 3 (Implementation Blueprints):** Dedicated sequential sessions for Schema, Pure Math Engines, State Machines, Integrations, and Mobile Layouts.
-- **Grand Synthesis (SYN-01):** A dedicated session that ingests the outputs of all isolated sessions, detects divergences, and creates the definitive Founding Architecture Document (FAD).
+**The Problem:** v2.0 was built inductively — synthesized from project experience, not empirically validated. Its core axioms were instincts codified as laws.
 
 ---
 
-## 3. The Extraction & Archival Roadmap
+## 2. The v2.0 → v3.0 Meta-Research Journey
 
-- **Phase 1 (Current):** Keep all curated reference pipelines in `references/` as empirical test data and training ground.
-- **Phase 2 (Synthesis):** Extract every prompt pattern, edge-case rubric, evaluation table, and synthesis mechanism into `FRAMEWORK.md`, `META-PROMPT-GENERATOR.md`, and `templates/`.
-- **Phase 3 (Independence):** Once the Universal Framework is 100% complete and self-sufficient, the reference directories can be safely archived or removed, leaving a lean, ultra-powerful generator.
+In August 2026, URP was subjected to its own methodology: **11 independent deep research sessions** tested every foundational assumption against peer-reviewed studies, empirical benchmarks, and frontier AI architecture.
+
+### What We Found
+
+| v2.0 Assumption | Empirical Reality |
+|---|---|
+| "One topic per session, always" | Context architecture matters more than session count. Joint evaluation wins when topics are coupled (+12.4% on MTI). Over-isolation adds 4–15× overhead and triggers split-attention. |
+| "Always triangulate across 3 models" | Frontier models share ~60% of their errors (ICML 2025). On factual queries, triangulation buys false confidence from correlated consensus. Valuable only for subjective, contested decisions. |
+| "17–27 sessions for every project" | Arbitrary mean that over-researches CRUDs and under-researches novel platforms. Risk should calibrate effort, not project count. |
+| "Expert personas improve research" | Debunked: personas don't improve factual accuracy and can impair recall (EMNLP 2024, replicated 2025). |
+| "Hardcoded search queries ensure coverage" | Anti-agentic: violates the ReAct loop. Models formulate better queries dynamically. Token budget (~80% of performance) matters more than query strings. |
+| "Rigid output skeletons ensure quality" | Procrustean distortion: format restrictions impair reasoning capacity (EMNLP 2024). Coverage checklists outperform rigid skeletons. |
+
+### The Inversion That Changed Everything
+
+The most load-bearing finding: **how you frame a research question measurably biases what "evidence" a model reports back.** Stating a hypothesis as a belief increases model agreement regardless of actual evidence (Sharma et al. 2023/2025). This single finding justifies the entire framework — unstructured "just ask the AI" research is systematically vulnerable to confirmation bias.
 
 ---
 
-## 4. The 5-Tier Evidence Grading Standard (from Triyantra)
+## 3. Key Design Decisions & Their Rationale
 
-When reviewing research claims:
-- **Grade A (Primary Source):** Official documentation, live source code, verified GitHub commits, standard RFCs, direct API specs.
-- **Grade B (Empirical Evidence):** Published engineering postmortems, reputable third-party benchmarks, independent performance audits.
-- **Grade C (Vendor Claims):** Official marketing material, vendor landing pages, feature comparison pages.
-- **Grade D (Secondary Opinion):** Developer blog posts, Medium articles, unverified tutorials.
-- **Grade E (Speculation):** AI-generated unsupported claims, unverified statistics, outdated forum posts.
+### Why 5 Blocks Instead of 8 Sections
+The 8-section v2.0 anatomy contained 3 actively harmful elements (personas, hardcoded queries, negative bias instructions) and 2 redundant elements. 5 blocks cover the same functional ground with fewer moving parts. See [meta-research/DECISIONS.md D-006](meta-research/DECISIONS.md) for the complete evidence.
+
+### Why Conditional Decomposition Instead of Absolute Isolation
+Isolation is not free. Anthropic's own data shows 4–15× token overhead. The fix is conditional: decompose when topics are independent and complex; integrate when topics are coupled and require joint evaluation. Every decomposition MUST include explicit synthesis. See [meta-research/DECISIONS.md D-001](meta-research/DECISIONS.md).
+
+### Why Single-Model Default Instead of Mandatory Triangulation
+On factual queries, models converge 70–90% and share 60% of errors. Triangulating buys 3× cost for correlated consensus — the AI equivalent of asking three people who read the same Wikipedia article. Triangulation adds genuine value only when model training priors cause interpretive diversity on subjective trade-offs. See [meta-research/DECISIONS.md D-002](meta-research/DECISIONS.md).
+
+### Why Wardley Mapping Instead of Fixed Ratios
+"40% compose / 60% build" is an ungrounded generalization. Standard SaaS may be 80/20; novel algorithmic engines may be 15/85. Wardley evolution mapping routes each component individually: commodity → compose; genesis → build. See [meta-research/DECISIONS.md D-008](meta-research/DECISIONS.md).
+
+---
+
+## 4. The Self-Referential Validation Principle
+
+URP v3.0's most distinctive property: **it was validated by the methodology it prescribes.** The meta-research pipeline used aspect-isolated sessions, evidence grading, and synthesis — then discovered that several of these axioms needed refinement. This recursive self-correction is built into v3.0's DNA through mandatory review triggers and decay conditions on every locked ADR.
+
+The meta-research artifacts in [meta-research/](meta-research/) are not just historical records — they are the empirical proof that the system works, including proof of where it initially got things wrong.

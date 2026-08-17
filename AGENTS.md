@@ -1,88 +1,102 @@
 # Universal Research Pipeline — Agent Operating Manual
+### URP v3.0 · Single Source of Truth for AI Agent Operations
 
-> **Read this file COMPLETELY before modifying anything in this repository.**  
-> This is the single source of truth for how any AI agent (or human) works on the Universal Research Pipeline Meta-Framework.
+> **Read this file COMPLETELY before modifying anything in this repository.**
 
 ---
 
 ## 1. What This Repository Is
 
-**The Universal Research Pipeline (URP)** is a production-grade Meta-Framework and Autonomous Pre-Development Generator.
+The **Universal Research Pipeline (URP)** is a production-grade Meta-Framework for evidence-grounded pre-development research.
 
-**Core Purpose:**  
-Transform software architecture and technical pre-development from gut-feel, outdated training data, and hallucinated conclusions into a structured, evidence-graded, aspect-isolated, multi-model research engine *before a single line of application code is written*.
+**Core Purpose:** Transform software architecture decisions from gut-feel, outdated training data, and hallucinated conclusions into structured, evidence-graded, risk-calibrated research — before a single line of application code is written.
 
-**Key Capabilities:**
-1. **Aspect-Isolated Prompt Generation:** Generating 15–30 highly specialized research prompts where every single aspect of a venture gets its own dedicated deep-dive session (10–15 targeted web searches per session).
-2. **Multi-Model Triangulation Engine:** Running identical prompts across Claude, ChatGPT Deep Research, and Gemini Deep Research to eliminate single-model bias and isolate divergence.
-3. **5-Tier Evidence Grading Standard (Grade A–E):** Enforcing strict verification of claims from official RFCs/code (Grade A) down to unverified speculation (Grade E).
-4. **Compose (~40%) + Build (~60%) Strategic Formula:** Grounding all architectures in composed world-class primitives and custom domain intelligence.
-5. **Phase 0 Gate & Founding Architecture Document (FAD):** Structuring the bridge from research synthesis into clean repository scaffolding.
+**v3.0 Status:** Empirically validated via 14 meta-research sessions. All v2.0 axioms tested; none survived unchanged. See [meta-research/DECISIONS.md](meta-research/DECISIONS.md) for the complete evidentiary record.
 
 ---
 
 ## 2. Repository Structure
 
 ```
-D:\dev\pro\research-pipeline\
-├── AGENTS.md                           ← THIS FILE: The single entry point & operating manual
-├── README.md                           ← Repository overview, quick links, directory map
-├── CONTEXT.md                          ← Tacit knowledge, historical lineage & design insights
-├── VISION.md                           ← WHY: Mission, philosophy & long-term vision
-├── PRINCIPLES.md                       ← Builder's Constitution & Non-Negotiable Axioms
-├── FRAMEWORK.md                        ← The full Meta-Specification (Philosophy, 3-Tier Model, Triangulation)
-├── META-PROMPT-GENERATOR.md            ← Master prompt to generate pipelines for ANY new project
-├── ROADMAP.md                          ← Evolution & perfection roadmap for this meta-system
+research-pipeline/
+├── AGENTS.md                       ← THIS FILE
+├── README.md                       ← Overview, quick start, directory map
+├── CONTEXT.md                      ← Origin story & design insights
+├── VISION.md                       ← Mission & philosophy
+├── PRINCIPLES.md                   ← 8 evidence-grounded principles
+├── FRAMEWORK.md                    ← Complete v3.0 specification
+├── EVIDENCE-GRADING.md             ← A–E grading with modifiers & verification
+├── META-PROMPT-GENERATOR.md        ← 5-layer generator architecture + interim prompt
+├── ROADMAP.md                      ← Evolution roadmap
 │
-├── templates/                          ← Reusable blueprints for instant project bootstrapping
-│   ├── RESEARCH-PIPELINE.template.md   ← 3-tier master plan & session matrix template
-│   ├── PROMPT-LIBRARY.template.md      ← Structured copy-paste prompt library template
-│   ├── DECISIONS.template.md           ← D-001... architectural decision registry template
-│   ├── CONFLICT-RESOLUTION.template.md ← Checkpoint (CHK-01) trade-off resolution template
-│   ├── FOUNDING-ARCHITECTURE.template.md ← SYN-01 Founding Architecture Document (FAD) template
-│   └── PHASE-0-GATE.template.md        ← 9-step pre-codebase exit gate checklist
+├── schemas/                        ← JSON Schema validation
+│   ├── session-frontmatter.schema.json
+│   ├── adr-frontmatter.schema.json
+│   └── evidence-record.schema.json
 │
-├── references/                         ← Proven empirical reference pipelines (Extraction Corpus)
-│   ├── yugm/                           ← Yugm 22-session pipeline, prompt library, decisions & final stack
-│   ├── triyantra/                      ← Triangulation methodology, execution plans & synthesis
-│   ├── portfolio/                      ← 16-session decision pipeline & DP-USYN universal synthesis
-│   ├── vivah-soodh/                    ← 8-session unbiased research pipeline & legacy prompts
-│   ├── forge-rachak/                   ← Strategic & technical deep research pipelines
-│   ├── rachak-research/                ← Architecture direction, competitive atlas, & vision maps
-│   ├── pramedha/                       ← 72-module autonomous AI research plan
-│   └── gemmra/                         ← Drug safety AI data/model research pipeline
+├── templates/                      ← 8 reusable v3.0 blueprints
+│   ├── RESEARCH-PIPELINE.template.md
+│   ├── PROMPT-LIBRARY.template.md
+│   ├── DECISIONS.template.md
+│   ├── EVIDENCE-RECORD.template.md
+│   ├── COMPLEXITY-SCORING.template.md
+│   ├── CONFLICT-RESOLUTION.template.md
+│   ├── FOUNDING-ARCHITECTURE.template.md
+│   └── PHASE-0-GATE.template.md
 │
-└── brain-archive/                      ← Transcripts & synthesis history from Antigravity IDE brain
-    ├── yugm-inception-transcript-summary.md
-    └── multi-project-synthesis-history.md
+└── meta-research/                  ← Empirical evidence base
+    ├── DECISIONS.md                 ← Sealed ADR corpus (10 verdicts)
+    ├── RESEARCH-PIPELINE.md
+    ├── PROMPT-LIBRARY.md
+    └── research/                   ← 14 primary research artifacts
 ```
 
 ---
 
-## 3. The Core Laws & Axioms
+## 3. The 8 Core Principles (v3.0)
 
-### 1. The Aspect-Isolation Law (Anti-Degradation)
-**Never bundle multiple architecture decisions or research topics into a single research session.**
-- *Why:* If you combine 5 topics into one session, the model spreads 10 web searches across 5 topics (2 searches/topic) and dilutes its reasoning context. The output collapses into superficial, generic summaries.
-- *Rule:* Each distinct aspect (Frontend, Database, Auth, Storage, Real-time, State Machines, Threat Modeling) MUST have its own dedicated session with 10–15 targeted searches dedicated solely to that topic.
+### P1: The Context Architecture Law
+Decompose research by **attention budget and coupling**, not arbitrary session counts. Mandate explicit synthesis after every decomposition.
 
-### 2. The Research-First Law
-**Zero application code is written before empirical research completes.** All pre-written documentation, assumptions, and instincts are treated strictly as *hypotheses* until proven or refuted by live empirical research.
+### P2: Reversibility-Calibrated Rigor
+Scale research depth with decision reversibility — **deep for One-Way Doors, fast spikes for Two-Way Doors**.
 
-### 3. The Multi-Model Triangulation Engine
-Run identical prompts across frontier models (Claude, ChatGPT Deep Research, Gemini Deep Research) to find consensus, isolate disputed claims, and grade evidence (Grade A to E).
+### P3: Evidentiary Grounding & Verification Provenance
+Every claim must carry an **evidence grade (A–E), contextual modifiers, and verification method**. Recalled AI claims capped at Grade D.
 
-### 4. The Compose vs Build Split (~40% / ~60%)
-Compose standard infrastructure from best-in-class primitives (auth, DB, storage, UI, queue) and invest engineering effort into proprietary domain algorithms and state machines.
+### P4: Prescriptive Scope, Dynamic Method
+**Prescriptive** on WHAT/WHY/BOUNDARIES. **Directional** on HOW. No hardcoded queries, no personas, no rigid skeletons.
 
-### 5. The Markdown Artifact Contract
-Every research prompt strictly mandates output as a structured, complete **Markdown File Artifact** that can be saved directly as a `.md` file without human editing.
+### P5: Commodity-Maximized Composition
+**Compose 100%** of commodity infrastructure. **Build 100% custom** only for proprietary domain logic.
+
+### P6: Dual-Audience Artifact Architecture
+**Hybrid Markdown + YAML frontmatter** for human reading and machine synthesis.
+
+### P7: Staged Triangulation
+**Single-model default** → critique probe → full triangulation only for contested One-Way Doors.
+
+### P8: Structured Falsification
+**Prioritize disconfirming evidence**, document rejected alternatives, schedule review triggers, execute premortems.
 
 ---
 
-## 4. Operational Workflow for New Sessions in this Repo
+## 4. Operational Workflow
 
-When a session starts in `D:\dev\pro\research-pipeline`:
-1. Read `CONTEXT.md` and `PRINCIPLES.md` to understand the meta-architecture.
-2. If improving the meta-framework: enhance `FRAMEWORK.md`, `META-PROMPT-GENERATOR.md`, and `templates/` by extracting deep patterns from `references/`.
-3. When the user requests a research pipeline for a new project: invoke `META-PROMPT-GENERATOR.md` or generate the customized `RESEARCH-PIPELINE.md` and `PROMPT-LIBRARY.md` adhering to the Aspect-Isolation Law.
+When a session starts in this repo:
+
+1. **Read [FRAMEWORK.md](FRAMEWORK.md)** — understand the complete v3.0 specification.
+2. **If improving the meta-framework:** Enhance FRAMEWORK.md, META-PROMPT-GENERATOR.md, or templates/ following the principles above. All changes must be traceable to evidence.
+3. **If generating a pipeline for a new project:** Use [META-PROMPT-GENERATOR.md](META-PROMPT-GENERATOR.md) to generate the customized RESEARCH-PIPELINE.md and PROMPT-LIBRARY.md.
+4. **If executing research:** Follow the 5-block prompt anatomy (BRIEF, SCOPE, APPROACH, DELIVERABLE, FORMAT). Front-load everything in one turn.
+5. **If recording decisions:** Use the ADR template with YAML frontmatter, door_type classification, evidence_refs, and review_trigger.
+
+---
+
+## 5. Key Operational Rules
+
+- **No v2.0 patterns:** Do not use 8-section XML prompts, expert personas, hardcoded search queries, minimum search counts, or rigid output skeletons. These are empirically refuted.
+- **Front-load briefs:** Never drip-feed instructions across turns (39% performance drop documented).
+- **Grade everything:** Every factual claim needs an inline evidence grade with modifiers and verification method.
+- **Two-Way Doors move fast:** Don't over-research reversible decisions. Spike or decide by convention.
+- **One-Way Doors move carefully:** Require corroborated Grade A/B evidence, locked ADR, and premortem before commitment.
