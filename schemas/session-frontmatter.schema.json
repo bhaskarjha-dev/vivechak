@@ -1,0 +1,70 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "URPv3SessionFrontmatter",
+  "description": "Validates YAML frontmatter for URP v3.0 research session artifacts",
+  "type": "object",
+  "required": ["id", "title", "session_date", "status", "topic", "schema_version"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^(T[1-3]-\\d{2}|SYN-\\d{2})$",
+      "description": "Session identifier (e.g., T1-01, T2-03, SYN-01)"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 5,
+      "description": "Human-readable session title"
+    },
+    "session_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Date the session was executed (YYYY-MM-DD)"
+    },
+    "status": {
+      "enum": ["draft", "in-review", "final", "superseded"],
+      "description": "Lifecycle status of this artifact"
+    },
+    "topic": {
+      "type": "string",
+      "description": "Primary topic category (e.g., data-persistence, identity-auth)"
+    },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Searchable tags for cross-referencing"
+    },
+    "related_sessions": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "IDs of sessions with related findings"
+    },
+    "supersedes": {
+      "type": ["string", "null"],
+      "description": "ID of the session this artifact supersedes"
+    },
+    "superseded_by": {
+      "type": ["string", "null"],
+      "description": "ID of the session that supersedes this artifact"
+    },
+    "informs_decisions": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "D-NNN decision IDs this session informs"
+    },
+    "confidence": {
+      "enum": ["high", "medium", "low"],
+      "description": "Overall confidence in findings (decoupled from evidence grade)"
+    },
+    "open_questions": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Count of unresolved questions"
+    },
+    "schema_version": {
+      "type": "string",
+      "enum": ["3.0"],
+      "description": "URP schema version"
+    }
+  },
+  "additionalProperties": true
+}

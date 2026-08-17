@@ -1,0 +1,80 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "URPv3ADRFrontmatter",
+  "description": "Validates YAML frontmatter for URP v3.0 Architecture Decision Records",
+  "type": "object",
+  "required": ["id", "title", "status", "door_type", "date", "confidence", "schema_version"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^D-\\d{3}$",
+      "description": "Decision identifier (e.g., D-001, D-042)"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 5,
+      "description": "Human-readable decision title"
+    },
+    "status": {
+      "enum": ["proposed", "accepted", "rejected", "deprecated", "superseded"],
+      "description": "Lifecycle status of this decision"
+    },
+    "door_type": {
+      "enum": ["one-way", "two-way"],
+      "description": "Reversibility classification (sets required evidentiary bar)"
+    },
+    "date": {
+      "type": "string",
+      "format": "date",
+      "description": "Date the decision was made (YYYY-MM-DD)"
+    },
+    "confidence": {
+      "enum": ["high", "medium", "low"],
+      "description": "Decision confidence (decoupled from evidence grade)"
+    },
+    "evidence_refs": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "E-NNN evidence record IDs supporting this decision"
+    },
+    "informed_by_sessions": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "T#-## session IDs that informed this decision"
+    },
+    "supersedes": {
+      "type": ["string", "null"],
+      "description": "D-NNN ID this decision supersedes"
+    },
+    "superseded_by": {
+      "type": ["string", "null"],
+      "description": "D-NNN ID that supersedes this decision"
+    },
+    "amends": {
+      "type": ["string", "null"],
+      "description": "D-NNN ID this decision amends (partial update)"
+    },
+    "review_trigger": {
+      "type": "string",
+      "description": "Explicit condition or date for mandatory re-evaluation"
+    },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Searchable tags"
+    },
+    "authored_by": {
+      "type": "string",
+      "description": "Agent or human who authored the decision"
+    },
+    "human_reviewed": {
+      "type": "boolean",
+      "description": "Whether a human architect has reviewed (mandatory for one-way doors)"
+    },
+    "schema_version": {
+      "type": "string",
+      "enum": ["3.0"]
+    }
+  },
+  "additionalProperties": true
+}
