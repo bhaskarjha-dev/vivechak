@@ -1,0 +1,4 @@
+# Git ignore for URP repository
+# v2.0 reference materials superseded by meta-research evidence base
+references/
+brain-archive/
