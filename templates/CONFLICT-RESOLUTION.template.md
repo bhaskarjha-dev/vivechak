@@ -1,34 +1,83 @@
-# Checkpoint CHK-01: Architectural Conflict Resolution
-### Resolving Divergences Across Independent Research Sessions
+# Conflict Resolution Template — URP v3.0
+### ACH-Style Falsification Matrix & Structured Divergence Resolution
+
+> **Usage:** Use this template when research sessions or triangulated models
+> produce conflicting recommendations on the same architectural decision.
 
 ---
 
-## 1. Conflict Audit Table
+## Conflict: `[CHK-NN]` — `[Decision Title]`
 
-| Conflict ID | Domain | Session A Claim | Session B Claim | Core Tension |
-|---|---|---|---|---|
-| **C-01** | Backend Runtime | T2-02 recommends Fastify (Node.js) for tRPC type-sharing | T2-08 benchmarks Go for 10x lower memory / raw latency | Development velocity & type safety vs microsecond execution efficiency |
-| **C-02** | Database Hosting | T2-03 recommends Neon (Serverless Postgres) | T2-08 highlights self-hosted Docker Postgres on VM for cost control | Operational zero-maintenance vs predictable flat hosting pricing |
-
----
-
-## 2. Deep First-Principles Evaluation
-
-### Conflict C-01: Node.js (Fastify) vs Go
-- **Evaluation Criteria:**
-  1. Full-stack TypeScript type sharing (Frontend ↔ Backend)
-  2. Solo-developer maintenance overhead
-  3. Real-world traffic requirements (MVP vs 100k DAU)
-  4. Ecosystem package availability for domain algorithms
-- **Verdict & Resolution:**  
-  **Select Node.js (Fastify 5 + tRPC).** Full-stack end-to-end type safety eliminates an entire class of integration bugs and enables 2-3x faster feature iteration for a lean team. CPU latency is not the bottleneck; IO and developer velocity dominate.
-- **Updated Decision Record:** Updated `D-003` → `RESOLVED` with Fastify.
+**Decision ID:** `[D-NNN]`
+**Door Type:** `[one-way / two-way]`
+**Conflicting Sessions:** `[T#-## vs T#-##]` or `[Model A vs Model B]`
+**Date:** `[YYYY-MM-DD]`
 
 ---
 
-## 3. Final Stack Consensus Table
+## 1. Conflict Summary
 
-| Layer | Final Choice | Resolving Checkpoint | Superseded Options |
+| Dimension | Source A | Source B | Source C (if applicable) |
 |---|---|---|---|
-| Backend | Node.js 24 + Fastify + tRPC | CHK-01 | Go, NestJS, Express |
-| Database | PostgreSQL on Neon | CHK-01 | Self-hosted VM Postgres |
+| **Source** | `[Session/Model ID]` | `[Session/Model ID]` | `[Session/Model ID]` |
+| **Recommendation** | `[Option X]` | `[Option Y]` | `[Option Z]` |
+| **Core Argument** | `[1-sentence]` | `[1-sentence]` | `[1-sentence]` |
+| **Evidence Grade** | `[Grade + modifiers]` | `[Grade + modifiers]` | `[Grade + modifiers]` |
+
+---
+
+## 2. Analysis of Competing Hypotheses (ACH Matrix)
+
+Rate each piece of evidence against each competing hypothesis:
+- **CC** = Consistent and Confirmatory
+- **C** = Consistent but not diagnostic
+- **N** = Neutral / Not applicable
+- **I** = Inconsistent (disconfirming)
+- **II** = Strongly Inconsistent
+
+| Evidence / Finding | H1: [Option X] | H2: [Option Y] | H3: [Option Z] |
+|---|---|---|---|
+| `[Evidence 1]` | `[CC/C/N/I/II]` | `[CC/C/N/I/II]` | `[CC/C/N/I/II]` |
+| `[Evidence 2]` | `[CC/C/N/I/II]` | `[CC/C/N/I/II]` | `[CC/C/N/I/II]` |
+| `[Evidence 3]` | `[CC/C/N/I/II]` | `[CC/C/N/I/II]` | `[CC/C/N/I/II]` |
+| `[Evidence N]` | `[CC/C/N/I/II]` | `[CC/C/N/I/II]` | `[CC/C/N/I/II]` |
+| **Inconsistency Count** | `[N]` | `[N]` | `[N]` |
+
+**ACH Verdict:** The hypothesis with the **fewest inconsistencies** (not the most confirmations) is preferred. Reject hypotheses with strong inconsistencies first.
+
+---
+
+## 3. Root Cause of Divergence
+
+| Possible Cause | Applies? | Evidence |
+|---|---|---|
+| **Different assumptions** about workload/scale | `[Yes/No]` | `[Detail]` |
+| **Different evaluation criteria** weighting | `[Yes/No]` | `[Detail]` |
+| **Stale evidence** in one source | `[Yes/No]` | `[Detail]` |
+| **Model training bias** (house style) | `[Yes/No]` | `[Detail]` |
+| **Genuinely contested** — experts disagree | `[Yes/No]` | `[Detail]` |
+
+---
+
+## 4. Resolution
+
+**Chosen Option:** `[Option X/Y/Z]`
+**Resolution Method:** `[ACH matrix | Evidence grade superiority | Technical spike | Human architect judgment]`
+
+**Rationale:** `[Explain why, mapping to specific evidence and ACH results]`
+
+**Residual Risk:** `[What remains uncertain despite resolution]`
+
+**Reversal Trigger:** `[Condition under which this resolution should be revisited]`
+
+---
+
+## 5. Gary Klein Premortem (One-Way Doors Only)
+
+> *"It is 12 months from now. The system has suffered a catastrophic architectural failure traced directly to this decision. What went wrong?"*
+
+| Failure Scenario | Probability | Mitigation |
+|---|---|---|
+| `[Scenario 1]` | `[High/Med/Low]` | `[Action]` |
+| `[Scenario 2]` | `[High/Med/Low]` | `[Action]` |
+| `[Scenario 3]` | `[High/Med/Low]` | `[Action]` |

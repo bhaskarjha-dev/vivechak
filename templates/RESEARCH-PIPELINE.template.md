@@ -1,94 +1,108 @@
-# [PROJECT_NAME] — Research Pipeline v1.0
-### Complete Pre-Development Research Plan
-*Created: [DATE]*
+# Research Pipeline Template — URP v3.0
+### Constrained DAG with Adaptive Scaling
+
+> **Usage:** Copy this template when creating a new project research pipeline.
+> Fill in the `[PLACEHOLDERS]` with project-specific values.
 
 ---
 
-## 1. Why Research Before Code
+## 1. Project Complexity Assessment
 
-Every architectural and strategic decision for **[PROJECT_NAME]** — tech stack, database, deployment, UI framework, data models, state machines, domain algorithms, security, and distribution — must be grounded in empirical, current-year research rather than unverified assumptions.
+### 1.1 Scoring Rubric
 
-> **The Research-First Law:**  
-> Research EVERYTHING that exists before committing to any approach. No hallucinated conclusions.
+| Dimension | Score (0–3) | Rationale |
+|---|---|---|
+| Domain Novelty | `[0-3]` | `[Why]` |
+| Technical Novelty | `[0-3]` | `[Why]` |
+| Regulatory Exposure | `[0-3]` | `[Why]` |
+| Reversibility / Blast Radius | `[0-3]` | `[Why]` |
+| Investment / Downstream Cost | `[0-3]` | `[Why]` |
+| Team Size & Coordination | `[0-3]` | `[Why]` |
+| Expected Longevity | `[0-3]` | `[Why]` |
+| Integration Complexity | `[0-3]` | `[Why]` |
+| **Total** | **`[0-24]`** | |
 
----
+### 1.2 Tier Assignment
 
-## 2. Pipeline Architecture
-
-Three structured tiers + Grand Synthesis:
-
-```
-TIER 1: Problem & Landscape (Unbiased Discovery)
-  └─ [N] sessions · Web search required · Domain-agnostic cataloging
-  └─ Output: "What exists?" — complete catalogues, zero filtering
-
-TIER 2: Solution & Architecture (Decision-Focused)
-  └─ [N] sessions · Web search required · Project-specific trade-offs
-  └─ Output: "What should we use?" — decision logs with options/rejected/why
-
-TIER 3: Implementation (Build-Ready Blueprints)
-  └─ [N] sessions · Web search + code examples · Strictly sequential
-  └─ Output: "How do we build it?" — concrete schemas, pure algorithms, state machines
-
-SYNTHESIS: Grand Integration (SYN-01)
-  └─ 1 session · Ingests all T1–T3 outputs · Resolves all conflicts
-  └─ Output: Founding Architecture Document (FAD) — single source of truth
-```
-
-**Total: [N] sessions · ~[N] hours · [N]+ web searches**
+- **Score:** `[X]` / 24
+- **Tier:** `[0: Minimal (1-3) | 1: Light (4-8) | 2: Standard (9-16) | 3: Deep (17-30)]`
+- **Session Budget:** `[N]` sessions
+- **Regulatory Override:** `[Yes/No — if D3=3, all intersecting decisions get Tier 3]`
 
 ---
 
-## 3. Execution Map
+## 2. Domain Archetype Classification
 
-### Tier 1: Problem & Landscape (Independent / Parallel)
+- **Primary Archetype:** `[B2B SaaS | DevTools | FinTech | AI/ML | Consumer Mobile | Real-Time/IoT]`
+- **Secondary Archetype:** `[if hybrid, else N/A]`
+- **Blending Rule Applied:** `[Yes/No — append non-overlapping differentiators from secondary]`
 
-| Session | Name | Time | Searches | Output File |
-|---|---|---|---|---|
-| T1-01 | [Domain / Competitor Landscape] | 90 min | 12+ | `research/T1-01-landscape.md` |
-| T1-02 | [Operations & Manual Workflows] | 75 min | 10+ | `research/T1-02-operations.md` |
-| T1-03 | [User Dynamics & Decision Psychology] | 60 min | 8+ | `research/T1-03-psychology.md` |
-| T1-04 | [Regulatory, Privacy & Security Standards] | 75 min | 10+ | `research/T1-04-security-privacy.md` |
-| T1-05 | [Market Size, Monetization & Distribution] | 60 min | 8+ | `research/T1-05-market-distribution.md` |
+---
 
-### Tier 2: Solution & Architecture (Decision-Focused)
+## 3. Session Matrix (DAG)
 
-| Session | Name | Time | Searches | Depends On | Output File |
+### Layer 0: Landscape & Discovery (Fully Parallel)
+
+| ID | Title | Topic | Door Type | Dependencies | Status |
 |---|---|---|---|---|---|
-| T2-01 | Frontend Architecture & Framework | 90 min | 12+ | Nothing | `research/T2-01-frontend.md` |
-| T2-02 | Backend Runtime & API Protocol | 90 min | 12+ | Nothing | `research/T2-02-backend.md` |
-| T2-03 | Database Engine & Schema Paradigm | 90 min | 12+ | Nothing | `research/T2-03-database.md` |
-| T2-04 | Authentication & Multi-Tenancy | 75 min | 10+ | Nothing | `research/T2-04-auth.md` |
-| T2-05 | UI Component Library & Design System | 75 min | 10+ | T2-01 | `research/T2-05-ui.md` |
-| T2-06 | Real-time & Collaboration Engine | 60 min | 8+ | Nothing | `research/T2-06-realtime.md` |
-| T2-07 | File Storage, Vault & Encryption | 60 min | 8+ | Nothing | `research/T2-07-storage.md` |
-| T2-08 | Deployment, Cloud Infrastructure & CI/CD | 90 min | 14+ | Nothing | `research/T2-08-deployment.md` |
-| T2-09 | Internationalization & Localization | 60 min | 8+ | T2-01 | `research/T2-09-i18n.md` |
-| T2-10 | Platform: Build vs Extend Platform | 90 min | 12+ | T1-01 | `research/T2-10-build-vs-extend.md` |
+| T1-01 | `[Title]` | `[topic-tag]` | `[one-way/two-way]` | None (unblocked) | `[ ]` |
+| T1-02 | `[Title]` | `[topic-tag]` | `[one-way/two-way]` | None (unblocked) | `[ ]` |
+| T1-0N | ... | ... | ... | ... | `[ ]` |
 
-### Tier 3: Implementation (Sequential Blueprints)
+### Layer 1: Architectural Decisions (Sparse Dependency-Gated)
 
-| Order | Session | Name | Time | Depends On | Output File |
+| ID | Title | Topic | Door Type | Dependencies | Status |
 |---|---|---|---|---|---|
-| 1 | T3-01 | Data Model & Entity Schema | 120 min | T2-03, T2-04 | `research/T3-01-data-model.md` |
-| 2 | T3-02 | Core Domain Algorithm Engine | 90 min | T3-01 | `research/T3-02-algorithms.md` |
-| 3 | T3-03 | Workflow & Pipeline State Machine | 75 min | T3-01 | `research/T3-03-state-machine.md` |
-| 4 | T3-04 | Specialized Domain Subsystem | 90 min | T3-01 | `research/T3-04-subsystem.md` |
-| 5 | T3-05 | Mobile-First Responsive Architecture | 75 min | T2-01, T2-05 | `research/T3-05-mobile-responsive.md` |
+| T2-01 | `[Title]` | `[topic-tag]` | `[one-way/two-way]` | `[Hard: T1-XX / Soft: T1-XX / None]` | `[ ]` |
+| T2-0N | ... | ... | ... | ... | `[ ]` |
 
-### Synthesis
+### Layer 2: Blueprints & Specifications (Hard-Gated)
 
-| Session | Name | Time | Depends On | Output File |
-|---|---|---|---|---|
-| SYN-01 | **Grand Synthesis — Founding Architecture Document** | 120 min | ALL T1–T3 | `research/SYN-01-founding-architecture.md` |
+| ID | Title | Topic | Door Type | Dependencies | Status |
+|---|---|---|---|---|---|
+| T3-01 | `[Title]` | `[topic-tag]` | `[one-way/two-way]` | `[Hard: T2-XX]` | `[ ]` |
+| T3-0N | ... | ... | ... | ... | `[ ]` |
+
+### Sink: Grand Synthesis
+
+| ID | Title | Dependencies | Status |
+|---|---|---|---|
+| SYN-01 | Grand Synthesis & FAD | All Layer 2 `status: final` | `[ ]` |
 
 ---
 
-## 4. Phase 0 Gate Transition Checklist
+## 4. Execution Plan
 
-Before writing any application code:
-- [ ] All research sessions completed and saved as markdown artifacts.
-- [ ] `SYN-01` produced the **Founding Architecture Document (FAD)**.
-- [ ] `ARCHITECTURE.md` rewritten with finalized stack decisions.
-- [ ] `DECISIONS.md` updated with all decision IDs marked `RESOLVED`.
-- [ ] Project scaffold initialized and clean build passing.
+### Parallel Execution Groups
+
+| Group | Sessions | Can Start When |
+|---|---|---|
+| **Group A** (Parallel) | `[T1-01, T1-02, T1-03, T1-04]` | Immediately |
+| **Group B** (Parallel) | `[T2-01, T2-02, T2-03]` | Immediately (unblocked) or after specified hard deps |
+| **Group C** (Gated) | `[T2-04, T2-05]` | After `[T1-XX]` completes |
+| **Group D** (Gated) | `[T3-01, T3-02]` | After `[T2-XX]` completes |
+| **Synthesis** | SYN-01 | After all Layer 2 sessions |
+
+### Adaptive Checkpoint Rules
+- **Expansion cap:** Max 2 child sub-sessions per checkpoint
+- **Contraction:** If a session's core question is resolved upstream, close with "Resolved upstream" ADR
+
+---
+
+## 5. Phase 0 Exit Gate
+
+### Track A (Two-Way Door Decisions)
+- [ ] Decision logged
+- [ ] Reversibility confirmed
+- [ ] Single corroborated source identified
+
+### Track B (One-Way Door Decisions)
+- [ ] DAG closed & all dependencies synthesized
+- [ ] No unresolved contradictions across sessions
+- [ ] Corroborated Grade A/B sourcing for all critical claims
+- [ ] Zero recalled claims unverified
+- [ ] Rejected alternatives documented in ADR
+- [ ] Reversal triggers defined in ADR
+- [ ] Gary Klein Premortem executed (30 min)
+- [ ] Human Architect sign-off
+- [ ] FAD sealed and committed

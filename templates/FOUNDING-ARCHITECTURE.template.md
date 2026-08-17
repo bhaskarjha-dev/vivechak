@@ -1,56 +1,162 @@
-# [PROJECT_NAME] — Founding Architecture Document (FAD)
-### The Definitive Technical Blueprint & Single Source of Truth
-*Derived from Synthesis of All Research Sessions (SYN-01)*
+# Founding Architecture Document Template — URP v3.0
+### Map-Reduce Synthesis from Research Pipeline to Repository Scaffolding
+
+> **Usage:** This template structures the final synthesis document (SYN-01 output)
+> that bridges research findings into a concrete, buildable architecture.
 
 ---
 
-## 1. Executive Summary & Product Scope
-- **Vision:** [1-paragraph crisp product summary]
-- **Architecture Paradigm:** [e.g., Modular Monorepo / Monolith with Clean Architecture]
-- **The Compose vs Build Split:**
-  - **Composed (~40%):** Auth ([Better Auth/Clerk]), DB ([Neon/PostgreSQL]), Storage ([Cloudflare R2]), Real-time ([Socket.IO]), UI ([shadcn/ui]).
-  - **Custom Built (~60%):** [Proprietary Domain Engines, State Machines, Custom Workflows].
+## Project: `[Project Name]`
+
+```yaml
+---
+id: SYN-01
+title: "[Project Name] — Founding Architecture Document"
+synthesis_date: YYYY-MM-DD
+status: draft                  # draft | sealed
+research_sessions_ingested: N
+decisions_locked: N
+open_questions: N
+schema_version: "3.0"
+---
+```
 
 ---
 
-## 2. Pinned Technology Stack
+## 1. Executive Architecture Summary
 
-| Layer | Pinned Technology | Version | Research Justification |
+`[2–5 paragraph summary of the overall system architecture, key technology
+choices, and strategic rationale. This section should be readable by a
+non-technical stakeholder.]`
+
+---
+
+## 2. Locked Decision Registry
+
+| D-ID | Decision | Chosen Option | Door Type | Confidence | Evidence |
+|---|---|---|---|---|---|
+| D-001 | `[Title]` | `[Option]` | `[1-way/2-way]` | `[H/M/L]` | `[E-NNN refs]` |
+| D-002 | `[Title]` | `[Option]` | `[1-way/2-way]` | `[H/M/L]` | `[E-NNN refs]` |
+
+---
+
+## 3. Technology Stack
+
+### Composed (Commodity) — Wardley Utility/Product
+
+| Component | Chosen Solution | Rationale | Decision Ref |
 |---|---|---|---|
-| **Monorepo** | pnpm + Turborepo | latest | T0-01: Zero-overhead multi-package orchestration |
-| **Frontend** | [Next.js / Vite] | [vX.X] | T2-01: App router, SSR, bundle optimization |
-| **Backend** | [Fastify / Hono] | [vX.X] | T2-02: Type safety, high throughput, plugin system |
-| **Database** | PostgreSQL | [v17] | T2-03: Row-level security, JSONB capabilities |
-| **ORM** | Drizzle ORM | [vX.X] | T2-03: TypeScript-first, zero runtime bloat |
-| **Authentication** | [Better Auth / Clerk] | [vX.X] | T2-04: Multi-tenant organization support, RBAC |
-| **UI & Styling** | shadcn/ui + Tailwind | [v4] | T2-05: Accessible Radix primitives, mobile-first |
-| **Storage** | Cloudflare R2 | S3 API | T2-07: Zero egress fees, client-side presigned uploads |
-| **Deployment** | [Dokploy / Cloudflare / Docker] | latest | T2-08: Self-hostable, low-cost scalable VM |
+| Authentication | `[e.g., Clerk]` | `[Why]` | D-NNN |
+| Database | `[e.g., PostgreSQL 16]` | `[Why]` | D-NNN |
+| Storage | `[e.g., Cloudflare R2]` | `[Why]` | D-NNN |
+| Hosting | `[e.g., Vercel + Fly.io]` | `[Why]` | D-NNN |
+
+### Built (Proprietary) — Wardley Genesis/Custom
+
+| Component | Description | Rationale | Decision Ref |
+|---|---|---|---|
+| `[Core Engine]` | `[Description]` | `[Why custom]` | D-NNN |
+| `[State Machine]` | `[Description]` | `[Why custom]` | D-NNN |
 
 ---
 
-## 3. Core Data Architecture & Entity Tree
-- Entity Relationship Diagram (Mermaid)
-- Multi-tenancy RLS isolation policies
-- Sensitive data encryption boundaries (AES-256-GCM field encryption)
+## 4. System Architecture Diagram
+
+```mermaid
+graph TD
+    subgraph "Client Layer"
+        CLIENT[Client Application]
+    end
+    
+    subgraph "API Layer"
+        API[API Gateway]
+    end
+    
+    subgraph "Service Layer"
+        SVC1[Service 1]
+        SVC2[Service 2]
+    end
+    
+    subgraph "Data Layer"
+        DB[(Database)]
+        CACHE[(Cache)]
+    end
+    
+    CLIENT --> API
+    API --> SVC1 & SVC2
+    SVC1 & SVC2 --> DB & CACHE
+```
+
+`[Replace with project-specific architecture diagram]`
 
 ---
 
-## 4. Proprietary Domain Engines & Pure Functions
-- Algorithmic specifications (input → computation → output)
-- Test cases and mathematical edge cases
+## 5. Cross-Cutting Concerns
+
+### 5.1 Security & Compliance
+`[Summary from security-related research sessions and ADRs]`
+
+### 5.2 Performance & Scalability
+`[Summary from performance-related research sessions and ADRs]`
+
+### 5.3 Observability & Monitoring
+`[Summary from infrastructure-related research sessions]`
 
 ---
 
-## 5. State Machine & Pipeline Workflows
-- Full state chart (Mermaid statechart)
-- Stage transitions, guards, sub-states, and stale triggers
+## 6. Risk Register & Reversal Triggers
+
+| Risk | Source | Probability | Impact | Mitigation | Trigger for Re-evaluation |
+|---|---|---|---|---|---|
+| `[Risk 1]` | D-NNN | `[H/M/L]` | `[H/M/L]` | `[Action]` | `[Condition]` |
+| `[Risk 2]` | D-NNN | `[H/M/L]` | `[H/M/L]` | `[Action]` | `[Condition]` |
 
 ---
 
-## 6. Implementation Sequence & Phase 1 Roadmap
-1. **Phase 1: Project Scaffolding & Core Auth/DB Setup**
-2. **Phase 2: Core Domain Data Models & CRUD**
-3. **Phase 3: Domain Engine & State Machine Integration**
-4. **Phase 4: Frontend Views & Real-Time Sync**
-5. **Phase 5: End-to-End Verification & Deployment**
+## 7. Repository Scaffolding Specification
+
+### Directory Structure
+```
+project-root/
+├── src/
+│   ├── [module-1]/
+│   ├── [module-2]/
+│   └── [shared]/
+├── docs/
+│   ├── decisions/           ← ADRs from this pipeline
+│   └── evidence/            ← E-NNN records
+├── tests/
+└── infrastructure/
+```
+
+### Initial Dependency Manifest
+```json
+{
+  "dependencies": {},
+  "devDependencies": {}
+}
+```
+`[Replace with project-specific dependency manifest]`
+
+---
+
+## 8. Traceability Matrix
+
+| FAD Section | Research Sessions | Decisions | Evidence |
+|---|---|---|---|
+| Auth Architecture | T2-04 | D-003, D-007 | E-012, E-019 |
+| Data Layer | T2-03, T2-05 | D-001, D-004 | E-047, E-015 |
+| `[Section]` | `[T#-##]` | `[D-NNN]` | `[E-NNN]` |
+
+---
+
+## 9. Phase 0 Gate Verification
+
+- [ ] All One-Way Door ADRs locked with `status: accepted`
+- [ ] All reversal triggers defined
+- [ ] Gary Klein Premortem completed for all Type 1 decisions
+- [ ] Human Architect sign-off recorded
+- [ ] This document committed to repository root
+
+**Sealed By:** `[Name]`
+**Seal Date:** `[YYYY-MM-DD]`

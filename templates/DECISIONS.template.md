@@ -1,50 +1,61 @@
-# [PROJECT_NAME] — Decisions Registry
-### Permanent Architectural & Strategic Decision Log
+# Architectural Decision Record Template — URP v3.0
+### YAML Frontmatter ADR with Evidence Traceability
 
-> **Status Values:**  
-> - `ACTIVE` (needs implementation action)  
-> - `RESOLVED` (decided, justified, and implemented)  
-> - `PENDING-RESEARCH` (blocked on specific research session output)  
-> - `DROPPED` (considered but discarded, with recorded reason)
+> **Usage:** Create one file per decision: `decisions/D-NNN-[slug].md`
 
 ---
 
-## Pre-Research Hypotheses (D-001 to D-010)
-
-### D-001: Core Brand & Architecture Pillar Model
-**Date:** [DATE]  
-**Decision:** [Description of architectural pillars]  
-**Status:** `RESOLVED`  
-**Rationale:** [Why this structure serves the core vision]
-
+```yaml
 ---
-
-### D-002: Frontend Framework Selection
-**Date:** [DATE]  
-**Decision:** [Initial hypothesis, e.g., Next.js 16 App Router]  
-**Status:** `PENDING-RESEARCH` — Blocked on `T2-01`  
-**Rationale:** Team velocity vs performance to be empirically benchmarked.
-
+id: D-NNN
+title: "[Decision Title]"
+status: proposed               # proposed | accepted | rejected | deprecated | superseded
+door_type: one-way             # one-way | two-way (sets required evidentiary bar)
+date: YYYY-MM-DD
+confidence: medium             # high | medium | low (decoupled from evidence grade)
+evidence_refs: []              # E-NNN IDs supporting this decision
+informed_by_sessions: []       # T#-## session IDs
+supersedes: null               # D-NNN ID this supersedes, or null
+superseded_by: null            # D-NNN ID that supersedes this, or null
+amends: null                   # D-NNN ID this partially updates, or null
+review_trigger: "[Condition or date for mandatory re-evaluation]"
+tags: []
+authored_by: "[agent-id or human name]"
+human_reviewed: false          # Mandatory true for one-way doors before acceptance
+schema_version: "3.0"
 ---
+```
 
-### D-003: Backend Runtime & API Paradigm
-**Date:** [DATE]  
-**Decision:** [Initial hypothesis, e.g., Fastify + tRPC]  
-**Status:** `PENDING-RESEARCH` — Blocked on `T2-02`  
-**Rationale:** Benchmarking Node.js vs Go vs Rust for throughput and solo-maintainability.
+# D-NNN: [Decision Title]
 
----
+## Context & Problem Statement
 
-### D-004: Database & Multi-Tenancy Architecture
-**Date:** [DATE]  
-**Decision:** [Initial hypothesis, e.g., PostgreSQL with Neon / RLS]  
-**Status:** `PENDING-RESEARCH` — Blocked on `T2-03`  
-**Rationale:** Row-level security vs schema-per-tenant isolation models.
+[Describe the technical requirements, architectural forces, and constraints
+that necessitate this decision. Include quantitative requirements where
+available (throughput targets, latency limits, data volumes, user counts).]
 
----
+## Evaluated Options
 
-### D-005: Build from Scratch vs Compose Primitives vs Extend Platform
-**Date:** [DATE]  
-**Decision:** Compose ~40% infrastructure + Build ~60% custom domain logic.  
-**Status:** `PENDING-RESEARCH` — Blocked on `T2-10`  
-**Rationale:** Validating open-core platforms vs primitive composition.
+1. **Option 1: [Name]** — Evidence: [E-NNN] (Grade [X] · [modifiers] | [verification])
+2. **Option 2: [Name]** — Evidence: [E-NNN] (Grade [X] · [modifiers] | [verification])
+3. **Option 3: [Name]** — Evidence: [E-NNN] (Grade [X] · [modifiers] | [verification])
+
+## Decision Outcome
+
+**Chosen Option:** Option [N] — [Name].
+
+### Rationale
+
+[Causal rationale mapping evidence directly to decision criteria. Explain
+WHY the chosen option outperforms competitors for THIS specific project's
+constraints, not generic superiority claims.]
+
+## Rejected Alternatives & Tradeoffs
+
+- **[Option Name]:** Rejected because [specific causal reason with evidence reference].
+- **[Option Name]:** Rejected because [specific causal reason with evidence reference].
+
+## Failure Modes & Reversal Triggers
+
+- If [specific measurable condition], trigger immediate review of [migration path].
+- Scheduled review: [date or condition from review_trigger].

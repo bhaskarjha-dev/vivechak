@@ -1,24 +1,97 @@
-# Phase 0 Gate: Research → Codebase Transition Protocol
+# Phase 0 Exit Gate Template — URP v3.0
+### Two-Track Pre-Codebase Gate Checklist
 
-> **Rule:** Do NOT write a single line of application code until every box below is checked.
+> **Usage:** Complete this checklist before initializing repository scaffolding.
+> Route each decision through Track A or Track B based on door type.
 
 ---
 
-### Step 1: Research Artifact Verification
-- [ ] All Tier 1 Markdown Artifacts exist in `research/T1-*.md`
-- [ ] All Tier 2 Decision Artifacts exist in `research/T2-*.md`
-- [ ] All Tier 3 Blueprint Artifacts exist in `research/T3-*.md`
-- [ ] `SYN-01` Grand Synthesis exists in `research/SYN-01-founding-architecture.md`
+## Project: `[Project Name]`
+**Gate Date:** `[YYYY-MM-DD]`
+**Gate Owner:** `[Name]`
 
-### Step 2: Documentation Harmonization
-- [ ] `docs/ARCHITECTURE.md` updated with pinned tech stack from FAD.
-- [ ] `DECISIONS.md` updated: all `D-001` through `D-NNN` marked `RESOLVED`.
-- [ ] `docs/PRODUCT.md` updated to reflect any assumptions refuted by research.
-- [ ] `PRINCIPLES.md` initialized with builder's constitution.
+---
 
-### Step 3: Scaffold & First Commit
-- [ ] Repository initialized with chosen monorepo / framework tool.
-- [ ] Linter, formatter (Biome/ESLint), and TypeScript strict mode configured.
-- [ ] Initial build and test commands execute cleanly on empty scaffold (`pnpm build`, `pnpm check`).
-- [ ] Initial Git commit created:  
-  `git commit -m "feat: initial project scaffold based on Founding Architecture Document"`
+## Decision Routing Summary
+
+| D-ID | Decision Title | Door Type | Track | Gate Status |
+|---|---|---|---|---|
+| D-001 | `[Title]` | `[1-way/2-way]` | `[A/B]` | `[PASS/FAIL/PENDING]` |
+| D-002 | `[Title]` | `[1-way/2-way]` | `[A/B]` | `[PASS/FAIL/PENDING]` |
+| D-NNN | `[Title]` | `[1-way/2-way]` | `[A/B]` | `[PASS/FAIL/PENDING]` |
+
+---
+
+## Track A: Fast-Track Gate (Two-Way Door Decisions)
+
+For each Two-Way Door decision:
+
+- [ ] Decision logged in ADR with `door_type: two-way`
+- [ ] Reversibility confirmed — can be changed without major refactoring
+- [ ] At least one corroborated source supports the choice
+
+**Track A Result:** `[PASS / FAIL]`
+
+---
+
+## Track B: Rigorous 9-Step Gate (One-Way Door Decisions)
+
+For each One-Way Door decision:
+
+### B1. DAG Closure
+- [ ] All required dependency paths have terminated in `status: final` session artifacts
+- [ ] No orphaned sessions remain in the DAG
+
+### B2. Contradiction Resolution
+- [ ] All cross-model divergences resolved via ACH matrix or explicit trade-off rationale
+- [ ] No unresolved `contested` corroboration flags on critical claims
+
+### B3. Evidentiary Threshold
+- [ ] Zero uncorroborated Grade C/D/E claims underpin irreversible architectural pillars
+- [ ] All critical claims backed by Grade A or B evidence
+
+### B4. Verification Integrity
+- [ ] 100% of critical citations carry `verification_method: fetched` or `cached`
+- [ ] Zero `recalled` citations support any Type 1 decision
+
+### B5. Rejected Alternatives Documented
+- [ ] Every locked ADR explicitly details evaluated and rejected competing options
+- [ ] Rejection rationale is causal, not preferential
+
+### B6. Decay Triggers Assigned
+- [ ] Every locked ADR contains an explicit `review_trigger` condition or date
+- [ ] Review triggers are specific and measurable (not "review when needed")
+
+### B7. Premortem Protocol (Gary Klein, 1989)
+- [ ] 30-minute prospective hindsight exercise completed
+- [ ] Prompt: *"It is 12 months from now. The system has suffered a catastrophic architectural failure. What caused it?"*
+- [ ] Top 3 failure scenarios documented with mitigations
+- [ ] Mitigations incorporated into FAD risk register
+
+### B8. Human Architect Review
+- [ ] Named Principal Architect has reviewed all Type 1 ADRs
+- [ ] Reviewer: `[Name]`
+- [ ] Review date: `[YYYY-MM-DD]`
+
+### B9. Founding Architecture Document Sealed
+- [ ] FAD compiled with full traceability matrix
+- [ ] FAD committed to repository root
+- [ ] Repository scaffolding ready to generate
+
+**Track B Result:** `[PASS / FAIL]`
+
+---
+
+## Gate Verdict
+
+| Track | Result | Blocking Issues |
+|---|---|---|
+| Track A (Two-Way) | `[PASS/FAIL]` | `[None / List issues]` |
+| Track B (One-Way) | `[PASS/FAIL]` | `[None / List issues]` |
+| **Overall** | **`[PASS/FAIL]`** | |
+
+**Signed Off By:** `[Name]`
+**Date:** `[YYYY-MM-DD]`
+
+> **PASS:** Proceed to repository scaffolding and development.
+> **FAIL:** Address all blocking issues before re-gating.

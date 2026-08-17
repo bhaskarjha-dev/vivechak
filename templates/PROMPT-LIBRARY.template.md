@@ -1,52 +1,107 @@
-# [PROJECT_NAME] — Research Prompt Library v1.0
-### Complete Copy-Paste Ready Prompts · Web Search Required
+# Prompt Library Template — URP v3.0
+### 5-Block Prompt Anatomy
+
+> **Usage:** For each session in the research pipeline, create one prompt
+> using the 5-block structure below. Each prompt should be a complete,
+> front-loaded brief suitable for a single AI deep research session.
 
 ---
 
-## How to Execute Sessions
+## Session: `[T#-##]` — `[Session Title]`
 
-1. Open a **NEW** AI conversation (Claude.ai / ChatGPT / Gemini) with **Web Search enabled**.
-2. Copy the full prompt between `## THE PROMPT — copy from here` and the separator.
-3. Paste and let the AI run all web searches and produce the self-contained Markdown Artifact.
-4. Save the response directly to the designated file in `research/`.
+**Decision Informed:** `[D-XXX: Decision Title]`
+**Door Type:** `[one-way / two-way]`
+**Dependencies:** `[Hard: T#-## | Soft: T#-## | None]`
+
+---
+
+### BRIEF
+
+We are investigating `[core technical/architectural question]`.
+
+This research will directly inform Architectural Decision `[D-XXX: Title]`.
+The target audience is a Principal Architect requiring rigorous, production-grade
+technical evaluation with concrete tradeoffs, operational failure modes, and
+verified benchmarks — not high-level introductory summaries.
+
+`[2–4 sentences of project-specific context: what the product does, why this
+decision matters for this specific product, what's at stake if we get it wrong.]`
 
 ---
 
-# SESSION T1-01 — [Landscape & Ecosystem Discovery]
-**Time:** 90 min | **Searches:** 12+ | **Depends on:** Nothing
-**Output file:** `research/T1-01-landscape.md`
+### SCOPE
 
-## THE PROMPT — copy from here
-
-<system>
-You are a Principal Product Analyst specializing in [DOMAIN]. Your job is to catalogue every platform, competitor, tool, and open-source project in this space. You are building an exhaustive reference catalogue — completeness and precision are your core metrics.
-</system>
-
-<unbiased_constraint>
-CRITICAL: This is an UNBIASED discovery session. Catalogue what EXISTS across the entire global landscape. Do NOT filter prematurely. We need the total ecosystem to understand what we can build on, integrate with, or learn from.
-</unbiased_constraint>
-
-<web_searches>
-Run minimum 12 searches:
-1. `best open source [DOMAIN] platforms [CURRENT_YEAR] comparison`
-2. `top commercial [DOMAIN] software reviews features [CURRENT_YEAR]`
-3. `[DOMAIN] developer architecture tech stack [CURRENT_YEAR]`
-4. `niche vertical [DOMAIN] SaaS tools [CURRENT_YEAR]`
-...
-</web_searches>
-
-<output_spec>
-Produce a comprehensive catalogue organized into:
-**SECTION 1 — OPEN-SOURCE PLATFORMS** (Name, URL, stack, license, stars, extensibility)
-**SECTION 2 — COMMERCIAL SAAS PLATFORMS** (Pricing, APIs, customization limits)
-**SECTION 3 — SPECIALIZED & ADJACENT TOOLS**
-**SECTION 4 — COMPARATIVE ANALYSIS & GAPS**
-
-End with: FINAL INVENTORY TABLE listing every tool with URL, stack, license, and viability rating (1–5).
-</output_spec>
-
-<output_format>
-Deliver your ENTIRE output as a single markdown file artifact. Use proper markdown formatting — headings (#, ##, ###), tables, code blocks, and bullet lists. The artifact should be a complete, self-contained document that can be saved directly as a `.md` file with no editing needed.
-</output_format>
+- **Temporal Anchor:** Today's date is `[YYYY-MM-DD]`. Focus heavily on
+  developments within the last 18–24 months. Flag any findings older than
+  `[YYYY-MM-DD minus 2 years]` as potentially stale.
+- **In Scope:** `[Explicit boundary 1]`, `[Explicit boundary 2]`,
+  `[Explicit boundary 3]`.
+- **Out of Scope:** `[Explicit exclusion 1]`, `[Explicit exclusion 2]`.
+- **Source Priorities:** Prioritize primary sources (official engineering
+  documentation, RFCs, source code repositories, peer-reviewed benchmarks)
+  and direct engineering postmortems over secondary aggregators, sponsored
+  content, and SEO content farms.
 
 ---
+
+### APPROACH
+
+- **Exploration Strategy:** Begin with broad landscape queries to map the
+  solution space, then dynamically formulate targeted queries to investigate
+  specific trade-offs, failure modes, and benchmarks.
+- **Effort Calibration:** Scale search effort to the complexity discovered.
+  Spend sufficient search calls to trace genuine technical contradictions
+  across sources rather than stopping at the first consensus hit.
+- **Epistemic Discipline:**
+  - State all necessary assumptions explicitly rather than silently resolving ambiguity.
+  - Surface technical disagreements between competing sources rather than smoothing them over.
+  - Frame all inquiries neutrally; actively search for disconfirming evidence against favored options.
+
+`[Optional: 1–3 project-specific research directions or angles worth exploring]`
+
+---
+
+### DELIVERABLE
+
+Deliver a structured Markdown document covering the following required checklist:
+
+1. **Executive Summary & Recommendation:** Clear, unambiguous architectural guidance.
+2. **Options Evaluation Matrix:** Comparative analysis covering `[Criteria 1]`,
+   `[Criteria 2]`, `[Criteria 3]`, operational overhead, and failure modes.
+3. **Deep Technical Analysis:** Detailed breakdown of top 2–3 viable contenders
+   with architecture diagrams, code/config samples, and production-grade considerations.
+4. **Evidentiary Grading:** Assign inline evidence grades (A–E with modifiers
+   and verification method) for all factual and benchmark claims.
+5. **Open Risks & Reversal Triggers:** Explicit failure conditions under which
+   this decision must be revisited.
+
+---
+
+### FORMAT
+
+Deliver the entire output as a single, complete Markdown file artifact.
+
+Include YAML frontmatter:
+```yaml
+---
+id: [T#-##]
+title: "[Session Title]"
+session_date: [YYYY-MM-DD]
+status: final
+topic: [topic-tag]
+tags: [tag1, tag2, tag3]
+informs_decisions: [D-XXX]
+confidence: [high/medium/low]
+open_questions: [N]
+schema_version: "3.0"
+---
+```
+
+Structure the body with these H2 sections:
+1. `## Research Question`
+2. `## Key Findings` (3–7 atomic bullets)
+3. `## Recommendation` (isolated from rejected options)
+4. `## Alternatives Considered`
+5. `## Detailed Findings`
+6. `## Open Questions & Risks`
+7. `## Sources & Evidentiary Ledger`
