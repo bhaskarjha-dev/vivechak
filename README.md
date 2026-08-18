@@ -142,6 +142,8 @@ URP v3.0's most distinctive property: it was validated by the methodology it pre
 | 1: Foundation | ✅ | 7 project methodologies consolidated into v1.0/v2.0 |
 | 2: Self-Validation | ✅ | 11 meta-research sessions → 10 verdicts → v3.0 spec |
 | 3: v3.0 Overhaul | ✅ | Framework, generator, templates rewritten from evidence |
-| 4: Code-Based Generator | Next | 5-layer deterministic/AI hybrid CLI tool |
-| 5: Operational Hardening | Future | CI validation, blast-radius tracking, review scheduling |
+| 4: Real-World Validation | Next | Battle-test on 2–3 real projects, refine generator from output quality |
+| 5: Tooling | Future | CLI initializer, YAML validator, code-based generator (if validated) |
 | 6: v4.0 Frontiers | Future | DSPy optimization, multi-agent debate, longitudinal calibration |
+
+See [ROADMAP.md](ROADMAP.md) for detailed plans, overhaul decisions, and source material status.

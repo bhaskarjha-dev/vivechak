@@ -20,11 +20,12 @@ The **Universal Research Pipeline (URP)** is a production-grade Meta-Framework f
 ```
 research-pipeline/
 ├── AGENTS.md                       ← THIS FILE
-├── README.md                       ← Overview, quick start, origin, roadmap
+├── README.md                       ← Overview, quick start, origin
 ├── GENERATOR.md                    ← The generator prompt (THE tool)
 ├── FRAMEWORK.md                    ← Complete v3.0 specification (principles + evidence + methodology)
+├── ROADMAP.md                      ← Development history, future plans, overhaul decisions
 │
-├── templates/                      ← 4 operational templates
+├── templates/                      ← 4 operational templates (copy to new projects)
 │   ├── DECISIONS.template.md
 │   ├── CONFLICT-RESOLUTION.template.md
 │   ├── FOUNDING-ARCHITECTURE.template.md
