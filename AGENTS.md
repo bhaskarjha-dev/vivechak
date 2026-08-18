@@ -75,7 +75,7 @@ When a session starts in this repo:
 
 1. **Read [FRAMEWORK.md](FRAMEWORK.md)** — understand the complete v3.0 specification.
 2. **If improving the meta-framework:** Enhance FRAMEWORK.md, GENERATOR.md, or templates/ following the principles above. All changes must be traceable to evidence.
-3. **If generating a pipeline for a new project:** Use [GENERATOR.md](GENERATOR.md) to generate the customized pipeline documents.
+3. **If generating a pipeline for a new project:** Use [GENERATOR.md](GENERATOR.md) to generate the customized pipeline documents (Single-Session for IDE agents, Split Generation for web chat).
 4. **If executing research:** Follow the 5-block prompt anatomy (BRIEF, SCOPE, APPROACH, DELIVERABLE, FORMAT). Front-load everything in one turn.
 5. **If recording decisions:** Use the DECISIONS template with YAML frontmatter, door_type classification, evidence_refs, and review_trigger.
 

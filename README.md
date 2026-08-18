@@ -16,8 +16,11 @@ You have a software project idea. Before coding, you need to make architectural 
 ## Quick Start (5 Steps)
 
 ### Step 1: Generate Your Pipeline
-Open [GENERATOR.md](GENERATOR.md), copy the generator prompt, paste your project description where indicated, and send it to a frontier AI (Claude, Gemini, or ChatGPT with web search). You'll receive 3 files:
+Open [GENERATOR.md](GENERATOR.md), paste your project description into the generator prompt, and send it to a frontier AI (Claude, Gemini, or ChatGPT with web search):
+- **Single-Session Mode (Default):** Generates all 3 files in one shot (ideal for IDE agents like Antigravity / Cursor).
+- **Split Generation Mode:** Generates Pipeline + Decisions first, then Prompts in a follow-up step (ideal for web chat interfaces with credit / token output limits).
 
+You'll receive 3 files:
 - **RESEARCH-PIPELINE.md** — your project's complexity score, session DAG, and execution plan
 - **PROMPT-LIBRARY.md** — copy-paste research prompts for each session
 - **DECISIONS.md** — initial hypothesis registry
@@ -96,6 +99,7 @@ The templates act as **contracts** — the agent reads them and follows the exac
 
 | Capability | How It Works |
 |---|---|
+| **Flexible Generation** | Single-session for IDE/API agents, or 2-step split for web chat output limits |
 | **Adaptive Scaling** | 8-dimension complexity scoring (0–24) maps to 4 tiers (1–30 sessions) |
 | **Open-Ended Input** | Accepts natural language vision dumps; AI extracts parameters and classifies |
 | **Constrained DAG** | Sessions run when dependencies are met, not rigid stage gates |
