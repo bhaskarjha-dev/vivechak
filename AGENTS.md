@@ -20,31 +20,18 @@ The **Universal Research Pipeline (URP)** is a production-grade Meta-Framework f
 ```
 research-pipeline/
 ├── AGENTS.md                       ← THIS FILE
-├── README.md                       ← Overview, quick start, directory map
-├── CONTEXT.md                      ← Origin story & design insights
-├── VISION.md                       ← Mission & philosophy
-├── PRINCIPLES.md                   ← 8 evidence-grounded principles
-├── FRAMEWORK.md                    ← Complete v3.0 specification
-├── EVIDENCE-GRADING.md             ← A–E grading with modifiers & verification
-├── META-PROMPT-GENERATOR.md        ← 5-layer generator architecture + interim prompt
-├── ROADMAP.md                      ← Evolution roadmap
+├── README.md                       ← Overview, quick start, origin, roadmap
+├── GENERATOR.md                    ← The generator prompt (THE tool)
+├── FRAMEWORK.md                    ← Complete v3.0 specification (principles + evidence + methodology)
 │
-├── schemas/                        ← JSON Schema validation
-│   ├── session-frontmatter.schema.json
-│   ├── adr-frontmatter.schema.json
-│   └── evidence-record.schema.json
-│
-├── templates/                      ← 8 reusable v3.0 blueprints
-│   ├── RESEARCH-PIPELINE.template.md
-│   ├── PROMPT-LIBRARY.template.md
+├── templates/                      ← 4 operational templates
 │   ├── DECISIONS.template.md
-│   ├── EVIDENCE-RECORD.template.md
-│   ├── COMPLEXITY-SCORING.template.md
 │   ├── CONFLICT-RESOLUTION.template.md
 │   ├── FOUNDING-ARCHITECTURE.template.md
 │   └── PHASE-0-GATE.template.md
 │
-└── meta-research/                  ← Empirical evidence base
+└── meta-research/                  ← Empirical evidence base (sealed provenance)
+    ├── README.md
     ├── DECISIONS.md                 ← Sealed ADR corpus (10 verdicts)
     ├── RESEARCH-PIPELINE.md
     ├── PROMPT-LIBRARY.md
@@ -86,10 +73,10 @@ Every claim must carry an **evidence grade (A–E), contextual modifiers, and ve
 When a session starts in this repo:
 
 1. **Read [FRAMEWORK.md](FRAMEWORK.md)** — understand the complete v3.0 specification.
-2. **If improving the meta-framework:** Enhance FRAMEWORK.md, META-PROMPT-GENERATOR.md, or templates/ following the principles above. All changes must be traceable to evidence.
-3. **If generating a pipeline for a new project:** Use [META-PROMPT-GENERATOR.md](META-PROMPT-GENERATOR.md) to generate the customized RESEARCH-PIPELINE.md and PROMPT-LIBRARY.md.
+2. **If improving the meta-framework:** Enhance FRAMEWORK.md, GENERATOR.md, or templates/ following the principles above. All changes must be traceable to evidence.
+3. **If generating a pipeline for a new project:** Use [GENERATOR.md](GENERATOR.md) to generate the customized pipeline documents.
 4. **If executing research:** Follow the 5-block prompt anatomy (BRIEF, SCOPE, APPROACH, DELIVERABLE, FORMAT). Front-load everything in one turn.
-5. **If recording decisions:** Use the ADR template with YAML frontmatter, door_type classification, evidence_refs, and review_trigger.
+5. **If recording decisions:** Use the DECISIONS template with YAML frontmatter, door_type classification, evidence_refs, and review_trigger.
 
 ---
 

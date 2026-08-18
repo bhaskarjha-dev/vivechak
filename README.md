@@ -7,37 +7,54 @@
 
 ## What Is This?
 
-The Universal Research Pipeline is a **production-grade meta-framework** for conducting systematic pre-development research on any software project. It generates customized research pipelines that investigate every critical architectural decision with the same rigor used in clinical medicine, intelligence analysis, and decision science.
+You have a software project idea. Before coding, you need to make architectural decisions — database, auth, hosting, data model, APIs. Some of these decisions are **irreversible** (one-way doors). If you get them wrong, you're looking at a rewrite.
 
-**URP v3.0 is the first version validated by its own methodology.** 11 independent research sessions across frontier AI platforms tested every v2.0 assumption. Of 10 founding hypotheses, 0 survived unchanged — 3 were refuted, 4 refined, and 3 validated with structural enhancements. The result is an adaptive, risk-calibrated system grounded in 31 evidence nodes from peer-reviewed studies and industry standards.
-
-### Key Capabilities
-
-| Capability | Description |
-|---|---|
-| **Adaptive Scaling** | 8-dimension complexity scoring (0–24) → 4 tiers (1–30 sessions) instead of fixed 17–27 |
-| **Constrained DAG** | Dependency-gated execution graph replaces rigid sequential staging |
-| **5-Block Prompts** | BRIEF, SCOPE, APPROACH, DELIVERABLE, FORMAT — no personas, no hardcoded queries |
-| **Staged Triangulation** | Single-model default → critique probe → full multi-model only for contested One-Way Doors |
-| **GRADE-Aligned Evidence** | A–E grades + 3 modifiers (corroboration, recency, directness) + verification tracking |
-| **Two-Track Gate** | Fast-track for reversible decisions; rigorous 9-step + premortem for irreversible ones |
-| **5-Layer Generator** | Deterministic scaffold + scoped AI calls + validation gates |
+**URP generates a customized research pipeline for your project** that investigates every critical decision with appropriate rigor. It produces focused research prompts, executes them across frontier AI platforms, grades every claim with traceable evidence, and synthesizes the results into a sealed Founding Architecture Document (FAD) — your architectural source of truth before writing code.
 
 ---
 
-## Quick Start
+## Quick Start (5 Steps)
 
-1. **Score your project:** Use [templates/COMPLEXITY-SCORING.template.md](templates/COMPLEXITY-SCORING.template.md) to assess complexity and determine your research tier.
+### Step 1: Generate Your Pipeline
+Open [GENERATOR.md](GENERATOR.md), copy the generator prompt, paste your project description where indicated, and send it to a frontier AI (Claude, Gemini, or ChatGPT with web search). You'll receive 3 files:
 
-2. **Generate your pipeline:** Use [META-PROMPT-GENERATOR.md](META-PROMPT-GENERATOR.md) to generate a customized RESEARCH-PIPELINE.md and PROMPT-LIBRARY.md for your project.
+- **RESEARCH-PIPELINE.md** — your project's complexity score, session DAG, and execution plan
+- **PROMPT-LIBRARY.md** — copy-paste research prompts for each session
+- **DECISIONS.md** — initial hypothesis registry
 
-3. **Execute sessions:** Run each research prompt in a frontier AI deep research mode (Claude, Gemini, ChatGPT with search). Sessions default to independent and parallelizable.
+Save these in your new project's `research/` directory.
 
-4. **Record decisions:** Document each architectural verdict using [templates/DECISIONS.template.md](templates/DECISIONS.template.md) with evidence traceability.
+### Step 2: Execute Research Sessions
+Take each prompt from your generated PROMPT-LIBRARY.md and run it in an independent AI deep research session. Sessions are designed to be parallel and independent — run as many simultaneously as you want.
 
-5. **Synthesize:** Compile the Founding Architecture Document using [templates/FOUNDING-ARCHITECTURE.template.md](templates/FOUNDING-ARCHITECTURE.template.md).
+Save each output as `research/sessions/T#-##-[slug].md` in your project directory.
 
-6. **Gate:** Verify all exit criteria via [templates/PHASE-0-GATE.template.md](templates/PHASE-0-GATE.template.md) before writing code.
+### Step 3: Record Decisions
+After key research sessions, lock architectural decisions using the [DECISIONS template](templates/DECISIONS.template.md). Classify each as one-way or two-way door. If models disagree on a contested decision, use the [CONFLICT-RESOLUTION template](templates/CONFLICT-RESOLUTION.template.md).
+
+### Step 4: Synthesize & Gate
+Compile all findings into a Founding Architecture Document using the [FAD template](templates/FOUNDING-ARCHITECTURE.template.md). Verify exit criteria with the [PHASE-0-GATE template](templates/PHASE-0-GATE.template.md).
+
+### Step 5: Build
+Start development with the FAD as your architectural source of truth. The research pipeline's job is done.
+
+### What Your New Project Directory Looks Like
+
+```
+my-new-project/
+├── research/
+│   ├── RESEARCH-PIPELINE.md         ← Generated in Step 1
+│   ├── PROMPT-LIBRARY.md            ← Generated in Step 1
+│   ├── DECISIONS.md                 ← Seeded in Step 1, filled in Step 3
+│   ├── sessions/
+│   │   ├── T1-01-market-landscape.md
+│   │   ├── T2-01-datastore-selection.md
+│   │   └── ...
+│   ├── FAD.md                       ← Created in Step 4
+│   └── PHASE-0-GATE.md              ← Completed in Step 4
+├── src/                             ← Development starts after gate passes
+└── ...
+```
 
 ---
 
@@ -45,61 +62,77 @@ The Universal Research Pipeline is a **production-grade meta-framework** for con
 
 ```
 research-pipeline/
-├── FRAMEWORK.md                 ← Complete v3.0 specification (start here)
-├── PRINCIPLES.md                ← 8 evidence-grounded principles
-├── EVIDENCE-GRADING.md          ← A–E grading spec with modifiers
-├── META-PROMPT-GENERATOR.md     ← 5-layer generator + interim prompt
-├── AGENTS.md                    ← Agent operating manual
-├── CONTEXT.md                   ← Origin story & design insights
-├── VISION.md                    ← Mission & philosophy
-├── ROADMAP.md                   ← Evolution roadmap
+├── README.md              ← You are here
+├── GENERATOR.md           ← THE TOOL: generator prompt (start here)
+├── FRAMEWORK.md           ← Complete v3.0 methodology specification
+├── AGENTS.md              ← AI agent operating manual
 │
-├── schemas/                     ← JSON Schema validation
-│   ├── session-frontmatter.schema.json
-│   ├── adr-frontmatter.schema.json
-│   └── evidence-record.schema.json
-│
-├── templates/                   ← Reusable v3.0 blueprints
-│   ├── RESEARCH-PIPELINE.template.md
-│   ├── PROMPT-LIBRARY.template.md
+├── templates/             ← Operational templates (used during research)
 │   ├── DECISIONS.template.md
-│   ├── EVIDENCE-RECORD.template.md
-│   ├── COMPLEXITY-SCORING.template.md
 │   ├── CONFLICT-RESOLUTION.template.md
 │   ├── FOUNDING-ARCHITECTURE.template.md
 │   └── PHASE-0-GATE.template.md
 │
-└── meta-research/               ← Empirical evidence base (v3.0 provenance)
-    ├── DECISIONS.md              ← Sealed ADR corpus (10 verdicts, 31 evidence nodes)
-    ├── RESEARCH-PIPELINE.md      ← The meta-research pipeline definition
-    ├── PROMPT-LIBRARY.md         ← Prompts used for meta-research
-    └── research/                 ← 14 primary research artifacts (639KB)
+└── meta-research/         ← Empirical evidence base (provenance, not operational)
+    ├── README.md
+    ├── DECISIONS.md        ← 10 hypothesis verdicts, 31 evidence nodes
+    └── research/           ← 14 primary research artifacts (639KB)
 ```
 
+**4 operational files** (GENERATOR + 3 docs) + **4 templates** + FRAMEWORK for reference. That's the whole system.
+
 ---
 
-## Core Documents
+## Key Capabilities
 
-| Document | Purpose | Read When |
+| Capability | How It Works |
+|---|---|
+| **Adaptive Scaling** | 8-dimension complexity scoring (0–24) maps to 4 tiers (1–30 sessions) |
+| **Open-Ended Input** | Accepts natural language vision dumps; AI extracts parameters and classifies |
+| **Constrained DAG** | Sessions run when dependencies are met, not rigid stage gates |
+| **5-Block Prompts** | BRIEF, SCOPE, APPROACH, DELIVERABLE, FORMAT — no personas, no hardcoded queries |
+| **Staged Triangulation** | Single-model default → multi-model only for contested one-way doors |
+| **GRADE-Aligned Evidence** | A–E grades + modifiers (corroboration, recency, directness) + verification |
+| **Two-Track Gate** | Fast-track for reversible decisions; 9-step + premortem for irreversible |
+
+---
+
+## Origin & Philosophy
+
+### Why This Exists
+
+Software venture failures almost never stem from bad code — they stem from **premature architectural decisions made on unverified assumptions.** The cost of wrong decisions compounds: a bad database choice costs 10× more to fix at month 6 than at month 0.
+
+URP was born from 7 real project research pipelines (2024–2026), each independently discovering pieces of the same methodology: unbiased landscape cataloging, evidence grading, aspect isolation, decision registries, and synthesis protocols. URP v1.0/v2.0 consolidated these patterns.
+
+### The v3.0 Transformation
+
+In August 2026, URP was subjected to its own methodology. 11 independent deep research sessions tested every foundational assumption. Of 10 hypotheses, **0 survived unchanged**:
+
+| v2.0 Dogma | Verdict | v3.0 Resolution |
 |---|---|---|
-| [FRAMEWORK.md](FRAMEWORK.md) | Complete v3.0 specification | First — understand the system |
-| [PRINCIPLES.md](PRINCIPLES.md) | 8 evidence-grounded axioms | Understanding design philosophy |
-| [EVIDENCE-GRADING.md](EVIDENCE-GRADING.md) | A–E grading with modifiers | Evaluating or grading claims |
-| [META-PROMPT-GENERATOR.md](META-PROMPT-GENERATOR.md) | Generator architecture + prompt | Starting a new project pipeline |
-| [AGENTS.md](AGENTS.md) | Operating manual for AI agents | Working on this repository |
-| [CONTEXT.md](CONTEXT.md) | Origin story & tacit knowledge | Understanding why decisions were made |
-| [VISION.md](VISION.md) | Mission & long-term philosophy | Understanding the bigger picture |
-| [ROADMAP.md](ROADMAP.md) | Evolution plan | Understanding what's next |
+| Absolute aspect-isolation | Refined | Context Architecture Law — conditional decomposition + synthesis |
+| Mandatory 3-model triangulation | Refined | Staged, risk-triggered protocol |
+| Fixed 17–27 sessions | Refuted | 4-tier adaptive scaling (1–30) |
+| 8-section XML prompts | Refuted | 5-block prompt anatomy |
+| Expert personas improve research | Refuted | Personas debunked for factual accuracy |
+| Fixed ~40/60 compose/build | Refined | Wardley evolution mapping |
+
+The most load-bearing finding: **how you frame a research question measurably biases what "evidence" a model reports back.** This single finding justifies the entire framework — unstructured "just ask the AI" research is systematically vulnerable to confirmation bias.
+
+### The Self-Referential Validation
+
+URP v3.0's most distinctive property: it was validated by the methodology it prescribes. The meta-research discovered that several of its own axioms needed refinement. This recursive self-correction is built into v3.0's DNA through mandatory review triggers and decay conditions on every locked ADR.
 
 ---
 
-## Empirical Provenance
+## Roadmap
 
-URP v3.0 was produced by applying the framework to itself:
-
-- **11 research sessions** (T1-01 through T3-01) across Claude, ChatGPT, and Gemini
-- **31 evidence nodes** from peer-reviewed studies, industry standards, and empirical benchmarks
-- **10 hypothesis verdicts** — every v2.0 assumption empirically tested
-- **639KB** of primary research artifacts preserved in [meta-research/](meta-research/)
-
-The meta-research directory is the empirical audit trail. The framework is fully self-contained without it.
+| Phase | Status | Description |
+|---|---|---|
+| 1: Foundation | ✅ | 7 project methodologies consolidated into v1.0/v2.0 |
+| 2: Self-Validation | ✅ | 11 meta-research sessions → 10 verdicts → v3.0 spec |
+| 3: v3.0 Overhaul | ✅ | Framework, generator, templates rewritten from evidence |
+| 4: Code-Based Generator | Next | 5-layer deterministic/AI hybrid CLI tool |
+| 5: Operational Hardening | Future | CI validation, blast-radius tracking, review scheduling |
+| 6: v4.0 Frontiers | Future | DSPy optimization, multi-agent debate, longitudinal calibration |

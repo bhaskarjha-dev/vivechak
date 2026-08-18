@@ -11,8 +11,6 @@
 
 Software failures and architectural rewrites are rarely caused by poor coding — they are caused by **premature decisions made on unverified assumptions.** The Universal Research Pipeline is a structured pre-development engine that discovers, evaluates, resolves, and synthesizes the technical foundation of any software venture before a single line of application code is written.
 
-**What changed from v2.0:** URP v3.0 was produced by applying the framework to itself — 11 independent research sessions across frontier AI platforms, cross-referenced with established disciplines (medicine, intelligence analysis, decision science, cognitive science), synthesized into 10 hypothesis verdicts with 31 evidence nodes. Every v2.0 axiom was tested empirically; none survived unchanged. See [meta-research/DECISIONS.md](meta-research/DECISIONS.md) for the complete evidentiary record.
-
 ### How the Framework Operates
 
 ```
@@ -60,18 +58,97 @@ PROJECT VISION
 
 ## 2. Core Principles
 
-URP v3.0 is governed by 8 evidence-grounded principles. Each principle was empirically validated and cites its supporting evidence. See [PRINCIPLES.md](PRINCIPLES.md) for the complete specification with evidence references.
+URP v3.0 is governed by 8 evidence-grounded principles. Each was empirically validated through the meta-research pipeline and cites its supporting evidence.
 
-| # | Principle | One-Sentence Summary |
+### P1: The Context Architecture Law
+*Supersedes: v2.0 Aspect-Isolation Law*
+
+Research quality is governed by **attention budget, context purity, and task boundaries** — not by arbitrary session counts. The constraint is real (token/search budget explains ~80% of performance variance — Anthropic BrowseComp), but the remedy is conditional decomposition, not blanket fragmentation.
+
+**Rules:**
+- Decompose into dedicated research contexts when sub-tasks have low interdependency, high individual complexity, or divergent search spaces.
+- Integrate coupled topics into structured joint sessions when evaluating holistic system tradeoffs.
+- Every decomposed investigation **must** conclude with an explicit downstream synthesis pass.
+- Over-isolation triggers the split-attention effect, introduces 4–15× token overhead, and misses systemic cross-cutting trade-offs.
+
+> **Evidence:** E-001 (Anthropic BrowseComp R²=0.80), E-002 (MTI +12.4% on joint tasks), E-003 (Chandler & Sweller split-attention), E-004 (Chroma context rot)
+
+### P2: Reversibility-Calibrated Rigor
+
+The depth of research, evidentiary burden, and review overhead allocated to a decision must scale directly with its **reversibility and blast radius**.
+
+| Door Type | Definition | Research Depth | Evidence Bar |
+|---|---|---|---|
+| **One-Way (Type 1)** | Consequential, costly/impossible to reverse (primary datastore, data model, auth architecture, regulatory compliance, public API contracts) | Deep research, multi-session, corroborated evidence | Grade A/B, human review, premortem |
+| **Two-Way (Type 2)** | Cheap, fast to reverse (UI framework, styling, CI tooling, non-core utility libraries) | Fast spike or convention decision on ~70% information | Grade B/C acceptable, no gate required |
+
+> **Evidence:** E-010 (Cynefin), E-011 (DORA defect concentration), E-012 (Amazon Type 1/2 doors)
+
+### P3: Evidentiary Grounding & Verification Provenance
+
+No technical assertion or architectural decision may be accepted without:
+- An explicit **evidence grade** (A through E)
+- **Provenance tracking** (`verification_method`: fetched, cached, recalled, secondhand, human-provided)
+- **Contextual modifiers** (corroboration, recency, directness)
+
+**Hard rule:** Unverified AI parametric recall is capped at Grade D. Zero recalled citations may support One-Way Door decisions.
+
+> **Evidence:** E-013 (GRADE framework), E-014 (Admiralty Code collapse), E-015 (AI citation confabulation)
+
+### P4: Prescriptive Scope, Dynamic Method
+*Supersedes: v2.0 8-section XML prompt anatomy*
+
+Research briefs must be:
+- **Prescriptive** on WHAT to investigate, WHY it matters, WHAT boundaries apply, and WHAT coverage is required.
+- **Directional** on HOW to execute: no pre-scripted search queries, no artificial search counts, no expert role-playing personas, no rigid output skeletons.
+
+Front-load the complete brief in a single turn. Never drip-feed instructions across multiple turns (39% performance drop documented).
+
+> **Evidence:** E-017 (Laban et al. ICLR 2026, 39% multi-turn drop), E-018 (persona debunking), E-019 (ReAct paradigm), E-020 (format restriction penalty)
+
+### P5: Commodity-Maximized Composition
+*Supersedes: v2.0 fixed ~40/60 ratio*
+
+- **Compose 100%** of commodity/utility components from battle-tested providers (Auth, DB, Storage, Queues, UI primitives, CI/CD).
+- **Build 100% custom** only for proprietary domain intelligence, core state machines, differentiated business logic, and unique algorithms.
+
+The ratio varies by domain. Use Wardley evolution mapping, not fixed percentages.
+
+> **Evidence:** E-024 (Wardley mapping), E-025 (Fowler MonolithFirst), E-026 (DORA loosely-coupled architecture)
+
+### P6: Dual-Audience Artifact Architecture
+
+Research outputs must serve both human readers and machine consumers:
+- **Hybrid Markdown + YAML frontmatter** — human-readable body with machine-parseable metadata.
+- **Standardized 7-section H2 skeleton** — consistent structure enabling automated Map-Reduce synthesis.
+- **Strict separation** between `Recommendation` and `Alternatives Considered` — prevents AI code-generation contamination from rejected options.
+
+> **Evidence:** E-021 (MADR 4.0), E-022 (GraphRAG header chunking), E-023 (Git diff mechanics)
+
+### P7: Staged Triangulation & Diagnostic Disagreement
+*Supersedes: v2.0 mandatory 3-model triangulation*
+
+Multi-model consensus is an **escalation tool, not a mandatory ritual**.
+
+| Stage | When | Method |
 |---|---|---|
-| P1 | **Context Architecture Law** | Decompose research by attention budget and coupling, not arbitrary session counts; mandate synthesis after every decomposition |
-| P2 | **Reversibility-Calibrated Rigor** | Scale research depth with decision reversibility — deep for One-Way Doors, fast spikes for Two-Way Doors |
-| P3 | **Evidentiary Grounding** | Every claim must carry an evidence grade (A–E), contextual modifiers, and verification provenance |
-| P4 | **Prescriptive Scope, Dynamic Method** | Be prescriptive on WHAT/WHY/BOUNDARIES; be directional on HOW/SEARCH — no hardcoded queries or personas |
-| P5 | **Commodity-Maximized Composition** | Compose 100% of commodity infrastructure; build 100% custom only for proprietary domain logic |
-| P6 | **Dual-Audience Artifacts** | Hybrid Markdown + YAML frontmatter for human reading and machine synthesis |
-| P7 | **Staged Triangulation** | Single-model default; escalate to multi-model only for contested One-Way Doors |
-| P8 | **Structured Falsification** | Prioritize disconfirming evidence, document rejected alternatives, schedule review triggers |
+| **Default** | All sessions | Single-model deep research |
+| **Critique Probe** | Medium-stakes decisions | Feed Pass 1 output to a second model for adversarial critique |
+| **Full Triangulation** | One-Way Doors + Novel Domain + Genuine Contestation | Run identical prompt across 2–3 models; synthesize divergence via ACH matrix |
+
+Disagreement is treated as a **diagnostic signal** of problem ambiguity, not a vote to average out.
+
+> **Evidence:** E-005 (Kim et al. ICML 2025, 60% correlated errors), E-006 (Gao & Xiao, model house styles), E-007 (Lorenz et al. crowds breakdown)
+
+### P8: Structured Falsification & Diagnostic Review
+
+Architectural analysis must prioritize **falsification over confirmation**.
+- Research prompts must explicitly seek disconfirming evidence against favored options.
+- Decision records must document rejected alternatives with causal rationale.
+- Every locked ADR must carry a `review_trigger` — explicit conditions or dates for mandatory re-evaluation.
+- One-Way Doors require a **Gary Klein Premortem** before commitment.
+
+> **Evidence:** E-028 (Klein 1989, 30% risk reduction), Heuer's ACH, Annie Duke decision journaling
 
 ---
 
@@ -82,7 +159,7 @@ URP v3.0 is governed by 8 evidence-grounded principles. Each principle was empir
 URP v3.0 replaces rigid 3-tier stage gating with a **Directed Acyclic Graph** governed by explicit information dependencies.
 
 #### The Inverted Dependency Default
-Every research session defaults to **unblocked** (eligible to execute immediately) unless an explicit hard information dependency is declared. This inverts v2.0's assumption that everything must wait for prior tiers.
+Every research session defaults to **unblocked** (eligible to execute immediately) unless an explicit hard information dependency is declared.
 
 #### Dependency Classification
 
@@ -91,80 +168,43 @@ Every research session defaults to **unblocked** (eligible to execute immediatel
 | **Hard (Information)** | Session B literally cannot formulate valid outputs without an artifact from Session A | Blocks execution — DAG edge |
 | **Soft (Contextual)** | Session B benefits from terminology or constraints from Session A | No blocking — inject living Shared Context Brief |
 
-**~67% of architectural decisions** depend on ≤1 landscape session, not all 4–6. Rigid stage-gating artificially inflates the critical path.
-
 #### Adaptive Checkpoints
-- **Expansion:** If a session reveals unexpected Cynefin-Complex trade-offs, spawn a maximum of 2 child sub-sessions (capped per checkpoint).
-- **Contraction:** If a planned session's core question has been authoritatively resolved upstream, close it immediately with a "Resolved upstream" ADR record.
-- **Incremental Synthesis:** Partial FAD compilation begins as soon as any structural branch closes, rather than waiting for 100% corpus completion.
-
-#### Example DAG for a Standard Project
-
-```
-Layer 0: Landscapes (Fully Parallel)
-├── Market & Competitor Landscape
-├── Regulatory & Compliance Scan
-├── Target User & Workload Profile
-└── Technical Stack Landscape
-
-Layer 1: Architectural Decisions (Sparse Dependency-Gated)
-├── Frontend Paradigm          ← unblocked (eligible immediately)
-├── API Design Pattern         ← unblocked
-├── Datastore Selection        ← soft: User Workload Profile
-├── Auth & Tenancy Architecture ← hard: Regulatory Scan
-└── Cloud & Hosting Infra      ← hard: Regulatory Scan (data residency)
-
-Layer 2: Blueprints (Hard-Gated)
-├── Component Architecture     ← hard: Frontend + API
-├── Core Data Schema           ← hard: Datastore Selection
-├── Security & Compliance Spec ← hard: Auth + Cloud
-└── Deployment & CI/CD         ← hard: Cloud Infra
-
-Sink: Grand Synthesis (SYN-01) ← all Layer 2 sessions
-```
-
-Tier labels (Landscape, Architecture, Blueprint) are **organizational taxonomy**, not execution gates.
-
----
+- **Expansion:** If a session reveals unexpected Cynefin-Complex trade-offs, spawn a maximum of 2 child sub-sessions.
+- **Contraction:** If a planned session's core question has been authoritatively resolved upstream, close it immediately.
+- **Incremental Synthesis:** Partial FAD compilation begins as soon as any structural branch closes.
 
 ### 3.2 Adaptive Scaling Model
 
-#### Step 1: 8-Dimension Complexity Scoring (0–24 Points)
-
-Score each dimension from 0 (minimal) to 3 (extreme):
+#### 8-Dimension Complexity Scoring (0–24 Points)
 
 | Dimension | 0 (Low) | 1 (Moderate) | 2 (Substantial) | 3 (Extreme) |
 |---|---|---|---|---|
 | **Domain Novelty** | Standard CRUD | Established B2B SaaS | Unconventional workflow | New category/paradigm |
 | **Technical Novelty** | Team's standard stack | Familiar language, new lib | New framework/paradigm | Unproven infra |
-| **Regulatory** | Zero sensitive data | Internal data | PII, GDPR, SOC 2 | HIPAA, PCI-DSS, KYC/AML |
+| **Regulatory Exposure** | Zero sensitive data | Internal data | PII, GDPR, SOC 2 | HIPAA, PCI-DSS, KYC/AML |
 | **Reversibility** | Throwaway/rewritable | Modularly swappable | Core schema/multi-tenant | Deep platform infra |
-| **Investment** | Hackathon/weekend | Lean MVP/internal tool | Funded venture | Enterprise mission-critical |
-| **Team Size** | Solo developer | Small (2–4) | Mid-size (5–12) | Multi-team (>12) |
+| **Investment Horizon** | Hackathon/weekend | Lean MVP/internal tool | Funded venture | Enterprise mission-critical |
+| **Coordination Complexity** | Single decision-maker | Small team (2–4) | Mid-size (5–12) | Multi-team (>12) |
 | **Expected Longevity** | Days to weeks | Months (prototype) | 1–3 years (product) | 5+ years (platform) |
 | **Integration Complexity** | Standalone | 1–2 REST APIs | Multiple webhooks/APIs | Regulated rails/legacy ERP |
 
-#### Step 2: Tier Mapping
+#### Tier Mapping
 
 | Score | Tier | Session Budget | Character |
 |---|---|---|---|
-| **0–4** | Tier 0: Minimal | 1–3 sessions | Fast spike on core unknown; all reversible items decided in the room |
-| **5–9** | Tier 1: Light | 4–8 sessions | Standard SaaS/internal tools. Fast spikes on stack; deep check on core schema |
-| **10–15** | Tier 2: Standard | 9–16 sessions | Commercial product. Full landscape, core ADRs, key blueprints |
-| **16–24** | Tier 3: Deep | 17–30 sessions | Novel, regulated, multi-tenant platform. Full multi-aspect deep research |
+| **0–4** | Tier 0: Minimal | 1–3 sessions | Fast spike on core unknown |
+| **5–9** | Tier 1: Light | 4–8 sessions | Standard SaaS/internal tools |
+| **10–15** | Tier 2: Standard | 9–16 sessions | Commercial product with core ADRs |
+| **16–24** | Tier 3: Deep | 17–30 sessions | Novel, regulated, multi-tenant platform |
 
-> **🚨 Hard Override:** If Regulatory Exposure scores **3** (financial rails, health records, payment cards, children's data), all intersecting decisions automatically receive Tier 3 treatment regardless of total score.
+> **🚨 Hard Override:** If Regulatory Exposure = 3, all intersecting decisions automatically receive Tier 3 treatment regardless of total score.
 
-#### Step 3: Per-Decision Routing Matrix
-
-Inside any project tier, each decision is routed individually:
+#### Per-Decision Routing Matrix
 
 | | **Known Pattern** | **Unknown / Novel** |
 |---|---|---|
-| **Reversible (Two-Way Door)** | **SKIP** — decide by convention, 0 sessions | **FAST SPIKE** — 1 timeboxed session |
+| **Reversible (Two-Way Door)** | **SKIP** — decide by convention | **FAST SPIKE** — 1 timeboxed session |
 | **Irreversible (One-Way Door)** | **CONFIRM & COMMIT** — 1 session + ADR | **DEEP RESEARCH** — 2–5 sessions + ADR + premortem |
-
----
 
 ### 3.3 Staged Triangulation Protocol
 
@@ -172,9 +212,7 @@ Inside any project tier, each decision is routed individually:
 |---|---|---|---|
 | **Default** | All sessions | Single-model deep research | 1× |
 | **Critique Probe** | Medium-stakes decisions | Feed Pass 1 synthesis to Model B for adversarial critique | 1.3× |
-| **Full Triangulation** | One-Way Doors + Novel Domain + Genuine Contestation, OR critique probe detects active divergence | Run identical prompt on 2–3 models; synthesize divergence via ACH matrix | 3× |
-
-**Why not always triangulate?** On factual/verifiable questions, frontier models converge 70–90% and share ~60% of their errors (correlated training). Triangulating factual queries buys false confidence from correlated consensus. Triangulation adds genuine value only on subjective, ambiguous, or predictive trade-offs where model training priors cause interpretive diversity.
+| **Full Triangulation** | One-Way Doors + Novel Domain + Genuine Contestation | Run identical prompt on 2–3 models; synthesize divergence via ACH matrix | 3× |
 
 ---
 
@@ -182,28 +220,26 @@ Inside any project tier, each decision is routed individually:
 
 ### 4.1 The 5-Block Prompt Anatomy
 
-URP v3.0 replaces the v2.0 8-section XML prompt with 5 functional blocks:
-
 | Block | Purpose | Prescriptive or Directional? |
 |---|---|---|
-| **BRIEF** | Goal, target deliverable, audience, decision being informed, required depth | **Prescriptive** — be specific about WHAT and WHY |
-| **SCOPE** | Boundaries, time window, in/out scope, source priorities, date anchor | **Prescriptive** — be specific about BOUNDARIES |
-| **APPROACH** | Exploration strategy, effort calibration, epistemic discipline, assumption declaration | **Directional** — guide HOW but don't prescribe exact queries |
-| **DELIVERABLE** | Required-coverage checklist, comparison parameters, evidence grading, confidence flags | **Prescriptive** — WHAT to cover, not HOW to structure it |
-| **FORMAT** | Markdown structure, frontmatter schema, artifact delivery | **Prescriptive** — output format requirements |
+| **BRIEF** | Goal, target deliverable, audience, decision being informed, required depth | **Prescriptive** — what and why |
+| **SCOPE** | Boundaries, time window, in/out scope, source priorities, date anchor | **Prescriptive** — boundaries |
+| **APPROACH** | Exploration strategy, effort calibration, epistemic discipline | **Directional** — guide how, don't prescribe |
+| **DELIVERABLE** | Required-coverage checklist, comparison parameters, evidence grading | **Prescriptive** — what to cover |
+| **FORMAT** | Markdown structure, frontmatter schema, artifact delivery | **Prescriptive** — output format |
 
 #### What Was Removed and Why
 
 | v2.0 Element | Verdict | Evidence |
 |---|---|---|
-| `<system>` expert persona | **Removed** — personas don't improve factual accuracy and can impair recall | Zheng et al. EMNLP 2024; Basil et al. 2025 |
-| `<web_searches>` hardcoded queries | **Removed** — violates agentic ReAct loop; models formulate better queries dynamically | Yao et al. 2023; Anthropic BrowseComp |
-| `<bias_resistance>` negative instructions | **Removed** — triggers ironic "white bear" rebound in transformers | Documented in T2-06 |
-| `<output_spec>` rigid sections | **Replaced** with coverage checklist — flexible structure, no Procrustean distortion | Tam et al. EMNLP 2024 |
-| Minimum search counts | **Removed** — artificial floors don't match the model's judgment of "enough" | T1-02 |
-| Multi-turn drip-feeding | **Banned** — front-load everything in one turn (39% performance drop otherwise) | Laban et al. ICLR 2026 |
+| `<system>` expert persona | **Removed** — personas don't improve factual accuracy | Zheng et al. EMNLP 2024; Basil et al. 2025 |
+| `<web_searches>` hardcoded queries | **Removed** — violates agentic ReAct loop | Yao et al. 2023; Anthropic BrowseComp |
+| `<bias_resistance>` negative instructions | **Removed** — triggers ironic "white bear" rebound | Documented in T2-06 |
+| `<output_spec>` rigid sections | **Replaced** with coverage checklist | Tam et al. EMNLP 2024 |
+| Minimum search counts | **Removed** — artificial floors don't match model judgment | T1-02 |
+| Multi-turn drip-feeding | **Banned** — front-load everything in one turn | Laban et al. ICLR 2026 (39% drop) |
 
-### 4.2 Standard v3.0 Prompt Template
+### 4.2 Standard Prompt Template
 
 ```markdown
 # RESEARCH BRIEF: [Topic Title]
@@ -248,16 +284,63 @@ per the URP v3.0 session schema.
 
 ## 5. Evidence & Decision System
 
-### 5.1 Evidence Grading
+### 5.1 Evidentiary Tiers (A through E)
 
-See [EVIDENCE-GRADING.md](EVIDENCE-GRADING.md) for the complete specification including:
-- 5-tier A–E base grades
-- 3 contextual modifiers (corroboration, recency, directness)
-- Mandatory verification method tracking
-- Composite citation format
-- E-NNN standalone evidence record schema
+| Grade | Source Classification | Starting Confidence |
+|---|---|---|
+| **A** | **Primary / Authoritative** — Official source code, published RFCs, formal API specs, peer-reviewed studies | Very High |
+| **B** | **Empirical / Experimental** — Independently reproducible benchmarks, engineering postmortems, controlled experiments | High |
+| **C** | **Vendor / Motivated** — Vendor whitepapers, commercial comparisons, marketing benchmarks | Moderate |
+| **D** | **Secondary / Opinion** — Unofficial tutorials, blog posts, forums, AI parametric recall without verification | Low-to-Moderate |
+| **E** | **Untraceable / Speculative** — Unverifiable claims, confabulations, unattributed speculation | Zero |
 
-### 5.2 Architecture Decision Records (D-NNN)
+**Grade E is "unverifiable," not "old."** Stale but real sources keep their actual grade with a `stale` recency modifier.
+
+### 5.2 Contextual Modifiers
+
+| Modifier | Values | Purpose |
+|---|---|---|
+| **Corroboration** | `single` · `corroborated` (≥2 independent sources) · `contested` (direct contradiction) | How many sources agree? |
+| **Recency** | `fresh` (within domain half-life) · `aging` (approaching half-life) · `stale` (past half-life) | Is this current? |
+| **Directness** | `direct` (exact workload/target) · `indirect` (analogical evidence) | Does this apply to our case? |
+
+### 5.3 Verification Method
+
+| Method | Definition | Grade Cap |
+|---|---|---|
+| `fetched` | Retrieved and validated live via tool/web call during this session | None |
+| `cached` | Read from local repository file or previously verified artifact | None |
+| `recalled` | Generated from model parametric memory without live verification | **Capped at Grade D** |
+| `secondhand` | Sourced from an article summarizing a primary source | None |
+| `human-provided` | Injected directly by a human engineer | None |
+
+### 5.4 Hard Rules
+
+1. **Recalled claims capped at Grade D** regardless of apparent source quality.
+2. **Zero recalled citations may underpin One-Way Door decisions.** All Type 1 decisions require `fetched` or `cached` verification.
+3. **Contested claims must be surfaced, not resolved by majority.** Document the contradiction and causal resolution reasoning.
+
+### 5.5 Composite Citation Format
+
+```
+Claim text (Grade [A-E] · [corroboration] · [recency] · [directness] | [verification_method])
+```
+
+Example:
+```
+PostgreSQL 16 logical replication supports bi-directional failover.
+(Grade B · corroborated · fresh · direct | fetched)
+```
+
+### 5.6 Decision Confidence (Decoupled from Evidence Grade)
+
+| Confidence | Definition |
+|---|---|
+| `high` | Multiple corroborated Grade A/B sources; alternatives thoroughly evaluated |
+| `medium` | Adequate evidence but some alternatives lack evaluation, or key claims rest on single sources |
+| `low` | Decision under uncertainty; thin, contested, or indirect evidence |
+
+### 5.7 Architecture Decision Records (D-NNN)
 
 Every architectural decision is documented as a YAML-frontmattered Markdown file:
 
@@ -271,7 +354,6 @@ date: 2026-08-18
 confidence: high          # Decoupled from evidence grade
 evidence_refs: [E-012, E-047]
 informed_by_sessions: [T2-03, T2-05]
-supersedes: null
 review_trigger: "Re-evaluate if ingestion exceeds 50k ops/sec or storage >2TB"
 human_reviewed: true      # Mandatory for one-way doors
 schema_version: "3.0"
@@ -292,27 +374,27 @@ schema_version: "3.0"
 ### 6.1 Hybrid Markdown + YAML Frontmatter
 
 Every research artifact combines:
-- **YAML frontmatter** — machine-parseable metadata validated via JSON Schema (see [schemas/](schemas/))
+- **YAML frontmatter** — machine-parseable metadata
 - **Markdown body** — human-readable narrative with standardized section structure
-- **Strict separation** between `Recommendation` and `Alternatives Considered` — prevents AI code-generation contamination
+- **Strict separation** between `Recommendation` and `Alternatives Considered`
 
 ### 6.2 Standardized 7-Section Body Skeleton
 
 | # | Section | Purpose |
 |---|---|---|
-| 1 | `## Research Question` | Precise 1–2 sentence statement of what this session investigated |
+| 1 | `## Research Question` | Precise 1–2 sentence statement |
 | 2 | `## Key Findings` | 3–7 atomic bullet points extractable by synthesis agents |
-| 3 | `## Recommendation` | Explicit, unambiguous technical guidance (isolated from rejected options) |
-| 4 | `## Alternatives Considered` | Evaluated competing options and why they were rejected |
-| 5 | `## Detailed Findings` | Flexible analytical body (benchmarks, tables, diagrams, code) |
+| 3 | `## Recommendation` | Explicit guidance (isolated from rejected options) |
+| 4 | `## Alternatives Considered` | Evaluated competing options and rejection rationale |
+| 5 | `## Detailed Findings` | Flexible analytical body |
 | 6 | `## Open Questions & Risks` | Unresolved items and downstream risks |
 | 7 | `## Sources & Evidentiary Ledger` | Numbered citations with composite grade metadata |
 
 ### 6.3 Map-Reduce Synthesis Workflow
 
-When synthesizing 10–25 research sessions into the Founding Architecture Document:
+When synthesizing research sessions into the Founding Architecture Document:
 
-1. **Filter:** Ingest only `status: final` sessions via `_index.yaml`
+1. **Filter:** Ingest only `status: final` sessions
 2. **Group:** Cluster by `topic` tags
 3. **Map:** Extract atomic Key Findings and Recommendation sections
 4. **Reduce:** Merge topic clusters into unified subsystem chapters
@@ -334,12 +416,12 @@ When synthesizing 10–25 research sessions into the Founding Architecture Docum
 ### 7.2 Track B: 9-Step Pre-Codebase Exit Checklist
 
 1. **DAG Closure** — All required dependency paths terminated in `status: final`
-2. **Contradiction Resolution** — All cross-model/cross-source divergences explicitly resolved
+2. **Contradiction Resolution** — All divergences explicitly resolved
 3. **Evidentiary Threshold** — Zero uncorroborated Grade C/D/E claims underpin irreversible pillars
-4. **Verification Integrity** — 100% of critical citations carry `fetched` or `cached` (zero `recalled` for Type 1)
-5. **Rejected Alternatives Documented** — Every ADR includes evaluated and rejected options with rationale
+4. **Verification Integrity** — 100% of critical citations carry `fetched` or `cached`
+5. **Rejected Alternatives Documented** — Every ADR includes evaluated and rejected options
 6. **Decay Triggers Assigned** — Every ADR contains explicit `review_trigger`
-7. **Premortem Protocol** — 30-minute Gary Klein prospective hindsight: *"Assume catastrophic failure in 12 months. What caused it?"*
+7. **Premortem Protocol** — Gary Klein prospective hindsight: *"Assume catastrophic failure in 12 months. What caused it?"*
 8. **Human Review** — Named Principal Architect signature on all Type 1 ADRs
 9. **FAD Sealed** — Founding Architecture Document compiled, committed, ready for scaffolding
 
@@ -347,65 +429,51 @@ When synthesizing 10–25 research sessions into the Founding Architecture Docum
 
 ## 8. Generator Architecture
 
-### 8.1 The 5-Layer Hybrid
+The pipeline generator uses a **deterministic/AI hybrid** architecture. See [GENERATOR.md](GENERATOR.md) for the working generator prompt.
 
-The pipeline generator uses a **deterministic/AI hybrid** architecture. Scaffolding is deterministic (repeatable, testable); prompt prose is AI-synthesized (project-specific, non-generic).
+The long-term vision is a 5-layer code-based tool:
 
 | Layer | Function | Implementation |
 |---|---|---|
-| **0: Input** | Collect 8 project parameters via structured schema | Deterministic — validated JSON/YAML input |
+| **0: Input** | Collect project vision via open-ended description | AI — parameter extraction from natural language |
 | **1: Classification** | 6-archetype domain classifier + 8-dimension complexity scoring | Deterministic — rule-based decision tree |
-| **2: Skeleton** | Assemble session matrix from archetype templates + tier budget | Deterministic — template composition (Yeoman-style `composeWith`) |
-| **3: Prompt Synthesis** | Generate project-specific prompt prose for each session slot | AI — N parallel scoped calls (one per session) |
+| **2: Skeleton** | Assemble session matrix from archetype templates + tier budget | Deterministic — template composition |
+| **3: Prompt Synthesis** | Generate project-specific prompt prose for each session slot | AI — N parallel scoped calls |
 | **4: Registry Seeding** | Generate project-specific D-NNN hypotheses | AI — scoped calls tied to vision + constraints |
 | **5: Validation** | Schema validation, archetype completeness, budget verification | Deterministic — CI-style gates |
 
-### 8.2 The 6 Domain Archetypes
+### The 6 Domain Archetypes
 
 | Archetype | Unique Research Needs |
 |---|---|
 | **B2B SaaS** | Multi-tenancy, RBAC/SAML, CRM integrations, seat/usage pricing |
 | **Developer Tools** | DX & time-to-first-value, CLI/SDK idioms, open-source licensing |
 | **FinTech** | KYC/AML, banking rails, immutable ledgers, PCI-DSS, fraud detection |
-| **AI/ML Systems** | Model selection, eval benchmarks, inference cost, context architecture, guardrails |
+| **AI/ML Systems** | Model selection, eval benchmarks, inference cost, context architecture |
 | **Consumer Mobile** | App Store compliance, offline-first sync, push/retention, in-app billing |
 | **Real-Time / IoT** | MQTT/WebSockets, edge vs cloud compute, fleet OTA, hardware constraints |
-
-**Blending Rule:** When a project matches multiple domains, adopt the Primary Archetype's full session matrix and append only the non-overlapping differentiator sessions from the Secondary Archetype.
-
-### 8.3 Interim Generator (Prompt-Based)
-
-Until the code-based 5-layer generator is built, use [META-PROMPT-GENERATOR.md](META-PROMPT-GENERATOR.md) — a v3.0-compliant master prompt that approximates the hybrid architecture in a single AI interaction.
 
 ---
 
 ## 9. Composition Strategy
 
-### Wardley Evolution Framework
-
-Replace fixed compose/build ratios with a domain-calibrated Wardley mapping:
+Replace fixed compose/build ratios with Wardley evolution mapping:
 
 | Evolution Stage | Strategy | Examples |
 |---|---|---|
-| **Commodity/Utility** | 100% compose from established providers | Auth (Clerk/Auth0), DB (Postgres/Supabase), Storage (S3/R2), Queues (SQS/BullMQ), UI primitives (Radix/shadcn) |
-| **Product** | Evaluate compose vs customize based on fit | CMS, analytics, email, payments |
-| **Custom** | Extend/fork existing tools with domain adaptations | Specialized dashboards, domain-specific UI patterns |
-| **Genesis** | 100% custom build — this is the proprietary moat | Core algorithms, domain state machines, business logic engines, unique data models |
+| **Commodity/Utility** | 100% compose | Auth, DB, Storage, Queues, UI primitives |
+| **Product** | Evaluate compose vs customize | CMS, analytics, email, payments |
+| **Custom** | Extend/fork existing tools | Specialized dashboards, domain UI patterns |
+| **Genesis** | 100% custom build | Core algorithms, domain state machines, business logic |
 
 ---
 
 ## 10. Specification Provenance
 
-This framework specification was produced by the URP v3.0 meta-research pipeline:
+This framework was produced by applying URP to itself:
 
-- **11 independent research sessions** (T1-01 through T3-01) across frontier AI platforms
-- **2 triangulated sessions** (T2-01, T2-02) with cross-model validation
-- **31 evidence nodes** (E-001 through E-031) from peer-reviewed studies, industry standards, and empirical benchmarks
+- **11 independent research sessions** across frontier AI platforms
+- **31 evidence nodes** from peer-reviewed studies, industry standards, and empirical benchmarks
 - **10 hypothesis verdicts** — 0 fully validated as-is, 3 refuted, 4 refined, 3 validated with enhancements
 
-The complete evidence base is preserved in [meta-research/](meta-research/):
-- [DECISIONS.md](meta-research/DECISIONS.md) — Sealed ADR corpus with all 10 verdicts
-- [research/SYN-01-urp-v3-synthesis.md](meta-research/research/SYN-01-urp-v3-synthesis.md) — Grand synthesis document
-- [research/](meta-research/research/) — All 14 primary research artifacts (639KB)
-
-The meta-research serves as the empirical audit trail for v3.0. The framework is fully self-contained and does not require reading the research to operate — but the research is available for anyone who wants to verify why a specific design decision was made.
+The complete evidence base is preserved in [meta-research/](meta-research/). The framework is fully self-contained without it.
