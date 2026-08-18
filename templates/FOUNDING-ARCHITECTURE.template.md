@@ -1,8 +1,17 @@
 # Founding Architecture Document Template — URP v3.0
 ### Map-Reduce Synthesis from Research Pipeline to Repository Scaffolding
 
-> **Usage:** This template structures the final synthesis document (SYN-01 output)
-> that bridges research findings into a concrete, buildable architecture.
+> **Usage:** This template structures the final synthesis document that bridges
+> research findings into a concrete, buildable architecture specification.
+>
+> **How to compile this document:**
+> 1. **Filter:** Gather all completed research sessions from `sessions/`
+> 2. **Group:** Cluster sessions by topic (data, auth, infra, etc.)
+> 3. **Map:** Extract the Key Findings and Recommendation from each session
+> 4. **Reduce:** Merge each topic cluster into a unified subsystem chapter below
+> 5. **Reconcile:** Resolve any cross-session contradictions (if Session A assumes REST but Session B assumes gRPC, pick one and document why)
+> 6. **Trace:** Annotate every section with the session IDs and decision IDs that informed it
+> 7. **Gate:** Run the Phase 0 Gate checklist before sealing
 
 ---
 

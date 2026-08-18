@@ -22,39 +22,35 @@ Open [GENERATOR.md](GENERATOR.md), copy the generator prompt, paste your project
 - **PROMPT-LIBRARY.md** — copy-paste research prompts for each session
 - **DECISIONS.md** — initial hypothesis registry
 
-Save these in your new project's `research/` directory.
-
-### Step 2: Execute Research Sessions
-Take each prompt from your generated PROMPT-LIBRARY.md and run it in an independent AI deep research session. Sessions are designed to be parallel and independent — run as many simultaneously as you want.
-
-Save each output as `research/sessions/T#-##-[slug].md` in your project directory.
-
-### Step 3: Record Decisions
-After key research sessions, lock architectural decisions using the [DECISIONS template](templates/DECISIONS.template.md). Classify each as one-way or two-way door. If models disagree on a contested decision, use the [CONFLICT-RESOLUTION template](templates/CONFLICT-RESOLUTION.template.md).
-
-### Step 4: Synthesize & Gate
-Compile all findings into a Founding Architecture Document using the [FAD template](templates/FOUNDING-ARCHITECTURE.template.md). Verify exit criteria with the [PHASE-0-GATE template](templates/PHASE-0-GATE.template.md).
-
-### Step 5: Build
-Start development with the FAD as your architectural source of truth. The research pipeline's job is done.
-
-### What Your New Project Directory Looks Like
+### Step 2: Set Up Your Project Workspace
+Create your project's `research/` directory, paste in the 3 generated files, and **copy the 4 templates** from this repository:
 
 ```
-my-new-project/
-├── research/
-│   ├── RESEARCH-PIPELINE.md         ← Generated in Step 1
-│   ├── PROMPT-LIBRARY.md            ← Generated in Step 1
-│   ├── DECISIONS.md                 ← Seeded in Step 1, filled in Step 3
-│   ├── sessions/
-│   │   ├── T1-01-market-landscape.md
-│   │   ├── T2-01-datastore-selection.md
-│   │   └── ...
-│   ├── FAD.md                       ← Created in Step 4
-│   └── PHASE-0-GATE.md              ← Completed in Step 4
-├── src/                             ← Development starts after gate passes
-└── ...
+my-project/
+└── research/
+    ├── RESEARCH-PIPELINE.md         ← Generated
+    ├── PROMPT-LIBRARY.md            ← Generated
+    ├── DECISIONS.md                 ← Generated
+    ├── templates/                   ← Copied from research-pipeline/templates/
+    │   ├── DECISIONS.template.md
+    │   ├── CONFLICT-RESOLUTION.template.md
+    │   ├── FOUNDING-ARCHITECTURE.template.md
+    │   └── PHASE-0-GATE.template.md
+    └── sessions/                    ← Empty (research outputs go here)
 ```
+
+Your project is now **100% self-contained**. You never need to return to this meta-repo.
+
+### Step 3: Execute Research Sessions
+Take each prompt from your generated PROMPT-LIBRARY.md and run it in an independent AI deep research session. Sessions are designed to be parallel — run as many simultaneously as you want.
+
+Save each output as `research/sessions/T#-##-[slug].md`.
+
+### Step 4: Record Decisions
+After key research sessions, lock architectural decisions in `DECISIONS.md` using the format from `templates/DECISIONS.template.md`. Classify each as one-way or two-way door. If models disagree, use `templates/CONFLICT-RESOLUTION.template.md`.
+
+### Step 5: Synthesize, Gate & Build
+Compile all findings into a Founding Architecture Document using `templates/FOUNDING-ARCHITECTURE.template.md`. Verify exit criteria with `templates/PHASE-0-GATE.template.md`. Once the gate passes — start coding with the FAD as your architectural source of truth.
 
 ---
 
@@ -67,7 +63,7 @@ research-pipeline/
 ├── FRAMEWORK.md           ← Complete v3.0 methodology specification
 ├── AGENTS.md              ← AI agent operating manual
 │
-├── templates/             ← Operational templates (used during research)
+├── templates/             ← Operational templates (copy to new projects)
 │   ├── DECISIONS.template.md
 │   ├── CONFLICT-RESOLUTION.template.md
 │   ├── FOUNDING-ARCHITECTURE.template.md
@@ -79,7 +75,20 @@ research-pipeline/
     └── research/           ← 14 primary research artifacts (639KB)
 ```
 
-**4 operational files** (GENERATOR + 3 docs) + **4 templates** + FRAMEWORK for reference. That's the whole system.
+---
+
+## Using with AI Agents (Antigravity, Claude Code, Cursor, etc.)
+
+Because your project workspace contains both the generated files AND the operational templates, AI agents can autonomously execute every step. Example commands:
+
+| Step | Agent Prompt |
+|---|---|
+| **Research** | *"Read T2-01 from `research/PROMPT-LIBRARY.md`, run deep research with web search, save to `research/sessions/T2-01-datastore-selection.md`"* |
+| **Decide** | *"Read `research/sessions/T2-01-*.md`, formulate D-001 in `research/DECISIONS.md` following `research/templates/DECISIONS.template.md`"* |
+| **Synthesize** | *"Read all sessions and decisions, compile `FAD.md` following `research/templates/FOUNDING-ARCHITECTURE.template.md`"* |
+| **Gate** | *"Audit `FAD.md` against `research/templates/PHASE-0-GATE.template.md`, run premortem for One-Way Doors, emit `PHASE-0-GATE.md`"* |
+
+The templates act as **contracts** — the agent reads them and follows the exact format, methodology, and checklist without hallucinating structure.
 
 ---
 

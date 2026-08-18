@@ -152,9 +152,18 @@ For each architectural decision identified, create a D-NNN entry with:
 
 Generate THREE complete Markdown file artifacts:
 
-1. **RESEARCH-PIPELINE.md** — Extracted parameters, complexity score with
-   rationale, session matrix (DAG), execution plan (parallel groups +
-   gated dependencies), and Phase 0 exit gate checklist.
+1. **RESEARCH-PIPELINE.md** — Must include:
+   - **How to Execute This Pipeline** section at the top with:
+     - Where to save research outputs (`sessions/T#-##-[slug].md`)
+     - How to record decisions (reference `templates/DECISIONS.template.md`)
+     - How to resolve conflicts (reference `templates/CONFLICT-RESOLUTION.template.md`)
+     - How to compile the FAD (reference `templates/FOUNDING-ARCHITECTURE.template.md`)
+     - How to run the gate (reference `templates/PHASE-0-GATE.template.md`)
+   - Extracted project parameters and inferred classifications
+   - Complexity score with per-dimension rationale and tier assignment
+   - Session matrix (DAG) with IDs, dependencies, door types
+   - Execution plan (parallel groups + gated dependencies)
+   - Phase 0 exit gate criteria (two-track: Track A for two-way, Track B for one-way)
 
 2. **PROMPT-LIBRARY.md** — Complete, copy-paste-ready research prompts
    for every session. Each prompt self-contained with 5-block anatomy.
@@ -175,19 +184,53 @@ Generate THREE complete Markdown file artifacts:
 
 ---
 
-## What You Get Back
+## Set Up Your Project
 
-The AI will return 3 documents. Save them in your new project's `research/` directory:
+After the AI returns the 3 generated documents, set up your new project workspace:
 
+### 1. Create the research directory
 ```
 my-project/
 └── research/
-    ├── RESEARCH-PIPELINE.md    ← Your project's complexity score, session DAG, execution plan
-    ├── PROMPT-LIBRARY.md       ← Copy-paste research prompts for each session
-    └── DECISIONS.md            ← Initial hypothesis registry (fill in during research)
+    ├── RESEARCH-PIPELINE.md         ← Generated (paste here)
+    ├── PROMPT-LIBRARY.md            ← Generated (paste here)
+    ├── DECISIONS.md                 ← Generated (paste here)
+    ├── sessions/                    ← Create empty folder for research outputs
+    └── templates/                   ← Copy from URP (see step 2)
 ```
 
-Then execute each prompt from PROMPT-LIBRARY.md in independent AI sessions. See [README.md](README.md) for the complete workflow.
+### 2. Copy the operational templates
+Copy the 4 templates from this repository into your project's `research/templates/` directory:
+
+```
+templates/DECISIONS.template.md
+templates/CONFLICT-RESOLUTION.template.md
+templates/FOUNDING-ARCHITECTURE.template.md
+templates/PHASE-0-GATE.template.md
+```
+
+**Why:** These templates are the contracts for recording decisions, resolving conflicts, compiling the final architecture, and running the exit gate. With them in your workspace, any AI agent (Antigravity, Claude Code, Cursor) can autonomously execute the full research workflow without referencing the meta-repo.
+
+### 3. Execute the pipeline
+See the generated RESEARCH-PIPELINE.md for the complete execution guide, or follow the [README Quick Start](README.md).
+
+---
+
+## Using with AI Agents (Antigravity, Claude Code, etc.)
+
+With templates in your workspace, you can delegate research steps directly to an AI agent:
+
+**Execute a research session:**
+> *Read session T2-01 from `research/PROMPT-LIBRARY.md`. Run the deep research with web search, grade all evidence, and save the result to `research/sessions/T2-01-datastore-selection.md`.*
+
+**Record a decision:**
+> *Read `research/sessions/T2-01-datastore-selection.md`. Formulate the verdict for D-001 in `research/DECISIONS.md` following the format in `research/templates/DECISIONS.template.md`.*
+
+**Compile the FAD:**
+> *Read all finalized sessions in `research/sessions/` and locked decisions in `research/DECISIONS.md`. Synthesize them into `FAD.md` following `research/templates/FOUNDING-ARCHITECTURE.template.md`.*
+
+**Run the gate:**
+> *Audit `FAD.md` and `research/DECISIONS.md` against `research/templates/PHASE-0-GATE.template.md`. Conduct the premortem for all One-Way Doors and emit `PHASE-0-GATE.md`.*
 
 ---
 
@@ -195,11 +238,12 @@ Then execute each prompt from PROMPT-LIBRARY.md in independent AI sessions. See 
 
 This generator prompt embodies URP v3.0 principles:
 
-- **No persona** — task framing, not role assignment (personas debunked for factual accuracy: Zheng et al. EMNLP 2024)
+- **No persona** — task framing, not role assignment (personas debunked: Zheng et al. EMNLP 2024)
 - **Open-ended input** — accepts natural language vision dumps; the AI extracts structure
-- **AI-driven classification** — domain, risk, and complexity are inferred from the vision, not self-reported by the user
-- **Self-contained** — all methodology concepts are operationalized inline; the receiving AI doesn't need access to any other URP files
+- **AI-driven classification** — domain, risk, and complexity inferred from vision, not self-reported
+- **Self-contained** — all methodology operationalized inline; receiving AI needs no other URP files
+- **Self-documenting output** — generated RESEARCH-PIPELINE.md includes its own execution guide
 - **Uncertainty-native** — undecided elements become research questions, not blockers
-- **Front-loaded** — complete brief in one turn (39% performance drop from drip-feeding: Laban et al. ICLR 2026)
+- **Front-loaded** — complete brief in one turn (39% drop from drip-feeding: Laban et al. ICLR 2026)
 
 For the complete methodology specification, see [FRAMEWORK.md](FRAMEWORK.md).
