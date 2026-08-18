@@ -184,9 +184,138 @@ Generate THREE complete Markdown file artifacts:
 
 ---
 
+## Choose Your Approach
+
+| Approach | Best For | Sessions |
+|---|---|---|
+| **Single Session** (above) | Agentic IDEs (Antigravity, Cursor, Claude Code), API agents, Tier 0–1 projects | 1 |
+| **Split Generation** (below) | Web chat interfaces, credit-limited sessions, Tier 2–3 projects | 2 |
+
+The PROMPT-LIBRARY scales linearly with session count — a Tier 3 project with 20 sessions
+produces 15,000+ words of prompts alone. If your session can handle all 3 files at once, use
+the single prompt above. If it can't, use the split approach below.
+
+> **Why not 3 parallel sessions?** The 3 files are NOT independent. PROMPT-LIBRARY needs the
+> session matrix from RESEARCH-PIPELINE. DECISIONS needs the session and decision IDs. Three
+> independent sessions will produce inconsistent session lists and divergent decisions.
+> The correct split is sequential: **foundation first, then prompts.**
+
+---
+
+## Split Generation (Alternative)
+
+### Step 1: Generate Pipeline + Decisions
+
+Use the **same generator prompt** above, but replace the `## DELIVERABLE` section with:
+
+````markdown
+## DELIVERABLE
+
+Generate TWO complete Markdown file artifacts:
+
+1. **RESEARCH-PIPELINE.md** — Must include:
+   - **How to Execute This Pipeline** section at the top with:
+     - Where to save research outputs (`sessions/T#-##-[slug].md`)
+     - How to record decisions (reference `templates/DECISIONS.template.md`)
+     - How to resolve conflicts (reference `templates/CONFLICT-RESOLUTION.template.md`)
+     - How to compile the FAD (reference `templates/FOUNDING-ARCHITECTURE.template.md`)
+     - How to run the gate (reference `templates/PHASE-0-GATE.template.md`)
+   - Extracted project parameters and inferred classifications
+   - Complexity score with per-dimension rationale and tier assignment
+   - Session matrix (DAG) with IDs, titles, dependencies, door types
+   - Execution plan (parallel groups + gated dependencies)
+   - Phase 0 exit gate criteria (two-track: Track A for two-way, Track B for one-way)
+
+2. **DECISIONS.md** — Initial decision registry with proposed hypotheses,
+   door types, and session links.
+
+Do NOT generate PROMPT-LIBRARY.md — it will be generated in a follow-up session.
+````
+
+### Step 2: Generate Prompts from Pipeline
+
+Open a **fresh AI session** and send this prompt with both paste sections filled in:
+
+````markdown
+# GENERATE: Research Prompts from Pipeline
+
+## BRIEF
+
+Generate the complete PROMPT-LIBRARY.md for a pre-development research pipeline.
+The Research Pipeline and Decision Registry have already been generated (provided
+below). Your job is to write a complete, copy-paste-ready research prompt for
+every session listed in the pipeline.
+
+## PROJECT VISION
+
+[PASTE YOUR ORIGINAL PROJECT DESCRIPTION HERE]
+
+## RESEARCH PIPELINE
+
+[PASTE YOUR GENERATED RESEARCH-PIPELINE.md HERE]
+
+## PROMPT GENERATION RULES
+
+For each session in the Research Pipeline above, write a self-contained prompt
+using this 5-block structure:
+
+**BRIEF:** What to investigate, which decision it informs, who the audience
+is (a Principal Architect needing production-grade tradeoffs, not summaries).
+Include project-specific context from the vision.
+
+**SCOPE:** Today's date as temporal anchor. In-scope / out-of-scope boundaries.
+Source priorities: prefer official docs, RFCs, source code, peer-reviewed
+benchmarks over blog posts and SEO content.
+
+**APPROACH:** Directional, not prescriptive. Tell the AI to start with broad
+landscape queries, then dynamically investigate specific tradeoffs, failure
+modes, and benchmarks. Tell it to surface disagreements rather than smooth
+them, and actively seek disconfirming evidence. Do NOT prescribe specific
+search queries or set minimum search counts.
+
+**DELIVERABLE:** Coverage checklist of what the output must address.
+Include: recommendation, options evaluation, deep analysis of top contenders,
+inline evidence grades, and open risks with reversal triggers.
+
+For evidence grading, every factual claim should carry:
+- Base grade: A (official docs/RFCs) | B (peer-reviewed/empirical) |
+  C (vendor claims) | D (blog/tutorial/AI recall) | E (unverifiable)
+- Modifiers: corroboration (single/corroborated/contested),
+  recency (fresh/aging/stale), directness (direct/indirect)
+- Verification: fetched | cached | recalled | secondhand | human-provided
+  (recalled claims capped at Grade D regardless of apparent source)
+
+**FORMAT:** Single complete Markdown file artifact with YAML frontmatter
+(id, title, date, status, topic, tags, informs_decisions, confidence).
+Body sections: Research Question → Key Findings (3–7 bullets) →
+Recommendation → Alternatives Considered → Detailed Findings →
+Open Questions & Risks → Sources & Evidence Ledger.
+
+IMPORTANT: Do NOT include expert personas, hardcoded search queries,
+minimum search counts, or rigid output skeletons in any prompt. Each
+prompt must be a complete, front-loaded, single-turn brief.
+
+## DELIVERABLE
+
+Generate a single complete Markdown file artifact:
+
+**PROMPT-LIBRARY.md** — All research prompts for every session listed in
+the Research Pipeline, organized by layer (Layer 0 → Layer 1 → Layer 2 → Sink).
+Each prompt must be copy-paste-ready into a fresh AI session.
+
+## SCOPE
+- Today's date: [INSERT DATE]
+- Generate prompts appropriate for frontier AI with deep research/web
+  search capabilities (Claude, Gemini, ChatGPT)
+- Match session IDs and titles exactly as they appear in the Research Pipeline
+- Each prompt must be self-contained (usable without reading other prompts)
+````
+
+---
+
 ## Set Up Your Project
 
-After the AI returns the 3 generated documents, set up your new project workspace:
+After the AI returns the generated documents, set up your new project workspace:
 
 ### 1. Create the research directory
 ```
@@ -247,3 +376,4 @@ This generator prompt embodies URP v3.0 principles:
 - **Front-loaded** — complete brief in one turn (39% drop from drip-feeding: Laban et al. ICLR 2026)
 
 For the complete methodology specification, see [FRAMEWORK.md](FRAMEWORK.md).
+
