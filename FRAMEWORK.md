@@ -246,7 +246,7 @@ Every research session defaults to **unblocked** (eligible to execute immediatel
 
 ## BRIEF
 We are investigating [core technical/architectural question].
-This research will directly inform Architectural Decision [D-XXX: Title].
+This research will directly inform Architectural Decision [D-NNN: Title].
 The target audience is a Principal Architect requiring rigorous, production-grade
 technical evaluation with concrete tradeoffs, operational failure modes, and
 verified benchmarks — not high-level introductory summaries.
