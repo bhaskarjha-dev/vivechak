@@ -134,6 +134,22 @@ These require significant research investment and should not be started until Ph
 | **Cross-Project Knowledge Graph** | Reusable evidence records across projects | Requires 5+ projects with tracked evidence |
 | **Longitudinal Calibration** | Track prediction accuracy over time (Tetlock-style) | Requires 3+ projects with 6+ months of development data |
 | **Adaptive Prompt Evolution** | Prompts that improve from session to session within a pipeline | Requires understanding of inter-session information flow |
+| **Domain-Agnostic Expansion** | Extend Vivechak beyond software to hardware, manufacturing, biopharma, or CapEx decisions | Requires empirical validation on ≥1 non-software domain (see below) |
+
+#### On Domain-Agnostic Expansion
+
+Vivechak's epistemic core — evidence grading (Cochrane/GRADE lineage), ACH conflict resolution (CIA/Heuer), premortem protocol (Gary Klein), reversibility routing (Bezos Type 1/2 doors), and map-reduce synthesis — was not invented for software. These primitives govern how intelligence reasons about truth, risk, and irreversibility in *any* domain.
+
+The generator prompt (v1.0) already says "technical project" rather than "software project." The FAD template uses domain-neutral Wardley Compose/Build framing. The 4 operational templates (Decisions, Conflict Resolution, FAD, Phase 0 Gate) contain zero software-specific content.
+
+**What's missing for non-software domains:**
+- The 6 domain archetypes in the generator are software-only (B2B SaaS, DevTools, FinTech, AI/ML, Consumer Mobile, Real-Time/IoT). Non-software use would need archetype-equivalent classification for hardware, manufacturing, biopharma, etc.
+- The 8-dimension complexity scoring rubric uses software-centric labels ("Standard CRUD," "New library," "PII/GDPR"). Scoring labels would need domain-neutral equivalents.
+- The 5-block prompt anatomy references "Principal Architect" as the target audience. Non-software domains would reference domain-equivalent decision-makers.
+
+**Gate condition:** This frontier activates only when someone empirically uses Vivechak on a non-software domain, documents the results, and identifies specific friction points. Speculative refactoring without demand evidence is the exact premature architecture that Vivechak exists to prevent.
+
+**What would NOT change:** The 8 core principles, evidence grading system, ACH matrix, premortem protocol, and two-track gate are already fully domain-agnostic and require zero modification.
 
 ---
 
