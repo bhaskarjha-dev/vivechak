@@ -42,17 +42,36 @@ You'll receive 3 files:
 Create your project's `research/` directory, paste in the 3 generated files, and **copy the 4 templates** from this repository:
 
 ```
-my-project/
-└── research/
-    ├── RESEARCH-PIPELINE.md         ← Generated
-    ├── PROMPT-LIBRARY.md            ← Generated
-    ├── DECISIONS.md                 ← Generated
-    ├── templates/                   ← Copied from vivechak/templates/
-    │   ├── DECISIONS.template.md
-    │   ├── CONFLICT-RESOLUTION.template.md
-    │   ├── FOUNDING-ARCHITECTURE.template.md
-    │   └── PHASE-0-GATE.template.md
-    └── sessions/                    ← Empty (research outputs go here)
+vivechak/
+├── README.md                       ← Overview, quickstart, philosophy
+├── GENERATOR.md                    ← The generator prompt (THE tool)
+├── FRAMEWORK.md                    ← Complete v3.0 specification
+├── AGENTS.md                       ← AI agent operating manual
+├── ROADMAP.md                      ← Lineage, Phase 4 validation, frontiers
+├── CHANGELOG.md                    ← Release history & spec evolution
+├── CONTRIBUTING.md                 ← Evidence-grounding contribution rules
+├── CODE_OF_CONDUCT.md              ← Contributor Covenant v2.1
+├── LICENSE                         ← MIT License
+├── VERSION                         ← Spec version (3.0.0)
+│
+├── templates/                      ← 4 operational contracts (copy to projects)
+│   ├── DECISIONS.template.md       ← YAML frontmatter ADR format
+│   ├── CONFLICT-RESOLUTION.template.md ← Analysis of Competing Hypotheses
+│   ├── FOUNDING-ARCHITECTURE.template.md ← Map-Reduce synthesis to FAD
+│   └── PHASE-0-GATE.template.md    ← Two-track pre-codebase exit gate
+│
+├── examples/                       ← Concrete adoption walkthroughs
+│   └── SAMPLE-PIPELINE.md          ← End-to-end Tier 1 sample project
+│
+├── docs/assets/                    ← Visual branding & diagrams
+│   └── logo.jpg                    ← Minimalist prism logo
+│
+└── meta-research/                  ← Empirical evidence base (sealed provenance)
+    ├── README.md                   ← Provenance index
+    ├── DECISIONS.md                ← 10 hypothesis verdicts & 31 evidence nodes
+    ├── RESEARCH-PIPELINE.md        ← Meta-research execution DAG
+    ├── PROMPT-LIBRARY.md           ← 14 meta-research prompts
+    └── research/                   ← 14 primary research artifacts (639KB)
 ```
 
 Your project is now **100% self-contained**. You never need to return to this meta-repo.
