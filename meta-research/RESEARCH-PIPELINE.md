@@ -1,4 +1,4 @@
-# Universal Research Pipeline — Meta-Research Pipeline v1.0
+# Vivechak — Meta-Research Pipeline v1.0
 ### Empirically Validating the Framework That Validates Frameworks
 *Created: August 2026*
 
@@ -6,17 +6,17 @@
 
 ## 1. The Recursive Imperative
 
-The URP's own Axiom 2 states: *"Nothing Is Sacred — all initial assumptions are hypotheses until empirical research validates them."*
+The Vivechak's own Axiom 2 states: *"Nothing Is Sacred — all initial assumptions are hypotheses until empirical research validates them."*
 
-The current URP was built **inductively** from 6 projects' experiences (Yugm, Triyantra, Vivah, Portfolio, Forge/Rachak, Pramedha/Gemmra). Its core axioms — aspect-isolation, multi-model triangulation, the 3-tier staging model, fixed session counts, prompt anatomy — were never **deductively validated** against empirical evidence about how AI deep research actually works, what prompt engineering science says, or how other fields approach structured decision-making.
+The current Vivechak was built **inductively** from 6 projects' experiences (Yugm, Triyantra, Vivah, Portfolio, Forge/Rachak, Pramedha/Gemmra). Its core axioms — aspect-isolation, multi-model triangulation, the 3-tier staging model, fixed session counts, prompt anatomy — were never **deductively validated** against empirical evidence about how AI deep research actually works, what prompt engineering science says, or how other fields approach structured decision-making.
 
-**This pipeline applies the URP to itself.** Every core assumption is now a testable hypothesis. The research will either validate, refute, or refine each one — and the resulting evidence will be the foundation for URP v3.0, replacing all prior reference pipelines as the single source of truth.
+**This pipeline applies the Vivechak to itself.** Every core assumption is now a testable hypothesis. The research will either validate, refute, or refine each one — and the resulting evidence will be the foundation for Vivechak v3.0, replacing all prior reference pipelines as the single source of truth.
 
 ---
 
 ## 2. The 10 Hypotheses Under Test
 
-| ID | Current URP Assumption | Research Session |
+| ID | Current Vivechak Assumption | Research Session |
 |---|---|---|
 | **H-01** | Aspect-isolation universally produces better research than integrated multi-topic prompts | T2-01 |
 | **H-02** | Multi-model triangulation always adds value over single-model deep research | T2-02 |
@@ -33,7 +33,7 @@ The current URP was built **inductively** from 6 projects' experiences (Yugm, Tr
 
 ## 3. Pipeline Design Principles
 
-This meta-research pipeline is designed with three principles that depart from the current URP's approach:
+This meta-research pipeline is designed with three principles that depart from the current Vivechak's approach:
 
 ### Principle 1: Full Session Independence
 Every research session (T1-01 through T3-01) is **fully independent**. No session depends on another's output. This prevents cascading confirmation bias — each topic is explored with a fresh, uncontaminated analytical lens. Only SYN-01 ingests all outputs for synthesis.
@@ -80,7 +80,7 @@ Not every session warrants multi-model triangulation. Triangulation is recommend
 
 | Session | Name | Triangulation | Output |
 |---|---|---|---|
-| SYN-01 | Grand Synthesis → URP v3.0 Specification | 🔬 Single-Model | `meta-research/research/SYN-01-urp-v3-synthesis.md` |
+| SYN-01 | Grand Synthesis → Vivechak v3.0 Specification | 🔬 Single-Model | `meta-research/research/SYN-01-Vivechak-v3-synthesis.md` |
 
 > ¹ **Meta-Required:** Running T2-02 through triangulation is itself a meta-experiment. If models give substantially different answers about triangulation's value, that's evidence FOR triangulation. If they converge, that's evidence single-model research suffices for this class of question.
 >
@@ -110,7 +110,7 @@ Not every session warrants multi-model triangulation. Triangulation is recommend
                  ┌───────────────────────┐
                  │       SYN-01          │
                  │   Grand Synthesis     │
-                 │   → URP v3.0 Spec     │
+                 │   → Vivechak v3.0 Spec     │
                  └───────────────────────┘
 ```
 
@@ -151,7 +151,7 @@ meta-research/
     ├── T2-06-prompt-anatomy.md
     ├── T2-07-output-architecture.md
     ├── T3-01-generator-architecture.md
-    └── SYN-01-urp-v3-synthesis.md
+    └── SYN-01-Vivechak-v3-synthesis.md
 ```
 
 ---
@@ -160,6 +160,6 @@ meta-research/
 
 1. All research artifacts saved to `meta-research/research/`.
 2. `DECISIONS.md` updated: each D-NNN marked `VALIDATED`, `REFUTED`, or `REFINED` with evidence.
-3. `SYN-01` produces the **URP v3.0 Specification** — the evidence-grounded successor to the current framework.
+3. `SYN-01` produces the **Vivechak v3.0 Specification** — the evidence-grounded successor to the current framework.
 4. Current `FRAMEWORK.md`, `templates/`, and `META-PROMPT-GENERATOR.md` are rewritten based on validated findings.
 5. The `references/` directory becomes archival — the meta-research becomes the definitive source of truth.

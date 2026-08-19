@@ -1,5 +1,18 @@
-# Universal Research Pipeline (URP) v3.0
-### Evidence-Grounded Pre-Development Research Meta-Framework
+<div align="center">
+
+<img src="docs/assets/logo.jpg" alt="Vivechak" width="180" />
+
+# Vivechak (विवेचक)
+
+**Evidence-grounded pre-development research meta-framework.**
+
+*vi- (apart) + √vic (to sift/separate) + -aka (the agent who does) = "the discerning analyst"*
+
+</div>
+
+---
+
+### v3.0 — Separating evidence from assumption, truth from bias
 
 > **Transform software architecture decisions from gut-feel and cached training data into structured, evidence-graded, empirically validated research — before a single line of application code is written.**
 
@@ -9,7 +22,7 @@
 
 You have a software project idea. Before coding, you need to make architectural decisions — database, auth, hosting, data model, APIs. Some of these decisions are **irreversible** (one-way doors). If you get them wrong, you're looking at a rewrite.
 
-**URP generates a customized research pipeline for your project** that investigates every critical decision with appropriate rigor. It produces focused research prompts, executes them across frontier AI platforms, grades every claim with traceable evidence, and synthesizes the results into a sealed Founding Architecture Document (FAD) — your architectural source of truth before writing code.
+**Vivechak generates a customized research pipeline for your project** that investigates every critical decision with appropriate rigor. It produces focused research prompts, executes them across frontier AI platforms, grades every claim with traceable evidence, and synthesizes the results into a sealed Founding Architecture Document (FAD) — your architectural source of truth before writing code.
 
 ---
 
@@ -34,7 +47,7 @@ my-project/
     ├── RESEARCH-PIPELINE.md         ← Generated
     ├── PROMPT-LIBRARY.md            ← Generated
     ├── DECISIONS.md                 ← Generated
-    ├── templates/                   ← Copied from research-pipeline/templates/
+    ├── templates/                   ← Copied from vivechak/templates/
     │   ├── DECISIONS.template.md
     │   ├── CONFLICT-RESOLUTION.template.md
     │   ├── FOUNDING-ARCHITECTURE.template.md
@@ -60,7 +73,7 @@ Compile all findings into a Founding Architecture Document using `templates/FOUN
 ## Repository Structure
 
 ```
-research-pipeline/
+vivechak/
 ├── README.md              ← You are here
 ├── GENERATOR.md           ← THE TOOL: generator prompt (start here)
 ├── FRAMEWORK.md           ← Complete v3.0 methodology specification
@@ -116,11 +129,11 @@ The templates act as **contracts** — the agent reads them and follows the exac
 
 Software venture failures almost never stem from bad code — they stem from **premature architectural decisions made on unverified assumptions.** The cost of wrong decisions compounds: a bad database choice costs 10× more to fix at month 6 than at month 0.
 
-URP was born from 7 real project research pipelines (2024–2026), each independently discovering pieces of the same methodology: unbiased landscape cataloging, evidence grading, aspect isolation, decision registries, and synthesis protocols. URP v1.0/v2.0 consolidated these patterns.
+Vivechak was born from 7 real project research pipelines (2024–2026), each independently discovering pieces of the same methodology: unbiased landscape cataloging, evidence grading, aspect isolation, decision registries, and synthesis protocols. Vivechak v1.0/v2.0 consolidated these patterns.
 
 ### The v3.0 Transformation
 
-In August 2026, URP was subjected to its own methodology. 11 independent deep research sessions tested every foundational assumption. Of 10 hypotheses, **0 survived unchanged**:
+In August 2026, Vivechak was subjected to its own methodology. 11 independent deep research sessions tested every foundational assumption. Of 10 hypotheses, **0 survived unchanged**:
 
 | v2.0 Dogma | Verdict | v3.0 Resolution |
 |---|---|---|
@@ -135,7 +148,7 @@ The most load-bearing finding: **how you frame a research question measurably bi
 
 ### The Self-Referential Validation
 
-URP v3.0's most distinctive property: it was validated by the methodology it prescribes. The meta-research discovered that several of its own axioms needed refinement. This recursive self-correction is built into v3.0's DNA through mandatory review triggers and decay conditions on every locked ADR.
+Vivechak v3.0's most distinctive property: it was validated by the methodology it prescribes. The meta-research discovered that several of its own axioms needed refinement. This recursive self-correction is built into v3.0's DNA through mandatory review triggers and decay conditions on every locked ADR.
 
 ---
 

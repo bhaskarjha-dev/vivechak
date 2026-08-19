@@ -1,5 +1,5 @@
-# Universal Research Pipeline — Agent Operating Manual
-### URP v3.0 · Single Source of Truth for AI Agent Operations
+# Vivechak — Agent Operating Manual
+### Vivechak v3.0 · Single Source of Truth for AI Agent Operations
 
 > **Read this file COMPLETELY before modifying anything in this repository.**
 
@@ -7,7 +7,7 @@
 
 ## 1. What This Repository Is
 
-The **Universal Research Pipeline (URP)** is a production-grade Meta-Framework for evidence-grounded pre-development research.
+The **Vivechak (??????)** is a production-grade Meta-Framework for evidence-grounded pre-development research.
 
 **Core Purpose:** Transform software architecture decisions from gut-feel, outdated training data, and hallucinated conclusions into structured, evidence-graded, risk-calibrated research — before a single line of application code is written.
 
@@ -18,7 +18,7 @@ The **Universal Research Pipeline (URP)** is a production-grade Meta-Framework f
 ## 2. Repository Structure
 
 ```
-research-pipeline/
+vivechak/
 ├── AGENTS.md                       ← THIS FILE
 ├── README.md                       ← Overview, quick start, origin
 ├── GENERATOR.md                    ← The generator prompt (THE tool)

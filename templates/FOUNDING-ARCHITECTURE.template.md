@@ -1,4 +1,4 @@
-# Founding Architecture Document Template — URP v3.0
+# Founding Architecture Document Template — Vivechak v3.0
 ### Map-Reduce Synthesis from Research Pipeline to Repository Scaffolding
 
 > **Usage:** This template structures the final synthesis document that bridges

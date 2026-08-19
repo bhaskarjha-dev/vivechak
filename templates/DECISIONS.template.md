@@ -1,4 +1,4 @@
-# Architectural Decision Record Template — URP v3.0
+# Architectural Decision Record Template — Vivechak v3.0
 ### YAML Frontmatter ADR with Evidence Traceability
 
 > **Usage:** Create one file per decision: `decisions/D-NNN-[slug].md`

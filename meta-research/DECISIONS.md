@@ -1,6 +1,6 @@
-# Universal Research Pipeline — Decision Registry (ADR Corpus)
-### Ground-Truth Architectural Decision Records & Empirical Verdicts (URP v3.0)
-**Registry ID:** URP-META-DECISIONS  
+# Vivechak — Decision Registry (ADR Corpus)
+### Ground-Truth Architectural Decision Records & Empirical Verdicts (Vivechak v3.0)
+**Registry ID:** Vivechak-META-DECISIONS  
 **Synthesized:** August 2026 via Grand Synthesis SYN-01  
 **Schema Version:** 3.0  
 **Status:** Sealed Baseline Specification  
@@ -9,7 +9,7 @@
 
 ## Executive Summary & Registry Metadata
 
-This registry documents the empirical validation and formal architectural decisions for the Universal Research Pipeline (URP) Meta-Framework. Each entry represents a founding hypothesis from URP v2.0 subjected to rigorous empirical testing across 11 meta-research sessions (T1-01 through T3-01) and resolved into a permanent architectural invariant for URP v3.0.
+This registry documents the empirical validation and formal architectural decisions for the Vivechak (Vivechak) Meta-Framework. Each entry represents a founding hypothesis from Vivechak v2.0 subjected to rigorous empirical testing across 11 meta-research sessions (T1-01 through T3-01) and resolved into a permanent architectural invariant for Vivechak v3.0.
 
 ### Hypothesis Verdict Summary Table
 
@@ -91,7 +91,7 @@ schema_version: "3.0"
 ```
 
 #### Context & Problem Statement
-URP v2.0 mandated an absolute "Aspect-Isolation Law": every research topic must be isolated into a single-topic session with zero topic bundling. The hypothesis was that bundling multiple topics catastrophically degrades research depth due to search budget dilution.
+Vivechak v2.0 mandated an absolute "Aspect-Isolation Law": every research topic must be isolated into a single-topic session with zero topic bundling. The hypothesis was that bundling multiple topics catastrophically degrades research depth due to search budget dilution.
 
 #### Evaluated Options
 1. **Option 1 (v2.0 Dogma):** Absolute session isolation for all topics without exception.
@@ -107,7 +107,7 @@ URP v2.0 mandated an absolute "Aspect-Isolation Law": every research topic must 
 - However, absolute isolation fails: the Multi-Task Inference (MTI) benchmark demonstrates up to +12.4% accuracy and 1.46× faster inference when coupled, interdependent sub-tasks are evaluated jointly (E-002).
 - Over-isolation triggers the split-attention effect (E-003), introduces 4–15× token overhead, and misses systemic cross-cutting architectural trade-offs (E-004).
 
-#### URP v3.0 Resolution & Operational Rule
+#### Vivechak v3.0 Resolution & Operational Rule
 Decompose into dedicated research contexts when sub-tasks have low interdependency, high individual complexity, or divergent search spaces. Integrate coupled topics into structured joint sessions when evaluating holistic system tradeoffs. Every decomposed investigation **must** conclude with an explicit downstream synthesis pass.
 
 ---
@@ -131,7 +131,7 @@ schema_version: "3.0"
 ```
 
 #### Context & Problem Statement
-URP v2.0 mandated running identical research prompts across Claude, ChatGPT, and Gemini for all major architectural decisions to eliminate single-model bias.
+Vivechak v2.0 mandated running identical research prompts across Claude, ChatGPT, and Gemini for all major architectural decisions to eliminate single-model bias.
 
 #### Evaluated Options
 1. **Option 1 (v2.0 Dogma):** Mandatory 3-model triangulation across all research sessions.
@@ -147,7 +147,7 @@ URP v2.0 mandated running identical research prompts across Claude, ChatGPT, and
 - Divergence is genuine and valuable on subjective, ambiguous, or predictive trade-offs where model training priors differ (E-006).
 - Indiscriminate 3-model execution incurs 3× token spend, 3× latency, and heavy human reconciliation fatigue without proportional error reduction.
 
-#### URP v3.0 Resolution & Operational Rule
+#### Vivechak v3.0 Resolution & Operational Rule
 Default to single-model deep research. Use cheap cross-model critique probes for medium-stakes decisions. Escalate to full multi-model triangulation exclusively for high-stakes, irreversible One-Way Doors with genuine expert contestation, or when probes detect active divergence.
 
 ---
@@ -171,7 +171,7 @@ schema_version: "3.0"
 ```
 
 #### Context & Problem Statement
-URP v2.0 enforced a rigid 3-tier linear staging model (Tier 1 Landscape $\to$ Tier 2 Architecture $\to$ Tier 3 Blueprints), blocking downstream tiers until an entire upstream stage finished.
+Vivechak v2.0 enforced a rigid 3-tier linear staging model (Tier 1 Landscape $\to$ Tier 2 Architecture $\to$ Tier 3 Blueprints), blocking downstream tiers until an entire upstream stage finished.
 
 #### Evaluated Options
 1. **Option 1 (v2.0 Dogma):** Strict 3-tier sequential stage gating.
@@ -187,7 +187,7 @@ URP v2.0 enforced a rigid 3-tier linear staging model (Tier 1 Landscape $\to$ Ti
 - ~67% of Tier 2 architectural decisions depend on $\le 1$ Tier 1 session, not all 5 (E-009).
 - PMBOK standards distinguish mandatory (hard information) from discretionary (soft contextual) dependencies (E-008).
 
-#### URP v3.0 Resolution & Operational Rule
+#### Vivechak v3.0 Resolution & Operational Rule
 Sessions default to unblocked (eligible to run immediately). Hard information dependencies block execution; soft contextual dependencies are supplied via the living Shared Context Brief (`_index.yaml` + locked ADRs) without blocking. Tiers are retained strictly as organizational metadata.
 
 ---
@@ -211,7 +211,7 @@ schema_version: "3.0"
 ```
 
 #### Context & Problem Statement
-URP v2.0 prescribed a fixed count of 17–27 research sessions for every software venture, treating all projects as requiring identical diligence.
+Vivechak v2.0 prescribed a fixed count of 17–27 research sessions for every software venture, treating all projects as requiring identical diligence.
 
 #### Evaluated Options
 1. **Option 1 (v2.0 Dogma):** Fixed 17–27 session prescription.
@@ -227,7 +227,7 @@ URP v2.0 prescribed a fixed count of 17–27 research sessions for every softwar
 - Architectural failure concentrates in a small core of irreversible choices ($<20\%$ of components drive $>80\%$ of architectural risk, DORA / Walkinshaw et al.; E-011).
 - Rigor must scale with reversibility and knowability (Amazon 1-way/2-way door model, Bezos; E-012).
 
-#### URP v3.0 Resolution & Operational Rule
+#### Vivechak v3.0 Resolution & Operational Rule
 Score project complexity across 8 dimensions (0–24 pts) to establish budget ceilings: Tier 0 Minimal (1–3), Tier 1 Light (4–8), Tier 2 Standard (9–16), Tier 3 Deep (17–30). Route individual decisions via the 2×2 Reversibility × Familiarity Matrix. Enforce a hard override for high regulatory exposure ($D_3=3$).
 
 ---
@@ -251,7 +251,7 @@ schema_version: "3.0"
 ```
 
 #### Context & Problem Statement
-URP v2.0 used a static 5-tier evidence grade (A: Primary to E: Speculation) based solely on source prestige, without modifiers or AI verification tracking.
+Vivechak v2.0 used a static 5-tier evidence grade (A: Primary to E: Speculation) based solely on source prestige, without modifiers or AI verification tracking.
 
 #### Evaluated Options
 1. **Option 1 (v2.0 Dogma):** Static 5-tier A–E grading by source prestige alone.
@@ -269,7 +269,7 @@ URP v2.0 used a static 5-tier evidence grade (A: Primary to E: Speculation) base
 - Grade E conflated fabrication (provenance) with staleness (recency).
 - AI citation confabulation (E-015) requires strict verification tracking: unverified parametric recall must be structurally capped at Grade D.
 
-#### URP v3.0 Resolution & Operational Rule
+#### Vivechak v3.0 Resolution & Operational Rule
 Retain A–E base grades. Redefine Grade E strictly as *Untraceable / Unverifiable*. Attach 3 modifiers (`corroboration`, `recency`, `directness`) and mandatory `verification_method` metadata. Cap `recalled` AI claims at Grade D. Decouple decision confidence from evidence grade. Maintain separate, linked `E-NNN` and `D-NNN` registries.
 
 ---
@@ -293,7 +293,7 @@ schema_version: "3.0"
 ```
 
 #### Context & Problem Statement
-URP v2.0 mandated an 8-section XML-tagged prompt anatomy containing expert personas (`<system>`), 10–14 hardcoded search queries (`<web_searches>`), negative bias suppression (`<bias_resistance>`), and rigid output skeletons (`<output_spec>`).
+Vivechak v2.0 mandated an 8-section XML-tagged prompt anatomy containing expert personas (`<system>`), 10–14 hardcoded search queries (`<web_searches>`), negative bias suppression (`<bias_resistance>`), and rigid output skeletons (`<output_spec>`).
 
 #### Evaluated Options
 1. **Option 1 (v2.0 Dogma):** 8-section prescriptive XML prompt template with fixed queries.
@@ -311,7 +311,7 @@ URP v2.0 mandated an 8-section XML-tagged prompt anatomy containing expert perso
 - Format restrictions impair reasoning capacity (Tam et al. EMNLP 2024; E-020).
 - Single-turn front-loaded briefs dramatically outperform conversational drip-feeding (Laban et al. ICLR 2026; E-017).
 
-#### URP v3.0 Resolution & Operational Rule
+#### Vivechak v3.0 Resolution & Operational Rule
 Replace 8 XML sections with 5 functional blocks (`BRIEF`, `SCOPE`, `APPROACH`, `DELIVERABLE`, `FORMAT`). Be strictly prescriptive on WHAT, WHY, and BOUNDARIES; be strictly directional on HOW and SEARCH PATH. Use a required-coverage checklist instead of a mandatory output skeleton.
 
 ---
@@ -335,7 +335,7 @@ schema_version: "3.0"
 ```
 
 #### Context & Problem Statement
-URP v2.0 required outputs as pure Markdown files without metadata schemas or machine-readable relationship graphs, relying on manual synthesis.
+Vivechak v2.0 required outputs as pure Markdown files without metadata schemas or machine-readable relationship graphs, relying on manual synthesis.
 
 #### Evaluated Options
 1. **Option 1 (v2.0 Dogma):** Pure Markdown with unstructured headers.
@@ -353,7 +353,7 @@ URP v2.0 required outputs as pure Markdown files without metadata schemas or mac
 - Full graph databases represent premature, unversionable infrastructure for 10–30 documents (E-022).
 - Adding a 12-field YAML frontmatter header provides machine-parseable metadata for automated synthesis without degrading Markdown's readability.
 
-#### URP v3.0 Resolution & Operational Rule
+#### Vivechak v3.0 Resolution & Operational Rule
 Enforce Hybrid Markdown + YAML Frontmatter validated via JSON Schema in CI. Standardize 7 required H2 sections with strict isolation between `Recommendation` and `Alternatives Considered` to prevent AI code-generation contamination. Generate `_index.yaml` build artifacts automatically.
 
 ---
@@ -377,7 +377,7 @@ schema_version: "3.0"
 ```
 
 #### Context & Problem Statement
-URP v2.0 stated an arbitrary ~40% Compose / ~60% Build ratio across all software architectures.
+Vivechak v2.0 stated an arbitrary ~40% Compose / ~60% Build ratio across all software architectures.
 
 #### Evaluated Options
 1. **Option 1 (v2.0 Dogma):** Static universal ~40/60 compose/build ratio.
@@ -393,7 +393,7 @@ URP v2.0 stated an arbitrary ~40% Compose / ~60% Build ratio across all software
 - Wardley Mapping dictates that commodity/utility components (Auth, DB, Storage, Queues, UI primitives) must be 100% composed from established providers (E-024).
 - Custom engineering effort must be concentrated exclusively on proprietary domain intelligence, core state machines, and business logic (E-026).
 
-#### URP v3.0 Resolution & Operational Rule
+#### Vivechak v3.0 Resolution & Operational Rule
 Replace fixed percentage ratios with a domain-calibrated Wardley Evolution framework: compose all standard primitives; invest 100% of custom engineering bandwidth into proprietary business state machines and algorithms.
 
 ---
@@ -417,7 +417,7 @@ schema_version: "3.0"
 ```
 
 #### Context & Problem Statement
-URP v2.0 enforced a rigid 9-step exit checklist before writing any application code, with zero exceptions.
+Vivechak v2.0 enforced a rigid 9-step exit checklist before writing any application code, with zero exceptions.
 
 #### Evaluated Options
 1. **Option 1 (v2.0 Dogma):** Rigid uniform 9-step gate for all decisions without exception.
@@ -433,7 +433,7 @@ URP v2.0 enforced a rigid 9-step exit checklist before writing any application c
 - Exploratory technical spikes (XP, Kent Beck) are vital pre-development research tools to probe Complex unknowns (E-029).
 - Prospective hindsight (Gary Klein 1989 Premortem) reduces failure rates by 30% by surfacing hidden vulnerabilities before commitment (E-028).
 
-#### URP v3.0 Resolution & Operational Rule
+#### Vivechak v3.0 Resolution & Operational Rule
 Implement a Two-Track Phase 0 Gate: Track A fast-tracks reversible decisions on ~70% information; Track B enforces a rigorous 9-step exit gate (corroborated Grade A/B evidence, locked ADRs, Gary Klein Premortem protocol, and human architect sign-off) on irreversible One-Way Doors.
 
 ---
@@ -457,7 +457,7 @@ schema_version: "3.0"
 ```
 
 #### Context & Problem Statement
-URP v2.0 relied on a monolithic single-turn master prompt (`META-PROMPT-GENERATOR.md`) to generate an entire project pipeline in one shot.
+Vivechak v2.0 relied on a monolithic single-turn master prompt (`META-PROMPT-GENERATOR.md`) to generate an entire project pipeline in one shot.
 
 #### Evaluated Options
 1. **Option 1 (v2.0 Dogma):** Monolithic master meta-prompt generating entire pipeline at once.
@@ -473,13 +473,13 @@ URP v2.0 relied on a monolithic single-turn master prompt (`META-PROMPT-GENERATO
 - Pure static templates cannot synthesize domain-specific, non-generic prompts from free-text vision (E-030).
 - Proven code generator ecosystems (Nx, Yeoman, Plop, cookiecutter) prove that scaffolding must be deterministic while prose synthesis must be scoped (E-030).
 
-#### URP v3.0 Resolution & Operational Rule
+#### Vivechak v3.0 Resolution & Operational Rule
 Build a 5-Layer Hybrid Generator: Layers 0–2 (Deterministic rules for input schema, 6-archetype classifier, complexity scoring, and skeleton assembly with Yeoman `composeWith` blending); Layers 3–4 (Scoped parallel AI calls for prompt prose and seeded hypotheses); Layer 5 (Structural schema and budget validation gates in CI).
 
 ---
 
 ## Final Verification & Governance
 
-This Decision Registry represents the immutable historical record of the empirical validation of the Universal Research Pipeline. Any future amendments or supersessions must follow the URP v3.0 ADR governance protocol by issuing new `D-NNN` records with explicit `amends` or `supersedes` pointers.
+This Decision Registry represents the immutable historical record of the empirical validation of the Vivechak. Any future amendments or supersessions must follow the Vivechak v3.0 ADR governance protocol by issuing new `D-NNN` records with explicit `amends` or `supersedes` pointers.
 
-*Sealed and Verified as URP v3.0 Master Decision Registry.*
+*Sealed and Verified as Vivechak v3.0 Master Decision Registry.*

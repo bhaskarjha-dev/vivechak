@@ -1,5 +1,5 @@
-# URP v3.0 — Grand Synthesis & Meta-Framework Specification
-### Grounded Architectural Synthesis of the Universal Research Pipeline
+# Vivechak v3.0 — Grand Synthesis & Meta-Framework Specification
+### Grounded Architectural Synthesis of the Vivechak
 **Session ID:** SYN-01  
 **Status:** Final Specification  
 **Date:** August 2026  
@@ -10,15 +10,15 @@
 
 ## Executive Overview
 
-The Universal Research Pipeline (URP) was established to transform technical pre-development from intuitive, unverified guesswork into an evidence-graded, structured research engine. URP v2.0 was formulated inductively from experience across six production software projects. While v2.0 established critical disciplines—notably the isolation of research topics, multi-model consensus, and 5-tier evidence grading—it codified several dogmas as absolute laws that lacked rigorous empirical grounding.
+The Vivechak (Vivechak) was established to transform technical pre-development from intuitive, unverified guesswork into an evidence-graded, structured research engine. Vivechak v2.0 was formulated inductively from experience across six production software projects. While v2.0 established critical disciplines—notably the isolation of research topics, multi-model consensus, and 5-tier evidence grading—it codified several dogmas as absolute laws that lacked rigorous empirical grounding.
 
 Between August 11 and August 18, 2026, a comprehensive, self-referential meta-research pipeline comprising 11 multi-faceted investigations (T1-01 through T3-01) was executed across frontier AI platforms (Claude Opus/Sonnet 4.6, GPT-5.2/o-series, Gemini Deep Research, Perplexity Sonar) and cross-referenced with established disciplines (medicine, intelligence analysis, decision science, jurisprudence, software engineering). 
 
-This document—**SYN-01**—is the definitive Grand Synthesis for **URP v3.0**. It formalizes the transition from an *inductive, rigid, heuristic-driven framework* (v2.0) into an *empirical, adaptive, risk-calibrated meta-operating system* (v3.0).
+This document—**SYN-01**—is the definitive Grand Synthesis for **Vivechak v3.0**. It formalizes the transition from an *inductive, rigid, heuristic-driven framework* (v2.0) into an *empirical, adaptive, risk-calibrated meta-operating system* (v3.0).
 
 ```mermaid
 graph TD
-    subgraph "URP v2.0: Rigid Inductive Framework"
+    subgraph "Vivechak v2.0: Rigid Inductive Framework"
         V2_1[Rigid 3-Tier Sequential Stage Gates]
         V2_2[Absolute Aspect-Isolation Law]
         V2_3[Mandatory 3-Model Triangulation]
@@ -32,7 +32,7 @@ graph TD
         E3[T3: 5-Layer Hybrid Generator Architecture]
     end
 
-    subgraph "URP v3.0: Empirical Adaptive Meta-Framework"
+    subgraph "Vivechak v3.0: Empirical Adaptive Meta-Framework"
         V3_1[Constrained DAG + Adaptive Checkpoints]
         V3_2[Conditional Context Decomposition + Synthesis]
         V3_3[Staged, Risk-Triggered Triangulation]
@@ -68,9 +68,9 @@ Each of the 10 founding hypotheses from `meta-research/DECISIONS.md` has been ev
 
 ---
 
-## 2. URP v3.0 Core Principles (The Builder's Constitution)
+## 2. Vivechak v3.0 Core Principles (The Builder's Constitution)
 
-The foundational axioms of URP have been revised from dogmatic constraints into an evidence-grounded operational constitution.
+The foundational axioms of Vivechak have been revised from dogmatic constraints into an evidence-grounded operational constitution.
 
 ```mermaid
 graph LR
@@ -131,10 +131,10 @@ graph LR
 
 ---
 
-## 3. URP v3.0 Pipeline Architecture
+## 3. Vivechak v3.0 Pipeline Architecture
 
 ### 3.1 Pipeline Topology: Constrained DAG with Adaptive Checkpoints
-URP v3.0 abandons rigid stage-gating in favor of a **Directed Acyclic Graph (DAG)** governed by explicit information dependencies and punctuated by bounded adaptive checkpoints.
+Vivechak v3.0 abandons rigid stage-gating in favor of a **Directed Acyclic Graph (DAG)** governed by explicit information dependencies and punctuated by bounded adaptive checkpoints.
 
 ```mermaid
 flowchart TD
@@ -204,7 +204,7 @@ flowchart TD
 
 ### 3.2 Adaptive Scaling Model: The 4-Tier System
 
-URP v3.0 replaces the fixed 17–27 session rule with an 8-dimension scoring engine that establishes a project-level research appetite (budget ceiling) and a per-decision routing matrix.
+Vivechak v3.0 replaces the fixed 17–27 session rule with an 8-dimension scoring engine that establishes a project-level research appetite (budget ceiling) and a per-decision routing matrix.
 
 #### Step 1: Project Complexity Scoring Rubric (0–24 Points)
 Score each dimension from 0 (minimal) to 3 (maximal):
@@ -298,7 +298,7 @@ flowchart TD
 
 ### 3.4 The Risk-Calibrated Phase 0 Exit Gate (The Two-Track Standard)
 
-To prevent both premature development on ungrounded assumptions and bureaucratic "alert fatigue" on reversible choices, URP v3.0 establishes an operational **Two-Track Phase 0 Exit Gate**:
+To prevent both premature development on ungrounded assumptions and bureaucratic "alert fatigue" on reversible choices, Vivechak v3.0 establishes an operational **Two-Track Phase 0 Exit Gate**:
 
 ```mermaid
 flowchart LR
@@ -334,15 +334,15 @@ flowchart LR
 
 ---
 
-## 4. URP v3.0 Research Prompt Design
+## 4. Vivechak v3.0 Research Prompt Design
 
 ### 4.1 The 5-Block Prompt Specification
 
-URP v3.0 streamlines research prompts into five functional blocks, eliminating artificial persona prompts, pre-written search query scripts, and rigid skeletons.
+Vivechak v3.0 streamlines research prompts into five functional blocks, eliminating artificial persona prompts, pre-written search query scripts, and rigid skeletons.
 
 ```
 +-------------------------------------------------------------------------------+
-|                             URP v3.0 PROMPT ANATOMY                           |
+|                             Vivechak v3.0 PROMPT ANATOMY                           |
 +-------------------------------------------------------------------------------+
 | 1. BRIEF: Goal, target deliverable, intended audience, decision being        |
 |    informed, required analytical depth. (Replaces <system> & <context> header)|
@@ -395,12 +395,12 @@ Deliver a structured Markdown document covering the following required checklist
 5. **Open Risks & Reversal Triggers:** Explicit failure conditions under which this decision must be revisited.
 
 ## FORMAT
-Deliver the entire output as a single, complete Markdown file artifact adhering to the URP v3.0 Output Schema (YAML frontmatter + standardized H2 sections).
+Deliver the entire output as a single, complete Markdown file artifact adhering to the Vivechak v3.0 Output Schema (YAML frontmatter + standardized H2 sections).
 ```
 
 ---
 
-## 5. URP v3.0 Evidence & Decision System
+## 5. Vivechak v3.0 Evidence & Decision System
 
 ### 5.1 The Revised Evidence Grading Standard
 
@@ -533,7 +533,7 @@ schema_version: "3.0"
 
 ---
 
-## 6. URP v3.0 Output Architecture
+## 6. Vivechak v3.0 Output Architecture
 
 ### 6.1 Unified Frontmatter Schema for Research Artifacts
 
@@ -561,7 +561,7 @@ schema_version: "3.0"
 ```json
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "URPv3SessionFrontmatter",
+  "title": "VivechakV3SessionFrontmatter",
   "type": "object",
   "required": ["id", "title", "session_date", "status", "topic", "schema_version"],
   "properties": {
@@ -627,9 +627,9 @@ flowchart TD
 
 ---
 
-## 7. URP v3.0 Generator Design (The 5-Layer Hybrid)
+## 7. Vivechak v3.0 Generator Design (The 5-Layer Hybrid)
 
-URP v3.0 replaces the monolithic `META-PROMPT-GENERATOR.md` with an engineered **5-Layer Deterministic/AI Hybrid Architecture**.
+Vivechak v3.0 replaces the monolithic `META-PROMPT-GENERATOR.md` with an engineered **5-Layer Deterministic/AI Hybrid Architecture**.
 
 ```mermaid
 graph TD
@@ -679,7 +679,7 @@ When a project matches multiple domains (e.g., AI FinTech), the generator adopts
 
 ```diff
 ===================================================================
-URP FRAMEWORK EVOLUTION: v2.0 (Inductive) -> v3.0 (Empirical)
+Vivechak FRAMEWORK EVOLUTION: v2.0 (Inductive) -> v3.0 (Empirical)
 ===================================================================
 
 --- 1. PHILOSOPHY & CORE PRINCIPLES ---
@@ -741,7 +741,7 @@ URP FRAMEWORK EVOLUTION: v2.0 (Inductive) -> v3.0 (Empirical)
 
 ## 9. The Inversion Test for Core Conclusions
 
-To ensure URP v3.0 resists confirmation bias and dogma, each core architectural conclusion is subjected to **The Inversion Test**—stating the exact opposite claim and analyzing under what edge conditions the opposite holds valid.
+To ensure Vivechak v3.0 resists confirmation bias and dogma, each core architectural conclusion is subjected to **The Inversion Test**—stating the exact opposite claim and analyzing under what edge conditions the opposite holds valid.
 
 | Core v3.0 Conclusion | Inverted Opposite Claim | When the Inverted Claim Holds (Boundary Conditions & Failure Modes) |
 |---|---|---|
@@ -753,9 +753,9 @@ To ensure URP v3.0 resists confirmation bias and dogma, each core architectural 
 
 ---
 
-## 10. Remaining Uncertainties & Future Research (The URP v4.0 Agenda)
+## 10. Remaining Uncertainties & Future Research (The Vivechak v4.0 Agenda)
 
-While URP v3.0 establishes an empirical baseline, several frontiers remain open for ongoing investigation:
+While Vivechak v3.0 establishes an empirical baseline, several frontiers remain open for ongoing investigation:
 
 1. **Automated Dynamic Prompt Optimization at Runtime:**  
    *Question:* Can meta-prompt generation incorporate DSPy-style declarative compilation where research prompts iteratively self-optimize against retrieval performance on live test queries?
@@ -766,12 +766,12 @@ While URP v3.0 establishes an empirical baseline, several frontiers remain open 
 4. **Cross-Model Multi-Agent Debate for Reversible Probing:**  
    *Question:* What are the exact convergence conditions for multi-agent adversarial debate (Irving et al.) when evaluating Cynefin-Complex architectural tradeoffs without human moderation?
 5. **Real-World Calibration Longitudinal Audit:**  
-   *Question:* Track 50 production projects built with URP v3.0 over 24 months to measure the precise correlation between Phase 0 evidence grades and 2-year architectural refactoring rates.
+   *Question:* Track 50 production projects built with Vivechak v3.0 over 24 months to measure the precise correlation between Phase 0 evidence grades and 2-year architectural refactoring rates.
 
 ---
 
 ## Final Verification & Seal of Synthesis
 
-This Grand Synthesis (SYN-01) represents the formal completion of the URP v3.0 Meta-Research Pipeline. It is grounded in empirical findings from all 11 research sessions, cross-referenced across frontier AI platforms, and codified into actionable, testable architecture.
+This Grand Synthesis (SYN-01) represents the formal completion of the Vivechak v3.0 Meta-Research Pipeline. It is grounded in empirical findings from all 11 research sessions, cross-referenced across frontier AI platforms, and codified into actionable, testable architecture.
 
-*Universal Research Pipeline v3.0 is hereby synthesized, specified, and declared ready for operational deployment.*
+*Vivechak v3.0 is hereby synthesized, specified, and declared ready for operational deployment.*

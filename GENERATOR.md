@@ -1,4 +1,4 @@
-# URP v3.0 — Pipeline Generator
+# Vivechak v3.0 — Pipeline Generator
 ### The Tool: Generate a Complete Research Pipeline from Your Project Vision
 
 > **How to use:** Copy the generator prompt below into a fresh AI conversation
@@ -325,7 +325,7 @@ my-project/
     ├── PROMPT-LIBRARY.md            ← Generated (paste here)
     ├── DECISIONS.md                 ← Generated (paste here)
     ├── sessions/                    ← Create empty folder for research outputs
-    └── templates/                   ← Copy from URP (see step 2)
+    └── templates/                   ← Copy from Vivechak (see step 2)
 ```
 
 ### 2. Copy the operational templates
@@ -365,12 +365,12 @@ With templates in your workspace, you can delegate research steps directly to an
 
 ## Design Notes
 
-This generator prompt embodies URP v3.0 principles:
+This generator prompt embodies Vivechak v3.0 principles:
 
 - **No persona** — task framing, not role assignment (personas debunked: Zheng et al. EMNLP 2024)
 - **Open-ended input** — accepts natural language vision dumps; the AI extracts structure
 - **AI-driven classification** — domain, risk, and complexity inferred from vision, not self-reported
-- **Self-contained** — all methodology operationalized inline; receiving AI needs no other URP files
+- **Self-contained** — all methodology operationalized inline; receiving AI needs no other Vivechak files
 - **Self-documenting output** — generated RESEARCH-PIPELINE.md includes its own execution guide
 - **Uncertainty-native** — undecided elements become research questions, not blockers
 - **Front-loaded** — complete brief in one turn (39% drop from drip-feeding: Laban et al. ICLR 2026)

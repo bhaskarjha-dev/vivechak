@@ -1,4 +1,4 @@
-# Universal Research Pipeline — Meta-Research Prompt Library v1.0
+# Vivechak — Meta-Research Prompt Library v1.0
 ### Copy-Paste Ready Prompts · Deep Research Mode
 *Created: August 2026*
 
@@ -388,17 +388,17 @@ Deliver your entire output as a single, complete markdown file artifact.
 
 ---
 
-# SESSION SYN-01 — Grand Synthesis: URP v3.0 Specification
+# SESSION SYN-01 — Grand Synthesis: Vivechak v3.0 Specification
 **Triangulation:** 🔬 Single-Model
-**Output file:** `meta-research/research/SYN-01-urp-v3-synthesis.md`
+**Output file:** `meta-research/research/SYN-01-Vivechak-v3-synthesis.md`
 
 ## THE PROMPT — copy from here
 
 You are a Principal Research Methodology Architect. You have been given the complete research outputs from 11 independent research sessions investigating how to design an optimal pre-development research pipeline framework.
 
-**Your mission:** Synthesize ALL findings into a unified, evidence-grounded specification for "URP v3.0" — the next generation of the Universal Research Pipeline Meta-Framework. This is the most important document in the entire pipeline. It must be comprehensive, rigorous, and definitive.
+**Your mission:** Synthesize ALL findings into a unified, evidence-grounded specification for "Vivechak v3.0" — the next generation of the Vivechak Meta-Framework. This is the most important document in the entire pipeline. It must be comprehensive, rigorous, and definitive.
 
-**Context:** The Universal Research Pipeline (URP) is a meta-framework for conducting structured pre-development research using AI models with deep research capabilities. Version 2.0 was built inductively from 6 projects' experiences. This synthesis produces v3.0, grounded in EMPIRICAL EVIDENCE from the 11 research sessions provided below.
+**Context:** The Vivechak (Vivechak) is a meta-framework for conducting structured pre-development research using AI models with deep research capabilities. Version 2.0 was built inductively from 6 projects' experiences. This synthesis produces v3.0, grounded in EMPIRICAL EVIDENCE from the 11 research sessions provided below.
 
 **⚠️ IMPORTANT: Paste ALL 11 research artifacts below this line before running this prompt.**
 
@@ -423,17 +423,17 @@ You are a Principal Research Methodology Architect. You have been given the comp
 
 1. **Hypothesis Verdict Table:** For each H-01 through H-10 — Validated, Refuted, or Refined — with key evidence and confidence level.
 
-2. **URP v3.0 Core Principles:** The refined set of axioms grounded in evidence. For each: what it states, what evidence supports it, how it differs from v2.0.
+2. **Vivechak v3.0 Core Principles:** The refined set of axioms grounded in evidence. For each: what it states, what evidence supports it, how it differs from v2.0.
 
-3. **URP v3.0 Pipeline Architecture:** Recommended topology, scaling model, session independence rules, and triangulation criteria.
+3. **Vivechak v3.0 Pipeline Architecture:** Recommended topology, scaling model, session independence rules, and triangulation criteria.
 
-4. **URP v3.0 Prompt Design:** The refined research prompt structure based on evidence. What's essential, what's optional, what's removed.
+4. **Vivechak v3.0 Prompt Design:** The refined research prompt structure based on evidence. What's essential, what's optional, what's removed.
 
-5. **URP v3.0 Evidence & Decision System:** Refined evidence classification and decision traceability format.
+5. **Vivechak v3.0 Evidence & Decision System:** Refined evidence classification and decision traceability format.
 
-6. **URP v3.0 Output Architecture:** Optimal format, structure, and organization for research outputs.
+6. **Vivechak v3.0 Output Architecture:** Optimal format, structure, and organization for research outputs.
 
-7. **URP v3.0 Generator Design:** How the meta-prompt generator should work.
+7. **Vivechak v3.0 Generator Design:** How the meta-prompt generator should work.
 
 8. **v2.0 → v3.0 Change Log:** Explicit diff — what was validated and kept, what was refined, what was dropped.
 

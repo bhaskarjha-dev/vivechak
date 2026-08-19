@@ -1,4 +1,4 @@
-# URP Roadmap & Development History
+# Vivechak Roadmap & Development History
 ### Evolution, Decisions, and Future Direction
 
 ---
@@ -7,7 +7,7 @@
 
 **Status:** Complete and operational. Ready for real-world use.
 
-The framework, generator, and templates are fully functional. The v3.0 overhaul was the most significant transformation — subjecting URP to its own methodology, discovering that 0 of 10 v2.0 axioms survived unchanged, and rewriting every component from evidence.
+The framework, generator, and templates are fully functional. The v3.0 overhaul was the most significant transformation — subjecting Vivechak to its own methodology, discovering that 0 of 10 v2.0 axioms survived unchanged, and rewriting every component from evidence.
 
 ### What v3.0 Delivers
 
@@ -42,7 +42,7 @@ These architectural decisions were made during the v3.0 overhaul and are capture
 | Merged | Into | Why |
 |---|---|---|
 | PRINCIPLES.md + EVIDENCE-GRADING.md | FRAMEWORK.md | Eliminated fragmentation; one spec file, one read |
-| CONTEXT.md + VISION.md + ROADMAP.md | README.md (+ this file) | About-URP content consolidated; no user ever reads 3 separate "about" docs |
+| CONTEXT.md + VISION.md + ROADMAP.md | README.md (+ this file) | About-Vivechak content consolidated; no user ever reads 3 separate "about" docs |
 | META-PROMPT-GENERATOR.md | GENERATOR.md | Cleaner name, focused on the prompt (removed architecture spec for non-existent CLI) |
 
 | Deleted | Why |
@@ -61,7 +61,7 @@ These architectural decisions were made during the v3.0 overhaul and are capture
 | 8 mandatory structured input fields | Open-ended vision dump; AI extracts structure | P4: prescriptive on WHAT, not HOW |
 | Team Size biased complexity score downward | Renamed to "Coordination Complexity," assessed by AI | Solo + AI agents ≠ small project in 2026 |
 | Self-reported risk profile | AI infers regulatory exposure from vision | Users systematically underestimate risk |
-| Not self-contained (name-dropped concepts) | All methodology operationalized inline | The receiving AI has never seen URP |
+| Not self-contained (name-dropped concepts) | All methodology operationalized inline | The receiving AI has never seen Vivechak |
 | Told instead of showed | Operational step-by-step instructions | P4: showing > telling |
 | No uncertainty handling | Undecided elements become research questions | First principles |
 
@@ -88,7 +88,7 @@ The current roadmap listed "Code-Based Generator" as Phase 4. After the v3.0 ove
 **The case FOR a code-based generator:**
 - Deterministic classification (Layers 0-2) ensures consistency across runs
 - Validation (Layer 5) catches malformed output
-- CLI convenience: `npx urp-generate` vs copy-paste
+- CLI convenience: `npx Vivechak-generate` vs copy-paste
 
 **The case AGAINST building it now:**
 - The copy-paste workflow is functional and takes 1 minute
@@ -102,7 +102,7 @@ The current roadmap listed "Code-Based Generator" as Phase 4. After the v3.0 ove
 
 | Step | What | Why |
 |---|---|---|
-| **4a** | Use URP v3.0 on an actual project | The ultimate validation — does the output prevent architectural mistakes? |
+| **4a** | Use Vivechak v3.0 on an actual project | The ultimate validation — does the output prevent architectural mistakes? |
 | **4b** | Evaluate generator output quality | Is the complexity scoring accurate? Are the prompts well-scoped? |
 | **4c** | Refine the generator prompt | Based on real output, iterate on wording and instructions |
 | **4d** | After 2-3 projects: assess tooling need | Does the copy-paste workflow cause friction? Is consistency a problem? |
@@ -119,7 +119,7 @@ Only build after Phase 4 demonstrates the need:
 
 | Tool | Trigger | Description |
 |---|---|---|
-| Template initializer script | If copy-paste causes friction | Simple script: `urp init my-project` → creates directory structure + copies templates |
+| Template initializer script | If copy-paste causes friction | Simple script: `Vivechak init my-project` → creates directory structure + copies templates |
 | YAML frontmatter validator | If malformed metadata causes synthesis problems | CI-compatible linter for session/ADR frontmatter |
 | Code-based generator CLI | If AI classification inconsistency causes real problems | 5-layer deterministic/AI hybrid (the original Phase 4 plan) |
 | Blast-radius tracker | If evidence decay causes undetected staleness | Cross-reference E-NNN citations across ADRs |
@@ -156,7 +156,7 @@ These require significant research investment and should not be started until Ph
 
 ### references/ — FULLY EXTRACTED ✅
 
-These are the 7 original project research pipelines (70 files, ~65 MB) that independently discovered the patterns URP consolidated:
+These are the 7 original project research pipelines (70 files, ~65 MB) that independently discovered the patterns Vivechak consolidated:
 
 | Project | Files | Extraction |
 |---|---|---|
