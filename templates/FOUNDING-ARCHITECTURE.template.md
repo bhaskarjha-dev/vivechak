@@ -1,12 +1,12 @@
 # Founding Architecture Document Template — Vivechak v1.0
-### Map-Reduce Synthesis from Research Pipeline to Repository Scaffolding
+### Map-Reduce Synthesis from Research Pipeline to Execution Blueprint
 
 > **Usage:** This template structures the final synthesis document that bridges
 > research findings into a concrete, buildable architecture specification.
 >
 > **How to compile this document:**
 > 1. **Filter:** Gather all completed research sessions from `sessions/`
-> 2. **Group:** Cluster sessions by topic (data, auth, infra, etc.)
+> 2. **Group:** Cluster sessions by topic (e.g., data, auth, infra, protocols, tooling)
 > 3. **Map:** Extract the Key Findings and Recommendation from each session
 > 4. **Reduce:** Merge each topic cluster into a unified subsystem chapter below
 > 5. **Reconcile:** Resolve any cross-session contradictions (if Session A assumes REST but Session B assumes gRPC, pick one and document why)
@@ -32,11 +32,11 @@ schema_version: "1.0"
 
 ---
 
-## 1. Executive Architecture Summary
+## 1. Executive Summary
 
-`[2–5 paragraph summary of the overall system architecture, key technology
-choices, and strategic rationale. This section should be readable by a
-non-technical stakeholder.]`
+`[2–5 paragraph summary of the overall architecture, key technical choices,
+and strategic rationale. This section should be readable by a non-technical
+stakeholder.]`
 
 ---
 
@@ -49,67 +49,54 @@ non-technical stakeholder.]`
 
 ---
 
-## 3. Technology Stack
+## 3. Architecture & Primitives (Wardley Mapping)
 
-### Composed (Commodity) — Wardley Utility/Product
+### Composed (Commodity / Utility) — External Standards & Off-the-Shelf
 
 | Component | Chosen Solution | Rationale | Decision Ref |
 |---|---|---|---|
-| Authentication | `[e.g., Clerk]` | `[Why]` | D-NNN |
-| Database | `[e.g., PostgreSQL 16]` | `[Why]` | D-NNN |
-| Storage | `[e.g., Cloudflare R2]` | `[Why]` | D-NNN |
-| Hosting | `[e.g., Vercel + Fly.io]` | `[Why]` | D-NNN |
+| `[Component]` | `[Solution]` | `[Why]` | D-NNN |
+| `[Component]` | `[Solution]` | `[Why]` | D-NNN |
+| `[Component]` | `[Solution]` | `[Why]` | D-NNN |
 
-### Built (Proprietary) — Wardley Genesis/Custom
+### Built (Proprietary / Genesis) — Custom Core IP
 
 | Component | Description | Rationale | Decision Ref |
 |---|---|---|---|
-| `[Core Engine]` | `[Description]` | `[Why custom]` | D-NNN |
-| `[State Machine]` | `[Description]` | `[Why custom]` | D-NNN |
+| `[Component]` | `[Description]` | `[Why custom]` | D-NNN |
+| `[Component]` | `[Description]` | `[Why custom]` | D-NNN |
 
 ---
 
 ## 4. System Architecture Diagram
 
+`[Insert a project-specific architecture diagram using Mermaid, ASCII, or
+a referenced image. The diagram should reflect the actual system topology
+discovered during research — do not force-fit a predefined pattern.]`
+
 ```mermaid
 graph TD
-    subgraph "Client Layer"
-        CLIENT[Client Application]
-    end
-    
-    subgraph "API Layer"
-        API[API Gateway]
-    end
-    
-    subgraph "Service Layer"
-        SVC1[Service 1]
-        SVC2[Service 2]
-    end
-    
-    subgraph "Data Layer"
-        DB[(Database)]
-        CACHE[(Cache)]
-    end
-    
-    CLIENT --> API
-    API --> SVC1 & SVC2
-    SVC1 & SVC2 --> DB & CACHE
+    A["[Primary Subsystem]"] --> B["[Subsystem 2]"]
+    A --> C["[Subsystem 3]"]
+    B --> D["[Shared Dependency]"]
+    C --> D
 ```
-
-`[Replace with project-specific architecture diagram]`
 
 ---
 
 ## 5. Cross-Cutting Concerns
 
 ### 5.1 Security & Compliance
-`[Summary from security-related research sessions and ADRs]`
+`[Summary from security/compliance-related research sessions and ADRs.
+Omit this section if not applicable to the project.]`
 
 ### 5.2 Performance & Scalability
-`[Summary from performance-related research sessions and ADRs]`
+`[Summary from performance-related research sessions and ADRs.
+Omit this section if not applicable to the project.]`
 
-### 5.3 Observability & Monitoring
-`[Summary from infrastructure-related research sessions]`
+### 5.3 Observability & Operations
+`[Summary from operational research sessions.
+Omit this section if not applicable to the project.]`
 
 ---
 
@@ -122,30 +109,20 @@ graph TD
 
 ---
 
-## 7. Repository Scaffolding Specification
+## 7. Project Structure Specification
 
-### Directory Structure
+`[Specify the project's directory layout, module boundaries, and initial
+dependencies. Adapt the structure to the project type — this may be a
+repository tree, a package manifest, a hardware BOM, a specification
+document outline, or any other structural blueprint appropriate to the domain.]`
+
 ```
 project-root/
-├── src/
-│   ├── [module-1]/
-│   ├── [module-2]/
-│   └── [shared]/
-├── docs/
-│   ├── decisions/           ← ADRs from this pipeline
-│   └── evidence/            ← E-NNN records
-├── tests/
-└── infrastructure/
+├── [module-1]/
+├── [module-2]/
+├── [shared/common]/
+└── [docs/specs]/
 ```
-
-### Initial Dependency Manifest
-```json
-{
-  "dependencies": {},
-  "devDependencies": {}
-}
-```
-`[Replace with project-specific dependency manifest]`
 
 ---
 
@@ -153,9 +130,9 @@ project-root/
 
 | FAD Section | Research Sessions | Decisions | Evidence |
 |---|---|---|---|
-| Auth Architecture | T2-04 | D-003, D-007 | E-012, E-019 |
-| Data Layer | T2-03, T2-05 | D-001, D-004 | E-047, E-015 |
-| `[Section]` | `[T#-##]` | `[D-NNN]` | `[E-NNN]` |
+| `[Subsystem 1]` | `[T#-##]` | `[D-NNN]` | `[E-NNN]` |
+| `[Subsystem 2]` | `[T#-##]` | `[D-NNN]` | `[E-NNN]` |
+| `[Subsystem 3]` | `[T#-##]` | `[D-NNN]` | `[E-NNN]` |
 
 ---
 
@@ -165,7 +142,7 @@ project-root/
 - [ ] All reversal triggers defined
 - [ ] Gary Klein Premortem completed for all Type 1 decisions
 - [ ] Human Architect sign-off recorded
-- [ ] This document committed to repository root
+- [ ] This document sealed and committed
 
 **Sealed By:** `[Name]`
 **Seal Date:** `[YYYY-MM-DD]`

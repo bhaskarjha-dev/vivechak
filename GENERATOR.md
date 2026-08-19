@@ -15,8 +15,8 @@
 ## BRIEF
 
 Generate a complete, ready-to-execute pre-development research pipeline for
-a new software project. The output will be used to make evidence-grounded
-architectural decisions before writing any application code.
+a new technical project. The output will be used to make evidence-grounded
+architectural decisions before committing to irreversible implementation decisions.
 
 The goal is to identify every critical architectural decision this project
 requires, determine which are irreversible ("one-way doors" that need deep
@@ -82,9 +82,11 @@ automatically receive deep research regardless of total score.
 
 ### Step 3: Build Session Matrix
 For each architectural decision the project requires:
-1. Classify as one-way door (irreversible: database, data model, auth,
-   public APIs, regulatory compliance) or two-way door (reversible:
-   UI framework, styling, CI tooling, utility libraries).
+1. Classify as one-way door (irreversible: primary datastore, data model,
+   authentication architecture, public API contracts, wire protocols,
+   regulatory compliance, hardware selection, core language/runtime) or
+   two-way door (reversible: UI framework, styling, CI tooling, utility
+   libraries, IDE configuration, documentation format).
 2. Route using this matrix:
 
    |  | Known Pattern | Unknown/Novel |
