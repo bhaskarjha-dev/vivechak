@@ -259,7 +259,7 @@ Seven headings, five of them one or two sentences to fill even in a thin session
 Every research session and every architectural decision gets a **stable ID** (`T#-##` for sessions, `DEC-###` for decisions — adjust prefixes to match existing convention). Relationships live in two places, matched to their audience:
 
 - **In frontmatter**, for machines: `related_sessions`, `supersedes` / `superseded_by`, `informs_decisions`. These are what a script or synthesis agent reads to build a picture of the corpus without opening every file.
-- **Inline in prose**, for humans: ordinary Markdown links that include the visible ID — `[T2-09](../sessions/T2-09-data-layer-evaluation.md)` — so both a person clicking through in GitHub/Obsidian and a script grepping for `T\d-\d\d` can follow the same reference.
+- **Inline in prose**, for humans: ordinary Markdown links that include the visible ID — `T2-09 (sessions/T2-09-data-layer-evaluation.md)` — so both a person clicking through in GitHub/Obsidian and a script grepping for `T\d-\d\d` can follow the same reference.
 
 The **decision registry** (`decisions/`) holds one short file per architectural decision, in the ADR shape from §3.1 (Title, Status, Context, Decision, Consequences), plus one field this report adds: `informed_by_sessions`, the reverse pointer back to every research session that fed the decision. This closes the traceability loop the brief asks for directly — from any decision, you can see every session behind it; from any session, you can see every decision it shaped.
 

@@ -70,6 +70,39 @@ Compile all findings into a Founding Architecture Document using `templates/FOUN
 
 ---
 
+
+---
+
+## Sovereign Tools Ecosystem
+
+Vivechak operates as the **foundational intelligence layer** within the Sovereign Tools suite:
+
+```
+                                  SOVEREIGN TOOLS ECOSYSTEM
+  
+    ┌─────────────────────────┐     Founding Architecture      ┌─────────────────────────┐
+    │    Vivechak (विवेचक)     │            Document            │      Rachak (रचक)       │
+    │  Pre-Dev Deep Research  │ ─────────────────────────────> │  Governance Scaffolding │
+    │   & Evidence Grading    │            (FAD.md)            │    & Agent Constraints  │
+    └─────────────────────────┘                                └────────────┬────────────┘
+                                                                            │
+                                                                            │ Scaffolding + Specs
+                                                                            ▼
+                                                               ┌─────────────────────────┐
+                                                               │      Kramak (क्रमक)     │
+                                                               │  Autonomous SDLC Engine │
+                                                               │    & Development Loop   │
+                                                               └─────────────────────────┘
+```
+
+- **[Vivechak (विवेचक)](https://github.com/bhaskarjha-dev/vivechak):** *The Discerning Analyst* — Investigates architectural assumptions, grades evidence, and seals the Founding Architecture Document (FAD) *before* coding.
+- **[Rachak (रचक)](https://github.com/bhaskarjha-dev/rachak):** *The Scaffolder* — Generates single-binary project structure, governance policies, and agent-proof boundaries.
+- **[Kramak (क्रमक)](https://github.com/bhaskarjha-dev/kramak):** *The Methodical Progressor* — Executes autonomous development loops guided by the FAD and project specifications.
+- **[Pramedha (प्रमेधा)](https://github.com/bhaskarjha-dev/pramedha):** *The Advanced Intellect* — Career intelligence and knowledge graph management.
+- **[GitSetu (गिट-सेतु)](https://github.com/bhaskarjha-dev/gitsetu):** *The Identity Bridge* — Multi-profile Git authentication and identity governance.
+
+---
+
 ## Repository Structure
 
 ```
