@@ -1,4 +1,4 @@
-# Architectural Decision Record Template — Vivechak v3.0
+# Architectural Decision Record Template — Vivechak v1.0
 ### YAML Frontmatter ADR with Evidence Traceability
 
 > **Usage:** Create one file per decision: `decisions/D-NNN-[slug].md`
@@ -22,7 +22,7 @@ review_trigger: "[Condition or date for mandatory re-evaluation]"
 tags: []
 authored_by: "[agent-id or human name]"
 human_reviewed: false          # Mandatory true for one-way doors before acceptance
-schema_version: "3.0"
+schema_version: "1.0"
 ---
 ```
 

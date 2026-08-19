@@ -1,5 +1,5 @@
 # Vivechak (विवेचक) — Agent Operating Manual
-### Vivechak v3.0 · Single Source of Truth for AI Agent Operations
+### Vivechak v1.0 · Single Source of Truth for AI Agent Operations
 
 > **Read this file COMPLETELY before modifying anything in this repository.**
 
@@ -11,7 +11,7 @@ The **Vivechak (विवेचक)** is a production-grade Meta-Framework for e
 
 **Core Purpose:** Transform software architecture decisions from gut-feel, outdated training data, and hallucinated conclusions into structured, evidence-graded, risk-calibrated research — before a single line of application code is written.
 
-**v3.0 Status:** Empirically validated via 14 meta-research sessions. All v2.0 axioms tested; none survived unchanged. See [meta-research/DECISIONS.md](meta-research/DECISIONS.md) for the complete evidentiary record.
+**Generation 3 Status:** Empirically validated via 14 meta-research sessions. All legacy axioms tested; none survived unchanged. See [meta-research/DECISIONS.md](meta-research/DECISIONS.md) for the complete evidentiary record.
 
 ---
 
@@ -21,14 +21,14 @@ The **Vivechak (विवेचक)** is a production-grade Meta-Framework for e
 vivechak/
 ├── README.md                       ← Overview, quickstart, philosophy
 ├── GENERATOR.md                    ← The generator prompt (THE tool)
-├── FRAMEWORK.md                    ← Complete v3.0 specification
+├── FRAMEWORK.md                    ← Complete methodology specification (Generation 3)
 ├── AGENTS.md                       ← AI agent operating manual
 ├── ROADMAP.md                      ← Lineage, Phase 4 validation, frontiers
 ├── CHANGELOG.md                    ← Release history & spec evolution
 ├── CONTRIBUTING.md                 ← Evidence-grounding contribution rules
 ├── CODE_OF_CONDUCT.md              ← Contributor Covenant v2.1
 ├── LICENSE                         ← MIT License
-├── VERSION                         ← Spec version (3.0.0)
+├── VERSION                         ← Release version (1.0.0)
 │
 ├── templates/                      ← 4 operational contracts (copy to projects)
 │   ├── DECISIONS.template.md       ← YAML frontmatter ADR format
@@ -52,7 +52,7 @@ vivechak/
 
 ---
 
-## 3. The 8 Core Principles (v3.0)
+## 3. The 8 Core Principles
 
 ### P1: The Context Architecture Law
 Decompose research by **attention budget and coupling**, not arbitrary session counts. Mandate explicit synthesis after every decomposition.
@@ -84,7 +84,7 @@ Every claim must carry an **evidence grade (A–E), contextual modifiers, and ve
 
 When a session starts in this repo:
 
-1. **Read [FRAMEWORK.md](FRAMEWORK.md)** — understand the complete v3.0 specification.
+1. **Read [FRAMEWORK.md](FRAMEWORK.md)** — understand the complete methodology specification.
 2. **If improving the meta-framework:** Enhance FRAMEWORK.md, GENERATOR.md, or templates/ following the principles above. All changes must be traceable to evidence.
 3. **If generating a pipeline for a new project:** Use [GENERATOR.md](GENERATOR.md) to generate the customized pipeline documents (Single-Session for IDE agents, Split Generation for web chat).
 4. **If executing research:** Follow the 5-block prompt anatomy (BRIEF, SCOPE, APPROACH, DELIVERABLE, FORMAT). Front-load everything in one turn.
@@ -94,7 +94,7 @@ When a session starts in this repo:
 
 ## 5. Key Operational Rules
 
-- **No v2.0 patterns:** Do not use 8-section XML prompts, expert personas, hardcoded search queries, minimum search counts, or rigid output skeletons. These are empirically refuted.
+- **No legacy dogma:** Do not use 8-section XML prompts, expert personas, hardcoded search queries, minimum search counts, or rigid output skeletons. These are empirically refuted.
 - **Front-load briefs:** Never drip-feed instructions across turns (39% performance drop documented).
 - **Grade everything:** Every factual claim needs an inline evidence grade with modifiers and verification method.
 - **Two-Way Doors move fast:** Don't over-research reversible decisions. Spike or decide by convention.

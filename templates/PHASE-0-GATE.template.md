@@ -1,4 +1,4 @@
-# Phase 0 Exit Gate Template — Vivechak v3.0
+# Phase 0 Exit Gate Template — Vivechak v1.0
 ### Two-Track Pre-Codebase Gate Checklist
 
 > **Usage:** Complete this checklist before initializing repository scaffolding.

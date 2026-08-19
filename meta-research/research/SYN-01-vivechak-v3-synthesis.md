@@ -10,7 +10,7 @@
 
 ## Executive Overview
 
-The Vivechak (Vivechak) was established to transform technical pre-development from intuitive, unverified guesswork into an evidence-graded, structured research engine. Vivechak v2.0 was formulated inductively from experience across six production software projects. While v2.0 established critical disciplines—notably the isolation of research topics, multi-model consensus, and 5-tier evidence grading—it codified several dogmas as absolute laws that lacked rigorous empirical grounding.
+The Vivechak (विवेचक) was established to transform technical pre-development from intuitive, unverified guesswork into an evidence-graded, structured research engine. Vivechak v2.0 was formulated inductively from experience across six production software projects. While v2.0 established critical disciplines—notably the isolation of research topics, multi-model consensus, and 5-tier evidence grading—it codified several dogmas as absolute laws that lacked rigorous empirical grounding.
 
 Between August 11 and August 18, 2026, a comprehensive, self-referential meta-research pipeline comprising 11 multi-faceted investigations (T1-01 through T3-01) was executed across frontier AI platforms (Claude Opus/Sonnet 4.6, GPT-5.2/o-series, Gemini Deep Research, Perplexity Sonar) and cross-referenced with established disciplines (medicine, intelligence analysis, decision science, jurisprudence, software engineering). 
 

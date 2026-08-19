@@ -13,7 +13,7 @@ assignees: ''
 <!-- File path and line number, e.g., GENERATOR.md:120 or templates/DECISIONS.template.md -->
 
 ## Expected Behavior
-<!-- What you expected to happen based on the v3.0 Framework specification. -->
+<!-- What you expected to happen based on the v1.0 Framework specification. -->
 
 ## Actual Behavior
 <!-- What actually happened or why the current behavior violates evidence-grounded principles. -->

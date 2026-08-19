@@ -1,5 +1,5 @@
 # Sample Adoption Walkthrough: Project "Katha"
-### End-to-End Walkthrough of a Tier 1 Project using Vivechak (विवेचक)
+### End-to-End Walkthrough of a Tier 1 Project using Vivechak (विवेचक) v1.0
 
 This document shows a complete, concrete walkthrough of applying Vivechak to a hypothetical project (**Katha** — an AI-assisted interactive storytelling platform for indie authors).
 
@@ -78,7 +78,7 @@ Concrete recommendation with causal rationale. Evaluated options table with Grad
 citations. Failure modes and reversal triggers for scale.
 
 ## FORMAT
-Standard Vivechak Markdown artifact with YAML frontmatter.
+Standard Vivechak v1.0 Markdown artifact with YAML frontmatter.
 ```
 
 ---
@@ -97,7 +97,7 @@ evidence_refs: [E-001, E-004]
 informed_by_sessions: [T1-01, T2-01]
 review_trigger: "Re-evaluate if character graph traversal exceeds 200ms at p95 or graph size > 500k edges"
 human_reviewed: true
-schema_version: "3.0"
+schema_version: "1.0"
 ---
 ```
 

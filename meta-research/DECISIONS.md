@@ -9,7 +9,7 @@
 
 ## Executive Summary & Registry Metadata
 
-This registry documents the empirical validation and formal architectural decisions for the Vivechak (Vivechak) Meta-Framework. Each entry represents a founding hypothesis from Vivechak v2.0 subjected to rigorous empirical testing across 11 meta-research sessions (T1-01 through T3-01) and resolved into a permanent architectural invariant for Vivechak v3.0.
+This registry documents the empirical validation and formal architectural decisions for the Vivechak (विवेचक) Meta-Framework. Each entry represents a founding hypothesis from Vivechak v2.0 subjected to rigorous empirical testing across 11 meta-research sessions (T1-01 through T3-01) and resolved into a permanent architectural invariant for Vivechak v3.0.
 
 ### Hypothesis Verdict Summary Table
 

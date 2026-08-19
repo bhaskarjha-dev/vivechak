@@ -1,4 +1,4 @@
-# Founding Architecture Document Template — Vivechak v3.0
+# Founding Architecture Document Template — Vivechak v1.0
 ### Map-Reduce Synthesis from Research Pipeline to Repository Scaffolding
 
 > **Usage:** This template structures the final synthesis document that bridges
@@ -26,7 +26,7 @@ status: draft                  # draft | sealed
 research_sessions_ingested: N
 decisions_locked: N
 open_questions: N
-schema_version: "3.0"
+schema_version: "1.0"
 ---
 ```
 

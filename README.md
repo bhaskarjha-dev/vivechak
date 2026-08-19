@@ -12,7 +12,7 @@
 
 ---
 
-### v3.0 — Separating evidence from assumption, truth from bias
+### v1.0 — Separating evidence from assumption, truth from bias
 
 > **Transform software architecture decisions from gut-feel and cached training data into structured, evidence-graded, empirically validated research — before a single line of application code is written.**
 
@@ -42,36 +42,17 @@ You'll receive 3 files:
 Create your project's `research/` directory, paste in the 3 generated files, and **copy the 4 templates** from this repository:
 
 ```
-vivechak/
-├── README.md                       ← Overview, quickstart, philosophy
-├── GENERATOR.md                    ← The generator prompt (THE tool)
-├── FRAMEWORK.md                    ← Complete v3.0 specification
-├── AGENTS.md                       ← AI agent operating manual
-├── ROADMAP.md                      ← Lineage, Phase 4 validation, frontiers
-├── CHANGELOG.md                    ← Release history & spec evolution
-├── CONTRIBUTING.md                 ← Evidence-grounding contribution rules
-├── CODE_OF_CONDUCT.md              ← Contributor Covenant v2.1
-├── LICENSE                         ← MIT License
-├── VERSION                         ← Spec version (3.0.0)
-│
-├── templates/                      ← 4 operational contracts (copy to projects)
-│   ├── DECISIONS.template.md       ← YAML frontmatter ADR format
-│   ├── CONFLICT-RESOLUTION.template.md ← Analysis of Competing Hypotheses
-│   ├── FOUNDING-ARCHITECTURE.template.md ← Map-Reduce synthesis to FAD
-│   └── PHASE-0-GATE.template.md    ← Two-track pre-codebase exit gate
-│
-├── examples/                       ← Concrete adoption walkthroughs
-│   └── SAMPLE-PIPELINE.md          ← End-to-end Tier 1 sample project
-│
-├── docs/assets/                    ← Visual branding & diagrams
-│   └── logo.jpg                    ← Minimalist prism logo
-│
-└── meta-research/                  ← Empirical evidence base (sealed provenance)
-    ├── README.md                   ← Provenance index
-    ├── DECISIONS.md                ← 10 hypothesis verdicts & 31 evidence nodes
-    ├── RESEARCH-PIPELINE.md        ← Meta-research execution DAG
-    ├── PROMPT-LIBRARY.md           ← 14 meta-research prompts
-    └── research/                   ← 14 primary research artifacts (639KB)
+my-project/
+└── research/
+    ├── RESEARCH-PIPELINE.md         ← Generated (paste here)
+    ├── PROMPT-LIBRARY.md            ← Generated (paste here)
+    ├── DECISIONS.md                 ← Generated (paste here)
+    ├── sessions/                    ← Create empty folder for research outputs
+    └── templates/                   ← Copy from Vivechak (see templates/)
+        ├── DECISIONS.template.md
+        ├── CONFLICT-RESOLUTION.template.md
+        ├── FOUNDING-ARCHITECTURE.template.md
+        └── PHASE-0-GATE.template.md
 ```
 
 Your project is now **100% self-contained**. You never need to return to this meta-repo.
@@ -86,9 +67,6 @@ After key research sessions, lock architectural decisions in `DECISIONS.md` usin
 
 ### Step 5: Synthesize, Gate & Build
 Compile all findings into a Founding Architecture Document using `templates/FOUNDING-ARCHITECTURE.template.md`. Verify exit criteria with `templates/PHASE-0-GATE.template.md`. Once the gate passes — start coding with the FAD as your architectural source of truth.
-
----
-
 
 ---
 
@@ -126,21 +104,35 @@ Vivechak operates as the **foundational intelligence layer** within the Sovereig
 
 ```
 vivechak/
-├── README.md              ← You are here
-├── GENERATOR.md           ← THE TOOL: generator prompt (start here)
-├── FRAMEWORK.md           ← Complete v3.0 methodology specification
-├── AGENTS.md              ← AI agent operating manual
+├── README.md                       ← Overview, quickstart, philosophy
+├── GENERATOR.md                    ← The generator prompt (THE tool)
+├── FRAMEWORK.md                    ← Complete methodology specification (Generation 3)
+├── AGENTS.md                       ← AI agent operating manual
+├── ROADMAP.md                      ← Lineage, Phase 4 validation, frontiers
+├── CHANGELOG.md                    ← Release history & spec evolution
+├── CONTRIBUTING.md                 ← Evidence-grounding contribution rules
+├── CODE_OF_CONDUCT.md              ← Contributor Covenant v2.1
+├── LICENSE                         ← MIT License
+├── VERSION                         ← Release version (1.0.0)
 │
-├── templates/             ← Operational templates (copy to new projects)
-│   ├── DECISIONS.template.md
-│   ├── CONFLICT-RESOLUTION.template.md
-│   ├── FOUNDING-ARCHITECTURE.template.md
-│   └── PHASE-0-GATE.template.md
+├── templates/                      ← 4 operational contracts (copy to projects)
+│   ├── DECISIONS.template.md       ← YAML frontmatter ADR format
+│   ├── CONFLICT-RESOLUTION.template.md ← Analysis of Competing Hypotheses
+│   ├── FOUNDING-ARCHITECTURE.template.md ← Map-Reduce synthesis to FAD
+│   └── PHASE-0-GATE.template.md    ← Two-track pre-codebase exit gate
 │
-└── meta-research/         ← Empirical evidence base (provenance, not operational)
-    ├── README.md
-    ├── DECISIONS.md        ← 10 hypothesis verdicts, 31 evidence nodes
-    └── research/           ← 14 primary research artifacts (639KB)
+├── examples/                       ← Concrete adoption walkthroughs
+│   └── SAMPLE-PIPELINE.md          ← End-to-end Tier 1 sample project
+│
+├── docs/assets/                    ← Visual branding & diagrams
+│   └── logo.jpg                    ← Minimalist prism logo
+│
+└── meta-research/                  ← Empirical evidence base (sealed provenance)
+    ├── README.md                   ← Provenance index
+    ├── DECISIONS.md                ← 10 hypothesis verdicts & 31 evidence nodes
+    ├── RESEARCH-PIPELINE.md        ← Meta-research execution DAG
+    ├── PROMPT-LIBRARY.md           ← 14 meta-research prompts
+    └── research/                   ← 14 primary research artifacts (639KB)
 ```
 
 ---
@@ -181,13 +173,13 @@ The templates act as **contracts** — the agent reads them and follows the exac
 
 Software venture failures almost never stem from bad code — they stem from **premature architectural decisions made on unverified assumptions.** The cost of wrong decisions compounds: a bad database choice costs 10× more to fix at month 6 than at month 0.
 
-Vivechak was born from 7 real project research pipelines (2024–2026), each independently discovering pieces of the same methodology: unbiased landscape cataloging, evidence grading, aspect isolation, decision registries, and synthesis protocols. Vivechak v1.0/v2.0 consolidated these patterns.
+Vivechak was born from 7 real project research pipelines (2024–2026), each independently discovering pieces of the same methodology: unbiased landscape cataloging, evidence grading, aspect isolation, decision registries, and synthesis protocols.
 
-### The v3.0 Transformation
+### The Generation 3 Architecture Transformation
 
-In August 2026, Vivechak was subjected to its own methodology. 11 independent deep research sessions tested every foundational assumption. Of 10 hypotheses, **0 survived unchanged**:
+In August 2026, the framework was subjected to its own methodology. 11 independent deep research sessions tested every foundational assumption. Of 10 hypotheses, **0 survived unchanged**:
 
-| v2.0 Dogma | Verdict | v3.0 Resolution |
+| Legacy Dogma | Verdict | Generation 3 Resolution |
 |---|---|---|
 | Absolute aspect-isolation | Refined | Context Architecture Law — conditional decomposition + synthesis |
 | Mandatory 3-model triangulation | Refined | Staged, risk-triggered protocol |
@@ -200,7 +192,7 @@ The most load-bearing finding: **how you frame a research question measurably bi
 
 ### The Self-Referential Validation
 
-Vivechak v3.0's most distinctive property: it was validated by the methodology it prescribes. The meta-research discovered that several of its own axioms needed refinement. This recursive self-correction is built into v3.0's DNA through mandatory review triggers and decay conditions on every locked ADR.
+Vivechak's most distinctive property: it was validated by the methodology it prescribes. The meta-research discovered that several of its own axioms needed refinement. This recursive self-correction is built into Vivechak's DNA through mandatory review triggers and decay conditions on every locked ADR.
 
 ---
 
@@ -208,11 +200,11 @@ Vivechak v3.0's most distinctive property: it was validated by the methodology i
 
 | Phase | Status | Description |
 |---|---|---|
-| 1: Foundation | ✅ | 7 project methodologies consolidated into v1.0/v2.0 |
-| 2: Self-Validation | ✅ | 11 meta-research sessions → 10 verdicts → v3.0 spec |
-| 3: v3.0 Overhaul | ✅ | Framework, generator, templates rewritten from evidence |
+| 1: Foundation (Gen 1) | ✅ | 7 project methodologies consolidated into initial pre-development patterns |
+| 2: Self-Validation (Gen 2) | ✅ | 11 meta-research sessions → 10 verdicts → Gen 3 spec |
+| 3: Framework Release (v1.0) | ✅ | Framework, generator, templates launch as Vivechak v1.0.0 |
 | 4: Real-World Validation | Next | Battle-test on 2–3 real projects, refine generator from output quality |
 | 5: Tooling | Future | CLI initializer, YAML validator, code-based generator (if validated) |
-| 6: v4.0 Frontiers | Future | DSPy optimization, multi-agent debate, longitudinal calibration |
+| 6: v2.0 Frontiers | Future | DSPy optimization, multi-agent debate, longitudinal calibration |
 
 See [ROADMAP.md](ROADMAP.md) for detailed plans, overhaul decisions, and source material status.

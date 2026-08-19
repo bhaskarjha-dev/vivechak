@@ -1,6 +1,6 @@
 # The Vivechak Meta-Framework
 ### Complete Specification for Evidence-Grounded Pre-Development Research
-*Version 3.0 — Empirically Validated via 14 Meta-Research Sessions*
+*Version 1.0 (Generation 3 Architecture) — Empirically Validated via 14 Meta-Research Sessions*
 
 ---
 
@@ -58,7 +58,7 @@ PROJECT VISION
 
 ## 2. Core Principles
 
-Vivechak v3.0 is governed by 8 evidence-grounded principles. Each was empirically validated through the meta-research pipeline and cites its supporting evidence.
+Vivechak v1.0 is governed by 8 evidence-grounded principles. Each was empirically validated through the meta-research pipeline and cites its supporting evidence.
 
 ### P1: The Context Architecture Law
 *Supersedes: v2.0 Aspect-Isolation Law*
@@ -156,7 +156,7 @@ Architectural analysis must prioritize **falsification over confirmation**.
 
 ### 3.1 Topology: Constrained DAG with Adaptive Checkpoints
 
-Vivechak v3.0 replaces rigid 3-tier stage gating with a **Directed Acyclic Graph** governed by explicit information dependencies.
+Vivechak v1.0 replaces rigid stage gating with a **Directed Acyclic Graph** governed by explicit information dependencies.
 
 #### The Inverted Dependency Default
 Every research session defaults to **unblocked** (eligible to execute immediately) unless an explicit hard information dependency is declared.
@@ -277,7 +277,7 @@ Deliver a structured Markdown document covering:
 
 ## FORMAT
 Deliver as a single, complete Markdown file artifact with YAML frontmatter
-per the Vivechak v3.0 session schema.
+per the Vivechak v1.0 session schema.
 ```
 
 ---
@@ -356,7 +356,7 @@ evidence_refs: [E-012, E-047]
 informed_by_sessions: [T2-03, T2-05]
 review_trigger: "Re-evaluate if ingestion exceeds 50k ops/sec or storage >2TB"
 human_reviewed: true      # Mandatory for one-way doors
-schema_version: "3.0"
+schema_version: "1.0"
 ---
 ```
 

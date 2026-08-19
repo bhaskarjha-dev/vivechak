@@ -1,4 +1,4 @@
-# Vivechak v3.0 — Pipeline Generator
+# Vivechak v1.0 — Pipeline Generator
 ### The Tool: Generate a Complete Research Pipeline from Your Project Vision
 
 > **How to use:** Copy the generator prompt below into a fresh AI conversation
@@ -365,7 +365,7 @@ With templates in your workspace, you can delegate research steps directly to an
 
 ## Design Notes
 
-This generator prompt embodies Vivechak v3.0 principles:
+This generator prompt embodies Vivechak v1.0 principles:
 
 - **No persona** — task framing, not role assignment (personas debunked: Zheng et al. EMNLP 2024)
 - **Open-ended input** — accepts natural language vision dumps; the AI extracts structure

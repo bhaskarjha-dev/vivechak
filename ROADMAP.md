@@ -3,13 +3,13 @@
 
 ---
 
-## Current State: v3.0 (August 2026)
+## Current State: v1.0 (August 2026)
 
 **Status:** Complete and operational. Ready for real-world use.
 
-The framework, generator, and templates are fully functional. The v3.0 overhaul was the most significant transformation — subjecting Vivechak to its own methodology, discovering that 0 of 10 v2.0 axioms survived unchanged, and rewriting every component from evidence.
+The framework, generator, and templates are fully functional, released as Vivechak v1.0.0. The Generation 3 overhaul was the most significant transformation — subjecting the methodology to its own principles, discovering that 0 of 10 legacy axioms survived unchanged, and rewriting every component from empirical evidence.
 
-### What v3.0 Delivers
+### What v1.0 Delivers
 
 | Component | State | Description |
 |---|---|---|
@@ -22,18 +22,17 @@ The framework, generator, and templates are fully functional. The v3.0 overhaul 
 ### Repository Evolution
 
 ```
-v1.0 (2024-2025)  7 independent project pipelines → common patterns discovered
-v2.0 (Early 2026) Consolidated into meta-framework (rigid: 17-27 sessions, mandatory triangulation)
-v2.0 Meta         11 independent research sessions tested every v2.0 axiom
-v3.0 (Aug 2026)   Empirically validated rewrite (8 principles, 4-tier scaling, 5-block prompts)
-v3.0 Overhaul     38 → 27 files, generator redesign, self-contained workspace workflow
+Gen 1 (2024-2025) 7 independent project pipelines → pre-development patterns discovered
+Gen 2 (Early 2026) Consolidated into URP meta-framework (rigid: 17-27 sessions, mandatory triangulation)
+Meta-Research     11 independent research sessions tested every legacy axiom
+v1.0 (Aug 2026)   First Public Release of Vivechak (Generation 3 Architecture: 8 principles, 4 tiers, 5-block prompts)
 ```
 
 ---
 
-## v3.0 Overhaul Decisions (This Conversation)
+## Generation 3 Architecture Overhaul Decisions
 
-These architectural decisions were made during the v3.0 overhaul and are captured here for provenance. They are NOT part of the sealed meta-research — they are structural decisions about the repository and tooling.
+These architectural decisions were made during the Generation 3 overhaul and are captured here for provenance. They are NOT part of the sealed meta-research — they are structural decisions about the repository and tooling.
 
 ### OVH-01: File Consolidation (38 → 27 files)
 
@@ -83,26 +82,26 @@ These architectural decisions were made during the v3.0 overhaul and are capture
 
 ### The Honest Assessment
 
-The current roadmap listed "Code-Based Generator" as Phase 4. After the v3.0 overhaul, this deserves scrutiny:
+The current roadmap listed "Code-Based Generator" as Phase 4. After the Generation 3 overhaul, this deserves scrutiny:
 
 **The case FOR a code-based generator:**
 - Deterministic classification (Layers 0-2) ensures consistency across runs
 - Validation (Layer 5) catches malformed output
-- CLI convenience: `npx Vivechak-generate` vs copy-paste
+- CLI convenience: `npx vivechak-generate` vs copy-paste
 
 **The case AGAINST building it now:**
 - The copy-paste workflow is functional and takes 1 minute
 - The AI's analysis and classification is usually good enough
 - Engineering a CLI tool is significant effort for marginal usability gain
-- We haven't used v3.0 on a real project yet — we might build the wrong tool
+- We haven't deployed v1.0 on a real project yet — we might build the wrong tool
 
-**Verdict:** Phase 4 should be **Real-World Validation**, not premature tooling. Build the CLI only after v3.0 has been battle-tested on 2-3 real projects.
+**Verdict:** Phase 4 should be **Real-World Validation**, not premature tooling. Build the CLI only after v1.0 has been battle-tested on 2-3 real projects.
 
 ### Phase 4: Real-World Validation (Next)
 
 | Step | What | Why |
 |---|---|---|
-| **4a** | Use Vivechak v3.0 on an actual project | The ultimate validation — does the output prevent architectural mistakes? |
+| **4a** | Use Vivechak v1.0 on an actual project | The ultimate validation — does the output prevent architectural mistakes? |
 | **4b** | Evaluate generator output quality | Is the complexity scoring accurate? Are the prompts well-scoped? |
 | **4c** | Refine the generator prompt | Based on real output, iterate on wording and instructions |
 | **4d** | After 2-3 projects: assess tooling need | Does the copy-paste workflow cause friction? Is consistency a problem? |
@@ -119,12 +118,12 @@ Only build after Phase 4 demonstrates the need:
 
 | Tool | Trigger | Description |
 |---|---|---|
-| Template initializer script | If copy-paste causes friction | Simple script: `Vivechak init my-project` → creates directory structure + copies templates |
+| Template initializer script | If copy-paste causes friction | Simple script: `vivechak init my-project` → creates directory structure + copies templates |
 | YAML frontmatter validator | If malformed metadata causes synthesis problems | CI-compatible linter for session/ADR frontmatter |
 | Code-based generator CLI | If AI classification inconsistency causes real problems | 5-layer deterministic/AI hybrid (the original Phase 4 plan) |
 | Blast-radius tracker | If evidence decay causes undetected staleness | Cross-reference E-NNN citations across ADRs |
 
-### Phase 6: v4.0 Research Frontiers (Future)
+### Phase 6: v2.0 Research Frontiers (Future)
 
 These require significant research investment and should not be started until Phase 4 validates the core:
 

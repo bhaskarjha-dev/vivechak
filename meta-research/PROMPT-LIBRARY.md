@@ -398,7 +398,7 @@ You are a Principal Research Methodology Architect. You have been given the comp
 
 **Your mission:** Synthesize ALL findings into a unified, evidence-grounded specification for "Vivechak v3.0" — the next generation of the Vivechak Meta-Framework. This is the most important document in the entire pipeline. It must be comprehensive, rigorous, and definitive.
 
-**Context:** The Vivechak (Vivechak) is a meta-framework for conducting structured pre-development research using AI models with deep research capabilities. Version 2.0 was built inductively from 6 projects' experiences. This synthesis produces v3.0, grounded in EMPIRICAL EVIDENCE from the 11 research sessions provided below.
+**Context:** The Vivechak (विवेचक) is a meta-framework for conducting structured pre-development research using AI models with deep research capabilities. Version 2.0 was built inductively from 6 projects' experiences. This synthesis produces v3.0, grounded in EMPIRICAL EVIDENCE from the 11 research sessions provided below.
 
 **⚠️ IMPORTANT: Paste ALL 11 research artifacts below this line before running this prompt.**
 
