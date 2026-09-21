@@ -1,6 +1,6 @@
 # The Vivechak Meta-Framework
 ### Complete Specification for Evidence-Grounded Pre-Development Research
-*Version 1.0 (Generation 3 Architecture) — Empirically Validated via 14 Meta-Research Sessions*
+*Version 1.1 (Generation 3 Architecture) — Empirically Validated via 11 Meta-Research Sessions*
 
 ---
 
@@ -9,7 +9,7 @@
 > **The Research-First Law:**
 > *Before beginning development, investigate every irreversible architectural decision with graded, verifiable evidence. Develop nothing based on cached assumptions, outdated training data, or hallucinated conclusions.*
 
-Software failures and architectural rewrites are rarely caused by poor coding — they are caused by **premature decisions made on unverified assumptions.** The Vivechak is a structured pre-development engine that discovers, evaluates, resolves, and synthesizes the technical foundation of any software venture before a single line of application code is written.
+Technical failures and architectural rewrites are rarely caused by poor implementation — they are caused by **premature decisions made on unverified assumptions.** The Vivechak is a structured pre-development engine that discovers, evaluates, resolves, and synthesizes the technical foundation of any project before committing to irreversible implementation decisions.
 
 ### How the Framework Operates
 
@@ -63,7 +63,7 @@ Vivechak v1.0 is governed by 8 evidence-grounded principles. Each was empiricall
 ### P1: The Context Architecture Law
 *Supersedes: v2.0 Aspect-Isolation Law*
 
-Research quality is governed by **attention budget, context purity, and task boundaries** — not by arbitrary session counts. The constraint is real (token/search budget explains ~80% of performance variance — Anthropic BrowseComp), but the remedy is conditional decomposition, not blanket fragmentation.
+Research quality is governed by **attention budget, context purity, and task boundaries** — not by arbitrary session counts. The constraint is real (token/search budget explains ~80% of performance variance — Anthropic regression on OpenAI BrowseComp), but the remedy is conditional decomposition, not blanket fragmentation.
 
 **Rules:**
 - Decompose into dedicated research contexts when sub-tasks have low interdependency, high individual complexity, or divergent search spaces.
@@ -71,7 +71,7 @@ Research quality is governed by **attention budget, context purity, and task bou
 - Every decomposed investigation **must** conclude with an explicit downstream synthesis pass.
 - Over-isolation triggers the split-attention effect, introduces 4–15× token overhead, and misses systemic cross-cutting trade-offs.
 
-> **Evidence:** E-001 (Anthropic BrowseComp R²=0.80), E-002 (MTI +12.4% on joint tasks), E-003 (Chandler & Sweller split-attention), E-004 (Chroma context rot)
+> **Evidence:** E-001 (Anthropic regression on OpenAI BrowseComp R²=0.80), E-002 (MTI +12.4% on joint tasks), E-003 (Chandler & Sweller split-attention), E-004 (Chroma context rot)
 
 ### P2: Reversibility-Calibrated Rigor
 
@@ -79,7 +79,7 @@ The depth of research, evidentiary burden, and review overhead allocated to a de
 
 | Door Type | Definition | Research Depth | Evidence Bar |
 |---|---|---|---|
-| **One-Way (Type 1)** | Consequential, costly/impossible to reverse (primary datastore, data model, auth architecture, regulatory compliance, public API contracts) | Deep research, multi-session, corroborated evidence | Grade A/B, human review, premortem |
+| **One-Way (Type 1)** | Consequential, costly/impossible to reverse (primary datastore, data model, auth architecture, core language/runtime, regulatory compliance, public API contracts, hosting infrastructure, deployment architecture) | Deep research, multi-session, corroborated evidence | Grade A/B, human review, premortem |
 | **Two-Way (Type 2)** | Cheap, fast to reverse (UI framework, styling, CI tooling, non-core utility libraries) | Fast spike or convention decision on ~70% information | Grade B/C acceptable, no gate required |
 
 > **Evidence:** E-010 (Cynefin), E-011 (DORA defect concentration), E-012 (Amazon Type 1/2 doors)
@@ -102,11 +102,13 @@ Research briefs must be:
 - **Prescriptive** on WHAT to investigate, WHY it matters, WHAT boundaries apply, and WHAT coverage is required.
 - **Directional** on HOW to execute: no pre-scripted search queries, no artificial search counts, no expert role-playing personas, no rigid output skeletons.
 
-**Bounded Exploration Mandate:** Prescriptive scope defines the **minimum coverage floor**, not a ceiling. If research reveals critical concerns, risks, dependencies, or opportunities beyond the stated scope that are material to the decision being informed, the researching agent should investigate and include them � justified with evidence. This prevents the "hyper-literalism" effect where frontier models constrain their native reasoning to only the explicitly listed elements, missing emergent or adjacent concerns the prompt author could not have anticipated.
+**Bounded Exploration Mandate:** Prescriptive scope defines the **minimum coverage floor**, not a ceiling. If research reveals critical concerns, risks, dependencies, or opportunities beyond the stated scope that are material to the decision being informed, the researching agent should investigate and include them � justified with evidence. This prevents the "hyper-literalism" effect where frontier models constrain their native reasoning to only the explicitly listed elements, missing emergent or adjacent concerns the prompt author could not have anticipated.
 
 Front-load the complete brief in a single turn. Never drip-feed instructions across multiple turns (39% performance drop documented).
 
 > **Evidence:** E-017 (Laban et al. ICLR 2026, 39% multi-turn drop), E-018 (persona debunking), E-019 (ReAct paradigm), E-020 (format restriction penalty)
+
+**Audience framing vs. persona assignment:** Specifying the target audience (e.g., "a Principal Architect needing production-grade tradeoffs") sets the QUALITY BAR for the output. This is distinct from persona assignment (e.g., "You are an expert database engineer"), which attempts to alter the model's reasoning behavior. Audience framing is prescriptive scope (WHAT quality level); persona assignment is method prescription (HOW to think). The former is permitted under P4; the latter is empirically refuted.
 
 ### P5: Commodity-Maximized Composition
 *Supersedes: v2.0 fixed ~40/60 ratio*
@@ -168,12 +170,43 @@ Every research session defaults to **unblocked** (eligible to execute immediatel
 | Type | Definition | Effect |
 |---|---|---|
 | **Hard (Information)** | Session B literally cannot formulate valid outputs without an artifact from Session A | Blocks execution — DAG edge |
-| **Soft (Contextual)** | Session B benefits from terminology or constraints from Session A | No blocking — inject living Shared Context Brief |
+| **Soft (Contextual)** | Session B benefits from terminology or constraints from Session A | No blocking — inject a Shared Context Brief (a concise summary of relevant terminology, constraints, and preliminary findings from upstream sessions, included in the prompt's BRIEF block) |
 
+
+#### Dependency Injection Protocol
+
+When injecting upstream session outputs as context for downstream sessions:
+
+1. **Extract only the specific information** declared in the dependency specification — typically 3–5 sentences summarizing the relevant decision, finding, or constraint.
+2. **Do NOT attach full research artifacts** as context. A 10,000-word research report should be condensed to the specific findings the downstream session needs.
+3. **Label the dependency type** in the downstream prompt:
+   - **Constrains:** The upstream decision must be respected (e.g., "Database: PostgreSQL 16 — this is a locked One-Way Door decision")
+   - **Informs:** The upstream finding provides context but should not limit independent evaluation (e.g., "Prior research found latency under 50ms at current scale — verify independently")
+4. **Minimizing dependencies maximizes parallelism.** Most Layer 0 and many Layer 1 sessions can run concurrently. Reserve hard dependencies for genuine information prerequisites.
 #### Adaptive Checkpoints
 - **Expansion:** If a session reveals unexpected Cynefin-Complex trade-offs, spawn a maximum of 2 child sub-sessions.
 - **Contraction:** If a planned session's core question has been authoritatively resolved upstream, close it immediately.
 - **Incremental Synthesis:** Partial FAD compilation begins as soon as any structural branch closes.
+
+#### Pipeline Termination Criteria
+A research pipeline may be terminated early when ALL of the following are met:
+- Every identified One-Way Door decision has a locked ADR with Grade A/B evidence.
+- No remaining unexecuted sessions would inform an unresolved One-Way Door.
+- All executed sessions have produced actionable recommendations (not vague summaries).
+- No outstanding `contested` corroboration flags remain on critical claims.
+
+Termination does NOT require executing every planned session. Two-Way Door sessions that remain unexecuted at termination are decided by convention and logged as Track A decisions.
+
+#### Progressive Elaboration Protocol
+
+For Tier 2â€“3 projects where research may span weeks, the project vision may evolve mid-pipeline. When new constraints, pivots, or stakeholder feedback emerge:
+
+1. **Update the RESEARCH-PIPELINE.md** with a dated amendment section noting the change.
+2. **Assess impact on existing sessions:** If completed sessions are invalidated, mark their ADRs as deprecated with superseded_by linking to new sessions.
+3. **Add or modify sessions** in the DAG to address new concerns. New sessions follow the same tier-appropriate rigor.
+4. **Do NOT restart the pipeline from scratch** unless the fundamental project vision has changed (e.g., pivot from B2B to B2C). Incremental amendment preserves completed research investment.
+
+This protocol balances research continuity with responsiveness to change â€” a core tenet of evidence-grounded decision-making.
 
 ### 3.2 Adaptive Scaling Model
 
@@ -181,14 +214,14 @@ Every research session defaults to **unblocked** (eligible to execute immediatel
 
 | Dimension | 0 (Low) | 1 (Moderate) | 2 (Substantial) | 3 (Extreme) |
 |---|---|---|---|---|
-| **Domain Novelty** | Standard CRUD | Established B2B SaaS | Unconventional workflow | New category/paradigm |
-| **Technical Novelty** | Team's standard stack | Familiar language, new lib | New framework/paradigm | Unproven infra |
+| **Domain Novelty** | Standard pattern (e.g., CRUD app) | Established category (e.g., B2B SaaS, standard lab protocol) | Unconventional workflow | New category/paradigm |
+| **Technical Novelty** | Team's standard stack | Familiar platform, new component | New framework/paradigm | Unproven infrastructure |
 | **Regulatory Exposure** | Zero sensitive data | Internal data | PII, GDPR, SOC 2 | HIPAA, PCI-DSS, KYC/AML |
 | **Reversibility** | Throwaway/rewritable | Modularly swappable | Core schema/multi-tenant | Deep platform infra |
 | **Investment Horizon** | Hackathon/weekend | Lean MVP/internal tool | Funded venture | Enterprise mission-critical |
 | **Coordination Complexity** | Single decision-maker | Small team (2–4) | Mid-size (5–12) | Multi-team (>12) |
 | **Expected Longevity** | Days to weeks | Months (prototype) | 1–3 years (product) | 5+ years (platform) |
-| **Integration Complexity** | Standalone | 1–2 REST APIs | Multiple webhooks/APIs | Regulated rails/legacy ERP |
+| **Integration Complexity** | Standalone | 1–2 external interfaces (APIs, protocols, feeds) | Multiple complex integrations | Regulated rails/legacy systems |
 
 #### Tier Mapping
 
@@ -235,7 +268,7 @@ Every research session defaults to **unblocked** (eligible to execute immediatel
 | v2.0 Element | Verdict | Evidence |
 |---|---|---|
 | `<system>` expert persona | **Removed** — personas don't improve factual accuracy | Zheng et al. EMNLP 2024; Basil et al. 2025 |
-| `<web_searches>` hardcoded queries | **Removed** — violates agentic ReAct loop | Yao et al. 2023; Anthropic BrowseComp |
+| `<web_searches>` hardcoded queries | **Removed** — violates agentic ReAct loop | Yao et al. 2023; Anthropic regression on OpenAI BrowseComp |
 | `<bias_resistance>` negative instructions | **Removed** — triggers ironic "white bear" rebound | Documented in T2-06 |
 | `<output_spec>` rigid sections | **Replaced** with coverage checklist | Tam et al. EMNLP 2024 |
 | Minimum search counts | **Removed** — artificial floors don't match model judgment | T1-02 |
@@ -270,14 +303,14 @@ verified benchmarks — not high-level introductory summaries.
   Frame inquiries neutrally; actively search for disconfirming evidence.
 - If your research reveals critical concerns, dependencies, risks, or opportunities
   not listed in the coverage checklist, investigate and include them. The stated
-  scope defines the minimum � not the maximum � of what this session should cover.
+  scope defines the minimum � not the maximum � of what this session should cover.
   Justify any scope expansion with evidence.
 
 ## DELIVERABLE
 Deliver a structured Markdown document covering:
 1. Executive Summary & Recommendation
-2. Options Evaluation Matrix � if comparing 2+ options, include a weighted
-   scoring matrix per $`6.4 Weighted Evaluation Protocol (project-derived
+2. Options Evaluation Matrix � if comparing 2+ options, include a weighted
+   scoring matrix per the Weighted Evaluation Protocol (see section 6.4) (project-derived
    criteria, 1-5 scores with evidence refs, sensitivity check)
 3. Deep Technical Analysis of top 2–3 contenders
 4. Inline evidence grades (A–E with modifiers and verification method)
@@ -288,7 +321,23 @@ Deliver a structured Markdown document covering:
 ## FORMAT
 Deliver as a single, complete Markdown file artifact with YAML frontmatter
 per the Vivechak v1.0 session schema.
+**Filename:** `[Session-ID]-[slug].md` (e.g., `T1-01-primary-datastore-selection.md`)
 ```
+
+### 4.3 Research Output Quality Rubric
+
+A research session output meets Vivechak's quality bar when it satisfies ALL of the following:
+
+| Criterion | Minimum Standard |
+|---|---|
+| **Evidence Density** | $([char]0x2265)3 distinct claims backed by Grade A or B evidence |
+| **Options Evaluated** | $([char]0x2265)2 competing options analyzed for comparison sessions |
+| **Failure Modes** | $([char]0x2265)1 concrete failure scenario identified per recommended option |
+| **Reversal Triggers** | Explicit conditions for when to re-evaluate the recommendation |
+| **Source Diversity** | Not all evidence from a single vendor or source |
+| **Disconfirming Evidence** | At least one actively sought disconfirming argument documented |
+
+Sessions failing this rubric should be re-executed with a refined prompt before their findings inform ADRs.
 
 ---
 
@@ -313,6 +362,15 @@ per the Vivechak v1.0 session schema.
 | **Corroboration** | `single` · `corroborated` (≥2 independent sources) · `contested` (direct contradiction) | How many sources agree? |
 | **Recency** | `fresh` (within domain half-life) · `aging` (approaching half-life) · `stale` (past half-life) | Is this current? |
 | **Directness** | `direct` (exact workload/target) · `indirect` (analogical evidence) | Does this apply to our case? |
+**Domain Half-Life Guidance:** The threshold between `fresh` and `aging` varies by domain:
+- Cloud pricing and provider features: ~6 months
+- Framework/library APIs and benchmarks: ~12 months
+- Security advisories and CVEs: ~3 months
+- Database internals and query optimizers: ~18 months
+- Regulatory requirements (GDPR, HIPAA, PCI): ~24 months
+- Foundational CS/architecture principles: ~5+ years
+
+When in doubt, treat evidence as `aging` rather than `fresh`.
 
 ### 5.3 Verification Method
 
@@ -327,7 +385,7 @@ per the Vivechak v1.0 session schema.
 ### 5.4 Hard Rules
 
 1. **Recalled claims capped at Grade D** regardless of apparent source quality.
-2. **Zero recalled citations may underpin One-Way Door decisions.** All Type 1 decisions require `fetched` or `cached` verification.
+2. **Zero recalled citations may underpin One-Way Door decisions.** All One-Way Door decisions require `fetched` or `cached` verification.
 3. **Contested claims must be surfaced, not resolved by majority.** Document the contradiction and causal resolution reasoning.
 
 ### 5.5 Composite Citation Format
@@ -412,15 +470,26 @@ When synthesizing research sessions into the Founding Architecture Document:
 6. **Trace:** Annotate all FAD blocks with originating session and ADR IDs
 7. **Gate:** Subject to Track B Phase 0 Gate before committing
 
+#### 6.3.1 FAD Versioning and Post-Seal Updates
+
+Once sealed, a FAD is immutable. When a `review_trigger` fires or new evidence invalidates a locked ADR:
+
+1. **Open a new research session** targeting the specific decision under review.
+2. **Record a new ADR** (D-NNN+1) with `supersedes: D-NNN` linking to the original.
+3. **Issue a FAD Amendment** (SYN-01.1, SYN-01.2, etc.) documenting only the changed sections with full traceability.
+4. **Re-run the Phase 0 Gate** for the amended decision only.
+
+Do NOT modify the original sealed FAD. Amendments are additive documents that reference the sealed original.
+
 ### 6.4 Weighted Evaluation Protocol (Comparison Sessions)
 
-When a research session involves comparing multiple options (e.g., database selection, framework evaluation, vendor comparison), the qualitative analysis must be complemented by a **quantitative weighted scoring matrix** to counteract narrative volume bias � the systematic tendency of AI models to favor options with more training data, blog coverage, and community advocacy regardless of project-specific fit.
+When a research session involves comparing multiple options (e.g., database selection, framework evaluation, vendor comparison), the qualitative analysis must be complemented by a **quantitative weighted scoring matrix** to counteract narrative volume bias � the systematic tendency of AI models to favor options with more training data, blog coverage, and community advocacy regardless of project-specific fit.
 
 #### Why This Matters
 
 Qualitative-only comparison is vulnerable to three documented biases:
 - **Narrative volume bias:** Technologies with larger communities produce more positive text, creating an illusion of superiority that reflects popularity, not fitness.
-- **Verbosity bias:** Models prefer longer, more detailed responses � well-documented options get richer analysis, which reads as stronger evidence.
+- **Verbosity bias:** Models prefer longer, more detailed responses � well-documented options get richer analysis, which reads as stronger evidence.
 - **Vendor marketing contamination:** Well-funded products produce Grade C evidence (vendor claims) at scale, drowning out Grade A/B evidence for alternatives.
 
 Weighted scoring forces the model to evaluate each option against explicit, project-derived criteria rather than relying on narrative coherence.
@@ -429,7 +498,7 @@ Weighted scoring forces the model to evaluate each option against explicit, proj
 
 For any session that evaluates 2+ competing options:
 
-1. **Derive Criteria from Project Context:** Extract 5�8 evaluation criteria directly from the project vision and the decision being informed. Do not use generic criteria � every criterion must trace to a specific project requirement or constraint.
+1. **Derive Criteria from Project Context:** Extract 5�8 evaluation criteria directly from the project vision and the decision being informed. Do not use generic criteria � every criterion must trace to a specific project requirement or constraint.
 
 2. **Assign Weights (must sum to 1.0):** Weight each criterion by its importance to this specific project. Justify each weight with a one-line rationale. Example:
 
@@ -442,7 +511,7 @@ For any session that evaluates 2+ competing options:
    | Cost at projected scale | 0.10 | Bootstrap budget, cost-sensitive first 18 months |
    | Migration path | 0.10 | Two-way door if wrong, but migration still has cost |
 
-3. **Score Each Option (1�5 scale):** Score every option against every criterion using this scale:
+3. **Score Each Option (1�5 scale):** Score every option against every criterion using this scale:
    - **5:** Exceptional fit, clear leader on this criterion (with evidence)
    - **4:** Strong fit, minor gaps
    - **3:** Adequate, meets minimum requirements
@@ -453,7 +522,7 @@ For any session that evaluates 2+ competing options:
 
 4. **Compute Weighted Totals:** Multiply each score by its weight and sum across criteria.
 
-5. **Sensitivity Check:** Identify the top 2 criteria by weight. Re-run the calculation with those weights shifted �20%. If the ranking changes, flag the recommendation as **weight-sensitive** and note which criteria drive the instability.
+5. **Sensitivity Check:** Identify the top 2 criteria by weight. Re-run the calculation with those weights shifted �20%. If the ranking changes, flag the recommendation as **weight-sensitive** and note which criteria drive the instability.
 
 6. **Synthesize:** The final recommendation must consider BOTH the weighted score AND the qualitative analysis. The score is a **bias-correction lens**, not the sole decision input. If qualitative analysis and scoring disagree, explicitly address the divergence and explain which signal the recommendation follows and why.
 
@@ -482,14 +551,14 @@ For any session that evaluates 2+ competing options:
 5. **Rejected Alternatives Documented** — Every ADR includes evaluated and rejected options
 6. **Decay Triggers Assigned** — Every ADR contains explicit `review_trigger`
 7. **Premortem Protocol** — Gary Klein prospective hindsight: *"Assume catastrophic failure in 12 months. What caused it?"*
-8. **Human Review** — Named Principal Architect signature on all Type 1 ADRs
+8. **Human Review** — Named Principal Architect signature on all One-Way Door ADRs
 9. **FAD Sealed** — Founding Architecture Document compiled, committed, ready for scaffolding
 
 ---
 
 ## 8. Generator Architecture
 
-The pipeline generator uses a **deterministic/AI hybrid** architecture. See [GENERATOR.md](GENERATOR.md) for the working generator prompt.
+The pipeline generator uses a **deterministic/AI hybrid** architecture that produces two documents: a unified pipeline containing the execution plan and copy-paste-ready research prompts, plus a separate decision registry that evolves during execution. See [GENERATOR.md](GENERATOR.md) for the working generator prompt.
 
 The long-term vision is a 5-layer code-based tool:
 
@@ -534,6 +603,6 @@ This framework was produced by applying Vivechak to itself:
 
 - **11 independent research sessions** across frontier AI platforms
 - **31 evidence nodes** from peer-reviewed studies, industry standards, and empirical benchmarks
-- **10 hypothesis verdicts** — 0 fully validated as-is, 3 refuted, 4 refined, 3 validated with enhancements
+- **10 hypothesis verdicts** — 0 fully validated as-is, 3 refuted, 5 refined, 2 validated with enhancements
 
 The complete evidence base is preserved in [meta-research/](meta-research/). The framework is fully self-contained without it.

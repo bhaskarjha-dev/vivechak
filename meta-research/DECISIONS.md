@@ -34,7 +34,7 @@ The following empirical evidence nodes underpin the decisions in this registry:
 
 | Evidence ID | Description / Citation | Source Type | Base Grade | Modifiers |
 |---|---|---|---|---|
-| **E-001** | Anthropic BrowseComp token regression ($R^2=0.80$ variance explained by token budget) | Lab Empirical Data | Grade B | `corroborated · fresh · direct` |
+| **E-001** | Anthropic regression on OpenAI BrowseComp benchmark ($R^2=0.80$ variance explained by token budget) | Lab Empirical Data | Grade B | `corroborated · fresh · direct` |
 | **E-002** | Multi-Task Inference (MTI) benchmark (+12.4% accuracy on coupled tasks) | Empirical Benchmark | Grade B | `single · fresh · direct` |
 | **E-003** | Chandler & Sweller (1992) Cognitive Load & Split-Attention Effect | Academic Literature | Grade A | `corroborated · aging · indirect` |
 | **E-004** | Chroma Research (2025) Context Rot across 18 frontier LLMs | Empirical Benchmark | Grade B | `corroborated · fresh · direct` |
@@ -103,7 +103,7 @@ Vivechak v2.0 mandated an absolute "Aspect-Isolation Law": every research topic 
 **Chosen Option:** Option 3 — The Context Architecture Law.
 
 #### Ground-Truth Empirical Evidence
-- Anthropic BrowseComp regression proves that finite token/tool-call budget ($R^2=0.80$) is the true physical constraint (E-001). Diluting search queries degrades factual depth.
+- Anthropic regression on the OpenAI BrowseComp benchmark proves that finite token/tool-call budget ($R^2=0.80$) is the true physical constraint (E-001). Diluting search queries degrades factual depth.
 - However, absolute isolation fails: the Multi-Task Inference (MTI) benchmark demonstrates up to +12.4% accuracy and 1.46× faster inference when coupled, interdependent sub-tasks are evaluated jointly (E-002).
 - Over-isolation triggers the split-attention effect (E-003), introduces 4–15× token overhead, and misses systemic cross-cutting architectural trade-offs (E-004).
 

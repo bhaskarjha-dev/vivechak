@@ -52,7 +52,7 @@ For each One-Way Door decision:
 
 ### B4. Verification Integrity
 - [ ] 100% of critical citations carry `verification_method: fetched` or `cached`
-- [ ] Zero `recalled` citations support any Type 1 decision
+- [ ] Zero `recalled` citations support any One-Way Door decision
 
 ### B5. Rejected Alternatives Documented
 - [ ] Every locked ADR explicitly details evaluated and rejected competing options
@@ -69,7 +69,7 @@ For each One-Way Door decision:
 - [ ] Mitigations incorporated into FAD risk register
 
 ### B8. Human Architect Review
-- [ ] Named Principal Architect has reviewed all Type 1 ADRs
+- [ ] Named Principal Architect has reviewed all One-Way Door ADRs
 - [ ] Reviewer: `[Name]`
 - [ ] Review date: `[YYYY-MM-DD]`
 

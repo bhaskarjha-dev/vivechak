@@ -12,7 +12,7 @@
 
 ---
 
-### v1.0 — Separating evidence from assumption, truth from bias
+### v1.1 — Separating evidence from assumption, truth from bias
 
 > **Transform software architecture decisions from gut-feel and cached training data into structured, evidence-graded, empirically validated research — before a single line of application code is written.**
 
@@ -24,28 +24,24 @@ You have a software project idea. Before coding, you need to make architectural 
 
 **Vivechak generates a customized research pipeline for your project** that investigates every critical decision with appropriate rigor. It produces focused research prompts, executes them across frontier AI platforms, grades every claim with traceable evidence, and synthesizes the results into a sealed Founding Architecture Document (FAD) — your architectural source of truth before writing code.
 
+**Vivechak is not a deep-research tool** — it is the **orchestration layer above** tools like Gemini Deep Research, ChatGPT Deep Research, and Perplexity. Those tools execute individual research sessions; Vivechak structures which sessions to run, how evidence is graded consistently across sessions, how decisions are tracked with reversal triggers, and how findings are synthesized into a coherent architecture.
+
 ---
 
 ## Quick Start (5 Steps)
 
 ### Step 1: Generate Your Pipeline
-Open [GENERATOR.md](GENERATOR.md), paste your project description into the generator prompt, and send it to a frontier AI (Claude, Gemini, or ChatGPT with web search):
-- **Single-Session Mode (Default):** Generates all 3 files in one shot (ideal for IDE agents like Antigravity / Cursor).
-- **Split Generation Mode:** Generates Pipeline + Decisions first, then Prompts in a follow-up step (ideal for web chat interfaces with credit / token output limits).
-
-You'll receive 3 files:
-- **RESEARCH-PIPELINE.md** — your project's complexity score, session DAG, and execution plan
-- **PROMPT-LIBRARY.md** — copy-paste research prompts for each session
-- **DECISIONS.md** — initial hypothesis registry
+Open [GENERATOR.md](GENERATOR.md), paste your project description into the generator prompt, and send it to a frontier AI (Claude, Gemini, or ChatGPT with web search). You'll receive two files:
+- **RESEARCH-PIPELINE.md** — your project's complexity score, session DAG, and copy-paste-ready research prompts for every session
+- **DECISIONS.md** — initial decision registry with proposed hypotheses (evolves as you execute research)
 
 ### Step 2: Set Up Your Project Workspace
-Create your project's `research/` directory, paste in the 3 generated files, and **copy the 4 templates** from this repository:
+Create your project's `research/` directory, paste in the generated files, and **copy the 4 templates** from this repository:
 
 ```
 my-project/
 └── research/
     ├── RESEARCH-PIPELINE.md         ← Generated (paste here)
-    ├── PROMPT-LIBRARY.md            ← Generated (paste here)
     ├── DECISIONS.md                 ← Generated (paste here)
     ├── sessions/                    ← Create empty folder for research outputs
     └── templates/                   ← Copy from Vivechak (see templates/)
@@ -58,12 +54,12 @@ my-project/
 Your project is now **100% self-contained**. You never need to return to this meta-repo.
 
 ### Step 3: Execute Research Sessions
-Take each prompt from your generated PROMPT-LIBRARY.md and run it in an independent AI deep research session. Sessions are designed to be parallel — run as many simultaneously as you want.
+Take each prompt from your generated RESEARCH-PIPELINE.md (inside the ```` ```prompt ```` code fences) and run it in an independent AI deep research session. Layer 0 sessions are designed to be parallel — run as many simultaneously as you want.
 
-Save each output as `research/sessions/T#-##-[slug].md`.
+Save each output using the filename specified in the session's metadata table (e.g., `research/sessions/T1-01-primary-datastore-selection.md`).
 
 ### Step 4: Record Decisions
-After key research sessions, lock architectural decisions in `DECISIONS.md` using the format from `templates/DECISIONS.template.md`. Classify each as one-way or two-way door. If models disagree, use `templates/CONFLICT-RESOLUTION.template.md`.
+After key research sessions, update `DECISIONS.md` — lock architectural decisions using the format from `templates/DECISIONS.template.md`. Classify each as one-way or two-way door. If models disagree, use `templates/CONFLICT-RESOLUTION.template.md`.
 
 ### Step 5: Synthesize, Gate & Build
 Compile all findings into a Founding Architecture Document using `templates/FOUNDING-ARCHITECTURE.template.md`. Verify exit criteria with `templates/PHASE-0-GATE.template.md`. Once the gate passes — start coding with the FAD as your architectural source of truth.
@@ -113,7 +109,7 @@ vivechak/
 ├── CONTRIBUTING.md                 ← Evidence-grounding contribution rules
 ├── CODE_OF_CONDUCT.md              ← Contributor Covenant v2.1
 ├── LICENSE                         ← MIT License
-├── VERSION                         ← Release version (1.0.0)
+├── VERSION                         ← Release version (1.1.0)
 │
 ├── templates/                      ← 4 operational contracts (copy to projects)
 │   ├── DECISIONS.template.md       ← YAML frontmatter ADR format
@@ -132,7 +128,7 @@ vivechak/
     ├── DECISIONS.md                ← 10 hypothesis verdicts & 31 evidence nodes
     ├── RESEARCH-PIPELINE.md        ← Meta-research execution DAG
     ├── PROMPT-LIBRARY.md           ← 14 meta-research prompts
-    └── research/                   ← 14 primary research artifacts (639KB)
+    └── research/                   ← 15 primary research artifacts (642KB)
 ```
 
 ---
@@ -143,7 +139,7 @@ Because your project workspace contains both the generated files AND the operati
 
 | Step | Agent Prompt |
 |---|---|
-| **Research** | *"Read T2-01 from `research/PROMPT-LIBRARY.md`, run deep research with web search, save to `research/sessions/T2-01-datastore-selection.md`"* |
+| **Research** | *"Read T2-01's prompt from `research/RESEARCH-PIPELINE.md`, run deep research with web search, save to `research/sessions/T2-01-datastore-selection.md`"* |
 | **Decide** | *"Read `research/sessions/T2-01-*.md`, formulate D-001 in `research/DECISIONS.md` following `research/templates/DECISIONS.template.md`"* |
 | **Synthesize** | *"Read all sessions and decisions, compile `FAD.md` following `research/templates/FOUNDING-ARCHITECTURE.template.md`"* |
 | **Gate** | *"Audit `FAD.md` against `research/templates/PHASE-0-GATE.template.md`, run premortem for One-Way Doors, emit `PHASE-0-GATE.md`"* |
@@ -177,7 +173,7 @@ Vivechak was born from 7 real project research pipelines (2024–2026), each ind
 
 ### The Generation 3 Architecture Transformation
 
-In August 2026, the framework was subjected to its own methodology. 11 independent deep research sessions tested every foundational assumption. Of 10 hypotheses, **0 survived unchanged**:
+In August 2026, the framework was subjected to its own methodology. 11 independent deep research sessions (producing 15 artifacts across multiple AI platforms) tested every foundational assumption. Of 10 hypotheses, **0 survived unchanged**:
 
 | Legacy Dogma | Verdict | Generation 3 Resolution |
 |---|---|---|
@@ -203,7 +199,7 @@ Vivechak's most distinctive property: it was validated by the methodology it pre
 | 1: Foundation (Gen 1) | ✅ | 7 project methodologies consolidated into initial pre-development patterns |
 | 2: Self-Validation (Gen 2) | ✅ | 11 meta-research sessions → 10 verdicts → Gen 3 spec |
 | 3: Framework Release (v1.0) | ✅ | Framework, generator, templates launch as Vivechak v1.0.0 |
-| 3b: Bias Correction (v1.1) | ? | Bounded Exploration Mandate, Weighted Evaluation Protocol, SaaS de-anchoring |
+| 3b: Bias Correction (v1.1) | ✅ | Bounded Exploration Mandate, Weighted Evaluation Protocol, SaaS de-anchoring |
 | 4: Real-World Validation | Next | Battle-test on 2–3 real projects, refine generator from output quality |
 | 5: Tooling | Future | CLI initializer, YAML validator, code-based generator (if validated) |
 | 6: v2.0 Frontiers | Future | DSPy optimization, multi-agent debate, longitudinal calibration |

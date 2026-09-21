@@ -7,10 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [1.1.0] - 2026-09-21 — Bias Correction and Exploration Mandate
+## [1.1.0] - 2026-09-21 ï¿½ Bias Correction and Exploration Mandate
 
 ### Added
-- **Bounded Exploration Mandate (P4 enhancement):** Prescriptive scope now explicitly defines a minimum coverage floor, not a ceiling. Research agents may expand scope when evidence reveals critical concerns beyond the stated checklist — justified with evidence. Applied across all 3 pipeline layers: the generator prompt itself, the generated research pipeline, and each individual research session prompt. Addresses the documented 'Prompting Inversion' effect where overly rigid constraints on frontier models stifle native reasoning capabilities.
+- **Bounded Exploration Mandate (P4 enhancement):** Prescriptive scope now explicitly defines a minimum coverage floor, not a ceiling. Research agents may expand scope when evidence reveals critical concerns beyond the stated checklist ï¿½ justified with evidence. Applied across all 3 pipeline layers: the generator prompt itself, the generated research pipeline, and each individual research session prompt. Addresses the documented 'Prompting Inversion' effect where overly rigid constraints on frontier models stifle native reasoning capabilities.
 - **Weighted Evaluation Protocol (Framework section 6.4):** Comparison sessions (2+ competing options) now require a quantitative weighted scoring matrix alongside qualitative analysis. Protocol: derive 5-8 criteria from project context, assign justified weights, score 1-5 with evidence references, compute weighted totals, run sensitivity check. Counters narrative volume bias, verbosity bias, and vendor marketing contamination.
 - **Discovered Concerns section:** Standard Prompt Template DELIVERABLE now includes a dedicated section for material concerns discovered during research beyond the original scope.
 
@@ -40,7 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `templates/FOUNDING-ARCHITECTURE.template.md` (Map-Reduce synthesis to FAD)
   - `templates/PHASE-0-GATE.template.md` (Two-track pre-codebase exit gate)
 - **Sample Pipeline Walkthrough:** End-to-end walkthrough of Project "Katha" in `examples/SAMPLE-PIPELINE.md`.
-- **Sealed Meta-Research Provenance Base:** 14 primary deep-research sessions (639 KB), 10 ADR verdicts, and 31 empirical evidence nodes in `meta-research/`.
+- **Sealed Meta-Research Provenance Base:** 15 primary research artifacts (642 KB), 10 ADR verdicts, and 31 empirical evidence nodes in `meta-research/`.
 - **Logo & Identity:** Minimalist geometric prism logo (`docs/assets/logo.jpg`) symbolizing evidence separation.
 - **Governance & Health:** Added `LICENSE` (MIT), `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `VERSION`, and GitHub issue/PR templates.
 

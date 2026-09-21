@@ -13,7 +13,7 @@ This directory contains the empirical research that produced Vivechak v3.0. It i
 | `DECISIONS.md` | Sealed ADR corpus — 10 hypothesis verdicts with 31 evidence nodes |
 | `RESEARCH-PIPELINE.md` | The meta-research pipeline definition (how Vivechak researched itself) |
 | `PROMPT-LIBRARY.md` | The prompts used to execute the meta-research |
-| `research/` | 14 primary research artifacts (639KB) across Claude, ChatGPT, and Gemini |
+| `research/` | 15 primary research artifacts (642KB) across Claude, ChatGPT, and Gemini |
 
 ## Why It Exists
 

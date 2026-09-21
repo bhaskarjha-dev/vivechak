@@ -25,6 +25,19 @@ Vivechak was created by applying its own methodology to itself — 11 meta-resea
 
 ---
 
+## Release Checklist
+
+When releasing a new version, update ALL of the following references:
+
+- [ ] `VERSION` — bump the version number
+- [ ] `CHANGELOG.md` — add new release entry
+- [ ] `README.md` — header version, tree diagram version, roadmap table
+- [ ] `AGENTS.md` — header version
+- [ ] `GENERATOR.md` — title version, Design Notes version
+- [ ] `FRAMEWORK.md` — header version (if applicable)
+
+---
+
 ## Reporting Issues
 
 - **Bug Reports:** Use the [Bug Report Template](.github/ISSUE_TEMPLATE/bug_report.md).

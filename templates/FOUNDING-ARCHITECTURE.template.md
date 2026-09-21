@@ -140,7 +140,7 @@ project-root/
 
 - [ ] All One-Way Door ADRs locked with `status: accepted`
 - [ ] All reversal triggers defined
-- [ ] Gary Klein Premortem completed for all Type 1 decisions
+- [ ] Gary Klein Premortem completed for all One-Way Door decisions
 - [ ] Human Architect sign-off recorded
 - [ ] This document sealed and committed
 

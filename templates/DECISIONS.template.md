@@ -1,7 +1,9 @@
 # Architectural Decision Record Template — Vivechak v1.0
 ### YAML Frontmatter ADR with Evidence Traceability
 
-> **Usage:** Create one file per decision: `decisions/D-NNN-[slug].md`
+> **Usage:** Add one entry per decision to your project's `DECISIONS.md` registry file.
+> Each entry uses the YAML frontmatter + Markdown body format below.
+> For projects with many decisions, individual files (`decisions/D-NNN-[slug].md`) may be used instead.
 
 ---
 

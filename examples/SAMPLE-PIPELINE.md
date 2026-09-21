@@ -1,5 +1,5 @@
 # Sample Adoption Walkthrough: Project "Katha"
-### End-to-End Walkthrough of a Tier 1 Project using Vivechak (विवेचक) v1.0
+### End-to-End Walkthrough of a Tier 1 Project using Vivechak (विवेचक) v1.1
 
 This document shows a complete, concrete walkthrough of applying Vivechak to a hypothetical project (**Katha** — an AI-assisted interactive storytelling platform for indie authors).
 
@@ -13,11 +13,13 @@ The author pastes this open-ended vision into [`GENERATOR.md`](../GENERATOR.md):
 
 ---
 
-## Step 2: Generated Research Pipeline (`RESEARCH-PIPELINE.md`)
+## Step 2: The Generated Unified Research Pipeline
 
-The frontier AI consumes the vision dump and emits:
+The frontier AI consumes the vision dump and emits **two files**: `RESEARCH-PIPELINE.md` (pipeline with inline prompts) and `DECISIONS.md` (decision registry) file:
 
-### Inferred Archetype & Complexity Score
+### Pipeline Overview (top of generated file)
+
+**Inferred Archetype & Complexity Score:**
 - **Primary Archetype:** AI/ML Systems + B2B SaaS
 - **Complexity Score:** 8 / 24 → **Tier 1 (4–8 Sessions)**
 
@@ -32,27 +34,44 @@ The frontier AI consumes the vision dump and emits:
 | Expected Longevity | 1 | Multi-month product launch |
 | Integration Complexity | 0 | Standard LLM APIs (Anthropic, OpenAI) |
 
-### Session Matrix (DAG)
+**Execution DAG:**
 
 ```mermaid
 graph TD
     T01[T1-01: Graph Persistence Landscape]
     T02[T1-02: Collaborative Sync: Yjs vs OT]
-    T03[T2-01: PostgreSQL + Age vs Neo4j vs Turbopuffer]
+    T03[T2-01: PostgreSQL + AGE vs Neo4j]
     T04[T2-02: State Machine & Sync Architecture]
     SYN[SYN-01: Founding Architecture Document]
 
-    T01 --> T03
-    T02 --> T04
+    T01 -->|constrains: selected DB technology| T03
+    T02 -->|constrains: selected sync approach| T04
     T03 --> SYN
     T04 --> SYN
 ```
 
+### Research Sessions (body of generated file)
+
+Each session in the pipeline contains **three parts**: metadata table, decision reference, and the copy-paste-ready research prompt. The full decision records live in the separate `DECISIONS.md`. Here is what session T1-01 looks like:
+
 ---
 
-## Step 3: Sample 5-Block Prompt (`PROMPT-LIBRARY.md` Excerpt)
+#### T1-01: Graph Persistence Landscape — Primary Datastore Selection
 
-```markdown
+| Field | Value |
+|---|---|
+| **ID** | T1-01 |
+| **Layer** | 0 (Landscape & Discovery) |
+| **Door Type** | One-Way |
+| **Decision** | D-001 |
+| **Dependencies** | None (parallel) |
+| **Output File** | `sessions/T1-01-graph-persistence-landscape.md` |
+
+**Informs Decision:** D-001 (Primary Datastore: Relational vs Graph) — One-Way Door
+**Competing Hypotheses:** PostgreSQL 16 (relational + extensions) vs Neo4j (dedicated graph) vs Memgraph
+*Full decision record in DECISIONS.md*
+
+```prompt
 # RESEARCH BRIEF: T1-01 Primary Datastore Selection (Relational vs Graph)
 
 ## BRIEF
@@ -72,18 +91,29 @@ versus dedicated Graph DBs (Neo4j, Memgraph).
 Start with broad architectural tradeoffs. Dynamically investigate query performance
 of Postgres recursive CTEs and Apache AGE vs Neo4j. Seek disconfirming evidence against
 using specialized graph databases for small-to-medium author graphs (<50k nodes).
+If your research reveals critical concerns, dependencies, risks, or opportunities not
+listed in the coverage checklist, investigate and include them. The stated scope defines
+the minimum — not the maximum — of what this session should cover. Justify any scope
+expansion with evidence.
 
 ## DELIVERABLE
-Concrete recommendation with causal rationale. Evaluated options table with Grade A-E
-citations. Failure modes and reversal triggers for scale.
+Concrete recommendation with causal rationale. Weighted scoring matrix with
+project-derived criteria, 1–5 scores with evidence references, and sensitivity
+check. Inline evidence grades (A–E with modifiers). Failure modes and reversal
+triggers for scale. Discovered Concerns section if applicable.
 
 ## FORMAT
-Standard Vivechak v1.0 Markdown artifact with YAML frontmatter.
+Single complete Markdown file artifact with YAML frontmatter.
+Filename: T1-01-graph-persistence-landscape.md
 ```
 
 ---
 
-## Step 4: Sample Decision Record (`research/decisions/D-001.md`)
+## Step 3: Execute Sessions & Record Decisions
+
+For each session, copy the prompt from the ```` ```prompt ```` block, paste into a fresh AI session with web search, and save the output to `research/sessions/` using the filename specified in the metadata table.
+
+After reviewing each session's output, record the decision using `templates/DECISIONS.template.md`:
 
 ```yaml
 ---
@@ -103,9 +133,53 @@ schema_version: "1.0"
 
 ---
 
-## Step 5: Phase 0 Exit Gate & Kramak Handoff
+## Step 4: Synthesize into FAD
 
-Once all sessions are complete:
-1. Compile [`FAD.md`](../templates/FOUNDING-ARCHITECTURE.template.md) (Founding Architecture Document).
-2. Audit against [`PHASE-0-GATE.template.md`](../templates/PHASE-0-GATE.template.md) (Two-Track Gate).
-3. **Handoff to [Kramak](https://github.com/bhaskarjha-dev/kramak):** Feed `FAD.md` directly into Kramak's planning perspective to begin autonomous implementation loops.
+After all research sessions complete, compile the Founding Architecture Document using the Map-Reduce process:
+
+### Map Phase — Extract from Each Session
+
+| Session | Key Finding | Recommendation | Decision |
+|---|---|---|---|
+| T1-01 | PostgreSQL 16 + recursive CTEs handles graph traversal up to ~50k nodes at <50ms p95 | PostgreSQL over Neo4j for this scale | D-001 |
+| T1-02 | Yjs CRDTs outperform OT for offline-first collaborative editing with <100ms sync | Yjs over custom WebSocket OT | D-002 |
+| T2-01 | Apache AGE extension adds Cypher support without separate graph DB operational overhead | PostgreSQL + AGE, not raw CTEs | Refines D-001 |
+| T2-02 | Hocuspocus provides production-ready Yjs backend; custom sync server premature | Hocuspocus for sync layer | D-002 |
+
+### Reduce Phase — Merge into FAD Sections
+
+**Section 3 (Architecture & Primitives):**
+
+| Component | Chosen Solution | Rationale | Decision Ref |
+|---|---|---|---|
+| Primary Datastore | PostgreSQL 16 + Apache AGE | Graph traversal at target scale, single operational surface | D-001 |
+| Collaborative Sync | Yjs + Hocuspocus | Proven CRDT library with managed backend, offline-first | D-002 |
+| LLM Integration | Anthropic Claude API | Streaming support, structured output for character graphs | D-003 |
+| Auth | Clerk | Commodity — compose, not build | Convention |
+
+---
+
+## Step 5: Phase 0 Exit Gate
+
+### Decision Routing
+
+| D-ID | Decision | Door Type | Track | Status |
+|---|---|---|---|---|
+| D-001 | Primary Datastore | One-Way | B | PASS |
+| D-002 | Collaborative Sync | One-Way | B | PASS |
+| D-003 | LLM Provider | Two-Way | A | PASS |
+
+### Track B Verification (D-001, D-002)
+
+- [x] B1: DAG Closure — all sessions terminated in `status: final`
+- [x] B3: Evidentiary Threshold — D-001 backed by Grade A (PostgreSQL docs) + Grade B (benchmark)
+- [x] B7: Premortem — "What if graph traversal exceeds 200ms at p95?" → Migration path to dedicated Neo4j documented
+- [x] B8: Human Architect Review — reviewed by [Author]
+
+**Gate Verdict: PASS** → Proceed to scaffolding.
+
+---
+
+## Step 6: Kramak Handoff
+
+Feed `FAD.md` directly into [Kramak](https://github.com/bhaskarjha-dev/kramak) to begin autonomous implementation loops.

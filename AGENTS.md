@@ -1,5 +1,5 @@
 # Vivechak (विवेचक) — Agent Operating Manual
-### Vivechak v1.0 · Single Source of Truth for AI Agent Operations
+### Vivechak v1.1 · Single Source of Truth for AI Agent Operations
 
 > **Read this file COMPLETELY before modifying anything in this repository.**
 
@@ -11,7 +11,7 @@ The **Vivechak (विवेचक)** is a production-grade Meta-Framework for e
 
 **Core Purpose:** Transform software architecture decisions from gut-feel, outdated training data, and hallucinated conclusions into structured, evidence-graded, risk-calibrated research — before a single line of application code is written.
 
-**Generation 3 Status:** Empirically validated via 14 meta-research sessions. All legacy axioms tested; none survived unchanged. See [meta-research/DECISIONS.md](meta-research/DECISIONS.md) for the complete evidentiary record.
+**Generation 3 Status:** Empirically validated via 11 meta-research sessions producing 15 research artifacts. All legacy axioms tested; none survived unchanged. See [meta-research/DECISIONS.md](meta-research/DECISIONS.md) for the complete evidentiary record.
 
 ---
 
@@ -47,7 +47,7 @@ vivechak/
     ├── DECISIONS.md                ← 10 hypothesis verdicts & 31 evidence nodes
     ├── RESEARCH-PIPELINE.md        ← Meta-research execution DAG
     ├── PROMPT-LIBRARY.md           ← 14 meta-research prompts
-    └── research/                   ← 14 primary research artifacts (639KB)
+    └── research/                   ← 15 primary research artifacts (642KB)
 ```
 
 ---
@@ -86,8 +86,8 @@ When a session starts in this repo:
 
 1. **Read [FRAMEWORK.md](FRAMEWORK.md)** — understand the complete methodology specification.
 2. **If improving the meta-framework:** Enhance FRAMEWORK.md, GENERATOR.md, or templates/ following the principles above. All changes must be traceable to evidence.
-3. **If generating a pipeline for a new project:** Use [GENERATOR.md](GENERATOR.md) to generate the customized pipeline documents (Single-Session for IDE agents, Split Generation for web chat).
-4. **If executing research:** Follow the 5-block prompt anatomy (BRIEF, SCOPE, APPROACH, DELIVERABLE, FORMAT). Front-load everything in one turn.
+3. **If generating a pipeline for a new project:** Use [GENERATOR.md](GENERATOR.md) — extract the prompt from inside the code fences, replace `[PASTE YOUR PROJECT DESCRIPTION HERE]` with the project vision, execute it, and save the generated files (`RESEARCH-PIPELINE.md` + `DECISIONS.md`) to the project's `research/` directory.
+4. **If executing research:** Follow the 5-block prompt anatomy defined in [FRAMEWORK.md Â§4.2](FRAMEWORK.md) (BRIEF, SCOPE, APPROACH, DELIVERABLE, FORMAT). Front-load everything in one turn.
 5. **If recording decisions:** Use the DECISIONS template with YAML frontmatter, door_type classification, evidence_refs, and review_trigger.
 
 ---
