@@ -17,7 +17,7 @@ The framework, generator, and templates are fully functional, released as Vivech
 | **FRAMEWORK.md** | ✅ Consolidated | Complete standalone spec (principles + evidence grading + methodology) |
 | **4 Templates** | ✅ Agent-ready | Decisions, Conflict Resolution, FAD, Phase 0 Gate |
 | **README.md** | ✅ Streamlined | Quick start, repo structure, agentic workflow, origin, this roadmap |
-| **meta-research/** | ✅ Sealed | 14 artifacts, 31 evidence nodes, 10 hypothesis verdicts |
+| **meta-research/** | ✅ Sealed | 15 artifacts, 31 evidence nodes, 10 hypothesis verdicts |
 
 ### Repository Evolution
 
@@ -58,7 +58,7 @@ These architectural decisions were made during the Generation 3 overhaul and are
 |---|---|---|
 | Used persona ("You are a Research Pipeline Architect") | Task framing, no role assignment | Zheng et al. EMNLP 2024, Basil et al. 2025 |
 | 8 mandatory structured input fields | Open-ended vision dump; AI extracts structure | P4: prescriptive on WHAT, not HOW |
-| Team Size biased complexity score downward | Renamed to "Coordination Complexity," assessed by AI | Solo + AI agents ≠ small project in 2026 |
+| Team Size biased complexity score downward | Renamed to "Coordination Complexity," assessed by AI | Solo + AI agents ≤ small project in 2026 |
 | Self-reported risk profile | AI infers regulatory exposure from vision | Users systematically underestimate risk |
 | Not self-contained (name-dropped concepts) | All methodology operationalized inline | The receiving AI has never seen Vivechak |
 | Told instead of showed | Operational step-by-step instructions | P4: showing > telling |
@@ -94,24 +94,24 @@ These architectural decisions were made during the Generation 3 overhaul and are
 
 ### OVH-06: Bounded Exploration Mandate (P4 Enhancement)
 
-**Problem:** Vivechak prompts were prescriptive on WHAT to cover but never stated the coverage checklist is a floor, not a ceiling. Frontier models exhibited "hyper-literalism" � constraining native reasoning to only listed elements, missing emergent concerns the prompt author couldn't anticipate.
+**Problem:** Vivechak prompts were prescriptive on WHAT to cover but never stated the coverage checklist is a floor, not a ceiling. Frontier models exhibited "hyper-literalism" — constraining native reasoning to only listed elements, missing emergent concerns the prompt author couldn't anticipate.
 
-**Evidence:** "Prompting Inversion" effect documented in 2025�2026 research � overly rigid constraints on frontier models stifle native reasoning capabilities that would otherwise discover critical concerns organically.
+**Evidence:** "Prompting Inversion" effect documented in 2025–2026 research — overly rigid constraints on frontier models stifle native reasoning capabilities that would otherwise discover critical concerns organically.
 
 **Decision:** Add Bounded Exploration Mandate to P4. Applied at all 3 pipeline layers:
 1. Generator prompt BRIEF: "The project vision defines the starting point, not the ceiling"
 2. Generator Step 3: may add sessions for concerns user didn't mention
 3. Generator Step 4: instructs generated prompts to include exploration permission in APPROACH block
 
-**Constraint:** Exploration is bounded � "justify with evidence," not unbounded freedom.
+**Constraint:** Exploration is bounded — "justify with evidence," not unbounded freedom.
 
 ### OVH-07: Weighted Evaluation Protocol (Comparison Bias Correction)
 
 **Problem:** Qualitative-only comparisons are vulnerable to narrative volume bias (popular tech has more positive text), verbosity bias (longer analysis reads as stronger), and vendor marketing contamination (Grade C evidence at scale).
 
-**Evidence:** Multi-Criteria Decision Analysis (MCDA) and Analytic Hierarchy Process (AHP) are established bias-correction techniques. LLM-as-Judge research (2025�2026) documents position bias, verbosity bias, and self-preference as systematic.
+**Evidence:** Multi-Criteria Decision Analysis (MCDA) and Analytic Hierarchy Process (AHP) are established bias-correction techniques. LLM-as-Judge research (2025–2026) documents position bias, verbosity bias, and self-preference as systematic.
 
-**Decision:** Add Weighted Evaluation Protocol (Framework �6.4) for comparison sessions. 6-step protocol: project-derived criteria, justified weights, evidence-referenced 1-5 scores, weighted totals, sensitivity check, qualitative-quantitative synthesis.
+**Decision:** Add Weighted Evaluation Protocol (Framework §6.4) for comparison sessions. 6-step protocol: project-derived criteria, justified weights, evidence-referenced 1-5 scores, weighted totals, sensitivity check, qualitative-quantitative synthesis.
 
 **Constraint:** Score complements qualitative analysis, never replaces it. Coarse 1-5 scale prevents false precision.
 
@@ -198,7 +198,7 @@ The generator prompt (v1.0) already says "technical project" rather than "softwa
 
 | File | Content | Where It Went |
 |---|---|---|
-| `multi-project-synthesis-history.md` | Lineage of 7 projects (Vivah, Pramedha, Triyantra, Portfolio, Gemmra, Yugm) + common DNA | README.md "Origin & Philosophy" + meta-research (informed v2.0 baseline) |
+| `multi-project-synthesis-history.md` | Lineage of 7 independent project pipelines + common DNA | README.md "Origin & Philosophy" + meta-research (informed v2.0 baseline) |
 | `yugm-inception-transcript-summary.md` | Conversation history that seeded the meta-framework concept | meta-research/RESEARCH-PIPELINE.md (informed the v2.0 → v3.0 hypothesis list) |
 
 **Verdict:** Both files are historical transcripts. Their content has been:
@@ -214,14 +214,14 @@ These are the 7 original project research pipelines (70 files, ~65 MB) that inde
 
 | Project | Files | Extraction |
 |---|---|---|
-| forge-rachak/ | 5 pipeline docs | Common patterns → v2.0 principles → tested in meta-research |
-| gemmra/ | 1 pipeline doc | Data pipeline patterns → v2.0 principles → tested |
-| portfolio/ | 1 pipeline + 16 decisions | Decision registry pattern → D-NNN schema → validated in T2-05 |
-| pramedha/ | 2 docs | Module partitioning → v2.0 aspect isolation → refined to P1 Context Architecture |
-| rachak-research/ | 18 HTML/DOCX files | Strategic vs Technical pipeline → v2.0 tiers → refuted/refined in T2-03 |
-| triyantra/ | 11 pipeline + synthesis docs | Tier-based prompts → v2.0 prompt library → replaced by 5-block anatomy |
-| vivah-soodh/ | 3 docs | Unbiased cataloging → v2.0 principle → refined in T1-03, T2-06 |
-| yugm/ | 5 docs | 3-tier pipeline → v2.0 topology → refined to DAG in T2-03 |
+| project-1/ | 5 pipeline docs | Common patterns → v2.0 principles → tested in meta-research |
+| project-2/ | 1 pipeline doc | Data pipeline patterns → v2.0 principles → tested |
+| project-3/ | 1 pipeline + 16 decisions | Decision registry pattern → D-NNN schema → validated in T2-05 |
+| project-4/ | 2 docs | Module partitioning → v2.0 aspect isolation → refined to P1 Context Architecture |
+| project-5/ | 18 HTML/DOCX files | Strategic vs Technical pipeline → v2.0 tiers → refuted/refined in T2-03 |
+| project-6/ | 11 pipeline + synthesis docs | Tier-based prompts → v2.0 prompt library → replaced by 5-block anatomy |
+| project-7/ | 3 docs | Unbiased cataloging → v2.0 principle → refined in T1-03, T2-06 |
+| project-8/ | 5 docs | 3-tier pipeline → v2.0 topology → refined to DAG in T2-03 |
 
 **Extraction chain:** `references/` → v2.0 baseline → meta-research tests every pattern → v3.0 replaces all patterns with evidence-grounded versions.
 

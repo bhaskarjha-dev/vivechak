@@ -17,7 +17,7 @@ This directory contains the empirical research that produced Vivechak v3.0. It i
 
 ## Why It Exists
 
-Vivechak v3.0 was produced by applying the framework to itself. 11 independent research sessions tested every v2.0 assumption against peer-reviewed studies, empirical benchmarks, and frontier AI architecture. Of 10 founding hypotheses, 0 survived unchanged — 3 were refuted, 4 were refined, and 3 were validated with enhancements.
+Vivechak v3.0 was produced by applying the framework to itself. 11 independent research sessions tested every v2.0 assumption against peer-reviewed studies, empirical benchmarks, and frontier AI architecture. Of 10 founding hypotheses, 0 survived unchanged — 3 were refuted, 5 were refined, and 2 were validated with enhancements.
 
 This directory is the evidence. If you want to understand WHY a specific v3.0 design decision was made, trace it through `DECISIONS.md` to its supporting research artifacts.
 

@@ -66,45 +66,17 @@ Compile all findings into a Founding Architecture Document using `templates/FOUN
 
 ---
 
-## Sovereign Tools Ecosystem
-
-Vivechak operates as the **foundational intelligence layer** within the Sovereign Tools suite:
-
-```
-                                  SOVEREIGN TOOLS ECOSYSTEM
-  
-    ┌─────────────────────────┐     Founding Architecture      ┌─────────────────────────┐
-    │    Vivechak (विवेचक)     │            Document            │      Rachak (रचक)       │
-    │  Pre-Dev Deep Research  │ ─────────────────────────────> │  Governance Scaffolding │
-    │   & Evidence Grading    │            (FAD.md)            │    & Agent Constraints  │
-    └─────────────────────────┘                                └────────────┬────────────┘
-                                                                            │
-                                                                            │ Scaffolding + Specs
-                                                                            ▼
-                                                               ┌─────────────────────────┐
-                                                               │      Kramak (क्रमक)     │
-                                                               │  Autonomous SDLC Engine │
-                                                               │    & Development Loop   │
-                                                               └─────────────────────────┘
-```
-
-- **[Vivechak (विवेचक)](https://github.com/bhaskarjha-dev/vivechak):** *The Discerning Analyst* — Investigates architectural assumptions, grades evidence, and seals the Founding Architecture Document (FAD) *before* coding.
-- **[Rachak (रचक)](https://github.com/bhaskarjha-dev/rachak):** *The Scaffolder* — Generates single-binary project structure, governance policies, and agent-proof boundaries.
-- **[Kramak (क्रमक)](https://github.com/bhaskarjha-dev/kramak):** *The Methodical Progressor* — Executes autonomous development loops guided by the FAD and project specifications.
-- **[Pramedha (प्रमेधा)](https://github.com/bhaskarjha-dev/pramedha):** *The Advanced Intellect* — Career intelligence and knowledge graph management.
-- **[GitSetu (गिट-सेतु)](https://github.com/bhaskarjha-dev/gitsetu):** *The Identity Bridge* — Multi-profile Git authentication and identity governance.
-
----
-
 ## Repository Structure
+
+> **For users:** You only need **GENERATOR.md** (to generate your pipeline) and **templates/** (to copy into your project). Everything else is either for learning or for developing Vivechak itself.
 
 ```
 vivechak/
-├── README.md                       ← Overview, quickstart, philosophy
-├── GENERATOR.md                    ← The generator prompt (THE tool)
-├── FRAMEWORK.md                    ← Complete methodology specification (Generation 3)
+├── README.md                       ← You are here
+├── GENERATOR.md                    ← THE TOOL — generator prompt (start here)
+├── FRAMEWORK.md                    ← Deep methodology reference (not required for use)
 ├── AGENTS.md                       ← AI agent operating manual
-├── ROADMAP.md                      ← Lineage, Phase 4 validation, frontiers
+├── ROADMAP.md                      ← Project history & future plans
 ├── CHANGELOG.md                    ← Release history & spec evolution
 ├── CONTRIBUTING.md                 ← Evidence-grounding contribution rules
 ├── CODE_OF_CONDUCT.md              ← Contributor Covenant v2.1
@@ -190,7 +162,12 @@ The most load-bearing finding: **how you frame a research question measurably bi
 
 Vivechak's most distinctive property: it was validated by the methodology it prescribes. The meta-research discovered that several of its own axioms needed refinement. This recursive self-correction is built into Vivechak's DNA through mandatory review triggers and decay conditions on every locked ADR.
 
----
+### FRAMEWORK.md — The Deep Reference
+
+[FRAMEWORK.md](FRAMEWORK.md) contains the complete methodology specification — 8 principles, evidence grading system, pipeline topology, prompt anatomy, and synthesis workflows. **You do not need to read it to use Vivechak.** GENERATOR.md is self-contained; all methodology is operationalized inline in the generator prompt. FRAMEWORK.md is the definitive reference for understanding *why* the methodology works and for anyone improving the framework itself.
+
+
+
 
 ## Roadmap
 
@@ -205,3 +182,4 @@ Vivechak's most distinctive property: it was validated by the methodology it pre
 | 6: v2.0 Frontiers | Future | DSPy optimization, multi-agent debate, longitudinal calibration |
 
 See [ROADMAP.md](ROADMAP.md) for detailed plans, overhaul decisions, and source material status.
+

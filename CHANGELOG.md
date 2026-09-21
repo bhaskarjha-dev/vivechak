@@ -28,7 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.0.0] - 2026-08-19 — Initial Public Release (Generation 3 Architecture)
 
 ### Added
-- **Sovereign Framework Launch:** Initial public release of **Vivechak (विवेचक)** (*vi-* + *√vic* + *-aka* = "the discerning analyst") as the foundation intelligence layer of the Sovereign Tools Suite.
+- **Initial Public Release:** First release of **Vivechak (विवेचक)** (*vi-* + *√vic* + *-aka* = "the discerning analyst") — an evidence-grounded pre-development research meta-framework.
 - **8 Core Principles:** Empirically grounded methodology principles (Context Architecture Law, Reversibility-Calibrated Rigor, GRADE-aligned Evidence Grading, Prescriptive Scope / Dynamic Method, Commodity-Maximized Composition, Dual-Audience Artifacts, Staged Triangulation, Structured Falsification).
 - **5-Block Prompt Anatomy:** Complete elimination of artificial personas and hardcoded search quotas, replacing them with structured briefs (BRIEF, SCOPE, APPROACH, DELIVERABLE, FORMAT).
 - **Adaptive Complexity Scoring:** 8-dimension scoring model (0–24 points) dynamically routing projects across 4 tiers (Tier 0 to Tier 3: 1–30 sessions).
@@ -49,7 +49,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.2.0-incubating] - 2026-08-01 — Generation 2 (URP Meta-Framework)
 
 ### Added
-- Consolidated initial research methodology across 7 multi-project pipelines (Pramedha, Triyantra, Rachak, Portfolio, Gemmra, Vivah, Yugm).
+- Consolidated initial research methodology across 7 independent project pipelines.
 - Static 3-tier pipeline topology and XML-based prompt templates.
 - Empirical self-validation meta-research sessions that refuted dogmatic axioms and laid the groundwork for v1.0.0.
 

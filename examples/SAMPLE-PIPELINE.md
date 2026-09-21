@@ -180,6 +180,6 @@ After all research sessions complete, compile the Founding Architecture Document
 
 ---
 
-## Step 6: Kramak Handoff
+## Step 6: Start Coding
 
-Feed `FAD.md` directly into [Kramak](https://github.com/bhaskarjha-dev/kramak) to begin autonomous implementation loops.
+With the FAD sealed and the Phase 0 Gate passed, use `FAD.md` as the architectural source of truth for implementation. Feed it directly into your development workflow — whether that's an AI coding agent, a human development team, or both.

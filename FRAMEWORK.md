@@ -58,12 +58,12 @@ PROJECT VISION
 
 ## 2. Core Principles
 
-Vivechak v1.0 is governed by 8 evidence-grounded principles. Each was empirically validated through the meta-research pipeline and cites its supporting evidence.
+Vivechak v1.1 is governed by 8 evidence-grounded principles. Each was empirically validated through the meta-research pipeline and cites its supporting evidence.
 
 ### P1: The Context Architecture Law
 *Supersedes: v2.0 Aspect-Isolation Law*
 
-Research quality is governed by **attention budget, context purity, and task boundaries** — not by arbitrary session counts. The constraint is real (token/search budget explains ~80% of performance variance — Anthropic regression on OpenAI BrowseComp), but the remedy is conditional decomposition, not blanket fragmentation.
+Research quality is governed by **attention budget, context purity, and task boundaries** — not by arbitrary session counts. The constraint is real (token/search budget is the dominant predictor of performance on web research benchmarks — OpenAI BrowseComp scaling analysis), but the remedy is conditional decomposition, not blanket fragmentation.
 
 **Rules:**
 - Decompose into dedicated research contexts when sub-tasks have low interdependency, high individual complexity, or divergent search spaces.
@@ -71,7 +71,7 @@ Research quality is governed by **attention budget, context purity, and task bou
 - Every decomposed investigation **must** conclude with an explicit downstream synthesis pass.
 - Over-isolation triggers the split-attention effect, introduces 4–15× token overhead, and misses systemic cross-cutting trade-offs.
 
-> **Evidence:** E-001 (Anthropic regression on OpenAI BrowseComp R²=0.80), E-002 (MTI +12.4% on joint tasks), E-003 (Chandler & Sweller split-attention), E-004 (Chroma context rot)
+> **Evidence:** E-001 (OpenAI BrowseComp — accuracy scales with search budget/compute), E-002 (MTI +12.4% on joint tasks), E-003 (Chandler & Sweller split-attention), E-004 (Chroma context rot)
 
 ### P2: Reversibility-Calibrated Rigor
 
@@ -152,7 +152,7 @@ Architectural analysis must prioritize **falsification over confirmation**.
 - Every locked ADR must carry a `review_trigger` — explicit conditions or dates for mandatory re-evaluation.
 - One-Way Doors require a **Gary Klein Premortem** before commitment.
 
-> **Evidence:** E-028 (Klein 1989, 30% risk reduction), Heuer's ACH, Annie Duke decision journaling
+> **Evidence:** E-028 (Mitchell, Russo & Pennington 1989 prospective hindsight, 30% risk identification improvement; popularized as the Premortem by Klein 2007), Heuer's ACH, Annie Duke decision journaling
 
 ---
 
@@ -160,7 +160,7 @@ Architectural analysis must prioritize **falsification over confirmation**.
 
 ### 3.1 Topology: Constrained DAG with Adaptive Checkpoints
 
-Vivechak v1.0 replaces rigid stage gating with a **Directed Acyclic Graph** governed by explicit information dependencies.
+Vivechak v1.1 replaces rigid stage gating with a **Directed Acyclic Graph** governed by explicit information dependencies.
 
 #### The Inverted Dependency Default
 Every research session defaults to **unblocked** (eligible to execute immediately) unless an explicit hard information dependency is declared.
@@ -206,7 +206,7 @@ For Tier 2â€“3 projects where research may span weeks, the project vision m
 3. **Add or modify sessions** in the DAG to address new concerns. New sessions follow the same tier-appropriate rigor.
 4. **Do NOT restart the pipeline from scratch** unless the fundamental project vision has changed (e.g., pivot from B2B to B2C). Incremental amendment preserves completed research investment.
 
-This protocol balances research continuity with responsiveness to change â€” a core tenet of evidence-grounded decision-making.
+This protocol balances research continuity with responsiveness to change — a core tenet of evidence-grounded decision-making.
 
 ### 3.2 Adaptive Scaling Model
 
@@ -268,7 +268,7 @@ This protocol balances research continuity with responsiveness to change â€�
 | v2.0 Element | Verdict | Evidence |
 |---|---|---|
 | `<system>` expert persona | **Removed** — personas don't improve factual accuracy | Zheng et al. EMNLP 2024; Basil et al. 2025 |
-| `<web_searches>` hardcoded queries | **Removed** — violates agentic ReAct loop | Yao et al. 2023; Anthropic regression on OpenAI BrowseComp |
+| `<web_searches>` hardcoded queries | **Removed** — violates agentic ReAct loop | Yao et al. 2023; OpenAI BrowseComp scaling analysis |
 | `<bias_resistance>` negative instructions | **Removed** — triggers ironic "white bear" rebound | Documented in T2-06 |
 | `<output_spec>` rigid sections | **Replaced** with coverage checklist | Tam et al. EMNLP 2024 |
 | Minimum search counts | **Removed** — artificial floors don't match model judgment | T1-02 |
@@ -320,7 +320,7 @@ Deliver a structured Markdown document covering:
 
 ## FORMAT
 Deliver as a single, complete Markdown file artifact with YAML frontmatter
-per the Vivechak v1.0 session schema.
+per the Vivechak v1.1 session schema.
 **Filename:** `[Session-ID]-[slug].md` (e.g., `T1-01-primary-datastore-selection.md`)
 ```
 
