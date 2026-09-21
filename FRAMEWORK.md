@@ -102,6 +102,8 @@ Research briefs must be:
 - **Prescriptive** on WHAT to investigate, WHY it matters, WHAT boundaries apply, and WHAT coverage is required.
 - **Directional** on HOW to execute: no pre-scripted search queries, no artificial search counts, no expert role-playing personas, no rigid output skeletons.
 
+**Bounded Exploration Mandate:** Prescriptive scope defines the **minimum coverage floor**, not a ceiling. If research reveals critical concerns, risks, dependencies, or opportunities beyond the stated scope that are material to the decision being informed, the researching agent should investigate and include them — justified with evidence. This prevents the "hyper-literalism" effect where frontier models constrain their native reasoning to only the explicitly listed elements, missing emergent or adjacent concerns the prompt author could not have anticipated.
+
 Front-load the complete brief in a single turn. Never drip-feed instructions across multiple turns (39% performance drop documented).
 
 > **Evidence:** E-017 (Laban et al. ICLR 2026, 39% multi-turn drop), E-018 (persona debunking), E-019 (ReAct paradigm), E-020 (format restriction penalty)
@@ -266,6 +268,10 @@ verified benchmarks â€” not high-level introductory summaries.
   contradictions rather than stopping at the first consensus hit.
 - State assumptions explicitly. Surface disagreements rather than smoothing them.
   Frame inquiries neutrally; actively search for disconfirming evidence.
+- If your research reveals critical concerns, dependencies, risks, or opportunities
+  not listed in the coverage checklist, investigate and include them. The stated
+  scope defines the minimum — not the maximum — of what this session should cover.
+  Justify any scope expansion with evidence.
 
 ## DELIVERABLE
 Deliver a structured Markdown document covering:
@@ -274,6 +280,8 @@ Deliver a structured Markdown document covering:
 3. Deep Technical Analysis of top 2â€“3 contenders
 4. Inline evidence grades (Aâ€“E with modifiers and verification method)
 5. Open Risks & Reversal Triggers
+6. Discovered Concerns (if research revealed material concerns beyond the
+   stated scope, include a dedicated section --- omit if nothing emerged)
 
 ## FORMAT
 Deliver as a single, complete Markdown file artifact with YAML frontmatter

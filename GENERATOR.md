@@ -24,6 +24,12 @@ research) vs. reversible ("two-way doors" that can be decided quickly), and
 produce focused research prompts that investigate each decision with
 appropriate rigor.
 
+You are not constrained to only the decisions and concerns explicitly
+mentioned in the project vision. If your analysis reveals critical
+architectural concerns, risks, dependencies, or opportunities that the
+user did not mention, include research sessions for them. The project
+vision defines the starting point, not the ceiling.
+
 ## PROJECT VISION
 
 [PASTE YOUR PROJECT DESCRIPTION HERE]
@@ -101,6 +107,11 @@ For each architectural decision the project requires:
    - Sink: Grand Synthesis (depends on all Layer 2)
 4. Default every session to UNBLOCKED unless it literally cannot produce
    valid output without another session's artifact.
+5. If classification reveals critical architectural concerns the user
+   didn't mention (e.g., overlooked regulatory exposure, scaling
+   bottlenecks, security implications, operational complexity), add
+   sessions for them. The project vision defines the starting point
+   for discovery, not its boundary.
 
 ### Step 4: Write Research Prompts
 For each session, write a complete, copy-paste-ready prompt using this
@@ -120,9 +131,17 @@ modes, and benchmarks. Tell it to surface disagreements rather than smooth
 them, and actively seek disconfirming evidence. Do NOT prescribe specific
 search queries or set minimum search counts.
 
+Add this instruction to each prompt's APPROACH block: `If your research
+reveals critical concerns, dependencies, risks, or opportunities not
+listed in the coverage checklist, investigate and include them. The
+stated scope defines the minimum --- not the maximum --- of what this
+session should cover. Justify any scope expansion with evidence."
+
 **DELIVERABLE:** Coverage checklist of what the output must address.
 Include: recommendation, options evaluation, deep analysis of top contenders,
-inline evidence grades, and open risks with reversal triggers.
+inline evidence grades, open risks with reversal triggers, and a
+"Discovered Concerns" section if research reveals material concerns
+beyond the stated scope (omit if nothing emerged).
 
 For evidence grading, every factual claim should carry:
 - Base grade: A (official docs/RFCs) | B (peer-reviewed/empirical) |
@@ -275,9 +294,17 @@ modes, and benchmarks. Tell it to surface disagreements rather than smooth
 them, and actively seek disconfirming evidence. Do NOT prescribe specific
 search queries or set minimum search counts.
 
+Add this instruction to each prompt's APPROACH block: `If your research
+reveals critical concerns, dependencies, risks, or opportunities not
+listed in the coverage checklist, investigate and include them. The
+stated scope defines the minimum --- not the maximum --- of what this
+session should cover. Justify any scope expansion with evidence."
+
 **DELIVERABLE:** Coverage checklist of what the output must address.
 Include: recommendation, options evaluation, deep analysis of top contenders,
-inline evidence grades, and open risks with reversal triggers.
+inline evidence grades, open risks with reversal triggers, and a
+"Discovered Concerns" section if research reveals material concerns
+beyond the stated scope (omit if nothing emerged).
 
 For evidence grading, every factual claim should carry:
 - Base grade: A (official docs/RFCs) | B (peer-reviewed/empirical) |
