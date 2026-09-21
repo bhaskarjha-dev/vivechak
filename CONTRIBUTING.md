@@ -6,7 +6,7 @@ Thank you for your interest in improving Vivechak! We welcome contributions that
 
 ## The Golden Rule: Evidence-Grounded Evolution
 
-Vivechak was created by applying its own methodology to itself — 11 meta-research sessions tested 10 founding hypotheses before v3.0 was written.
+Vivechak was created by applying its own methodology to itself — 11 meta-research sessions tested 10 founding hypotheses before v1.0 was written.
 
 **Any proposed change to the core methodology (`FRAMEWORK.md`, `GENERATOR.md`, or `templates/`) must satisfy the Anti-Bias & Evidence Threshold:**
 

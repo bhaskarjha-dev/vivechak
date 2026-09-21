@@ -7,7 +7,7 @@
 
 **Status:** Complete and operational. Ready for real-world use.
 
-The framework, generator, and templates are fully functional, released as Vivechak v1.0.0. The Generation 3 overhaul was the most significant transformation — subjecting the methodology to its own principles, discovering that 0 of 10 legacy axioms survived unchanged, and rewriting every component from empirical evidence.
+The framework, generator, and templates are fully functional, released as Vivechak v1.0.0. The most significant transformation was the empirical self-validation — subjecting the methodology to its own principles, discovering that 0 of 10 legacy axioms survived unchanged, and rewriting every component from empirical evidence.
 
 ### What v1.0 Delivers
 
@@ -22,17 +22,17 @@ The framework, generator, and templates are fully functional, released as Vivech
 ### Repository Evolution
 
 ```
-Gen 1 (2024-2025) 7 independent project pipelines → pre-development patterns discovered
-Gen 2 (Early 2026) Consolidated into URP meta-framework (rigid: 17-27 sessions, mandatory triangulation)
-Meta-Research     11 independent research sessions tested every legacy axiom
-v1.0 (Aug 2026)   First Public Release of Vivechak (Generation 3 Architecture: 8 principles, 4 tiers, 5-block prompts)
+2024-2025         7 independent project pipelines → pre-development patterns discovered
+Early 2026        Consolidated into initial meta-framework (rigid: 17-27 sessions, mandatory triangulation)
+Mid 2026          11 independent research sessions tested every legacy axiom
+v1.0 (Aug 2026)   First public release of Vivechak (8 principles, 4 tiers, 5-block prompts)
 ```
 
 ---
 
-## Generation 3 Architecture Overhaul Decisions
+## Architecture Overhaul Decisions
 
-These architectural decisions were made during the Generation 3 overhaul and are captured here for provenance. They are NOT part of the sealed meta-research — they are structural decisions about the repository and tooling.
+These architectural decisions were made during the pre-v1.0 empirical overhaul and are captured here for provenance. They are NOT part of the sealed meta-research — they are structural decisions about the repository and tooling.
 
 ### OVH-01: File Consolidation (38 → 27 files)
 
@@ -121,7 +121,7 @@ These architectural decisions were made during the Generation 3 overhaul and are
 
 ### The Honest Assessment
 
-The current roadmap listed "Code-Based Generator" as Phase 4. After the Generation 3 overhaul, this deserves scrutiny:
+The current roadmap listed "Code-Based Generator" as Phase 4. After the empirical overhaul, this deserves scrutiny:
 
 **The case FOR a code-based generator:**
 - Deterministic classification (Layers 0-2) ensures consistency across runs
@@ -198,15 +198,15 @@ The generator prompt (v1.0) already says "technical project" rather than "softwa
 
 | File | Content | Where It Went |
 |---|---|---|
-| `multi-project-synthesis-history.md` | Lineage of 7 independent project pipelines + common DNA | README.md "Origin & Philosophy" + meta-research (informed v2.0 baseline) |
-| `yugm-inception-transcript-summary.md` | Conversation history that seeded the meta-framework concept | meta-research/RESEARCH-PIPELINE.md (informed the v2.0 → v3.0 hypothesis list) |
+| `multi-project-synthesis-history.md` | Lineage of 7 independent project pipelines + common DNA | README.md "Origin & Philosophy" + meta-research (informed pre-validation baseline) |
+| `yugm-inception-transcript-summary.md` | Conversation history that seeded the meta-framework concept | meta-research/RESEARCH-PIPELINE.md (informed the hypothesis list for empirical validation) |
 
 **Verdict:** Both files are historical transcripts. Their content has been:
-1. Synthesized into the v2.0 baseline (commit `77d1f58`)
+1. Synthesized into the pre-validation baseline (commit `77d1f58`)
 2. Tested by the 11 meta-research sessions
-3. Superseded by v3.0's evidence-grounded framework
+3. Superseded by v1.0's evidence-grounded framework
 
-**Safe to delete from disk.** The information lives in the v3.0 framework and meta-research provenance.
+**Safe to delete from disk.** The information lives in the current framework and meta-research provenance.
 
 ### references/ — FULLY EXTRACTED ✅
 
@@ -214,18 +214,18 @@ These are the 7 original project research pipelines (70 files, ~65 MB) that inde
 
 | Project | Files | Extraction |
 |---|---|---|
-| project-1/ | 5 pipeline docs | Common patterns → v2.0 principles → tested in meta-research |
-| project-2/ | 1 pipeline doc | Data pipeline patterns → v2.0 principles → tested |
+| project-1/ | 5 pipeline docs | Common patterns → initial principles → tested in meta-research |
+| project-2/ | 1 pipeline doc | Data pipeline patterns → initial principles → tested |
 | project-3/ | 1 pipeline + 16 decisions | Decision registry pattern → D-NNN schema → validated in T2-05 |
-| project-4/ | 2 docs | Module partitioning → v2.0 aspect isolation → refined to P1 Context Architecture |
-| project-5/ | 18 HTML/DOCX files | Strategic vs Technical pipeline → v2.0 tiers → refuted/refined in T2-03 |
-| project-6/ | 11 pipeline + synthesis docs | Tier-based prompts → v2.0 prompt library → replaced by 5-block anatomy |
-| project-7/ | 3 docs | Unbiased cataloging → v2.0 principle → refined in T1-03, T2-06 |
-| project-8/ | 5 docs | 3-tier pipeline → v2.0 topology → refined to DAG in T2-03 |
+| project-4/ | 2 docs | Module partitioning → initial aspect isolation → refined to P1 Context Architecture |
+| project-5/ | 18 HTML/DOCX files | Strategic vs Technical pipeline → initial tiers → refuted/refined in T2-03 |
+| project-6/ | 11 pipeline + synthesis docs | Tier-based prompts → initial prompt library → replaced by 5-block anatomy |
+| project-7/ | 3 docs | Unbiased cataloging → initial principle → refined in T1-03, T2-06 |
+| project-8/ | 5 docs | 3-tier pipeline → initial topology → refined to DAG in T2-03 |
 
-**Extraction chain:** `references/` → v2.0 baseline → meta-research tests every pattern → v3.0 replaces all patterns with evidence-grounded versions.
+**Extraction chain:** `references/` → pre-validation baseline → meta-research tests every pattern → v1.0 replaces all patterns with evidence-grounded versions.
 
-**Verdict:** The references served as the raw material for v1.0/v2.0, which was then empirically validated/refuted into v3.0. Every pattern from the references has been either:
+**Verdict:** The references served as the raw material for the initial framework, which was then empirically validated/refuted into v1.0. Every pattern from the references has been either:
 - **Validated** and incorporated into FRAMEWORK.md (e.g., decision registries, evidence grading)
 - **Refined** with empirical corrections (e.g., aspect isolation → context architecture)
 - **Refuted** and replaced (e.g., fixed session counts → 4-tier adaptive scaling)

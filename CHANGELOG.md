@@ -25,7 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [1.0.0] - 2026-08-19 — Initial Public Release (Generation 3 Architecture)
+## [1.0.0] - 2026-08-19 — Initial Public Release
 
 ### Added
 - **Initial Public Release:** First release of **Vivechak (विवेचक)** (*vi-* + *√vic* + *-aka* = "the discerning analyst") — an evidence-grounded pre-development research meta-framework.
@@ -46,7 +46,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [0.2.0-incubating] - 2026-08-01 — Generation 2 (URP Meta-Framework)
+## [0.2.0-incubating] - 2026-08-01 — Pre-Validation Baseline
 
 ### Added
 - Consolidated initial research methodology across 7 independent project pipelines.
@@ -55,7 +55,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [0.1.0-incubating] - 2024-11-15 — Generation 1 (Pre-Development Foundations)
+## [0.1.0-incubating] - 2024-11-15 — Early Research
 
 ### Added
 - Initial pre-development research concepts, aspect isolation experiments, and early decision registry patterns.

@@ -1,6 +1,6 @@
 # The Vivechak Meta-Framework
 ### Complete Specification for Evidence-Grounded Pre-Development Research
-*Version 1.1 (Generation 3 Architecture) — Empirically Validated via 11 Meta-Research Sessions*
+*Version 1.1 — Empirically Validated via 11 Meta-Research Sessions*
 
 ---
 
@@ -61,7 +61,7 @@ PROJECT VISION
 Vivechak v1.1 is governed by 8 evidence-grounded principles. Each was empirically validated through the meta-research pipeline and cites its supporting evidence.
 
 ### P1: The Context Architecture Law
-*Supersedes: v2.0 Aspect-Isolation Law*
+*Supersedes: pre-validation Aspect-Isolation Law*
 
 Research quality is governed by **attention budget, context purity, and task boundaries** — not by arbitrary session counts. The constraint is real (token/search budget is the dominant predictor of performance on web research benchmarks — OpenAI BrowseComp scaling analysis), but the remedy is conditional decomposition, not blanket fragmentation.
 
@@ -96,7 +96,7 @@ No technical assertion or architectural decision may be accepted without:
 > **Evidence:** E-013 (GRADE framework), E-014 (Admiralty Code collapse), E-015 (AI citation confabulation)
 
 ### P4: Prescriptive Scope, Dynamic Method
-*Supersedes: v2.0 8-section XML prompt anatomy*
+*Supersedes: pre-validation 8-section XML prompt anatomy*
 
 Research briefs must be:
 - **Prescriptive** on WHAT to investigate, WHY it matters, WHAT boundaries apply, and WHAT coverage is required.
@@ -111,7 +111,7 @@ Front-load the complete brief in a single turn. Never drip-feed instructions acr
 **Audience framing vs. persona assignment:** Specifying the target audience (e.g., "a Principal Architect needing production-grade tradeoffs") sets the QUALITY BAR for the output. This is distinct from persona assignment (e.g., "You are an expert database engineer"), which attempts to alter the model's reasoning behavior. Audience framing is prescriptive scope (WHAT quality level); persona assignment is method prescription (HOW to think). The former is permitted under P4; the latter is empirically refuted.
 
 ### P5: Commodity-Maximized Composition
-*Supersedes: v2.0 fixed ~40/60 ratio*
+*Supersedes: pre-validation fixed ~40/60 ratio*
 
 - **Compose 100%** of commodity/utility components from battle-tested providers (Auth, DB, Storage, Queues, UI primitives, CI/CD).
 - **Build 100% custom** only for proprietary domain intelligence, core state machines, differentiated business logic, and unique algorithms.
@@ -130,7 +130,7 @@ Research outputs must serve both human readers and machine consumers:
 > **Evidence:** E-021 (MADR 4.0), E-022 (GraphRAG header chunking), E-023 (Git diff mechanics)
 
 ### P7: Staged Triangulation & Diagnostic Disagreement
-*Supersedes: v2.0 mandatory 3-model triangulation*
+*Supersedes: pre-validation mandatory 3-model triangulation*
 
 Multi-model consensus is an **escalation tool, not a mandatory ritual**.
 
@@ -265,7 +265,7 @@ This protocol balances research continuity with responsiveness to change — a c
 
 #### What Was Removed and Why
 
-| v2.0 Element | Verdict | Evidence |
+| Pre-validation Element | Verdict | Evidence |
 |---|---|---|
 | `<system>` expert persona | **Removed** — personas don't improve factual accuracy | Zheng et al. EMNLP 2024; Basil et al. 2025 |
 | `<web_searches>` hardcoded queries | **Removed** — violates agentic ReAct loop | Yao et al. 2023; OpenAI BrowseComp scaling analysis |
