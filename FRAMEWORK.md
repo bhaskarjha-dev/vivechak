@@ -276,7 +276,9 @@ verified benchmarks â€” not high-level introductory summaries.
 ## DELIVERABLE
 Deliver a structured Markdown document covering:
 1. Executive Summary & Recommendation
-2. Options Evaluation Matrix (criteria, operational overhead, failure modes)
+2. Options Evaluation Matrix — if comparing 2+ options, include a weighted
+   scoring matrix per $`6.4 Weighted Evaluation Protocol (project-derived
+   criteria, 1-5 scores with evidence refs, sensitivity check)
 3. Deep Technical Analysis of top 2â€“3 contenders
 4. Inline evidence grades (Aâ€“E with modifiers and verification method)
 5. Open Risks & Reversal Triggers
@@ -409,6 +411,56 @@ When synthesizing research sessions into the Founding Architecture Document:
 5. **Reconcile:** Resolve cross-session contradictions using confidence + date weighting
 6. **Trace:** Annotate all FAD blocks with originating session and ADR IDs
 7. **Gate:** Subject to Track B Phase 0 Gate before committing
+
+### 6.4 Weighted Evaluation Protocol (Comparison Sessions)
+
+When a research session involves comparing multiple options (e.g., database selection, framework evaluation, vendor comparison), the qualitative analysis must be complemented by a **quantitative weighted scoring matrix** to counteract narrative volume bias — the systematic tendency of AI models to favor options with more training data, blog coverage, and community advocacy regardless of project-specific fit.
+
+#### Why This Matters
+
+Qualitative-only comparison is vulnerable to three documented biases:
+- **Narrative volume bias:** Technologies with larger communities produce more positive text, creating an illusion of superiority that reflects popularity, not fitness.
+- **Verbosity bias:** Models prefer longer, more detailed responses — well-documented options get richer analysis, which reads as stronger evidence.
+- **Vendor marketing contamination:** Well-funded products produce Grade C evidence (vendor claims) at scale, drowning out Grade A/B evidence for alternatives.
+
+Weighted scoring forces the model to evaluate each option against explicit, project-derived criteria rather than relying on narrative coherence.
+
+#### Protocol
+
+For any session that evaluates 2+ competing options:
+
+1. **Derive Criteria from Project Context:** Extract 5–8 evaluation criteria directly from the project vision and the decision being informed. Do not use generic criteria — every criterion must trace to a specific project requirement or constraint.
+
+2. **Assign Weights (must sum to 1.0):** Weight each criterion by its importance to this specific project. Justify each weight with a one-line rationale. Example:
+
+   | Criterion | Weight | Rationale |
+   |---|---|---|
+   | Write throughput at scale | 0.25 | Core use case: high-volume event ingestion |
+   | Operational complexity | 0.20 | Solo developer, no dedicated DevOps |
+   | Query flexibility | 0.20 | Ad-hoc analytics required by product spec |
+   | Ecosystem maturity | 0.15 | Long-term maintenance, not greenfield research |
+   | Cost at projected scale | 0.10 | Bootstrap budget, cost-sensitive first 18 months |
+   | Migration path | 0.10 | Two-way door if wrong, but migration still has cost |
+
+3. **Score Each Option (1–5 scale):** Score every option against every criterion using this scale:
+   - **5:** Exceptional fit, clear leader on this criterion (with evidence)
+   - **4:** Strong fit, minor gaps
+   - **3:** Adequate, meets minimum requirements
+   - **2:** Weak, notable gaps or concerns
+   - **1:** Poor fit, significant risk or missing capability
+
+   Each score must reference the specific evidence (E-NNN or inline citation) that justifies it. Scores without evidence references are invalid.
+
+4. **Compute Weighted Totals:** Multiply each score by its weight and sum across criteria.
+
+5. **Sensitivity Check:** Identify the top 2 criteria by weight. Re-run the calculation with those weights shifted ±20%. If the ranking changes, flag the recommendation as **weight-sensitive** and note which criteria drive the instability.
+
+6. **Synthesize:** The final recommendation must consider BOTH the weighted score AND the qualitative analysis. The score is a **bias-correction lens**, not the sole decision input. If qualitative analysis and scoring disagree, explicitly address the divergence and explain which signal the recommendation follows and why.
+
+#### Important Constraints
+- This protocol applies ONLY to comparison sessions. Landscape scans, single-technology deep dives, and blueprint sessions do not require scoring.
+- The weighted score is a complement to qualitative analysis, never a replacement. Architectural decisions involve judgment dimensions (team culture, strategic direction, ecosystem trajectory) that resist quantification.
+- Criteria selection itself can introduce bias. The model must justify WHY these criteria and not others.
 
 ---
 

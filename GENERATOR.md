@@ -138,7 +138,9 @@ stated scope defines the minimum --- not the maximum --- of what this
 session should cover. Justify any scope expansion with evidence."
 
 **DELIVERABLE:** Coverage checklist of what the output must address.
-Include: recommendation, options evaluation, deep analysis of top contenders,
+Include: recommendation, options evaluation (for comparison sessions: add a
+weighted scoring matrix with project-derived criteria, 1-5 scores with
+evidence references, and sensitivity check), deep analysis of top contenders,
 inline evidence grades, open risks with reversal triggers, and a
 "Discovered Concerns" section if research reveals material concerns
 beyond the stated scope (omit if nothing emerged).
@@ -301,7 +303,9 @@ stated scope defines the minimum --- not the maximum --- of what this
 session should cover. Justify any scope expansion with evidence."
 
 **DELIVERABLE:** Coverage checklist of what the output must address.
-Include: recommendation, options evaluation, deep analysis of top contenders,
+Include: recommendation, options evaluation (for comparison sessions: add a
+weighted scoring matrix with project-derived criteria, 1-5 scores with
+evidence references, and sensitivity check), deep analysis of top contenders,
 inline evidence grades, open risks with reversal triggers, and a
 "Discovered Concerns" section if research reveals material concerns
 beyond the stated scope (omit if nothing emerged).
