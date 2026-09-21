@@ -76,6 +76,45 @@ These architectural decisions were made during the Generation 3 overhaul and are
 
 **Why:** The generated output itself should tell the user/agent how to run the pipeline, record decisions, synthesize, and gate â€” without referencing the meta-repo.
 
+### OVH-05: SaaS De-Anchoring (Critique Response)
+
+**Trigger:** External critique identified that FOUNDING-ARCHITECTURE.template.md hardcoded SaaS web-app examples (Auth/Clerk, DB/PostgreSQL, Client?API?Services?DB diagram, package.json). Validated against our own meta-research finding T1-03 (framing bias).
+
+**Decision:** Fix the template and generator narrowly. Reject the proposed 3-tier "Universal Epistemic Engine" rewrite.
+
+| Critique Claim | Verdict | Action |
+|---|---|---|
+| FAD template induces SaaS anchoring bias | **Correct** | Fixed: neutral placeholders, "Project Structure Specification" |
+| Generator scope too narrow ("software project") | **Partially correct** | Fixed: "technical project," broadened examples |
+| 3-Tier architecture with Domain Archetype Profiles | **Rejected** | Premature abstraction, zero demand evidence |
+| Vocabulary overhaul ("Asset Primitives") | **Rejected** | Enterprise jargon hurts usability |
+| "Universal Epistemic Engine for all enterprise" | **Rejected** | Scope creep without empirical validation |
+
+**Rationale for rejection:** The critique asked us to make a One-Way Door architectural rewrite based on Grade E evidence (zero empirical validation, zero demand signal). This is the exact mistake Vivechak exists to prevent. Domain-agnostic expansion added to Phase 6 as a validation-gated frontier instead.
+
+### OVH-06: Bounded Exploration Mandate (P4 Enhancement)
+
+**Problem:** Vivechak prompts were prescriptive on WHAT to cover but never stated the coverage checklist is a floor, not a ceiling. Frontier models exhibited "hyper-literalism" — constraining native reasoning to only listed elements, missing emergent concerns the prompt author couldn't anticipate.
+
+**Evidence:** "Prompting Inversion" effect documented in 2025–2026 research — overly rigid constraints on frontier models stifle native reasoning capabilities that would otherwise discover critical concerns organically.
+
+**Decision:** Add Bounded Exploration Mandate to P4. Applied at all 3 pipeline layers:
+1. Generator prompt BRIEF: "The project vision defines the starting point, not the ceiling"
+2. Generator Step 3: may add sessions for concerns user didn't mention
+3. Generator Step 4: instructs generated prompts to include exploration permission in APPROACH block
+
+**Constraint:** Exploration is bounded — "justify with evidence," not unbounded freedom.
+
+### OVH-07: Weighted Evaluation Protocol (Comparison Bias Correction)
+
+**Problem:** Qualitative-only comparisons are vulnerable to narrative volume bias (popular tech has more positive text), verbosity bias (longer analysis reads as stronger), and vendor marketing contamination (Grade C evidence at scale).
+
+**Evidence:** Multi-Criteria Decision Analysis (MCDA) and Analytic Hierarchy Process (AHP) are established bias-correction techniques. LLM-as-Judge research (2025–2026) documents position bias, verbosity bias, and self-preference as systematic.
+
+**Decision:** Add Weighted Evaluation Protocol (Framework §6.4) for comparison sessions. 6-step protocol: project-derived criteria, justified weights, evidence-referenced 1-5 scores, weighted totals, sensitivity check, qualitative-quantitative synthesis.
+
+**Constraint:** Score complements qualitative analysis, never replaces it. Coarse 1-5 scale prevents false precision.
+
 ---
 
 ## What's Next: Phase 4

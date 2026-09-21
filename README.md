@@ -203,6 +203,7 @@ Vivechak's most distinctive property: it was validated by the methodology it pre
 | 1: Foundation (Gen 1) | ✅ | 7 project methodologies consolidated into initial pre-development patterns |
 | 2: Self-Validation (Gen 2) | ✅ | 11 meta-research sessions → 10 verdicts → Gen 3 spec |
 | 3: Framework Release (v1.0) | ✅ | Framework, generator, templates launch as Vivechak v1.0.0 |
+| 3b: Bias Correction (v1.1) | ? | Bounded Exploration Mandate, Weighted Evaluation Protocol, SaaS de-anchoring |
 | 4: Real-World Validation | Next | Battle-test on 2–3 real projects, refine generator from output quality |
 | 5: Tooling | Future | CLI initializer, YAML validator, code-based generator (if validated) |
 | 6: v2.0 Frontiers | Future | DSPy optimization, multi-agent debate, longitudinal calibration |

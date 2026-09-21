@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.1.0] - 2026-09-21 — Bias Correction and Exploration Mandate
+
+### Added
+- **Bounded Exploration Mandate (P4 enhancement):** Prescriptive scope now explicitly defines a minimum coverage floor, not a ceiling. Research agents may expand scope when evidence reveals critical concerns beyond the stated checklist — justified with evidence. Applied across all 3 pipeline layers: the generator prompt itself, the generated research pipeline, and each individual research session prompt. Addresses the documented 'Prompting Inversion' effect where overly rigid constraints on frontier models stifle native reasoning capabilities.
+- **Weighted Evaluation Protocol (Framework section 6.4):** Comparison sessions (2+ competing options) now require a quantitative weighted scoring matrix alongside qualitative analysis. Protocol: derive 5-8 criteria from project context, assign justified weights, score 1-5 with evidence references, compute weighted totals, run sensitivity check. Counters narrative volume bias, verbosity bias, and vendor marketing contamination.
+- **Discovered Concerns section:** Standard Prompt Template DELIVERABLE now includes a dedicated section for material concerns discovered during research beyond the original scope.
+
+### Changed
+- **FAD Template de-anchored from SaaS assumptions:** Removed hardcoded Auth/Clerk, DB/PostgreSQL, Storage/R2, Hosting/Vercel examples and Client-API-Services-DB Mermaid diagram. All sections now use neutral placeholders. 'Repository Scaffolding' renamed to 'Project Structure Specification.'
+- **Generator scope broadened:** BRIEF changed from 'software project' to 'technical project,' from 'before writing application code' to 'before committing to irreversible implementation decisions.'
+
+### Design Decisions
+- **Rejected 3-Tier Universal Epistemic Engine rewrite:** External critique proposed restructuring Vivechak into Tier 0 (domain-agnostic) + Tier 1 (pluggable domain profiles) + Tier 2 (artifact generators). Rejected as premature abstraction with zero empirical validation. The 2 valid observations (FAD template SaaS bias, generator scope) were accepted as surgical fixes. Domain-agnostic expansion added to ROADMAP Phase 6 as validation-gated frontier.
+- **Bounded, not unbounded exploration:** Exploration mandate says 'justify with evidence,' not 'research whatever you want.'
+- **Weighted scoring complements, never replaces qualitative analysis:** Coarse 1-5 scale prevents false precision. Sensitivity check catches fragile recommendations.
+
+---
+
 ## [1.0.0] - 2026-08-19 â€” Initial Public Release (Generation 3 Architecture)
 
 ### Added
