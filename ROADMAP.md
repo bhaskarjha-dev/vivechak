@@ -120,32 +120,53 @@ These architectural decisions were made during the pre-v1.0 empirical overhaul a
 
 ## What's Next
 
-### Phase 4: Framework Polish (Current)
+### Phase 4: Framework Polish (DONE — v1.1.0, 2026-09-22)
 
-Real-world usage across multiple projects (including non-software domains) validated the core methodology but revealed documentation gaps and refinement opportunities. These are guaranteed improvements — additive changes that strengthen Vivechak without risk to existing functionality.
+Real-world usage across multiple projects (including non-software domains) validated the core methodology but revealed documentation gaps and refinement opportunities. All items completed and committed.
 
-#### Wave 1: Documentation Gaps
+#### Wave 1: Documentation Gaps ✅
 
-| Item | What | Why |
+| Item | Where | Status |
 |---|---|---|
-| Pipeline failure modes | Add guidance for when sessions produce garbage, synthesis deadlocks, or the gate reveals gaps | Users have no recovery guidance when things go wrong |
-| Extract-2-files guidance | Add instructions for extracting RESEARCH-PIPELINE.md + DECISIONS.md from web chat interfaces | Web chat doesn't always output files — users need extraction instructions |
-| Session unit normalization | Add guidance on what constitutes a "session" — time, depth, token budget | The scaling model uses sessions as a unit but doesn't define what one is |
+| Pipeline failure modes | FRAMEWORK.md §3.1 | ✅ 3 recovery protocols (garbage sessions, synthesis deadlocks, gate gaps) |
+| Extract-2-files guidance | README.md Step 1 | ✅ Blockquote with extraction instructions |
+| Session unit normalization | FRAMEWORK.md §3.2 | ✅ Definition of "session" with deep-research vs standard-chat calibration |
 
-#### Wave 2: Methodology Refinements
+#### Wave 2: Methodology Refinements ✅
 
-| Item | What | Why |
+| Item | Where | Status |
 |---|---|---|
-| Calibration closing loop | Strengthen decision review scheduling in P8 and DECISIONS template — explicit `review_date` field, prediction tracking, and post-project retrospective protocol | Strongest gap from T1-01: ADRs are write-once-never-revisit. Without a closing loop, calibration can never improve |
-| Scoring rubric refinement | Add guidance for rubric calibration based on observed vs expected complexity | Real usage showed the rubric is directionally sound but boundaries need tuning |
-| Domain-agnostic formalization | Document patterns that worked for non-software domain adaptation | Gate condition for domain-agnostic expansion (ROADMAP Phase 6, originally) has been met — non-software usage exists |
+| Calibration closing loop | P8 in FRAMEWORK.md + DECISIONS.template.md | ✅ `review_date`, `prediction` fields, Calibration Record section |
+| Scoring rubric refinement | FRAMEWORK.md §3.2 | ✅ Rubric calibration paragraph |
+| Domain-agnostic formalization | FRAMEWORK.md §8 | ✅ "Beyond Software" + "Archetype Maintenance" subsections |
 
-#### Wave 3: Archetypes & Templates
+#### Wave 3: Archetypes & Templates ✅
 
-| Item | What | Why |
+| Item | Where | Status |
 |---|---|---|
-| Archetype expansion guidance | Document how to add new archetypes beyond the current 6 software-focused ones | Non-software usage required ad-hoc adaptation; formalize the pattern |
-| Archetype revision cadence | Add versioning and maintenance model for archetypes | Domain research needs shift; archetypes treated as finished code will silently rot |
+| Archetype expansion guidance | FRAMEWORK.md §8 | ✅ Domain adaptation steps documented |
+| Archetype revision cadence | FRAMEWORK.md §8 | ✅ Maintenance model with review triggers |
+
+#### Systemic Fix: Change Propagation Map ✅
+
+Added after discovering that Phase 4 improvements to FRAMEWORK.md hadn't been propagated to GENERATOR.md. Now in CONTRIBUTING.md with mandatory check in AGENTS.md §3.
+
+### Open Backlog (Identified via Audit, Not Yet Addressed)
+
+Items identified during the comprehensive repository audit that are valid but not yet implemented. Ordered by severity:
+
+| ID | Severity | What | Where | Why Not Done Yet |
+|---|---|---|---|---|
+| SM-01 | Moderate | Domain Novelty / Technical Novelty dimension overlap risk | FRAMEWORK.md §3.2 scoring rubric | Requires real-world data on whether double-counting inflates scores. Track across next 3 projects. |
+| SM-02 | Moderate | Sharp tier boundary cliff at score 15→16 | FRAMEWORK.md §3.2 tier mapping | Needs rubric calibration data. Added guidance for boundary cases (F-22) but structural fix needs evidence. |
+| AB-03 | ~~Moderate~~ | ~~One-way door examples missing inter-service patterns~~ | GENERATOR.md Step 3 | ✅ DONE — Added 4 patterns (inter-service, event sourcing, monolith/micro, data partitioning) |
+| GA-02 | Opportunity | No protocol for human stakeholder disagreement on ADRs | templates/ | ACH handles model disagreement but not team disagreement. Consider adding to CONFLICT-RESOLUTION template. |
+| GA-04 | Opportunity | Quality rubric exists but no evaluation process defined | FRAMEWORK.md §4.3 | Who evaluates session output quality? Self-assessed? Template-based? Define when friction emerges. |
+| ES-03 | Opportunity | Missing "tool-generated" verification method | FRAMEWORK.md §5 evidence system | Evidence produced by running benchmarks/code is distinct from "fetched." Add when Engine exists. |
+| OP-02 | Opportunity | No worked example of a failed/corrected pipeline | examples/ | A failure example would be more instructive than the success example alone. Create when real failure data available. |
+| OP-03 | Opportunity | No positioning vs Structured MADR 1.0 (2026) | README.md | MADR 4.0 + Structured MADR 1.0 converge on Vivechak's ADR format. Clarify differentiation. |
+| DA-03 | Opportunity | Context injection token budget not quantified | FRAMEWORK.md §3.1 dependency protocol | Protocol says "3-5 sentences" but doesn't specify token budget. Quantify from Engine usage data. |
+| PE-01 | Opportunity | "Context engineering" terminology evolution not reflected | FRAMEWORK.md | P1 aligns with the 2026 "context engineering" paradigm but doesn't use the term. Terminology update. |
 
 ### Phase 5: Vivechak Engine — Research Phase
 

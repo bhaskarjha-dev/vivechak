@@ -92,7 +92,9 @@ For each architectural decision the project requires:
 1. Classify as one-way door (irreversible: primary datastore, data model,
    authentication architecture, core language/runtime, public API contracts,
    wire protocols, regulatory compliance, hosting infrastructure,
-   deployment architecture, hardware selection) or
+   deployment architecture, hardware selection, inter-service communication
+   patterns, event sourcing vs CRUD, monolith vs microservices,
+   data partitioning strategy) or
    two-way door (reversible: UI framework, styling, CI tooling, utility
    libraries, IDE configuration, documentation format, logging providers,
    feature flag tooling).
