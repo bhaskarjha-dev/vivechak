@@ -14,7 +14,7 @@
 
 ### v1.1 — Separating evidence from assumption, truth from bias
 
-> **Transform software architecture decisions from gut-feel and cached training data into structured, evidence-graded, empirically validated research — before a single line of application code is written.**
+> **Transform architecture decisions from gut-feel and cached training data into structured, evidence-graded, empirically validated research — before a single line of implementation begins.**
 
 ---
 
@@ -34,6 +34,8 @@ You have a software project idea. Before coding, you need to make architectural 
 Open [GENERATOR.md](GENERATOR.md), paste your project description into the generator prompt, and send it to a frontier AI (Claude, Gemini, or ChatGPT with web search). You'll receive two files:
 - **RESEARCH-PIPELINE.md** — your project's complexity score, session DAG, and copy-paste-ready research prompts for every session
 - **DECISIONS.md** — initial decision registry with proposed hypotheses (evolves as you execute research)
+
+> **Extracting from web chat:** If your AI platform outputs inline text rather than downloadable files, look for the two clear document boundaries in the output. `RESEARCH-PIPELINE.md` starts with the pipeline header and ends after the last session prompt. `DECISIONS.md` starts with the decision registry header. Copy each section into its own file. The generator prompt instructs the AI to produce clearly separated, complete documents.
 
 ### Step 2: Set Up Your Project Workspace
 Create your project's `research/` directory, paste in the generated files, and **copy the 4 templates** from this repository:

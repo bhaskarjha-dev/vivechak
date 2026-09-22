@@ -21,6 +21,8 @@ supersedes: null               # D-NNN ID this supersedes, or null
 superseded_by: null            # D-NNN ID that supersedes this, or null
 amends: null                   # D-NNN ID this partially updates, or null
 review_trigger: "[Condition or date for mandatory re-evaluation]"
+review_date: null               # YYYY-MM-DD — calendar date for scheduled review (set BEFORE outcome is known)
+prediction: null                # Optional: predicted outcome at decision time (for calibration tracking)
 tags: []
 authored_by: "[agent-id or human name]"
 human_reviewed: false          # Mandatory true for one-way doors before acceptance
@@ -61,3 +63,14 @@ constraints, not generic superiority claims.]
 
 - If [specific measurable condition], trigger immediate review of [migration path].
 - Scheduled review: [date or condition from review_trigger].
+
+## Calibration Record (Post-Review)
+
+> Fill this section ONLY during scheduled review or when the review_trigger fires.
+> This closes the feedback loop — without it, decision calibration can never improve.
+
+- **Review date:** [YYYY-MM-DD]
+- **Outcome vs prediction:** [Did the predicted outcome materialize? What actually happened?]
+- **Decision quality assessment:** [Was this the right call? Would you make the same decision with current information?]
+- **Calibration note:** [Was the confidence level appropriate? Over-confident? Under-confident?]
+- **Action:** [No change | Amend (issue D-NNN) | Supersede (issue D-NNN)]

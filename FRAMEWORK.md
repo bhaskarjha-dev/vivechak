@@ -151,6 +151,7 @@ Architectural analysis must prioritize **falsification over confirmation**.
 - Decision records must document rejected alternatives with causal rationale.
 - Every locked ADR must carry a `review_trigger` — explicit conditions or dates for mandatory re-evaluation.
 - One-Way Doors require a **Gary Klein Premortem** before commitment.
+- Every One-Way Door ADR should carry a `review_date` set BEFORE the outcome is known, and an optional `prediction` field recording the expected outcome. Post-project retrospectives compare predictions to actuals — without this closing loop, decision calibration can never improve over time.
 
 > **Evidence:** E-028 (Mitchell, Russo & Pennington 1989 prospective hindsight, 30% risk identification improvement; popularized as the Premortem by Klein 2007), Heuer's ACH, Annie Duke decision journaling
 
@@ -197,9 +198,31 @@ A research pipeline may be terminated early when ALL of the following are met:
 
 Termination does NOT require executing every planned session. Two-Way Door sessions that remain unexecuted at termination are decided by convention and logged as Track A decisions.
 
+#### Pipeline Failure Modes
+
+When a research pipeline encounters problems, apply these recovery protocols:
+
+**Session produces garbage (vague summaries, hallucinated citations, off-topic output):**
+1. Check the prompt — is the BRIEF clear on WHAT to learn and WHY it matters?
+2. Try a different model (Gemini → Claude → ChatGPT). Model strengths vary by domain.
+3. If the topic is too broad, split into 2 focused sub-sessions.
+4. If the model lacks web access, the output will be parametric recall at best — cap at Grade D and note `verification_method: recalled`.
+
+**Synthesis deadlocks (sessions produce contradictory recommendations with equal evidence):**
+1. This is expected, not a failure. Use `templates/CONFLICT-RESOLUTION.template.md` — the ACH matrix is designed for exactly this.
+2. Check whether the contradiction is real (different evidence) or apparent (different scoping assumptions).
+3. If evidence is genuinely equal, classify by reversibility: Two-Way Door → pick either and spike; One-Way Door → escalate to triangulation (run the same prompt on a second model).
+4. If deadlock persists after triangulation, the decision may be in the Cynefin Complex domain. Consider a technical spike instead of more research.
+
+**Gate reveals gaps (Phase 0 checklist fails on specific items):**
+1. Identify which One-Way Doors lack adequate evidence.
+2. Spawn targeted follow-up sessions for those specific gaps — do NOT re-run the entire pipeline.
+3. If gaps are in Two-Way Door decisions, decide by convention (Track A) and move forward.
+4. If gaps indicate the project vision itself is unclear, pause and clarify scope before spawning more sessions.
+
 #### Progressive Elaboration Protocol
 
-For Tier 2â€“3 projects where research may span weeks, the project vision may evolve mid-pipeline. When new constraints, pivots, or stakeholder feedback emerge:
+For Tier 2–3 projects where research may span weeks, the project vision may evolve mid-pipeline. When new constraints, pivots, or stakeholder feedback emerge:
 
 1. **Update the RESEARCH-PIPELINE.md** with a dated amendment section noting the change.
 2. **Assess impact on existing sessions:** If completed sessions are invalidated, mark their ADRs as deprecated with superseded_by linking to new sessions.
@@ -232,7 +255,11 @@ This protocol balances research continuity with responsiveness to change — a c
 | **10–15** | Tier 2: Standard | 9–16 sessions | Commercial product with core ADRs |
 | **16–24** | Tier 3: Deep | 17–30 sessions | Novel, regulated, multi-tenant platform |
 
+**What constitutes a "session":** A session is one independent research execution — a single prompt sent to a frontier AI model's deep research mode, producing one complete output artifact. Sessions are calibrated for deep research modes that perform 20–100+ web searches per run. If using standard (non-deep-research) chat, a single "session" may require multiple conversational turns to achieve equivalent depth — adjust session budgets accordingly. The tier budgets are relative proportions between tiers, not absolute figures to copy without calibration for your specific tools and workflow.
+
 > **🚨 Hard Override:** If Regulatory Exposure = 3, all intersecting decisions automatically receive Tier 3 treatment regardless of total score.
+
+**Rubric calibration:** The 0–3 scales and tier boundaries are structured heuristics, not calibrated measurement instruments. After completing 2–3 projects, compare the assigned tier to the actual research effort required. If projects consistently need more depth than their tier suggests, adjust boundaries upward. If sessions are routinely closed early because the question was already answered, adjust downward. The rubric should evolve with your team's experience — treat it as a living instrument, not a fixed table.
 
 #### Per-Decision Routing Matrix
 
@@ -581,6 +608,25 @@ The long-term vision is a 5-layer code-based tool:
 | **AI/ML Systems** | Model selection, eval benchmarks, inference cost, context architecture |
 | **Consumer Mobile** | App Store compliance, offline-first sync, push/retention, in-app billing |
 | **Real-Time / IoT** | MQTT/WebSockets, edge vs cloud compute, fleet OTA, hardware constraints |
+
+#### Beyond Software: Domain Adaptation
+
+Vivechak's epistemic core — evidence grading (Cochrane/GRADE lineage), ACH conflict resolution (CIA/Heuer), premortem protocol (Gary Klein), reversibility routing (Bezos Type 1/2 doors), and map-reduce synthesis — was not invented for software. These primitives govern how intelligence reasons about truth, risk, and irreversibility in *any* domain.
+
+The generator prompt already uses "technical project" rather than "software project." The 4 operational templates (Decisions, Conflict Resolution, FAD, Phase 0 Gate) contain zero software-specific content. Non-software domains have been successfully researched using adapted versions of the generator.
+
+**To adapt for a non-software domain:**
+1. The 8 core principles, evidence grading, and all templates work without modification.
+2. Add domain-specific archetypes to the generator (equivalent to the 6 software archetypes above). Each archetype defines the unique research needs for that domain.
+3. Adapt the complexity scoring rubric labels — replace software-specific terms ("Standard CRUD," "New library") with domain-equivalent complexity indicators.
+4. Adjust the APPROACH block's target audience — replace "Principal Architect" with the domain-equivalent decision-maker.
+
+#### Archetype Maintenance
+
+Archetypes are versioned data, not finished code. Domain research needs shift as technology and regulations evolve. Each archetype should be treated as a living reference:
+- Review archetypes after every 2–3 projects that use them.
+- If a project required significant ad-hoc adaptation beyond its assigned archetype, consider whether a new archetype is warranted.
+- If the generator's fallback path (projects that don't fit any archetype) triggers frequently, that's a signal a new archetype is needed — not evidence the fallback is working.
 
 ---
 

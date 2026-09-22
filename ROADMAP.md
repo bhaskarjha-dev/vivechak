@@ -3,20 +3,20 @@
 
 ---
 
-## Current State: v1.0 (August 2026)
+## Current State: v1.1 (September 2026)
 
-**Status:** Complete and operational. Ready for real-world use.
+**Status:** Operational and battle-tested. Used on multiple real projects including non-software domains.
 
-The framework, generator, and templates are fully functional, released as Vivechak v1.0.0. The most significant transformation was the empirical self-validation — subjecting the methodology to its own principles, discovering that 0 of 10 legacy axioms survived unchanged, and rewriting every component from empirical evidence.
+The framework was released as v1.0 in August 2026, then refined to v1.1 through real-world usage across multiple projects and a comprehensive first-principles audit. Key v1.1 improvements include: the Bounded Exploration Mandate (P4 enhancement), Weighted Evaluation Protocol (comparison bias correction), domain-agnostic generator language, and extensive documentation cleanup.
 
-### What v1.0 Delivers
+### What v1.1 Delivers
 
 | Component | State | Description |
 |---|---|---|
 | **GENERATOR.md** | ✅ Ship-ready | Open-ended vision input, AI-driven classification, self-contained prompt |
 | **FRAMEWORK.md** | ✅ Consolidated | Complete standalone spec (principles + evidence grading + methodology) |
 | **4 Templates** | ✅ Agent-ready | Decisions, Conflict Resolution, FAD, Phase 0 Gate |
-| **README.md** | ✅ Streamlined | Quick start, repo structure, agentic workflow, origin, this roadmap |
+| **README.md** | ✅ Streamlined | Quick start, repo structure, agentic workflow, origin |
 | **meta-research/** | ✅ Sealed | 15 artifacts, 31 evidence nodes, 10 hypothesis verdicts |
 
 ### Repository Evolution
@@ -26,6 +26,7 @@ The framework, generator, and templates are fully functional, released as Vivech
 Early 2026        Consolidated into initial meta-framework (rigid: 17-27 sessions, mandatory triangulation)
 Mid 2026          11 independent research sessions tested every legacy axiom
 v1.0 (Aug 2026)   First public release of Vivechak (8 principles, 4 tiers, 5-block prompts)
+v1.1 (Sep 2026)   Real-world usage refinements, first-principles audit, version normalization
 ```
 
 ---
@@ -117,78 +118,89 @@ These architectural decisions were made during the pre-v1.0 empirical overhaul a
 
 ---
 
-## What's Next: Phase 4
+## What's Next
 
-### The Honest Assessment
+### Phase 4: Framework Polish (Current)
 
-The current roadmap listed "Code-Based Generator" as Phase 4. After the empirical overhaul, this deserves scrutiny:
+Real-world usage across multiple projects (including non-software domains) validated the core methodology but revealed documentation gaps and refinement opportunities. These are guaranteed improvements — additive changes that strengthen Vivechak without risk to existing functionality.
 
-**The case FOR a code-based generator:**
-- Deterministic classification (Layers 0-2) ensures consistency across runs
-- Validation (Layer 5) catches malformed output
-- CLI convenience: `npx vivechak-generate` vs copy-paste
+#### Wave 1: Documentation Gaps
 
-**The case AGAINST building it now:**
-- The copy-paste workflow is functional and takes 1 minute
-- The AI's analysis and classification is usually good enough
-- Engineering a CLI tool is significant effort for marginal usability gain
-- We haven't deployed v1.0 on a real project yet — we might build the wrong tool
-
-**Verdict:** Phase 4 should be **Real-World Validation**, not premature tooling. Build the CLI only after v1.0 has been battle-tested on 2-3 real projects.
-
-### Phase 4: Real-World Validation (Next)
-
-| Step | What | Why |
+| Item | What | Why |
 |---|---|---|
-| **4a** | Use Vivechak v1.0 on an actual project | The ultimate validation — does the output prevent architectural mistakes? |
-| **4b** | Evaluate generator output quality | Is the complexity scoring accurate? Are the prompts well-scoped? |
-| **4c** | Refine the generator prompt | Based on real output, iterate on wording and instructions |
-| **4d** | After 2-3 projects: assess tooling need | Does the copy-paste workflow cause friction? Is consistency a problem? |
+| Pipeline failure modes | Add guidance for when sessions produce garbage, synthesis deadlocks, or the gate reveals gaps | Users have no recovery guidance when things go wrong |
+| Extract-2-files guidance | Add instructions for extracting RESEARCH-PIPELINE.md + DECISIONS.md from web chat interfaces | Web chat doesn't always output files — users need extraction instructions |
+| Session unit normalization | Add guidance on what constitutes a "session" — time, depth, token budget | The scaling model uses sessions as a unit but doesn't define what one is |
 
-**Success criteria:**
-- The generated pipeline correctly identifies one-way vs two-way doors
-- Research sessions produce actionable recommendations (not vague summaries)
-- The FAD synthesis is concrete enough to start coding from
-- No major architectural surprise within the first 3 months of development
+#### Wave 2: Methodology Refinements
 
-### Phase 5: Tooling (If Validated)
-
-Only build after Phase 4 demonstrates the need:
-
-| Tool | Trigger | Description |
+| Item | What | Why |
 |---|---|---|
-| Template initializer script | If copy-paste causes friction | Simple script: `vivechak init my-project` → creates directory structure + copies templates |
-| YAML frontmatter validator | If malformed metadata causes synthesis problems | CI-compatible linter for session/ADR frontmatter |
-| Code-based generator CLI | If AI classification inconsistency causes real problems | 5-layer deterministic/AI hybrid (the original Phase 4 plan) |
-| Blast-radius tracker | If evidence decay causes undetected staleness | Cross-reference E-NNN citations across ADRs |
+| Calibration closing loop | Strengthen decision review scheduling in P8 and DECISIONS template — explicit `review_date` field, prediction tracking, and post-project retrospective protocol | Strongest gap from T1-01: ADRs are write-once-never-revisit. Without a closing loop, calibration can never improve |
+| Scoring rubric refinement | Add guidance for rubric calibration based on observed vs expected complexity | Real usage showed the rubric is directionally sound but boundaries need tuning |
+| Domain-agnostic formalization | Document patterns that worked for non-software domain adaptation | Gate condition for domain-agnostic expansion (ROADMAP Phase 6, originally) has been met — non-software usage exists |
 
-### Phase 6: v2.0 Research Frontiers (Future)
+#### Wave 3: Archetypes & Templates
 
-These require significant research investment and should not be started until Phase 4 validates the core:
-
-| Frontier | Description | Prerequisite |
+| Item | What | Why |
 |---|---|---|
-| **DSPy Prompt Optimization** | Automated prompt refinement via compile-time optimization | Requires metric: "research quality" quantified |
-| **Multi-Agent Research Sessions** | Structured debate between specialized agents | Requires understanding of where single-agent fails |
-| **Cross-Project Knowledge Graph** | Reusable evidence records across projects | Requires 5+ projects with tracked evidence |
-| **Longitudinal Calibration** | Track prediction accuracy over time (Tetlock-style) | Requires 3+ projects with 6+ months of development data |
-| **Adaptive Prompt Evolution** | Prompts that improve from session to session within a pipeline | Requires understanding of inter-session information flow |
-| **Domain-Agnostic Expansion** | Extend Vivechak beyond software to hardware, manufacturing, biopharma, or CapEx decisions | Requires empirical validation on ≥1 non-software domain (see below) |
+| Archetype expansion guidance | Document how to add new archetypes beyond the current 6 software-focused ones | Non-software usage required ad-hoc adaptation; formalize the pattern |
+| Archetype revision cadence | Add versioning and maintenance model for archetypes | Domain research needs shift; archetypes treated as finished code will silently rot |
 
-#### On Domain-Agnostic Expansion
+### Phase 5: Vivechak Engine — Research Phase
 
-Vivechak's epistemic core — evidence grading (Cochrane/GRADE lineage), ACH conflict resolution (CIA/Heuer), premortem protocol (Gary Klein), reversibility routing (Bezos Type 1/2 doors), and map-reduce synthesis — was not invented for software. These primitives govern how intelligence reasons about truth, risk, and irreversibility in *any* domain.
+**The vision:** Transform Vivechak from a prompt-paste manual workflow into an automated research execution engine that takes a problem statement and produces a complete research corpus + FAD.
 
-The generator prompt (v1.0) already says "technical project" rather than "software project." The FAD template uses domain-neutral Wardley Compose/Build framing. The 4 operational templates (Decisions, Conflict Resolution, FAD, Phase 0 Gate) contain zero software-specific content.
+**The approach:** Use Vivechak's own GENERATOR.md to generate a research pipeline for "how to build an automated research execution engine." This is the ultimate dogfooding — using the framework to research its own automation, which simultaneously validates the current generator and produces an evidence-grounded architecture for the Engine.
 
-**What's missing for non-software domains:**
-- The 6 domain archetypes in the generator are software-only (B2B SaaS, DevTools, FinTech, AI/ML, Consumer Mobile, Real-Time/IoT). Non-software use would need archetype-equivalent classification for hardware, manufacturing, biopharma, etc.
-- The 8-dimension complexity scoring rubric uses software-centric labels ("Standard CRUD," "New library," "PII/GDPR"). Scoring labels would need domain-neutral equivalents.
-- The 5-block prompt anatomy references "Principal Architect" as the target audience. Non-software domains would reference domain-equivalent decision-makers.
+#### What the Engine Would Automate
 
-**Gate condition:** This frontier activates only when someone empirically uses Vivechak on a non-software domain, documents the results, and identifies specific friction points. Speculative refactoring without demand evidence is the exact premature architecture that Vivechak exists to prevent.
+```
+Current (Manual):
+  Human → Copy GENERATOR prompt → Paste into AI chat → Get pipeline
+  → Copy each session prompt → Paste into separate chats → Save outputs
+  → Record decisions → Resolve conflicts → Synthesize FAD → Run gate
 
-**What would NOT change:** The 8 core principles, evidence grading system, ACH matrix, premortem protocol, and two-track gate are already fully domain-agnostic and require zero modification.
+Automated (Engine):
+  Human → Provide problem statement → Engine executes entire pipeline
+  → Research sessions run in parallel (respecting DAG dependencies)
+  → Triangulation for marked sessions (multi-model)
+  → Synthesis and gate checks → Complete research/ directory output
+```
+
+#### Research Questions for Engine Architecture
+
+These must be answered through proper Vivechak-based research before building:
+
+| Question | Why It Matters |
+|---|---|
+| **Orchestration framework** — LangGraph vs Google ADK vs CrewAI vs custom | One-Way Door: framework lock-in affects all downstream development. Needs deep research on each framework's DAG support, human-in-the-loop, state persistence, multi-model orchestration, and long-term viability |
+| **Language choice** — Python vs Go vs Rust vs TypeScript | One-Way Door: affects framework options, ecosystem, and maintenance. Not all frameworks support all languages |
+| **LLM API strategy** — Direct SDK vs unified layer (litellm) vs provider-specific | Affects multi-model triangulation, cost tracking, and provider flexibility |
+| **Web search strategy** — Native model capabilities vs supplemental search APIs (Tavily, Exa) | Affects research quality and cost |
+| **Deployment model** — CLI tool vs IDE plugin vs web service vs hybrid | Affects who can use it and how |
+| **Separate repo or monorepo** — Engine as separate project vs inside vivechak/ | Affects dependency management and framework independence |
+
+#### Phased Engine Development (Post-Research)
+
+| Version | What | Value |
+|---|---|---|
+| **v0.1** | Single-session runner — CLI takes one prompt, calls LLM API, saves formatted output | Eliminates copy-paste-save for individual sessions |
+| **v0.2** | Pipeline executor — parses RESEARCH-PIPELINE.md, executes DAG, parallel sessions | Automates the 10-25 session execution cycle |
+| **v0.3** | End-to-end — takes problem statement, generates pipeline, executes, synthesizes FAD | Full automation from idea to architecture document |
+| **v1.0** | Production — multi-model triangulation, human-in-the-loop gates, resume from checkpoint, cost tracking | Production-grade research automation |
+
+### Phase 6: Research Frontiers (Future)
+
+These require either the Engine to exist or significant accumulated project data. Each has explicit gate conditions:
+
+| Frontier | Description | Gate Condition |
+|---|---|---|
+| **DSPy Prompt Optimization** | Automated prompt refinement via compile-time optimization | Requires a quantifiable "research quality" metric — which requires Engine usage data to define |
+| **Cross-Project Knowledge Graph** | Reusable evidence records across projects | Requires 5+ projects with tracked evidence in a consistent format |
+| **Adaptive Prompt Evolution** | Prompts that improve from session to session within a pipeline | Requires Engine v0.2+ (inter-session context injection only possible with programmatic control) |
+| **Longitudinal Calibration** | Track prediction accuracy over time (Tetlock-style) | Requires 3+ projects with 6+ months post-FAD development data |
+| **Multi-Agent Debate** | Structured adversarial debate for contested One-Way Doors | Requires understanding of where single-agent research actually fails — needs Engine usage data |
 
 ---
 
