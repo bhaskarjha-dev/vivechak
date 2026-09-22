@@ -1,4 +1,4 @@
-# Architectural Decision Record Template — Vivechak v1.0
+# Architectural Decision Record Template — Vivechak v1.1
 ### YAML Frontmatter ADR with Evidence Traceability
 
 > **Usage:** Add one entry per decision to your project's `DECISIONS.md` registry file.
@@ -26,7 +26,7 @@ prediction: null                # Optional: predicted outcome at decision time (
 tags: []
 authored_by: "[agent-id or human name]"
 human_reviewed: false          # Mandatory true for one-way doors before acceptance
-schema_version: "1.0"
+schema_version: "1.1"
 ---
 ```
 

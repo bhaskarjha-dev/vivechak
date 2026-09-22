@@ -1,4 +1,4 @@
-# Founding Architecture Document Template — Vivechak v1.0
+# Founding Architecture Document Template — Vivechak v1.1
 ### Map-Reduce Synthesis from Research Pipeline to Execution Blueprint
 
 > **Usage:** This template structures the final synthesis document that bridges

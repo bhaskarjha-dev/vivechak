@@ -1,4 +1,4 @@
-# Conflict Resolution Template — Vivechak v1.0
+# Conflict Resolution Template — Vivechak v1.1
 ### ACH-Style Falsification Matrix & Structured Divergence Resolution
 
 > **Usage:** Use this template when research sessions or triangulated models

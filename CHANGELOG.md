@@ -7,21 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [1.1.0] - 2026-09-21 � Bias Correction and Exploration Mandate
+## [1.1.0] - 2026-09-22 — Framework Polish & Domain Expansion
 
 ### Added
-- **Bounded Exploration Mandate (P4 enhancement):** Prescriptive scope now explicitly defines a minimum coverage floor, not a ceiling. Research agents may expand scope when evidence reveals critical concerns beyond the stated checklist � justified with evidence. Applied across all 3 pipeline layers: the generator prompt itself, the generated research pipeline, and each individual research session prompt. Addresses the documented 'Prompting Inversion' effect where overly rigid constraints on frontier models stifle native reasoning capabilities.
-- **Weighted Evaluation Protocol (Framework section 6.4):** Comparison sessions (2+ competing options) now require a quantitative weighted scoring matrix alongside qualitative analysis. Protocol: derive 5-8 criteria from project context, assign justified weights, score 1-5 with evidence references, compute weighted totals, run sensitivity check. Counters narrative volume bias, verbosity bias, and vendor marketing contamination.
+- **Bounded Exploration Mandate (P4 enhancement):** Prescriptive scope now explicitly defines a minimum coverage floor, not a ceiling. Research agents may expand scope when evidence reveals critical concerns beyond the stated checklist — justified with evidence. Applied across all 3 pipeline layers: the generator prompt itself, the generated research pipeline, and each individual research session prompt. Addresses the documented 'Prompting Inversion' effect where overly rigid constraints on frontier models stifle native reasoning capabilities.
+- **Weighted Evaluation Protocol (Framework §6.4):** Comparison sessions (2+ competing options) now require a quantitative weighted scoring matrix alongside qualitative analysis. Protocol: derive 5-8 criteria from project context, assign justified weights, score 1-5 with evidence references, compute weighted totals, run sensitivity check. Counters narrative volume bias, verbosity bias, and vendor marketing contamination.
 - **Discovered Concerns section:** Standard Prompt Template DELIVERABLE now includes a dedicated section for material concerns discovered during research beyond the original scope.
+- **Pipeline Failure Modes (Framework §3.1):** Recovery protocols for garbage sessions, synthesis deadlocks, and Phase 0 Gate gaps — users previously had no guidance when things went wrong.
+- **Session Unit Normalization (Framework §3.2):** Defines what a "session" means in practice — calibrated for deep research modes vs standard chat, with guidance that tier budgets are relative proportions.
+- **Calibration Closing Loop (P8 + DECISIONS template):** Added `review_date` and `prediction` fields to ADR schema. New "Calibration Record" section in DECISIONS template for post-review feedback. Without a closing loop, decision calibration can never improve.
+- **Domain Adaptation (Framework §8):** Guidance for using Vivechak on non-software domains — proven by real usage. Includes archetype maintenance model and revision cadence.
+- **Rubric Calibration (Framework §3.2):** Guidance for tuning complexity scoring boundaries against observed outcomes.
+- **Extract-2-files guidance (README):** Instructions for extracting generated files from web chat interfaces.
 
 ### Changed
 - **FAD Template de-anchored from SaaS assumptions:** Removed hardcoded Auth/Clerk, DB/PostgreSQL, Storage/R2, Hosting/Vercel examples and Client-API-Services-DB Mermaid diagram. All sections now use neutral placeholders. 'Repository Scaffolding' renamed to 'Project Structure Specification.'
 - **Generator scope broadened:** BRIEF changed from 'software project' to 'technical project,' from 'before writing application code' to 'before committing to irreversible implementation decisions.'
+- **README tagline updated:** From "software architecture decisions" to "architecture decisions" — reflecting proven non-software domain usage.
+- **Version naming normalized:** All legacy internal naming (URP, v2.0, v3.0, Generation 1/2/3) translated to Vivechak's public v1.x versioning across FRAMEWORK.md, ROADMAP.md, README.md, CHANGELOG.md, and CONTRIBUTING.md. meta-research/ preserved as sealed provenance.
+- **ROADMAP rewritten:** Current State updated to v1.1 (battle-tested). Phase 4 → Framework Polish (current). Phase 5 → Vivechak Engine research phase (using Vivechak's own methodology). Phase 6 → Research Frontiers with explicit gate conditions.
 
 ### Design Decisions
-- **Rejected 3-Tier Universal Epistemic Engine rewrite:** External critique proposed restructuring Vivechak into Tier 0 (domain-agnostic) + Tier 1 (pluggable domain profiles) + Tier 2 (artifact generators). Rejected as premature abstraction with zero empirical validation. The 2 valid observations (FAD template SaaS bias, generator scope) were accepted as surgical fixes. Domain-agnostic expansion added to ROADMAP Phase 6 as validation-gated frontier.
+- **Rejected 3-Tier Universal Epistemic Engine rewrite:** External critique proposed restructuring Vivechak into Tier 0 (domain-agnostic) + Tier 1 (pluggable domain profiles) + Tier 2 (artifact generators). Rejected as premature abstraction with zero empirical validation. The 2 valid observations (FAD template SaaS bias, generator scope) were accepted as surgical fixes.
 - **Bounded, not unbounded exploration:** Exploration mandate says 'justify with evidence,' not 'research whatever you want.'
 - **Weighted scoring complements, never replaces qualitative analysis:** Coarse 1-5 scale prevents false precision. Sensitivity check catches fragile recommendations.
+- **Phase 5 requires its own Vivechak-based research:** The Vivechak Engine (automated pipeline execution) is a One-Way Door architectural decision. Building it without proper research would violate P2. Use GENERATOR.md to generate the Engine's own research pipeline first.
 
 ---
 
