@@ -168,6 +168,11 @@ Items identified during the comprehensive repository audit that are valid but no
 | DA-03 | Opportunity | Context injection token budget not quantified | FRAMEWORK.md §3.1 dependency protocol | Protocol says "3-5 sentences" but doesn't specify token budget. Quantify from Engine usage data. |
 | PE-01 | Opportunity | "Context engineering" terminology evolution not reflected | FRAMEWORK.md | P1 aligns with the 2026 "context engineering" paradigm but doesn't use the term. Terminology update. |
 
+**Explicitly evaluated as OUT OF SCOPE** (not Vivechak's responsibility):
+- Tool-use calibration — about agent harness design, not research methodology
+- FAD → Fitness Functions — post-Vivechak concern (the coding tool owns fitness functions)
+- Archetype fallback monitoring — only relevant when archetypes are programmatic (Engine v1.0+)
+
 ### Phase 5: Vivechak Engine — Research Phase
 
 **The vision:** Transform Vivechak from a prompt-paste manual workflow into an automated research execution engine that takes a problem statement and produces a complete research corpus + FAD.
@@ -210,6 +215,18 @@ These must be answered through proper Vivechak-based research before building:
 | **v0.2** | Pipeline executor — parses RESEARCH-PIPELINE.md, executes DAG, parallel sessions | Automates the 10-25 session execution cycle |
 | **v0.3** | End-to-end — takes problem statement, generates pipeline, executes, synthesizes FAD | Full automation from idea to architecture document |
 | **v1.0** | Production — multi-model triangulation, human-in-the-loop gates, resume from checkpoint, cost tracking | Production-grade research automation |
+
+#### Deferred Convenience Items → Engine Version Targets
+
+These items were evaluated during Phase 4 planning and deferred to the Engine rather than being implemented as standalone scripts. They map naturally to Engine versions:
+
+| Item | What | Target Version | Rationale for Deferral |
+|---|---|---|---|
+| Template init script (`vivechak init`) | Automate the 4-template copy + directory creation | v0.1 | Standalone script works but Engine v0.1 CLI makes it redundant |
+| YAML frontmatter validator | Validate ADR schema before synthesis | v0.2 | Only valuable when programmatic — manual validation is visual inspection |
+| Code-based generator CLI | Replace copy-paste prompt with CLI interface | v0.3 | Monolithic prompt works. CLI only worthwhile when Engine generates+executes |
+| Blast-radius tracker | Track which decisions affect which components | v1.0 | Needs 5+ projects with tracked evidence. Engine usage data required |
+| AI cost tracking | Track token/API costs per session and pipeline | v1.0 | Only relevant when Engine controls API calls |
 
 ### Phase 6: Research Frontiers (Future)
 
