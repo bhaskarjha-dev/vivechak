@@ -37,3 +37,8 @@ build/
 *.njsproj
 *.sln
 *.sw?
+
+
+# temp
+temp/
+tmp/

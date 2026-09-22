@@ -230,7 +230,17 @@ Requirements:
 - Sessions must be ordered by layer (Layer 0 -> Layer 1 -> Layer 2 -> Sink)
 - The Pipeline Overview section must include a "How to Execute" guide
   referencing: templates/DECISIONS.template.md, templates/CONFLICT-RESOLUTION.template.md,
-  templates/FOUNDING-ARCHITECTURE.template.md, and templates/PHASE-0-GATE.template.md
+  templates/FOUNDING-ARCHITECTURE.template.md, and templates/PHASE-0-GATE.template.md.
+  The guide must also include:
+  - **Session normalization note:** A session is one independent deep
+    research execution (a single prompt sent to a frontier AI's deep
+    research mode). If using standard chat, multiple turns may be needed
+    per session. Tier budgets are relative proportions, not absolute counts.
+  - **Troubleshooting guidance:** What to do when a session produces
+    vague or off-topic output (try a different model, split into focused
+    sub-sessions), when sessions produce contradictory recommendations
+    (use CONFLICT-RESOLUTION template), and when the exit gate reveals
+    gaps (spawn targeted follow-up sessions, don't re-run entire pipeline).
 - Each session includes a reference to the decision(s) it informs, but
   decisions are NOT recorded inline -- they live in DECISIONS.md
 - Output filenames for each session must follow the convention:
@@ -247,6 +257,10 @@ document** that evolves as research sessions are executed:
   - Initial competing hypotheses
   - Sessions that will inform the verdict
   - Review trigger (condition for future re-evaluation)
+  - review_date: null (to be set when decision is locked — the calendar
+    date for scheduled review, set BEFORE the outcome is known)
+  - prediction: null (optional — predicted outcome at decision time,
+    used for calibration tracking during post-project retrospective)
 - Use the YAML frontmatter format from templates/DECISIONS.template.md
 - Group entries by decision domain (data, auth, infra, etc.)
 
