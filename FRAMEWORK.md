@@ -102,7 +102,7 @@ Research briefs must be:
 - **Prescriptive** on WHAT to investigate, WHY it matters, WHAT boundaries apply, and WHAT coverage is required.
 - **Directional** on HOW to execute: no pre-scripted search queries, no artificial search counts, no expert role-playing personas, no rigid output skeletons.
 
-**Bounded Exploration Mandate:** Prescriptive scope defines the **minimum coverage floor**, not a ceiling. If research reveals critical concerns, risks, dependencies, or opportunities beyond the stated scope that are material to the decision being informed, the researching agent should investigate and include them � justified with evidence. This prevents the "hyper-literalism" effect where frontier models constrain their native reasoning to only the explicitly listed elements, missing emergent or adjacent concerns the prompt author could not have anticipated.
+**Bounded Exploration Mandate:** Prescriptive scope defines the **minimum coverage floor**, not a ceiling. If research reveals critical concerns, risks, dependencies, or opportunities beyond the stated scope that are material to the decision being informed, the researching agent should investigate and include them — justified with evidence. This prevents the "hyper-literalism" effect where frontier models constrain their native reasoning to only the explicitly listed elements, missing emergent or adjacent concerns the prompt author could not have anticipated.
 
 Front-load the complete brief in a single turn. Never drip-feed instructions across multiple turns (39% performance drop documented).
 
@@ -330,20 +330,20 @@ verified benchmarks — not high-level introductory summaries.
   Frame inquiries neutrally; actively search for disconfirming evidence.
 - If your research reveals critical concerns, dependencies, risks, or opportunities
   not listed in the coverage checklist, investigate and include them. The stated
-  scope defines the minimum � not the maximum � of what this session should cover.
+  scope defines the minimum — not the maximum — of what this session should cover.
   Justify any scope expansion with evidence.
 
 ## DELIVERABLE
 Deliver a structured Markdown document covering:
 1. Executive Summary & Recommendation
-2. Options Evaluation Matrix � if comparing 2+ options, include a weighted
+2. Options Evaluation Matrix — if comparing 2+ options, include a weighted
    scoring matrix per the Weighted Evaluation Protocol (see section 6.4) (project-derived
    criteria, 1-5 scores with evidence refs, sensitivity check)
 3. Deep Technical Analysis of top 2–3 contenders
 4. Inline evidence grades (A–E with modifiers and verification method)
 5. Open Risks & Reversal Triggers
 6. Discovered Concerns (if research revealed material concerns beyond the
-   stated scope, include a dedicated section --- omit if nothing emerged)
+   stated scope, include a dedicated section — omit if nothing emerged)
 
 ## FORMAT
 Deliver as a single, complete Markdown file artifact with YAML frontmatter
@@ -357,9 +357,9 @@ A research session output meets Vivechak's quality bar when it satisfies ALL of 
 
 | Criterion | Minimum Standard |
 |---|---|
-| **Evidence Density** | $([char]0x2265)3 distinct claims backed by Grade A or B evidence |
-| **Options Evaluated** | $([char]0x2265)2 competing options analyzed for comparison sessions |
-| **Failure Modes** | $([char]0x2265)1 concrete failure scenario identified per recommended option |
+| **Evidence Density** | ≥3 distinct claims backed by Grade A or B evidence |
+| **Options Evaluated** | ≥2 competing options analyzed for comparison sessions |
+| **Failure Modes** | ≥1 concrete failure scenario identified per recommended option |
 | **Reversal Triggers** | Explicit conditions for when to re-evaluate the recommendation |
 | **Source Diversity** | Not all evidence from a single vendor or source |
 | **Disconfirming Evidence** | At least one actively sought disconfirming argument documented |
@@ -496,6 +496,19 @@ Every research artifact combines:
 
 When synthesizing research sessions into the Founding Architecture Document:
 
+```yaml
+---
+id: SYN-01
+title: "[Project Name] — Founding Architecture Document"
+synthesis_date: YYYY-MM-DD
+status: draft                  # draft | sealed
+research_sessions_ingested: 0   # Count of final sessions ingested
+decisions_locked: 0             # Count of accepted ADRs
+open_questions: 0               # Count of unresolved questions
+schema_version: "1.0"
+---
+```
+
 1. **Filter:** Ingest only `status: final` sessions
 2. **Group:** Cluster by `topic` tags
 3. **Map:** Extract atomic Key Findings and Recommendation sections
@@ -517,13 +530,13 @@ Do NOT modify the original sealed FAD. Amendments are additive documents that re
 
 ### 6.4 Weighted Evaluation Protocol (Comparison Sessions)
 
-When a research session involves comparing multiple options (e.g., database selection, framework evaluation, vendor comparison), the qualitative analysis must be complemented by a **quantitative weighted scoring matrix** to counteract narrative volume bias � the systematic tendency of AI models to favor options with more training data, blog coverage, and community advocacy regardless of project-specific fit.
+When a research session involves comparing multiple options (e.g., database selection, framework evaluation, vendor comparison), the qualitative analysis must be complemented by a **quantitative weighted scoring matrix** to counteract narrative volume bias — the systematic tendency of AI models to favor options with more training data, blog coverage, and community advocacy regardless of project-specific fit.
 
 #### Why This Matters
 
 Qualitative-only comparison is vulnerable to three documented biases:
 - **Narrative volume bias:** Technologies with larger communities produce more positive text, creating an illusion of superiority that reflects popularity, not fitness.
-- **Verbosity bias:** Models prefer longer, more detailed responses � well-documented options get richer analysis, which reads as stronger evidence.
+- **Verbosity bias:** Models prefer longer, more detailed responses — well-documented options get richer analysis, which reads as stronger evidence.
 - **Vendor marketing contamination:** Well-funded products produce Grade C evidence (vendor claims) at scale, drowning out Grade A/B evidence for alternatives.
 
 Weighted scoring forces the model to evaluate each option against explicit, project-derived criteria rather than relying on narrative coherence.
@@ -532,7 +545,7 @@ Weighted scoring forces the model to evaluate each option against explicit, proj
 
 For any session that evaluates 2+ competing options:
 
-1. **Derive Criteria from Project Context:** Extract 5�8 evaluation criteria directly from the project vision and the decision being informed. Do not use generic criteria � every criterion must trace to a specific project requirement or constraint.
+1. **Derive Criteria from Project Context:** Extract 5–8 evaluation criteria directly from the project vision and the decision being informed. Do not use generic criteria — every criterion must trace to a specific project requirement or constraint.
 
 2. **Assign Weights (must sum to 1.0):** Weight each criterion by its importance to this specific project. Justify each weight with a one-line rationale. Example:
 
@@ -545,7 +558,7 @@ For any session that evaluates 2+ competing options:
    | Cost at projected scale | 0.10 | Bootstrap budget, cost-sensitive first 18 months |
    | Migration path | 0.10 | Two-way door if wrong, but migration still has cost |
 
-3. **Score Each Option (1�5 scale):** Score every option against every criterion using this scale:
+3. **Score Each Option (1–5 scale):** Score every option against every criterion using this scale:
    - **5:** Exceptional fit, clear leader on this criterion (with evidence)
    - **4:** Strong fit, minor gaps
    - **3:** Adequate, meets minimum requirements
@@ -556,7 +569,7 @@ For any session that evaluates 2+ competing options:
 
 4. **Compute Weighted Totals:** Multiply each score by its weight and sum across criteria.
 
-5. **Sensitivity Check:** Identify the top 2 criteria by weight. Re-run the calculation with those weights shifted �20%. If the ranking changes, flag the recommendation as **weight-sensitive** and note which criteria drive the instability.
+5. **Sensitivity Check:** Identify the top 2 criteria by weight. Re-run the calculation with those weights shifted ±20%. If the ranking changes, flag the recommendation as **weight-sensitive** and note which criteria drive the instability.
 
 6. **Synthesize:** The final recommendation must consider BOTH the weighted score AND the qualitative analysis. The score is a **bias-correction lens**, not the sole decision input. If qualitative analysis and scoring disagree, explicitly address the divergence and explain which signal the recommendation follows and why.
 

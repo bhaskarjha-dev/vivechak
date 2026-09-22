@@ -62,7 +62,7 @@ For each One-Way Door decision:
 - [ ] Every locked ADR contains an explicit `review_trigger` condition or date
 - [ ] Review triggers are specific and measurable (not "review when needed")
 
-### B7. Premortem Protocol (Gary Klein, 1989)
+### B7. Premortem Protocol (Klein, 2007; Mitchell et al., 1989)
 - [ ] 30-minute prospective hindsight exercise completed
 - [ ] Prompt: *"It is 12 months from now. The system has suffered a catastrophic architectural failure. What caused it?"*
 - [ ] Top 3 failure scenarios documented with mitigations

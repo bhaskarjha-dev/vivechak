@@ -55,7 +55,9 @@ Follow these rules when generating the pipeline:
 From the project vision above:
 - Infer the primary domain archetype (B2B SaaS, DevTools, FinTech, AI/ML,
   Consumer Mobile, Real-Time/IoT, or hybrid). If the project spans multiple
-  domains, identify primary and secondary archetypes.
+  domains, identify primary and secondary archetypes. If the project represents
+  an unlisted or novel domain, synthesize a custom archetype defining its
+  unique operational and compliance boundaries.
 - Identify all stated constraints (regulatory, geographic, infrastructure).
 - Identify what the user has decided vs. what remains open. Treat open
   elements as research questions to include in the pipeline.
@@ -343,7 +345,7 @@ With templates in your workspace, you can delegate research steps directly to an
 > *Read session T2-01 from `research/RESEARCH-PIPELINE.md`. Copy the research prompt and run the deep research with web search. Grade all evidence and save the result to `research/sessions/T2-01-datastore-selection.md`.*
 
 **Record a decision:**
-> *Read `research/sessions/T2-01-datastore-selection.md`. Formulate the verdict for D-001 following `research/templates/DECISIONS.template.md` and add it to the decisions section of `RESEARCH-PIPELINE.md` or a separate `DECISIONS.md` file.*
+> *Read `research/sessions/T2-01-datastore-selection.md`. Formulate the verdict for D-001 following `research/templates/DECISIONS.template.md` and record it in `research/DECISIONS.md`.*
 
 **Compile the FAD:**
 > *Read all finalized sessions in `research/sessions/` and all locked decisions. Synthesize them into `FAD.md` following `research/templates/FOUNDING-ARCHITECTURE.template.md`.*

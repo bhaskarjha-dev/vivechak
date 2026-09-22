@@ -7,7 +7,7 @@
 
 ## 1. What This Repository Is
 
-**Vivechak** is a meta-framework that generates evidence-grounded research pipelines for software projects. It transforms a raw project idea into a sealed Founding Architecture Document (FAD) before coding begins.
+**Vivechak** is a meta-framework that generates evidence-grounded research pipelines for technical projects. It transforms a raw project idea into a sealed Founding Architecture Document (FAD) before coding begins.
 
 **The tool is [GENERATOR.md](GENERATOR.md).** Everything else supports it.
 
@@ -100,6 +100,9 @@ vivechak/
 ├── LICENSE                         ← MIT License
 ├── VERSION                         ← Release version (1.1.0)
 ├── .gitignore                      ← Git exclusions
+├── .github/                        ← Issue and PR templates
+│   ├── ISSUE_TEMPLATE/             ← Bug report and feature request templates
+│   └── PULL_REQUEST_TEMPLATE.md    ← Contribution checklist
 │
 ├── templates/                      ← 4 operational contracts (copy to projects)
 │   ├── DECISIONS.template.md       ← YAML frontmatter ADR format

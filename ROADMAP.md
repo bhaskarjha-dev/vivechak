@@ -22,7 +22,7 @@ The framework was released as v1.0 in August 2026, then refined to v1.1 through 
 ### Repository Evolution
 
 ```
-2024-2025         7 independent project pipelines → pre-development patterns discovered
+2024-2025         8 independent project pipelines → pre-development patterns discovered
 Early 2026        Consolidated into initial meta-framework (rigid: 17-27 sessions, mandatory triangulation)
 Mid 2026          11 independent research sessions tested every legacy axiom
 v1.0 (Aug 2026)   First public release of Vivechak (8 principles, 4 tiers, 5-block prompts)
@@ -260,7 +260,7 @@ These require either the Engine to exist or significant accumulated project data
 
 ### references/ — FULLY EXTRACTED ✅
 
-These are the 7 original project research pipelines (70 files, ~65 MB) that independently discovered the patterns Vivechak consolidated:
+These are the 8 original project research pipelines (70 files, ~65 MB) that independently discovered the patterns Vivechak consolidated:
 
 | Project | Files | Extraction |
 |---|---|---|

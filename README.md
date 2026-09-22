@@ -85,6 +85,9 @@ vivechak/
 ├── LICENSE                         ← MIT License
 ├── VERSION                         ← Release version (1.1.0)
 ├── .gitignore                      ← Git exclusions
+├── .github/                        ← Issue and PR templates
+│   ├── ISSUE_TEMPLATE/             ← Bug report & feature request templates
+│   └── PULL_REQUEST_TEMPLATE.md    ← Contribution checklist
 │
 ├── templates/                      ← 4 operational contracts (copy to projects)
 │   ├── DECISIONS.template.md       ← YAML frontmatter ADR format
