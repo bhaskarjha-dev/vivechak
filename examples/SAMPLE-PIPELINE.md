@@ -125,9 +125,16 @@ date: 2026-08-19
 confidence: high
 evidence_refs: [E-001, E-004]
 informed_by_sessions: [T1-01, T2-01]
+supersedes: null
+superseded_by: null
+amends: null
 review_trigger: "Re-evaluate if character graph traversal exceeds 200ms at p95 or graph size > 500k edges"
+review_date: 2027-02-19
+prediction: "PostgreSQL with pgvector will handle projected load and graph complexity for 12+ months"
+tags: [datastore, graph, persistence]
+authored_by: "research-agent"
 human_reviewed: true
-schema_version: "1.0"
+schema_version: "1.1"
 ---
 ```
 

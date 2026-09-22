@@ -84,12 +84,12 @@ These elements exist in MORE THAN ONE file and MUST stay synchronized:
 
 | Element | Lives In | Also Referenced In |
 |---|---|---|
-| 8-dimension complexity rubric | FRAMEWORK.md §3.2 | GENERATOR.md Step 2 |
+| 8-dimension complexity rubric | FRAMEWORK.md §3.2 | GENERATOR.md Step 2 (intentionally abbreviated labels for prompt economy — substantively identical) |
 | Tier mapping (score → session budget) | FRAMEWORK.md §3.2 | GENERATOR.md Step 2 |
 | Per-decision routing matrix | FRAMEWORK.md §3.2 | GENERATOR.md Step 3 |
 | 5-block prompt anatomy | FRAMEWORK.md §4 | GENERATOR.md Step 4 |
 | Evidence grading tiers (A-E) | FRAMEWORK.md §5.1 | GENERATOR.md Step 4 (inlined in every prompt) |
-| ADR YAML schema fields | templates/DECISIONS.template.md | GENERATOR.md DELIVERABLE §2, FRAMEWORK.md §5.7 |
+| ADR YAML schema (18 fields) | templates/DECISIONS.template.md (canonical) | GENERATOR.md DELIVERABLE §2 (full schema inlined), FRAMEWORK.md §5.7 (example) |
 | Template filenames (4 templates) | templates/ directory | GENERATOR.md "How to Execute", README.md Step 2, AGENTS.md §2 |
 
 ## Reporting Issues

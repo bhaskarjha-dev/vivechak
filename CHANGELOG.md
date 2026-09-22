@@ -23,9 +23,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - **FAD Template de-anchored from SaaS assumptions:** Removed hardcoded Auth/Clerk, DB/PostgreSQL, Storage/R2, Hosting/Vercel examples and Client-API-Services-DB Mermaid diagram. All sections now use neutral placeholders. 'Repository Scaffolding' renamed to 'Project Structure Specification.'
 - **Generator scope broadened:** BRIEF changed from 'software project' to 'technical project,' from 'before writing application code' to 'before committing to irreversible implementation decisions.'
+- **Split Generation consolidated into single-mode:** v1.0.0 offered Dual-Mode Generator (Single-Session + Split Generation for web chat output limits). v1.1.0 consolidates to single-mode with extract-2-files guidance instead — the AI produces two clearly separated documents, and the README provides extraction instructions for web chat users.
 - **README tagline updated:** From "software architecture decisions" to "architecture decisions" — reflecting proven non-software domain usage.
 - **Version naming normalized:** All legacy internal naming (URP, v2.0, v3.0, Generation 1/2/3) translated to Vivechak's public v1.x versioning across FRAMEWORK.md, ROADMAP.md, README.md, CHANGELOG.md, and CONTRIBUTING.md. meta-research/ preserved as sealed provenance.
 - **ROADMAP rewritten:** Current State updated to v1.1 (battle-tested). Phase 4 → Framework Polish (current). Phase 5 → Vivechak Engine research phase (using Vivechak's own methodology). Phase 6 → Research Frontiers with explicit gate conditions.
+- **ADR YAML schema inlined in GENERATOR.md:** Complete 18-field schema now embedded directly in the generator prompt DELIVERABLE §2, replacing the unreachable file reference to `templates/DECISIONS.template.md`. Ensures self-containment — the generating AI no longer needs filesystem access to produce correct decision records.
+- **Routing matrix synced to FRAMEWORK.md:** GENERATOR.md routing matrix now matches FRAMEWORK.md exactly: 'CONFIRM & COMMIT — 1 session + ADR' and 'DEEP RESEARCH — 2–5 sessions + ADR + premortem'. Previously the generator silently dropped the premortem requirement.
+- **Change Propagation Map added to CONTRIBUTING.md:** Documents all duplication points between FRAMEWORK.md, GENERATOR.md, and templates/ with mandatory check before committing.
 
 ### Design Decisions
 - **Rejected 3-Tier Universal Epistemic Engine rewrite:** External critique proposed restructuring Vivechak into Tier 0 (domain-agnostic) + Tier 1 (pluggable domain profiles) + Tier 2 (artifact generators). Rejected as premature abstraction with zero empirical validation. The 2 valid observations (FAD template SaaS bias, generator scope) were accepted as surgical fixes.

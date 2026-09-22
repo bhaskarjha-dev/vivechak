@@ -449,9 +449,16 @@ date: 2026-08-18
 confidence: high          # Decoupled from evidence grade
 evidence_refs: [E-012, E-047]
 informed_by_sessions: [T2-03, T2-05]
+supersedes: null
+superseded_by: null
+amends: null
 review_trigger: "Re-evaluate if ingestion exceeds 50k ops/sec or storage >2TB"
+review_date: 2027-02-18   # Set BEFORE outcome is known
+prediction: "PostgreSQL will handle projected load for 18+ months"
+tags: [datastore, infrastructure]
+authored_by: "agent-vivechak"
 human_reviewed: true      # Mandatory for one-way doors
-schema_version: "1.0"
+schema_version: "1.1"
 ---
 ```
 

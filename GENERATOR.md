@@ -103,7 +103,7 @@ For each architectural decision the project requires:
    |  | Known Pattern | Unknown/Novel |
    |---|---|---|
    | **Reversible (two-way)** | SKIP — decide by convention | FAST SPIKE — 1 session |
-   | **Irreversible (one-way)** | CONFIRM — 1 session + decision record | DEEP RESEARCH — 2–5 sessions + decision record |
+   | **Irreversible (one-way)** | CONFIRM & COMMIT — 1 session + ADR | DEEP RESEARCH — 2–5 sessions + ADR + premortem |
 
 3. Organize sessions as a DAG (Directed Acyclic Graph):
    - Layer 0: Landscape & Discovery (fully parallel, no dependencies)
@@ -190,10 +190,12 @@ session metadata table).
 Body sections: Research Question → Key Findings (3–7 bullets) →
 Recommendation (isolated from rejected options) → Alternatives Considered
 → Detailed Findings → Open Questions & Risks → Sources & Evidence Ledger.
+These sections define required coverage areas, not rigid paragraph
+templates. Within each section, let the AI organize content naturally.
 
 IMPORTANT: Do NOT include expert personas, hardcoded search queries,
-minimum search counts, or rigid output skeletons in any prompt. Each
-prompt must be a complete, front-loaded, single-turn brief.
+or minimum search counts in any prompt. Each prompt must be a complete,
+front-loaded, single-turn brief.
 
 ## DELIVERABLE
 
@@ -253,17 +255,36 @@ Requirements:
 A decision registry seeded with initial hypotheses. This is a **living
 document** that evolves as research sessions are executed:
 
-- For each architectural decision identified, create a D-NNN entry with:
-  - Status: proposed (will be updated to accepted/rejected during execution)
-  - Door type: one-way or two-way
-  - Initial competing hypotheses
-  - Sessions that will inform the verdict
-  - Review trigger (condition for future re-evaluation)
-  - review_date: null (to be set when decision is locked — the calendar
-    date for scheduled review, set BEFORE the outcome is known)
-  - prediction: null (optional — predicted outcome at decision time,
-    used for calibration tracking during post-project retrospective)
-- Use the YAML frontmatter format from templates/DECISIONS.template.md
+- For each architectural decision identified, create a D-NNN entry with
+  YAML frontmatter using this schema:
+
+  ```yaml
+  ---
+  id: D-NNN
+  title: "[Decision Title]"
+  status: proposed           # proposed | accepted | rejected | deprecated | superseded
+  door_type: one-way         # one-way | two-way
+  date: YYYY-MM-DD
+  confidence: medium         # high | medium | low
+  evidence_refs: []          # E-NNN IDs supporting this decision
+  informed_by_sessions: []   # T#-## session IDs
+  supersedes: null           # D-NNN ID this supersedes, or null
+  superseded_by: null        # D-NNN ID that supersedes this, or null
+  amends: null               # D-NNN ID this partially updates, or null
+  review_trigger: "[Condition or date for mandatory re-evaluation]"
+  review_date: null          # YYYY-MM-DD — set when decision is locked, BEFORE outcome is known
+  prediction: null           # Optional: predicted outcome at decision time (for calibration)
+  tags: []
+  authored_by: "[agent-id or human name]"
+  human_reviewed: false      # Mandatory true for one-way doors before acceptance
+  schema_version: "1.1"
+  ---
+  ```
+
+  At generation time, populate: `id`, `title`, `status: proposed`,
+  `door_type`, `date`, `informed_by_sessions`, `review_trigger`, and
+  initial competing hypotheses in the body. Leave remaining fields as
+  null/empty — they are populated during pipeline execution.
 - Group entries by decision domain (data, auth, infra, etc.)
 
 **Why a separate file:** Decisions evolve throughout the research pipeline

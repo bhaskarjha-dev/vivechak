@@ -84,6 +84,7 @@ vivechak/
 ├── CODE_OF_CONDUCT.md              ← Contributor Covenant v2.1
 ├── LICENSE                         ← MIT License
 ├── VERSION                         ← Release version (1.1.0)
+├── .gitignore                      ← Git exclusions
 │
 ├── templates/                      ← 4 operational contracts (copy to projects)
 │   ├── DECISIONS.template.md       ← YAML frontmatter ADR format
@@ -126,7 +127,7 @@ The templates act as **contracts** — the agent reads them and follows the exac
 
 | Capability | How It Works |
 |---|---|
-| **Flexible Generation** | Single-session for IDE/API agents, or 2-step split for web chat output limits |
+| **Extract-2-Files** | Generator produces two clearly separated artifacts; guidance included for extracting from web chat |
 | **Adaptive Scaling** | 8-dimension complexity scoring (0–24) maps to 4 tiers (1–30 sessions) |
 | **Open-Ended Input** | Accepts natural language vision dumps; AI extracts parameters and classifies |
 | **Constrained DAG** | Sessions run when dependencies are met, not rigid stage gates |
@@ -143,7 +144,7 @@ The templates act as **contracts** — the agent reads them and follows the exac
 
 Software venture failures almost never stem from bad code — they stem from **premature architectural decisions made on unverified assumptions.** The cost of wrong decisions compounds: a bad database choice costs 10× more to fix at month 6 than at month 0.
 
-Vivechak was born from 7 real project research pipelines (2024–2026), each independently discovering pieces of the same methodology: unbiased landscape cataloging, evidence grading, aspect isolation, decision registries, and synthesis protocols.
+Vivechak was born from 8 real project research pipelines (2024–2026), each independently discovering pieces of the same methodology: unbiased landscape cataloging, evidence grading, aspect isolation, decision registries, and synthesis protocols.
 
 ### The Empirical Self-Validation
 
@@ -175,13 +176,13 @@ Vivechak's most distinctive property: it was validated by the methodology it pre
 
 | Phase | Status | Description |
 |---|---|---|
-| 1: Foundation (Gen 1) | ✅ | 7 project methodologies consolidated into initial pre-development patterns |
+| 1: Foundation (Gen 1) | ✅ | 8 project methodologies consolidated into initial pre-development patterns |
 | 2: Self-Validation (Gen 2) | ✅ | 11 meta-research sessions → 10 verdicts → Gen 3 spec |
 | 3: Framework Release (v1.0) | ✅ | Framework, generator, templates launch as Vivechak v1.0.0 |
 | 3b: Bias Correction (v1.1) | ✅ | Bounded Exploration Mandate, Weighted Evaluation Protocol, SaaS de-anchoring |
-| 4: Real-World Validation | Next | Battle-test on 2–3 real projects, refine generator from output quality |
-| 5: Tooling | Future | CLI initializer, YAML validator, code-based generator (if validated) |
-| 6: v2.0 Frontiers | Future | DSPy optimization, multi-agent debate, longitudinal calibration |
+| 4: Framework Polish (v1.1) | ✅ | Pipeline failure modes, calibration loop, domain adaptation, change propagation map |
+| 5: Vivechak Engine | Next | Use Vivechak to research its own automation — agentic pipeline execution |
+| 6: Research Frontiers | Future | DSPy optimization, multi-agent debate, longitudinal calibration |
 
 See [ROADMAP.md](ROADMAP.md) for detailed plans, overhaul decisions, and source material status.
 

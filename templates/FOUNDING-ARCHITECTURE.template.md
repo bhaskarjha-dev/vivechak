@@ -23,9 +23,9 @@ id: SYN-01
 title: "[Project Name] — Founding Architecture Document"
 synthesis_date: YYYY-MM-DD
 status: draft                  # draft | sealed
-research_sessions_ingested: N
-decisions_locked: N
-open_questions: N
+research_sessions_ingested: 0   # Replace with actual count
+decisions_locked: 0             # Replace with actual count
+open_questions: 0               # Replace with actual count
 schema_version: "1.0"
 ---
 ```

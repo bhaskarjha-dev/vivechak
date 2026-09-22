@@ -99,6 +99,7 @@ vivechak/
 ├── CODE_OF_CONDUCT.md              ← Contributor Covenant v2.1
 ├── LICENSE                         ← MIT License
 ├── VERSION                         ← Release version (1.1.0)
+├── .gitignore                      ← Git exclusions
 │
 ├── templates/                      ← 4 operational contracts (copy to projects)
 │   ├── DECISIONS.template.md       ← YAML frontmatter ADR format
