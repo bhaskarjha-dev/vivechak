@@ -39,6 +39,13 @@ build/
 *.sw?
 
 
+# Go
+bin/
+*.exe
+*.exe~
+coverage*
+*.out
+
 # temp
 temp/
 tmp/
