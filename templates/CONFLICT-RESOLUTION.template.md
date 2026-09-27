@@ -28,20 +28,22 @@
 
 ## 2. Analysis of Competing Hypotheses (ACH Matrix)
 
-Rate each piece of evidence against each competing hypothesis:
+Rate each hypothesis against each piece of evidence. Hypotheses are **rows**;
+evidence items are **columns**. This orientation forces the analyst to evaluate
+each hypothesis against ALL evidence before moving to the next, making
+inconsistencies visually prominent (Dhami et al. 2024).
+
 - **CC** = Consistent and Confirmatory
 - **C** = Consistent but not diagnostic
 - **N** = Neutral / Not applicable
 - **I** = Inconsistent (disconfirming)
 - **II** = Strongly Inconsistent
 
-| Evidence / Finding | H1: [Option X] | H2: [Option Y] | H3: [Option Z] |
-|---|---|---|---|
-| `[Evidence 1]` | `[CC/C/N/I/II]` | `[CC/C/N/I/II]` | `[CC/C/N/I/II]` |
-| `[Evidence 2]` | `[CC/C/N/I/II]` | `[CC/C/N/I/II]` | `[CC/C/N/I/II]` |
-| `[Evidence 3]` | `[CC/C/N/I/II]` | `[CC/C/N/I/II]` | `[CC/C/N/I/II]` |
-| `[Evidence N]` | `[CC/C/N/I/II]` | `[CC/C/N/I/II]` | `[CC/C/N/I/II]` |
-| **Inconsistency Count** | `[N]` | `[N]` | `[N]` |
+| Hypothesis ↓ \ Evidence → | `[E1]` | `[E2]` | `[E3]` | `[E4]` | **I + II Count** |
+|---|---|---|---|---|---|
+| **H1:** `[Option X]` | `[CC/C/N/I/II]` | `[CC/C/N/I/II]` | `[CC/C/N/I/II]` | `[CC/C/N/I/II]` | `[N]` |
+| **H2:** `[Option Y]` | `[CC/C/N/I/II]` | `[CC/C/N/I/II]` | `[CC/C/N/I/II]` | `[CC/C/N/I/II]` | `[N]` |
+| **H3:** `[Option Z]` | `[CC/C/N/I/II]` | `[CC/C/N/I/II]` | `[CC/C/N/I/II]` | `[CC/C/N/I/II]` | `[N]` |
 
 **ACH Verdict:** The hypothesis with the **fewest inconsistencies** (not the most confirmations) is preferred. Reject hypotheses with strong inconsistencies first.
 

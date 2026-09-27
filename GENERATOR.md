@@ -178,7 +178,7 @@ inline evidence grades, open risks with reversal triggers, and a
 beyond the stated scope (omit if nothing emerged).
 
 For evidence grading, every factual claim should carry:
-- Base grade: A (official docs/RFCs) | B (peer-reviewed/empirical) |
+- Base grade: A (official docs/RFCs/peer-reviewed studies) | B (empirical/benchmarks) |
   C (vendor claims) | D (blog/tutorial/AI recall) | E (unverifiable)
 - Modifiers: corroboration (single/corroborated/contested),
   recency (fresh/aging/stale), directness (direct/indirect)

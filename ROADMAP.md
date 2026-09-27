@@ -173,13 +173,25 @@ Items identified during the comprehensive repository audit that are valid but no
 - FAD → Fitness Functions — post-Vivechak concern (the coding tool owns fitness functions)
 - Archetype fallback monitoring — only relevant when archetypes are programmatic (Engine v1.0+)
 
-### Phase 5: Vivechak Engine — Research Phase
+### Phase 5: MCP Server — Evidence-Grounded Automation
 
-**The vision:** Transform Vivechak from a prompt-paste manual workflow into an automated research execution engine that takes a problem statement and produces a complete research corpus + FAD.
+**Status:** Research complete. Implementation pending.
 
-**The approach:** Use Vivechak's own GENERATOR.md to generate a research pipeline for "how to build an automated research execution engine." This is the ultimate dogfooding — using the framework to research its own automation, which simultaneously validates the current generator and produces an evidence-grounded architecture for the Engine.
+**What changed:** 12 research sessions (~770KB of evidence) investigated how to transform Vivechak from a copy-paste workflow into tooling that agents can invoke directly. The research decisively concluded that an MCP (Model Context Protocol) server is the correct delivery vehicle — not a standalone Engine built on LangGraph, ADK, or CrewAI.
 
-#### What the Engine Would Automate
+**Key decisions (all locked, evidence-grounded):**
+
+| Decision | Type | Key Evidence |
+|---|---|---|
+| **MCP server replaces standalone Engine** | Locked | MCP 2026-07-28 spec (stateless, universal agent support); compound failure risk of standalone Engine |
+| **Go for server language** | Locked | Single binary distribution, 5–20ms startup, `os.Root` security, Tier 1 SDK |
+| **Guided Worker pattern** | Locked | Server returns guidance in response data; no server-side FSM; no LLM API calls |
+| **10 tools with `vivechak_` prefix** | Locked | MCP spec analysis, discoverability benchmarks, security annotation alignment |
+| **Workspace files as canonical state** | Locked | No `.vivechak/state.json`; research/ directory IS the database; Git-compatible |
+| **3 scope levels (Project / Decision / Comparison)** | Locked | Cochrane, ODNI ICD 203, R-03/R-06 cross-validation |
+| **Binary-first distribution** | Locked | Agent Plugins not universal; PATH truncation on macOS GUI hosts |
+
+**What the MCP server automates:**
 
 ```
 Current (Manual):
@@ -187,46 +199,28 @@ Current (Manual):
   → Copy each session prompt → Paste into separate chats → Save outputs
   → Record decisions → Resolve conflicts → Synthesize FAD → Run gate
 
-Automated (Engine):
-  Human → Provide problem statement → Engine executes entire pipeline
-  → Research sessions run in parallel (respecting DAG dependencies)
-  → Triangulation for marked sessions (multi-model)
-  → Synthesis and gate checks → Complete research/ directory output
+Automated (MCP Server):
+  Agent → vivechak_init → vivechak_get_generator_prompt → generate pipeline
+  → vivechak_save_pipeline → vivechak_next_session → run sessions
+  → vivechak_save_session → vivechak_record_decision → vivechak_synthesize
+  → vivechak_run_gate → sealed FAD
 ```
 
-#### Research Questions for Engine Architecture
+**Distribution plan:** GitHub Releases (GoReleaser, 6 platforms) → shell installers → `vivechak mcp-config --client <host> --write` → Homebrew/Scoop/winget → thin Agent Plugin → MCP Registry.
 
-These must be answered through proper Vivechak-based research before building:
+**Full implementation plan:** See the audited [FINAL-PLAN.md](temp/final-plan/FINAL-PLAN.md) for complete architecture, tool surface, testing strategy, distribution matrix, risk register, and kill criteria. Evidence corpus preserved in `temp/research/sessions/`.
 
-| Question | Why It Matters |
-|---|---|
-| **Orchestration framework** — LangGraph vs Google ADK vs CrewAI vs custom | One-Way Door: framework lock-in affects all downstream development. Needs deep research on each framework's DAG support, human-in-the-loop, state persistence, multi-model orchestration, and long-term viability |
-| **Language choice** — Python vs Go vs Rust vs TypeScript | One-Way Door: affects framework options, ecosystem, and maintenance. Not all frameworks support all languages |
-| **LLM API strategy** — Direct SDK vs unified layer (litellm) vs provider-specific | Affects multi-model triangulation, cost tracking, and provider flexibility |
-| **Web search strategy** — Native model capabilities vs supplemental search APIs (Tavily, Exa) | Affects research quality and cost |
-| **Deployment model** — CLI tool vs IDE plugin vs web service vs hybrid | Affects who can use it and how |
-| **Separate repo or monorepo** — Engine as separate project vs inside vivechak/ | Affects dependency management and framework independence |
+#### Deferred Convenience Items → MCP Tool Targets
 
-#### Phased Engine Development (Post-Research)
+These items were evaluated during Phase 4 planning and deferred to the MCP server rather than being implemented as standalone scripts:
 
-| Version | What | Value |
-|---|---|---|
-| **v0.1** | Single-session runner — CLI takes one prompt, calls LLM API, saves formatted output | Eliminates copy-paste-save for individual sessions |
-| **v0.2** | Pipeline executor — parses RESEARCH-PIPELINE.md, executes DAG, parallel sessions | Automates the 10-25 session execution cycle |
-| **v0.3** | End-to-end — takes problem statement, generates pipeline, executes, synthesizes FAD | Full automation from idea to architecture document |
-| **v1.0** | Production — multi-model triangulation, human-in-the-loop gates, resume from checkpoint, cost tracking | Production-grade research automation |
-
-#### Deferred Convenience Items → Engine Version Targets
-
-These items were evaluated during Phase 4 planning and deferred to the Engine rather than being implemented as standalone scripts. They map naturally to Engine versions:
-
-| Item | What | Target Version | Rationale for Deferral |
+| Item | What | Target | Rationale for Deferral |
 |---|---|---|---|
-| Template init script (`vivechak init`) | Automate the 4-template copy + directory creation | v0.1 | Standalone script works but Engine v0.1 CLI makes it redundant |
-| YAML frontmatter validator | Validate ADR schema before synthesis | v0.2 | Only valuable when programmatic — manual validation is visual inspection |
-| Code-based generator CLI | Replace copy-paste prompt with CLI interface | v0.3 | Monolithic prompt works. CLI only worthwhile when Engine generates+executes |
-| Blast-radius tracker | Track which decisions affect which components | v1.0 | Needs 5+ projects with tracked evidence. Engine usage data required |
-| AI cost tracking | Track token/API costs per session and pipeline | v1.0 | Only relevant when Engine controls API calls |
+| Template init script (`vivechak init`) | Automate the 4-template copy + directory creation | `vivechak_init` tool | Standalone script works but MCP tool makes it redundant |
+| YAML frontmatter validator | Validate ADR schema before synthesis | `vivechak_validate` tool | Only valuable when programmatic — manual validation is visual inspection |
+| Code-based generator CLI | Replace copy-paste prompt with CLI interface | `vivechak_get_generator_prompt` tool | Monolithic prompt works. MCP tool serves it directly to agents |
+| Blast-radius tracker | Track which decisions affect which components | Post-Phase 4 | Needs 5+ projects with tracked evidence. MCP usage data required |
+| AI cost tracking | Track token/API costs per session and pipeline | Post-Phase 4 | Only relevant when host agent tracks costs (server doesn't call LLMs) |
 
 ### Phase 6: Research Frontiers (Future)
 
