@@ -1,12 +1,14 @@
-# Meta-Research — Vivechak v3.0 Empirical Evidence Base
+# Meta-Research — Vivechak Empirical Evidence Base
 
-This directory contains the empirical research that produced Vivechak v3.0. It is the **provenance and audit trail** — proof that the framework's design decisions are grounded in evidence, not instinct.
+This directory contains the empirical research that produced Vivechak's design decisions. It is the **provenance and audit trail** — proof that the framework's design decisions are grounded in evidence, not instinct.
 
 **You do NOT need to read any of this to use Vivechak.** Start with [GENERATOR.md](../GENERATOR.md) instead.
 
 ---
 
-## What's Here
+## v1.0 Evidence Base (Sealed August 2026)
+
+The original meta-research that produced Vivechak v1.0. 11 independent research sessions tested every foundational assumption.
 
 | File | Purpose |
 |---|---|
@@ -15,12 +17,15 @@ This directory contains the empirical research that produced Vivechak v3.0. It i
 | `PROMPT-LIBRARY.md` | The prompts used to execute the meta-research |
 | `sessions/` | 15 primary research artifacts (642KB) across Claude, ChatGPT, and Gemini |
 
-## Why It Exists
+## v2.0 Evidence Base (Sealed September 2026)
 
-Vivechak v3.0 was produced by applying the framework to itself. 11 independent research sessions tested every v2.0 assumption against peer-reviewed studies, empirical benchmarks, and frontier AI architecture. Of 10 founding hypotheses, 0 survived unchanged — 3 were refuted, 5 were refined, and 2 were validated with enhancements.
+The research that informed the MCP server, multi-scope methodology expansion, Go over Python, and distribution strategy. 12 sessions (~770KB) run in two configurations.
 
-This directory is the evidence. If you want to understand WHY a specific v3.0 design decision was made, trace it through `DECISIONS.md` to its supporting research artifacts.
+| Directory | Purpose |
+|---|---|
+| `v2-research/` | Complete evidence corpus — see [v2-research/README.md](v2-research/README.md) |
 
 ## Status: Sealed
 
-These files are **read-only historical records**. They document the research that justified v3.0 and should not be modified. The framework itself lives in the parent directory.
+These files are **read-only historical records**. They document the research that justified each version and should not be modified. The framework itself lives in the parent directory.
+
