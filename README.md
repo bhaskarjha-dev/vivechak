@@ -18,6 +18,40 @@
 
 ---
 
+## Install
+
+**macOS / Linux:**
+```sh
+curl -fsSL https://raw.githubusercontent.com/bhaskarjha-dev/vivechak/main/install.sh | sh
+```
+
+**Windows (PowerShell):**
+```powershell
+irm https://raw.githubusercontent.com/bhaskarjha-dev/vivechak/main/install.ps1 | iex
+```
+
+**Package managers:**
+```sh
+# Homebrew (macOS / Linux)
+brew install bhaskarjha-dev/tap/vivechak
+
+# Scoop (Windows)
+scoop bucket add vivechak https://github.com/bhaskarjha-dev/vivechak
+scoop install vivechak
+
+# Go (requires Go 1.27+)
+go install github.com/bhaskarjha-dev/vivechak/cmd/vivechak@latest
+```
+
+**Then configure your AI host:**
+```sh
+vivechak mcp-config --client cursor --write    # or: vscode, claude-desktop, antigravity, chatgpt, codex, kiro
+```
+
+Done. Your agent now has 9 MCP tools for evidence-grounded research. See [Host Setup Guide](docs/HOST-SETUP.md) for manual configuration and per-host details.
+
+---
+
 ## What Is This?
 
 You're making a technical decision — maybe architecting a whole project, choosing between databases, or evaluating whether to adopt a new framework. Some decisions are **irreversible** (one-way doors). If you get them wrong, you're looking at a rewrite.
@@ -79,62 +113,69 @@ Compile all findings into a Founding Architecture Document using `templates/FOUN
 
 ## Repository Structure
 
-> **For users:** You only need the **generators** (GENERATOR.md, GENERATOR-DECISION.md, or GENERATOR-COMPARISON.md) and **templates/** (to copy into your project). Everything else is either for learning or for developing Vivechak itself.
+> **For most users:** Install the binary, run `mcp-config`, and you're done. The repository structure below is for contributors and those who want to understand the internals.
 
 ```
 vivechak/
-├── README.md                       ← You are here
+├── cmd/vivechak/                   ← MCP server + CLI entry point
+│   ├── main.go                     ← Entry point (serve, version, mcp-config, doctor)
+│   ├── config.go                   ← mcp-config --client <host> --write
+│   └── doctor.go                   ← Workspace integrity checker
+│
+├── internal/                       ← Server implementation
+│   ├── core/                       ← Pure logic (workspace, DAG, validation)
+│   ├── mcp/                        ← 9 MCP tool handlers
+│   ├── store/                      ← Atomic file I/O with os.Root confinement
+│   └── embed/                      ← Embedded generators + templates
+│
+├── .goreleaser.yml                 ← 6-platform cross-compilation config
+├── install.sh                      ← macOS/Linux installer (curl | sh)
+├── install.ps1                     ← Windows installer (irm | iex)
+├── .github/workflows/              ← CI + release pipelines
+│   ├── ci.yml                      ← Test + vet + build on push/PR
+│   └── release.yml                 ← GoReleaser on tag push
+│
+├── Formula/vivechak.rb             ← Homebrew formula
+├── scoop/vivechak.json             ← Scoop bucket manifest
+├── winget/                         ← winget manifest
+│
 ├── GENERATOR.md                    ← Project-scope generator (full pipeline → FAD)
 ├── GENERATOR-DECISION.md           ← Decision-scope generator (1–3 sessions → ADR)
 ├── GENERATOR-COMPARISON.md         ← Comparison-scope generator (1 session → WEP matrix)
-├── FRAMEWORK.md                    ← Deep methodology reference (not required for use)
-├── AGENTS.md                       ← AI agent operating manual
-├── ROADMAP.md                      ← Project history & future plans
-├── CHANGELOG.md                    ← Release history & spec evolution
-├── CONTRIBUTING.md                 ← Evidence-grounding contribution rules
-├── CODE_OF_CONDUCT.md              ← Contributor Covenant v2.1
-├── LICENSE                         ← MIT License
-├── VERSION                         ← Release version (1.1.0)
-├── .gitignore                      ← Git exclusions
-├── .github/                        ← Issue and PR templates
-│   ├── ISSUE_TEMPLATE/             ← Bug report & feature request templates
-│   └── PULL_REQUEST_TEMPLATE.md    ← Contribution checklist
+├── FRAMEWORK.md                    ← Deep methodology reference
+├── docs/HOST-SETUP.md              ← Per-host MCP config guide (7 hosts)
 │
 ├── templates/                      ← 5 operational contracts (copy to projects)
-│   ├── DECISIONS.template.md       ← YAML frontmatter ADR format
-│   ├── CONFLICT-RESOLUTION.template.md ← Analysis of Competing Hypotheses
-│   ├── COMPARISON-SESSION.template.md  ← WEP comparison output format
-│   ├── FOUNDING-ARCHITECTURE.template.md ← Map-Reduce synthesis to FAD
-│   └── PHASE-0-GATE.template.md    ← Two-track pre-codebase exit gate
-│
 ├── examples/                       ← Concrete adoption walkthroughs
-│   └── SAMPLE-PIPELINE.md          ← End-to-end Tier 1 sample project
+├── meta-research/                  ← Empirical evidence base (sealed provenance)
 │
-├── docs/assets/                    ← Visual branding & diagrams
-│   └── logo.jpg                    ← Minimalist prism logo
-│
-└── meta-research/                  ← Empirical evidence base (sealed provenance)
-    ├── README.md                   ← Provenance index
-    ├── DECISIONS.md                ← 10 hypothesis verdicts & 31 evidence nodes
-    ├── RESEARCH-PIPELINE.md        ← Meta-research execution DAG
-    ├── PROMPT-LIBRARY.md           ← 14 meta-research prompts
-    └── research/                   ← 15 primary research artifacts (642KB)
+├── AGENTS.md                       ← AI agent operating manual
+├── ROADMAP.md · CHANGELOG.md       ← Project history
+├── CONTRIBUTING.md · LICENSE        ← MIT License
+└── go.mod · go.sum                 ← Go 1.27+ module
 ```
 
 ---
 
-## Using with AI Agents (Antigravity, Claude Code, Cursor, etc.)
+## Using with AI Agents
 
-Because your project workspace contains both the generated files AND the operational templates, AI agents can autonomously execute every step. Example commands:
+Vivechak ships as an **MCP server** — install the binary, run `vivechak mcp-config --client <host> --write`, and your AI agent gets 9 tools:
 
-| Step | Agent Prompt |
+| Tool | What It Does |
 |---|---|
-| **Research** | *"Read T2-01's prompt from `research/RESEARCH-PIPELINE.md`, run deep research with web search, save to `research/sessions/T2-01-datastore-selection.md`"* |
-| **Decide** | *"Read `research/sessions/T2-01-*.md`, formulate D-001 in `research/DECISIONS.md` following `research/templates/DECISIONS.template.md`"* |
-| **Synthesize** | *"Read all sessions and decisions, compile `FAD.md` following `research/templates/FOUNDING-ARCHITECTURE.template.md`"* |
-| **Gate** | *"Audit `FAD.md` against `research/templates/PHASE-0-GATE.template.md`, run premortem for One-Way Doors, emit `PHASE-0-GATE.md`"* |
+| `vivechak_init` | Create workspace structure with templates |
+| `vivechak_prepare_generator` | Return scope-appropriate generator prompt with context filled in |
+| `vivechak_save_plan` | Validate + persist generated research plan |
+| `vivechak_status` | Report workspace progress (DAG completion, blocked sessions) |
+| `vivechak_next_session` | Return next session prompt with upstream findings injected |
+| `vivechak_save_session` | Validate + persist completed session output |
+| `vivechak_record_decision` | Save ADR or conflict resolution |
+| `vivechak_validate` | Dry-run validation on any artifact |
+| `vivechak_run_gate` | Phase 0 exit gate (Track A + Track B) |
 
-The templates act as **contracts** — the agent reads them and follows the exact format, methodology, and checklist without hallucinating structure.
+The agent calls these tools in sequence. The server handles context injection, DAG resolution, evidence grading validation, and exit gate checks — the agent handles the actual research using its LLM capabilities.
+
+**Still works without the MCP server:** The generators and templates in this repo are fully self-contained. You can copy-paste prompts manually — the MCP server just automates the orchestration.
 
 ---
 
@@ -191,13 +232,14 @@ Vivechak's most distinctive property: it was validated by the methodology it pre
 
 | Phase | Status | Description |
 |---|---|---|
-| 1: Foundation (Gen 1) | ✅ | 8 project methodologies consolidated into initial pre-development patterns |
+| 1: Foundation (Gen 1) | ✅ | 8 project methodologies consolidated into initial patterns |
 | 2: Self-Validation (Gen 2) | ✅ | 11 meta-research sessions → 10 verdicts → Gen 3 spec |
-| 3: Framework Release (v1.0) | ✅ | Framework, generator, templates launch as Vivechak v1.0.0 |
-| 3b: Bias Correction (v1.1) | ✅ | Bounded Exploration Mandate, Weighted Evaluation Protocol, SaaS de-anchoring |
-| 4: Framework Polish (v1.1) | ✅ | Pipeline failure modes, calibration loop, domain adaptation, change propagation map |
-| 5: Vivechak Engine | Next | Use Vivechak to research its own automation — agentic pipeline execution |
-| 6: Research Frontiers | Future | DSPy optimization, multi-agent debate, longitudinal calibration |
+| 3: Framework Release (v1.0–v1.1) | ✅ | Framework, generators, templates, bias correction |
+| 4: Methodology Expansion | ✅ | 3 scope levels (Project / Decision / Comparison) |
+| 5: MCP Server | ✅ | Go MCP server with 9 tools, 32/32 tests passing |
+| 6: Distribution | ✅ | GoReleaser, installers, Homebrew/Scoop/winget, CI pipelines |
+| 7: Demand Proof | Next | Real case study, free wedge skill, content marketing |
+| 8: Research Frontiers | Future | DSPy optimization, multi-agent debate, longitudinal calibration |
 
-See [ROADMAP.md](ROADMAP.md) for detailed plans, overhaul decisions, and source material status.
+See [ROADMAP.md](ROADMAP.md) for detailed plans and evidence corpus.
 
