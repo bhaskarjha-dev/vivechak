@@ -166,12 +166,25 @@ Items identified during the comprehensive repository audit that are valid but no
 | OP-02 | Opportunity | No worked example of a failed/corrected pipeline | examples/ | A failure example would be more instructive than the success example alone. Create when real failure data available. |
 | OP-03 | Opportunity | No positioning vs Structured MADR 1.0 (2026) | README.md | MADR 4.0 + Structured MADR 1.0 converge on Vivechak's ADR format. Clarify differentiation. |
 | DA-03 | Opportunity | Context injection token budget not quantified | FRAMEWORK.md §3.1 dependency protocol | Protocol says "3-5 sentences" but doesn't specify token budget. Quantify from Engine usage data. |
-| PE-01 | Opportunity | "Context engineering" terminology evolution not reflected | FRAMEWORK.md | P1 aligns with the 2026 "context engineering" paradigm but doesn't use the term. Terminology update. |
+| PE-01 | ~~Opportunity~~ | ~~\"Context engineering\" terminology evolution not reflected~~ | FRAMEWORK.md | ✅ DONE — Added context engineering note to P1 (Phase 1.7) |
 
 **Explicitly evaluated as OUT OF SCOPE** (not Vivechak's responsibility):
 - Tool-use calibration — about agent harness design, not research methodology
 - FAD → Fitness Functions — post-Vivechak concern (the coding tool owns fitness functions)
 - Archetype fallback monitoring — only relevant when archetypes are programmatic (Engine v1.0+)
+### Phase 4.5: Methodology Expansion (DONE — 2026-09-27)
+
+Three-scope model: Vivechak now operates at project, decision, and comparison scope levels. Research corpus: 12 sessions (~770KB), audited implementation plan.
+
+| # | Deliverable | Status |
+|---|---|---|
+| **1.1** | `GENERATOR-DECISION.md` — decision-scope generator (R/N/B/X profiling, 4-lane routing, L/C/F roles, 3-session cap) | ✅ |
+| **1.2** | `GENERATOR-COMPARISON.md` & `templates/COMPARISON-SESSION.template.md` — single-prompt WEP generator with SCOPE CHECK guard | ✅ |
+| **1.3** | `FRAMEWORK.md` §9: Multi-Scope Research — Scope × Depth model, 9 invariants (I1-I9), R/N/B/X routing matrix | ✅ |
+| **1.4** | Reposition all public-facing text — "pre-development" → "evidence-grounded research for technical decisions" | ✅ |
+| **1.5** | Evidence grading lineage — "Cochrane/GRADE lineage" → "Admiralty-Code-derived source grading with GRADE-inspired modifiers" | ✅ |
+| **1.6** | Drift prevention — `CORE:BEGIN/END` marker blocks across 3 generators; CONTRIBUTING.md propagation map updated | ✅ |
+| **1.7** | Context engineering note on P1 (addresses PE-01) | ✅ |
 
 ### Phase 5: MCP Server — Evidence-Grounded Automation
 
@@ -208,7 +221,7 @@ Automated (MCP Server):
 
 **Distribution plan:** GitHub Releases (GoReleaser, 6 platforms) → shell installers → `vivechak mcp-config --client <host> --write` → Homebrew/Scoop/winget → thin Agent Plugin → MCP Registry.
 
-**Full implementation plan:** See the audited [FINAL-PLAN.md](temp/final-plan/FINAL-PLAN.md) for complete architecture, tool surface, testing strategy, distribution matrix, risk register, and kill criteria. Evidence corpus preserved in `temp/research/sessions/`.
+**Full implementation plan:** Architecture, tool surface, testing strategy, distribution matrix, risk register, and kill criteria were developed through 12 research sessions (~770KB evidence corpus) and a comprehensive audit. See the commit history for Phase 0 and Phase 1 deliverables.
 
 #### Deferred Convenience Items → MCP Tool Targets
 
