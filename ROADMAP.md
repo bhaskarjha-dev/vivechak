@@ -199,7 +199,7 @@ Three-scope model: Vivechak now operates at project, decision, and comparison sc
 | **MCP server replaces standalone Engine** | Locked | MCP 2026-07-28 spec (stateless, universal agent support); compound failure risk of standalone Engine |
 | **Go for server language** | Locked | Single binary distribution, 5–20ms startup, `os.Root` security, Tier 1 SDK |
 | **Guided Worker pattern** | Locked | Server returns guidance in response data; no server-side FSM; no LLM API calls |
-| **10 tools with `vivechak_` prefix** | Locked | MCP spec analysis, discoverability benchmarks, security annotation alignment |
+| **9 tools with `vivechak_` prefix** | Locked | Code-level audit dropped `synthesize` (violates Guided Worker), renamed 2 tools |
 | **Workspace files as canonical state** | Locked | No `.vivechak/state.json`; research/ directory IS the database; Git-compatible |
 | **3 scope levels (Project / Decision / Comparison)** | Locked | Cochrane, ODNI ICD 203, R-03/R-06 cross-validation |
 | **Binary-first distribution** | Locked | Agent Plugins not universal; PATH truncation on macOS GUI hosts |
@@ -213,15 +213,15 @@ Current (Manual):
   → Record decisions → Resolve conflicts → Synthesize FAD → Run gate
 
 Automated (MCP Server):
-  Agent → vivechak_init → vivechak_get_generator_prompt → generate pipeline
-  → vivechak_save_pipeline → vivechak_next_session → run sessions
-  → vivechak_save_session → vivechak_record_decision → vivechak_synthesize
+  Agent → vivechak_init → vivechak_prepare_generator → generate pipeline
+  → vivechak_save_plan → vivechak_next_session → run sessions
+  → vivechak_save_session → vivechak_record_decision
   → vivechak_run_gate → sealed FAD
 ```
 
-**Distribution plan:** GitHub Releases (GoReleaser, 6 platforms) → shell installers → `vivechak mcp-config --client <host> --write` → Homebrew/Scoop/winget → thin Agent Plugin → MCP Registry.
+**Distribution:** GitHub Releases (GoReleaser, 6 platforms) → shell installers → `vivechak mcp-config --client <host> --write` → Homebrew/Scoop/winget → thin Agent Plugin → MCP Registry.
 
-**Full implementation plan:** Architecture, tool surface, testing strategy, distribution matrix, risk register, and kill criteria were developed through 12 research sessions (~770KB evidence corpus) and a comprehensive audit. See the commit history for Phase 0 and Phase 1 deliverables.
+**Evidence base:** 12 research sessions (~770KB evidence corpus) archived in `meta-research/v2-research/`. Full implementation plan in `meta-research/v2-research/FINAL-PLAN.md`.
 
 #### Deferred Convenience Items → MCP Tool Targets
 
@@ -229,23 +229,23 @@ These items were evaluated during Phase 4 planning and deferred to the MCP serve
 
 | Item | What | Target | Rationale for Deferral |
 |---|---|---|---|
-| Template init script (`vivechak init`) | Automate the 4-template copy + directory creation | `vivechak_init` tool | Standalone script works but MCP tool makes it redundant |
-| YAML frontmatter validator | Validate ADR schema before synthesis | `vivechak_validate` tool | Only valuable when programmatic — manual validation is visual inspection |
-| Code-based generator CLI | Replace copy-paste prompt with CLI interface | `vivechak_get_generator_prompt` tool | Monolithic prompt works. MCP tool serves it directly to agents |
-| Blast-radius tracker | Track which decisions affect which components | Post-Phase 4 | Needs 5+ projects with tracked evidence. MCP usage data required |
-| AI cost tracking | Track token/API costs per session and pipeline | Post-Phase 4 | Only relevant when host agent tracks costs (server doesn't call LLMs) |
+| Template init script (`vivechak init`) | Automate the 5-template copy + directory creation | `vivechak_init` tool ✅ | Implemented |
+| YAML frontmatter validator | Validate ADR schema before synthesis | `vivechak_validate` tool ✅ | Implemented |
+| Code-based generator CLI | Replace copy-paste prompt with CLI interface | `vivechak_prepare_generator` tool ✅ | Implemented |
+| Blast-radius tracker | Track which decisions affect which components | Post-Phase 5 | Needs 5+ projects with tracked evidence |
+| AI cost tracking | Track token/API costs per session and pipeline | Post-Phase 5 | Only relevant when host agent tracks costs |
 
 ### Phase 6: Research Frontiers (Future)
 
-These require either the Engine to exist or significant accumulated project data. Each has explicit gate conditions:
+These require significant accumulated project data from MCP server usage. Each has explicit gate conditions:
 
 | Frontier | Description | Gate Condition |
 |---|---|---|
-| **DSPy Prompt Optimization** | Automated prompt refinement via compile-time optimization | Requires a quantifiable "research quality" metric — which requires Engine usage data to define |
+| **DSPy Prompt Optimization** | Automated prompt refinement via compile-time optimization | Requires a quantifiable "research quality" metric — needs usage data to define |
 | **Cross-Project Knowledge Graph** | Reusable evidence records across projects | Requires 5+ projects with tracked evidence in a consistent format |
-| **Adaptive Prompt Evolution** | Prompts that improve from session to session within a pipeline | Requires Engine v0.2+ (inter-session context injection only possible with programmatic control) |
+| **Adaptive Prompt Evolution** | Prompts that improve from session to session within a pipeline | Requires MCP server usage data showing where prompts underperform |
 | **Longitudinal Calibration** | Track prediction accuracy over time (Tetlock-style) | Requires 3+ projects with 6+ months post-FAD development data |
-| **Multi-Agent Debate** | Structured adversarial debate for contested One-Way Doors | Requires understanding of where single-agent research actually fails — needs Engine usage data |
+| **Multi-Agent Debate** | Structured adversarial debate for contested One-Way Doors | Requires understanding of where single-agent research actually fails — needs usage data |
 
 ---
 

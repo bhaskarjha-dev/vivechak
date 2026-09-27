@@ -9,7 +9,7 @@
 
 **Vivechak** is a meta-framework that generates evidence-grounded research for technical decisions. It works at three scope levels: full project pipelines (→ FAD), single decisions (→ ADR), and bounded comparisons (→ WEP matrix).
 
-**The tools are [GENERATOR.md](GENERATOR.md), [GENERATOR-DECISION.md](GENERATOR-DECISION.md), and [GENERATOR-COMPARISON.md](GENERATOR-COMPARISON.md).** Everything else supports them.
+**The methodology tools are [GENERATOR.md](GENERATOR.md), [GENERATOR-DECISION.md](GENERATOR-DECISION.md), and [GENERATOR-COMPARISON.md](GENERATOR-COMPARISON.md).** The MCP server (`cmd/vivechak/`) automates orchestration — workspace setup, DAG resolution, context injection, validation, and exit gates. Everything else supports them.
 
 ---
 
@@ -91,7 +91,7 @@ This section applies only when improving the meta-framework — editing FRAMEWOR
 
 ```
 vivechak/
-├── README.md                       ← Overview + 5-step quickstart
+├── README.md                       ← Overview + install + quickstart
 ├── GENERATOR.md                    ← Project-scope generator (full pipeline → FAD)
 ├── GENERATOR-DECISION.md           ← Decision-scope generator (1–3 sessions → ADR)
 ├── GENERATOR-COMPARISON.md         ← Comparison-scope generator (1 session → WEP matrix)
@@ -100,17 +100,26 @@ vivechak/
 ├── ROADMAP.md                      ← Project history + future plans
 ├── CHANGELOG.md                    ← Release history
 ├── CONTRIBUTING.md                 ← Evidence-grounding contribution rules
-├── CODE_OF_CONDUCT.md              ← Contributor Covenant v2.1
-├── LICENSE                         ← MIT License
-├── VERSION                         ← Release version (1.1.0)
-├── .gitignore                      ← Git exclusions
-├── .github/                        ← Issue and PR templates
-│   ├── ISSUE_TEMPLATE/             ← Bug report and feature request templates
-│   └── PULL_REQUEST_TEMPLATE.md    ← Contribution checklist
+├── CODE_OF_CONDUCT.md · LICENSE    ← Contributor Covenant v2.1 · MIT License
+├── VERSION                         ← Release version
+├── go.mod · go.sum                 ← Go 1.27+ module
+├── .goreleaser.yml                 ← 6-platform cross-compilation
+├── install.sh · install.ps1        ← Shell installers
+│
+├── cmd/vivechak/                   ← MCP server + CLI entry point
+│   ├── main.go                     ← Entry point (serve, version, mcp-config, doctor)
+│   ├── config.go                   ← mcp-config --client <host> --write
+│   └── doctor.go                   ← Workspace integrity checker
+│
+├── internal/                       ← Server implementation (Go)
+│   ├── core/                       ← Pure logic (workspace, DAG, validation, injection)
+│   ├── mcp/                        ← 9 MCP tool handlers + envelope
+│   ├── store/                      ← Atomic I/O, locking, os.Root confinement
+│   └── embed/                      ← go:embed generators + templates
 │
 ├── templates/                      ← 5 operational contracts (copy to projects)
 │   ├── DECISIONS.template.md       ← YAML frontmatter ADR format
-│   ├── CONFLICT-RESOLUTION.template.md ← Analysis of Competing Hypotheses
+│   ├── CONFLICT-RESOLUTION.template.md ← ACH-style conflict resolution
 │   ├── COMPARISON-SESSION.template.md  ← WEP comparison output format
 │   ├── FOUNDING-ARCHITECTURE.template.md ← Map-Reduce synthesis to FAD
 │   └── PHASE-0-GATE.template.md    ← Two-track pre-codebase exit gate
@@ -118,23 +127,49 @@ vivechak/
 ├── examples/                       ← Concrete adoption walkthroughs
 │   └── SAMPLE-PIPELINE.md          ← End-to-end Tier 1 sample project
 │
-├── docs/assets/                    ← Visual branding & diagrams
-│   └── logo.jpg                    ← Minimalist prism logo
+├── docs/                           ← Documentation
+│   ├── QUICKSTART.md               ← Vivechak in 5 Minutes
+│   ├── MANUAL-WORKFLOW.md          ← Complete manual copy-paste guide
+│   ├── HOST-SETUP.md               ← Per-host MCP config (7 hosts)
+│   ├── MCP-TOOLS.md                ← 9-tool reference with examples
+│   ├── ARCHITECTURE.md             ← Server internals for contributors
+│   └── assets/logo.jpg             ← Minimalist prism logo
 │
-└── meta-research/                  ← Empirical evidence base (sealed provenance)
-    ├── README.md                   ← Provenance index
-    ├── DECISIONS.md                ← 10 hypothesis verdicts & 31 evidence nodes
-    ├── RESEARCH-PIPELINE.md        ← Meta-research execution DAG
-    ├── PROMPT-LIBRARY.md           ← 14 meta-research prompts
-    └── research/                   ← 15 primary research artifacts (642KB)
+├── meta-research/                  ← Empirical evidence base (sealed)
+│   ├── README.md                   ← Provenance index
+│   ├── DECISIONS.md                ← v1.0: 10 hypothesis verdicts
+│   ├── RESEARCH-PIPELINE.md        ← v1.0: meta-research execution DAG
+│   ├── PROMPT-LIBRARY.md           ← v1.0: 14 meta-research prompts
+│   ├── sessions/                   ← v1.0: 15 primary research artifacts
+│   └── v2-research/                ← v2.0: 12 sessions + FINAL-PLAN (MCP evidence)
+│
+├── Formula/ · scoop/ · winget/     ← Package manager manifests
+│
+└── .github/
+    ├── workflows/ci.yml · release.yml
+    ├── ISSUE_TEMPLATE/
+    └── PULL_REQUEST_TEMPLATE.md
 ```
 
 ---
 
-## 5. Key Operational Rules
+## 5. Working on the MCP Server
+
+When modifying Go code in `cmd/` or `internal/`:
+
+1. **Package dependency direction:** `core/` has NO dependency on `mcp/`. `mcp/` depends on `core/`. `store/` is independent.
+2. **Embed sync:** `internal/embed/generators/` and `internal/embed/templates/` must stay in sync with root-level generators and templates. CI checks this.
+3. **9 MCP tools:** `vivechak_init`, `vivechak_prepare_generator`, `vivechak_save_plan`, `vivechak_status`, `vivechak_next_session`, `vivechak_save_session`, `vivechak_record_decision`, `vivechak_validate`, `vivechak_run_gate`. Each tool is one file in `internal/mcp/tool_*.go`.
+4. **Guided Worker pattern:** Every tool response includes `next_step`. Hard refusals ONLY for impossible operations, never for "wrong order."
+5. **Testing:** `go test ./...` runs all tests. `internal/mcp/server_test.go` has wire-level integration tests.
+
+---
+
+## 6. Key Operational Rules
 
 - **No legacy dogma:** Do not use 8-section XML prompts, expert personas, hardcoded search queries, minimum search counts, or rigid output skeletons. These are empirically refuted.
 - **Front-load briefs:** Never drip-feed instructions across turns (39% performance drop documented).
 - **Grade everything:** Every factual claim needs an inline evidence grade with modifiers and verification method.
 - **Two-Way Doors move fast:** Don't over-research reversible decisions. Spike or decide by convention.
 - **One-Way Doors move carefully:** Require corroborated Grade A/B evidence, locked ADR, and premortem before commitment.
+
