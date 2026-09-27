@@ -7,9 +7,9 @@
 
 ## 1. What This Repository Is
 
-**Vivechak** is a meta-framework that generates evidence-grounded research pipelines for technical projects. It transforms a raw project idea into a sealed Founding Architecture Document (FAD) before coding begins.
+**Vivechak** is a meta-framework that generates evidence-grounded research for technical decisions. It works at three scope levels: full project pipelines (→ FAD), single decisions (→ ADR), and bounded comparisons (→ WEP matrix).
 
-**The tool is [GENERATOR.md](GENERATOR.md).** Everything else supports it.
+**The tools are [GENERATOR.md](GENERATOR.md), [GENERATOR-DECISION.md](GENERATOR-DECISION.md), and [GENERATOR-COMPARISON.md](GENERATOR-COMPARISON.md).** Everything else supports them.
 
 ---
 
@@ -27,9 +27,10 @@ This is the common case — an agent is asked to generate and/or execute a resea
 ### Set Up the Project Workspace
 
 5. Save both generated files to the project's `research/` directory.
-6. Copy the **4 templates** from `templates/` into `research/templates/`:
+6. Copy the **5 templates** from `templates/` into `research/templates/`:
    - `DECISIONS.template.md` — for recording architectural decisions
    - `CONFLICT-RESOLUTION.template.md` — for resolving conflicting findings
+   - `COMPARISON-SESSION.template.md` — for structuring option comparisons
    - `FOUNDING-ARCHITECTURE.template.md` — for compiling the final FAD
    - `PHASE-0-GATE.template.md` — for the pre-coding exit gate
 
@@ -42,6 +43,7 @@ project/
     └── templates/                   ← Copied from Vivechak
         ├── DECISIONS.template.md
         ├── CONFLICT-RESOLUTION.template.md
+        ├── COMPARISON-SESSION.template.md
         ├── FOUNDING-ARCHITECTURE.template.md
         └── PHASE-0-GATE.template.md
 ```
@@ -90,7 +92,9 @@ This section applies only when improving the meta-framework — editing FRAMEWOR
 ```
 vivechak/
 ├── README.md                       ← Overview + 5-step quickstart
-├── GENERATOR.md                    ← THE TOOL — generator prompt (self-contained)
+├── GENERATOR.md                    ← Project-scope generator (full pipeline → FAD)
+├── GENERATOR-DECISION.md           ← Decision-scope generator (1–3 sessions → ADR)
+├── GENERATOR-COMPARISON.md         ← Comparison-scope generator (1 session → WEP matrix)
 ├── FRAMEWORK.md                    ← Complete methodology spec (for development only)
 ├── AGENTS.md                       ← This file
 ├── ROADMAP.md                      ← Project history + future plans
@@ -104,9 +108,10 @@ vivechak/
 │   ├── ISSUE_TEMPLATE/             ← Bug report and feature request templates
 │   └── PULL_REQUEST_TEMPLATE.md    ← Contribution checklist
 │
-├── templates/                      ← 4 operational contracts (copy to projects)
+├── templates/                      ← 5 operational contracts (copy to projects)
 │   ├── DECISIONS.template.md       ← YAML frontmatter ADR format
 │   ├── CONFLICT-RESOLUTION.template.md ← Analysis of Competing Hypotheses
+│   ├── COMPARISON-SESSION.template.md  ← WEP comparison output format
 │   ├── FOUNDING-ARCHITECTURE.template.md ← Map-Reduce synthesis to FAD
 │   └── PHASE-0-GATE.template.md    ← Two-track pre-codebase exit gate
 │

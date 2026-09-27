@@ -4,7 +4,7 @@
 
 # Vivechak (विवेचक)
 
-**Evidence-grounded pre-development research meta-framework.**
+**Evidence-grounded research for technical decisions.**
 
 *vi- (apart) + √vic (to sift/separate) + -aka (the agent who does) = "the discerning analyst"*
 
@@ -14,15 +14,23 @@
 
 ### v1.1 — Separating evidence from assumption, truth from bias
 
-> **Transform architecture decisions from gut-feel and cached training data into structured, evidence-graded, empirically validated research — before a single line of implementation begins.**
+> **Transform technical decisions from gut-feel and cached training data into structured, evidence-graded research — whether you're architecting a whole project, researching a single decision, or comparing specific options.**
 
 ---
 
 ## What Is This?
 
-You have a software project idea. Before coding, you need to make architectural decisions — database, auth, hosting, data model, APIs. Some of these decisions are **irreversible** (one-way doors). If you get them wrong, you're looking at a rewrite.
+You're making a technical decision — maybe architecting a whole project, choosing between databases, or evaluating whether to adopt a new framework. Some decisions are **irreversible** (one-way doors). If you get them wrong, you're looking at a rewrite.
 
-**Vivechak generates a customized research pipeline for your project** that investigates every critical decision with appropriate rigor. It produces focused research prompts, executes them across frontier AI platforms, grades every claim with traceable evidence, and synthesizes the results into a sealed Founding Architecture Document (FAD) — your architectural source of truth before writing code.
+**Vivechak generates evidence-grounded research at three scope levels:**
+
+| Scope | Entry Point | What You Get |
+|---|---|---|
+| **Project** | [GENERATOR.md](GENERATOR.md) | Full research pipeline → Founding Architecture Document |
+| **Decision** | [GENERATOR-DECISION.md](GENERATOR-DECISION.md) | 1–3 focused sessions → proposed ADR |
+| **Comparison** | [GENERATOR-COMPARISON.md](GENERATOR-COMPARISON.md) | 1 structured comparison → WEP matrix |
+
+Every scope level applies the same methodology: traceable evidence grades (A–E), structured falsification, bias-corrected weighted evaluation, and explicit reversal triggers on every decision.
 
 **Vivechak is not a deep-research tool** — it is the **orchestration layer above** tools like Gemini Deep Research, ChatGPT Deep Research, and Perplexity. Those tools execute individual research sessions; Vivechak structures which sessions to run, how evidence is graded consistently across sessions, how decisions are tracked with reversal triggers, and how findings are synthesized into a coherent architecture.
 
@@ -38,7 +46,7 @@ Open [GENERATOR.md](GENERATOR.md), paste your project description into the gener
 > **Extracting from web chat:** If your AI platform outputs inline text rather than downloadable files, look for the two clear document boundaries in the output. `RESEARCH-PIPELINE.md` starts with the pipeline header and ends after the last session prompt. `DECISIONS.md` starts with the decision registry header. Copy each section into its own file. The generator prompt instructs the AI to produce clearly separated, complete documents.
 
 ### Step 2: Set Up Your Project Workspace
-Create your project's `research/` directory, paste in the generated files, and **copy the 4 templates** from this repository:
+Create your project's `research/` directory, paste in the generated files, and **copy the 5 templates** from this repository:
 
 ```
 my-project/
@@ -49,6 +57,7 @@ my-project/
     └── templates/                   ← Copy from Vivechak (see templates/)
         ├── DECISIONS.template.md
         ├── CONFLICT-RESOLUTION.template.md
+        ├── COMPARISON-SESSION.template.md
         ├── FOUNDING-ARCHITECTURE.template.md
         └── PHASE-0-GATE.template.md
 ```
@@ -70,12 +79,14 @@ Compile all findings into a Founding Architecture Document using `templates/FOUN
 
 ## Repository Structure
 
-> **For users:** You only need **GENERATOR.md** (to generate your pipeline) and **templates/** (to copy into your project). Everything else is either for learning or for developing Vivechak itself.
+> **For users:** You only need the **generators** (GENERATOR.md, GENERATOR-DECISION.md, or GENERATOR-COMPARISON.md) and **templates/** (to copy into your project). Everything else is either for learning or for developing Vivechak itself.
 
 ```
 vivechak/
 ├── README.md                       ← You are here
-├── GENERATOR.md                    ← THE TOOL — generator prompt (start here)
+├── GENERATOR.md                    ← Project-scope generator (full pipeline → FAD)
+├── GENERATOR-DECISION.md           ← Decision-scope generator (1–3 sessions → ADR)
+├── GENERATOR-COMPARISON.md         ← Comparison-scope generator (1 session → WEP matrix)
 ├── FRAMEWORK.md                    ← Deep methodology reference (not required for use)
 ├── AGENTS.md                       ← AI agent operating manual
 ├── ROADMAP.md                      ← Project history & future plans
@@ -89,9 +100,10 @@ vivechak/
 │   ├── ISSUE_TEMPLATE/             ← Bug report & feature request templates
 │   └── PULL_REQUEST_TEMPLATE.md    ← Contribution checklist
 │
-├── templates/                      ← 4 operational contracts (copy to projects)
+├── templates/                      ← 5 operational contracts (copy to projects)
 │   ├── DECISIONS.template.md       ← YAML frontmatter ADR format
 │   ├── CONFLICT-RESOLUTION.template.md ← Analysis of Competing Hypotheses
+│   ├── COMPARISON-SESSION.template.md  ← WEP comparison output format
 │   ├── FOUNDING-ARCHITECTURE.template.md ← Map-Reduce synthesis to FAD
 │   └── PHASE-0-GATE.template.md    ← Two-track pre-codebase exit gate
 │

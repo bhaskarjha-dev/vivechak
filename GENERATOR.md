@@ -1,21 +1,24 @@
-# Vivechak v1.1 — Pipeline Generator
-### The Tool: Generate a Complete Research Pipeline from Your Project Vision
+# Vivechak v1.1 — Project-Scope Pipeline Generator
+### Generate a Complete Research Pipeline from Your Project Vision
 
 > **How to use:** Copy the generator prompt below into a fresh AI conversation
 > (Claude, Gemini, or ChatGPT with web search enabled). Paste your project
 > description where indicated. Send. You'll receive two ready-to-execute documents:
 > a unified research pipeline with inline prompts, and a decision registry.
+>
+> **Smaller scope?** For a single decision, use [GENERATOR-DECISION.md](GENERATOR-DECISION.md).
+> For a bounded comparison of named options, use [GENERATOR-COMPARISON.md](GENERATOR-COMPARISON.md).
 
 ---
 
 ## The Generator Prompt
 
 ````markdown
-# GENERATE: Pre-Development Research Pipeline
+# GENERATE: Research Pipeline for a Technical Project
 
 ## BRIEF
 
-Generate a complete, ready-to-execute pre-development research pipeline for
+Generate a complete, ready-to-execute research pipeline for
 a new technical project. The output will be used to make evidence-grounded
 architectural decisions before committing to irreversible implementation decisions.
 
@@ -177,6 +180,7 @@ inline evidence grades, open risks with reversal triggers, and a
 "Discovered Concerns" section if research reveals material concerns
 beyond the stated scope (omit if nothing emerged).
 
+<!-- CORE:BEGIN — shared methodology kernel (must stay identical across GENERATOR.md, GENERATOR-DECISION.md, GENERATOR-COMPARISON.md) -->
 For evidence grading, every factual claim should carry:
 - Base grade: A (official docs/RFCs/peer-reviewed studies) | B (empirical/benchmarks) |
   C (vendor claims) | D (blog/tutorial/AI recall) | E (unverifiable)
@@ -184,6 +188,7 @@ For evidence grading, every factual claim should carry:
   recency (fresh/aging/stale), directness (direct/indirect)
 - Verification: fetched | cached | recalled | secondhand | human-provided
   (recalled claims capped at Grade D regardless of apparent source)
+<!-- CORE:END -->
 
 **FORMAT:** Single complete Markdown file artifact with YAML frontmatter
 (id, title, date, status, topic, tags, informs_decisions, confidence).
@@ -236,7 +241,8 @@ Requirements:
 - Sessions must be ordered by layer (Layer 0 -> Layer 1 -> Layer 2 -> Sink)
 - The Pipeline Overview section must include a "How to Execute" guide
   referencing: templates/DECISIONS.template.md, templates/CONFLICT-RESOLUTION.template.md,
-  templates/FOUNDING-ARCHITECTURE.template.md, and templates/PHASE-0-GATE.template.md.
+  templates/COMPARISON-SESSION.template.md, templates/FOUNDING-ARCHITECTURE.template.md,
+  and templates/PHASE-0-GATE.template.md.
   The guide must also include:
   - **Session normalization note:** A session is one independent deep
     research execution (a single prompt sent to a frontier AI's deep
@@ -321,16 +327,17 @@ my-project/
 ```
 
 ### 2. Copy the operational templates
-Copy the 4 templates from this repository into your project's `research/templates/` directory:
+Copy the 5 templates from this repository into your project's `research/templates/` directory:
 
 ```
 templates/DECISIONS.template.md
 templates/CONFLICT-RESOLUTION.template.md
+templates/COMPARISON-SESSION.template.md
 templates/FOUNDING-ARCHITECTURE.template.md
 templates/PHASE-0-GATE.template.md
 ```
 
-**Why:** These templates are the contracts for recording decisions, resolving conflicts, compiling the final architecture, and running the exit gate. With them in your workspace, any AI agent (Antigravity, Claude Code, Cursor) can autonomously execute the full research workflow without referencing the meta-repo.
+**Why:** These templates are the contracts for recording decisions, resolving conflicts, structuring comparisons, compiling the final architecture, and running the exit gate. With them in your workspace, any AI agent (Antigravity, Claude Code, Cursor) can autonomously execute the full research workflow without referencing the meta-repo.
 
 ### 3. Execute the pipeline
 See the generated RESEARCH-PIPELINE.md for the complete execution guide, or follow the [README Quick Start](README.md).

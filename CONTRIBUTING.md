@@ -88,9 +88,11 @@ These elements exist in MORE THAN ONE file and MUST stay synchronized:
 | Tier mapping (score → session budget) | FRAMEWORK.md §3.2 | GENERATOR.md Step 2 |
 | Per-decision routing matrix | FRAMEWORK.md §3.2 | GENERATOR.md Step 3 |
 | 5-block prompt anatomy | FRAMEWORK.md §4 | GENERATOR.md Step 4 |
-| Evidence grading tiers (A-E) | FRAMEWORK.md §5.1 | GENERATOR.md Step 4 (inlined in every prompt) |
-| ADR YAML schema (18 fields) | templates/DECISIONS.template.md (canonical) | GENERATOR.md DELIVERABLE §2 (full schema inlined), FRAMEWORK.md §5.7 (example) |
-| Template filenames (4 templates) | templates/ directory | GENERATOR.md "How to Execute", README.md Step 2, AGENTS.md §2 |
+| Evidence grading tiers (A-E) | FRAMEWORK.md §5.1 | GENERATOR.md Step 4 (inlined in every prompt), GENERATOR-DECISION.md, GENERATOR-COMPARISON.md — marked by `CORE:BEGIN/END` blocks |
+| ADR YAML schema (18 fields) | templates/DECISIONS.template.md (canonical) | GENERATOR.md DELIVERABLE §2 (full schema inlined), GENERATOR-DECISION.md, FRAMEWORK.md §5.7 (example) |
+| Template filenames (5 templates) | templates/ directory | GENERATOR.md "How to Execute", README.md Step 2, AGENTS.md §2 |
+| Multi-scope routing (R/N/B/X) | FRAMEWORK.md §9.3 | GENERATOR-DECISION.md (operational implementation) |
+| Methodology invariants (I1-I9) | FRAMEWORK.md §9.2 | `CORE:BEGIN/END` blocks in all three generators |
 
 ## Reporting Issues
 

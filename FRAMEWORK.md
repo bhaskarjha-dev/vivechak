@@ -1,5 +1,5 @@
 # The Vivechak Meta-Framework
-### Complete Specification for Evidence-Grounded Pre-Development Research
+### Complete Specification for Evidence-Grounded Technical Research
 *Version 1.1 — Empirically Validated via 11 Meta-Research Sessions*
 
 ---
@@ -72,6 +72,8 @@ Research quality is governed by **attention budget, context purity, and task bou
 - Over-isolation triggers the split-attention effect, introduces 4–15× token overhead, and misses systemic cross-cutting trade-offs.
 
 > **Evidence:** E-001 (OpenAI BrowseComp — accuracy scales with search budget/compute), E-002 (MTI +12.4% on joint tasks), E-003 (Chandler & Sweller split-attention), E-004 (Chroma context rot)
+
+> **Terminology note:** P1 aligns with the 2025-2026 "context engineering" paradigm — the systematic design of what information reaches a model's context window, in what form, and at what priority. Vivechak's decomposition-by-attention-budget and synthesis-after-decomposition rules are specific operational principles within that broader discipline.
 
 ### P2: Reversibility-Calibrated Rigor
 
@@ -631,7 +633,7 @@ The long-term vision is a 5-layer code-based tool:
 
 #### Beyond Software: Domain Adaptation
 
-Vivechak's epistemic core — evidence grading (Cochrane/GRADE lineage), ACH conflict resolution (CIA/Heuer), premortem protocol (Gary Klein), reversibility routing (Bezos Type 1/2 doors), and map-reduce synthesis — was not invented for software. These primitives govern how intelligence reasons about truth, risk, and irreversibility in *any* domain.
+Vivechak's epistemic core — evidence grading (Admiralty-Code-derived source grading with GRADE-inspired modifiers), ACH conflict resolution (CIA/Heuer), premortem protocol (Gary Klein), reversibility routing (Bezos Type 1/2 doors), and map-reduce synthesis — was not invented for software. These primitives govern how intelligence reasons about truth, risk, and irreversibility in *any* domain.
 
 The generator prompt already uses "technical project" rather than "software project." The 4 operational templates (Decisions, Conflict Resolution, FAD, Phase 0 Gate) contain zero software-specific content. Non-software domains have been successfully researched using adapted versions of the generator.
 
@@ -650,7 +652,78 @@ Archetypes are versioned data, not finished code. Domain research needs shift as
 
 ---
 
-## 9. Composition Strategy
+## 9. Multi-Scope Research
+
+Vivechak operates at three scope levels. Scope and depth are **independent axes** — a comparison can be shallow or deep; a project can be Tier 0 or Tier 3. The scope level determines the entry point, output shape, and which methodology mechanisms apply; the depth determines how many sessions and how much evidence is required.
+
+### 9.1 The Three Scope Levels
+
+| Scope | Entry Point | Sessions | Output | When to Use |
+|---|---|---|---|---|
+| **Project** | `GENERATOR.md` | Tier-determined (1–30) | Full pipeline → FAD | New project, major pivot, or system-wide re-evaluation |
+| **Decision** | `GENERATOR-DECISION.md` | 1–3 (capped; escalate if more) | Research plan + proposed ADR | Single architectural decision, standalone or mid-project |
+| **Comparison** | `GENERATOR-COMPARISON.md` | 1 (always) | WEP comparison matrix | Bounded comparison of 2–5 named options |
+
+**Scope selection is the user's choice**, not an automatic classification. The generators include guards (SCOPE CHECK, ESCALATE) that flag when a chosen scope may be insufficient, but never block output.
+
+### 9.2 Methodology Invariants (I1–I9)
+
+These rules hold at **every** scope level. They are the shared methodology kernel — the text that must stay byte-identical across all three generators.
+
+| # | Invariant | Source | How It Carries |
+|---|---|---|---|
+| **I1** | Bounded Exploration Mandate — stated scope is a coverage floor, not a ceiling | P4 | Verbatim instruction in APPROACH block |
+| **I2** | Evidence grading: A–E base + corroboration/recency/directness modifiers + verification method; recalled capped at Grade D | §5.1–5.4 | Verbatim grading legend in DELIVERABLE block |
+| **I3** | 5-block prompt anatomy: BRIEF → SCOPE → APPROACH → DELIVERABLE → FORMAT | §4.1 | Structural template in every emitted prompt |
+| **I4** | Audience framing, not persona assignment — quality bar, not role-play | P4 | BRIEF block: "a principal architect needing production-grade tradeoffs" |
+| **I5** | 7-section output skeleton; Recommendation isolated from Alternatives Considered | P6, §6.2 | FORMAT block |
+| **I6** | Weighted Evaluation Protocol (WEP) for any session comparing 2+ options | §6.4 | DELIVERABLE block in C-role and comparison prompts |
+| **I7** | Structured falsification: seek disconfirming evidence; premortem for one-way doors | P8 | APPROACH block + F-role sessions |
+| **I8** | Door-type test (Bezos one-way/two-way) | P2 | Classification step in decision generator; SCOPE CHECK in comparison generator |
+| **I9** | No drip-fed instructions — front-load the complete brief in one turn | P4 | All generators emit single, self-contained prompts |
+
+### 9.3 Decision Routing (Decision Scope)
+
+At decision scope, the 8-dimension project complexity score is replaced by a 4-dimension **R/N/B/X profile** scored 0–3:
+
+| Dimension | 0 | 1 | 2 | 3 |
+|---|---|---|---|---|
+| **R** Reversal cost (against current STAGE) | Flag flip | Module swap | Data/contract migration | Rewrite/external commitment |
+| **N** Novelty (higher of domain and technical) | Team standard | New to team | Unconventional/fast-moving | Unproven |
+| **B** Blast radius | One module | One subsystem | Several subsystems/dependent decisions | Whole product/external contracts |
+| **X** Regulatory | None | Internal data | PII/GDPR/SOC2 | HIPAA/PCI/KYC/children |
+
+**Classification:** One-way door if R≥2 or B=3. Novel if N≥2. Hard override: X=3 forces DEEP RESEARCH.
+
+**Routing matrix** (same 4 lanes as §3.2):
+
+| | Known (N<2) | Novel (N≥2) |
+|---|---|---|
+| **Two-way** (R<2 and B<3) | SKIP — ADR skeleton + 1 optional prompt | FAST SPIKE — 1 session |
+| **One-way** (R≥2 or B=3) | CONFIRM & COMMIT — 1 session | DEEP RESEARCH — 2–3 sessions |
+
+**Session roles:** L (Landscape — maps the option space), C (Comparison — WEP evaluation), F (Falsify — premortem and failure analysis). Hard cap of 3 sessions; if more are needed, escalate to project scope.
+
+### 9.4 Scope Boundaries and Guards
+
+| Guard | Location | Behavior |
+|---|---|---|
+| **SCOPE CHECK** | Comparison generator | Detects one-way doors, sensitive data, yes/no framing, incomplete option lists. Adds "Use the decision-level generator" but still writes the comparison prompt. |
+| **ESCALATE** | Decision generator | Fires when >3 sessions would be needed or the context contains multiple coupled decisions. Outputs "ESCALATE: use the project-level generator" with the sub-decisions listed. |
+| **Adjacent decisions** | Decision generator | Lists up to 3 noticed adjacent decisions (one line each) rather than absorbing them into the current scope. |
+
+### 9.5 What Changes Between Scopes
+
+Four project-level mechanisms are **correctly omitted** below project scope:
+
+1. **8-dimension / 0–24 project complexity score and tier mapping** — replaced by R/N/B/X at decision scope; absent at comparison scope.
+2. **6-archetype classifier** — meaningless for a single decision or comparison.
+3. **DAG session-matrix construction** — a decision has at most 3 sessions in a simple dependency shape; a comparison has exactly 1.
+4. **"Add sessions for concerns the user didn't mention"** — replaced by "list adjacent decisions, don't absorb them" at decision scope, and SCOPE CHECK redirect at comparison scope.
+
+---
+
+## 10. Composition Strategy
 
 Replace fixed compose/build ratios with Wardley evolution mapping:
 
@@ -663,7 +736,7 @@ Replace fixed compose/build ratios with Wardley evolution mapping:
 
 ---
 
-## 10. Specification Provenance
+## 11. Specification Provenance
 
 This framework was produced by applying Vivechak to itself:
 
