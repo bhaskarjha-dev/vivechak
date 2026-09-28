@@ -95,9 +95,6 @@ var (
 	// Matches the prompt code block
 	promptStartRe = regexp.MustCompile("^```prompt")
 	promptEndRe   = regexp.MustCompile("^```$")
-
-	// Matches dependency format like: T01 -->|constrains| T03
-	dagEdgeRe = regexp.MustCompile(`(T\d+-?\d+|SYN-?\d+|R-?\d+)\s*-->`)
 )
 
 // ParsePipeline parses a RESEARCH-PIPELINE.md file into a DAG structure.

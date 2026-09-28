@@ -1,6 +1,7 @@
 package core
 
 import (
+	"bytes"
 	"fmt"
 	"regexp"
 	"strings"
@@ -156,7 +157,12 @@ func ValidateSession(data []byte) *ValidationResult {
 	// L2: Required frontmatter fields
 	requiredFields := []string{"session_id", "title", "date"}
 	for _, field := range requiredFields {
-		if !fm.Has(field) {
+		has := fm.Has(field)
+		// Accept 'id' as alias for 'session_id'
+		if !has && field == "session_id" {
+			has = fm.Has("id")
+		}
+		if !has {
 			result.AddIssueWithHint(L2Block, "V-MISSING-FIELD",
 				fmt.Sprintf("Required frontmatter field %q is missing", field),
 				fmt.Sprintf("Add '%s: <value>' to the frontmatter block", field))
@@ -215,7 +221,12 @@ func ValidateDecision(data []byte) *ValidationResult {
 	// L2: Required fields for decisions
 	requiredFields := []string{"decision_id", "title", "status"}
 	for _, field := range requiredFields {
-		if !fm.Has(field) {
+		has := fm.Has(field)
+		// Accept 'id' as alias for 'decision_id'
+		if !has && field == "decision_id" {
+			has = fm.Has("id")
+		}
+		if !has {
 			result.AddIssueWithHint(L2Block, "V-MISSING-FIELD",
 				fmt.Sprintf("Required field %q missing from decision", field),
 				fmt.Sprintf("Add '%s: <value>' to the frontmatter", field))
@@ -235,6 +246,48 @@ func ValidateDecision(data []byte) *ValidationResult {
 		result.AddIssueWithHint(L3Warn, "W-SHORT-DECISION",
 			"Decision body is very short — may lack sufficient context",
 			"Include Context, Decision, Consequences, and Evidence sections")
+	}
+
+	if result.HasBlocking() {
+		result.Status = "draft"
+	} else if result.WarningCount() > 0 {
+		result.Status = "valid-with-warnings"
+	}
+
+	return result
+}
+
+// ValidateArtifact performs minimal structural validation suitable for
+// plans, FADs, and other non-session/non-decision artifacts.
+func ValidateArtifact(data []byte) *ValidationResult {
+	result := &ValidationResult{Status: "valid"}
+
+	if len(bytes.TrimSpace(data)) == 0 {
+		result.AddIssue(L2Block, "V-EMPTY", "Content is empty")
+		result.Status = "invalid"
+		return result
+	}
+
+	// Check frontmatter
+	fm, body, err := ParseFrontmatter(data)
+	if err != nil || fm == nil {
+		result.AddIssueWithHint(L3Warn, "W-MISSING-FRONTMATTER",
+			"No YAML frontmatter found",
+			"Add a --- delimited YAML block at the top of the document")
+	}
+
+	// Check body length
+	if len(bytes.TrimSpace(body)) < 100 {
+		result.AddIssueWithHint(L3Warn, "W-SHORT-BODY",
+			"Body is very short (< 100 characters)",
+			"Ensure the artifact contains substantive content")
+	}
+
+	// Check for evidence grades
+	if !evidenceGradePattern.Match(body) {
+		result.AddIssueWithHint(L3Warn, "W-NO-EVIDENCE-GRADES",
+			"No inline evidence grades (A-E) found",
+			"Add evidence grades inline, e.g., 'Grade B (docs-verified)'")
 	}
 
 	if result.HasBlocking() {

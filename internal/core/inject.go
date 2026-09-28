@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 )
 
@@ -51,8 +52,15 @@ func InjectContext(session Session, sessionsDir string, completedSessions map[st
 	if isSynthesis {
 		// For synthesis: inject ALL completed session findings
 		findings, sessions, totalBytes := gatherAllFindings(sessionsDir, completedSessions)
-		prompt = injectIntoPrompt(prompt, AllFindingsSlot, findings)
-		prompt = injectIntoPrompt(prompt, UpstreamFindingsSlot, findings)
+		// Try AllFindingsSlot first, then UpstreamFindingsSlot, then fallback append.
+		// Only inject once to prevent doubling token consumption.
+		if strings.Contains(prompt, AllFindingsSlot) {
+			prompt = strings.Replace(prompt, AllFindingsSlot, findings, 1)
+		} else if strings.Contains(prompt, UpstreamFindingsSlot) {
+			prompt = strings.Replace(prompt, UpstreamFindingsSlot, findings, 1)
+		} else if findings != "" {
+			prompt = prompt + "\n\n## UPSTREAM RESEARCH CONTEXT\n\n" + findings
+		}
 		result.UpstreamSessions = sessions
 		result.InjectedBytes = totalBytes
 	} else if len(session.Dependencies) > 0 {
@@ -74,7 +82,14 @@ func gatherAllFindings(sessionsDir string, completedSessions map[string]bool) (s
 	var sessionIDs []string
 	totalBytes := 0
 
+	// Collect and sort IDs for deterministic ordering
+	var sortedIDs []string
 	for id := range completedSessions {
+		sortedIDs = append(sortedIDs, id)
+	}
+	sort.Strings(sortedIDs)
+
+	for _, id := range sortedIDs {
 		content := readSessionFile(sessionsDir, id)
 		if content == "" {
 			continue
