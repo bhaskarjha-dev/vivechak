@@ -16,7 +16,7 @@ The agent begins by initializing the workspace for a full project and providing 
 ```json
 {
   "scope": "project",
-  "directory": "./research"
+  "project_root": "./"
 }
 ```
 
@@ -32,7 +32,8 @@ The agent begins by initializing the workspace for a full project and providing 
 **Tool Call:** `vivechak_prepare_generator`
 ```json
 {
-  "vision_text": "We want to build Katha, an interactive web app for indie novelists. Authors write chapters, and the AI maintains a real-time character graph, detects plot inconsistencies, and suggests branching outlines. Needs collaborative editing, persistent story graphs, and low-latency LLM streaming. We have standard EU/US users (GDPR compliance), but no payment data initially. Prefer TypeScript/Next.js for frontend. Unsure about database (graph DB vs Postgres) and sync architecture (Yjs vs WebSocket OT)."
+  "scope": "project",
+  "context": "We want to build Katha, an interactive web app for indie novelists. Authors write chapters, and the AI maintains a real-time character graph, detects plot inconsistencies, and suggests branching outlines. Needs collaborative editing, persistent story graphs, and low-latency LLM streaming. We have standard EU/US users (GDPR compliance), but no payment data initially. Prefer TypeScript/Next.js for frontend. Unsure about database (graph DB vs Postgres) and sync architecture (Yjs vs WebSocket OT)."
 }
 ```
 
@@ -70,8 +71,8 @@ The agent saves this plan to the workspace.
 **Tool Call:** `vivechak_save_plan`
 ```json
 {
-  "pipeline_content": "# RESEARCH-PIPELINE.md\\n...",
-  "decisions_content": "# DECISIONS.md\\n..."
+  "scope": "project",
+  "content": "# RESEARCH-PIPELINE.md\\n...\\n..."
 }
 ```
 
@@ -130,11 +131,8 @@ The agent records the primary datastore decision.
 ```json
 {
   "decision_id": "D-001",
-  "title": "Primary Datastore: PostgreSQL 16 with pgvector and Recursive CTEs",
-  "status": "accepted",
-  "door_type": "one-way",
-  "evidence_refs": ["E-001", "E-002"],
-  "review_trigger": "Re-evaluate if character graph traversal exceeds 200ms at p95 or graph > 500k edges"
+  "artifact_type": "decision",
+  "content": "---\nid: D-001\ntitle: Primary Datastore - PostgreSQL 16 with pgvector and Recursive CTEs\nstatus: accepted\ndoor_type: one-way\ndate: 2026-09-01\nevidence_refs: [E-001, E-002]\nreview_trigger: Re-evaluate if graph traversal exceeds 200ms p95 or graph > 500k edges\n---\n\n## Decision\n\nAdopt PostgreSQL 16 with pgvector extension and recursive CTEs for Katha's story graph persistence.\n\n## Evidence\n\n- [Grade A] PostgreSQL 16 Official Documentation\n- [Grade B] PGBench graph traversal benchmarks at 50k nodes"
 }
 ```
 
@@ -181,13 +179,14 @@ After completing all sessions and the `SYN-01` synthesis step, the agent runs th
 ```json
 {
   "success": true,
-  "message": "Gate Verdict: PASS.",
-  "checklist_results": {
-    "dag_closure": "PASS (4/4 sessions final)",
-    "evidentiary_threshold": "PASS (One-Way doors backed by Grade A/B evidence)",
-    "premortem": "PASS (Reversal triggers set for D-001)"
+  "message": "Gate evaluation complete.",
+  "data": {
+    "gate_status": "PASS",
+    "gate_passed": true,
+    "track_a": {"passed": 5, "issues": []},
+    "track_b": {"passed": 3, "issues": []}
   },
-  "next_step": "Proceed to scaffolding. FAD.md is sealed."
+  "next_step": "Gate passed. Proceed to implementation using FAD.md as architectural source of truth."
 }
 ```
 

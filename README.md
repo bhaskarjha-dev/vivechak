@@ -236,7 +236,7 @@ Vivechak's most distinctive property: it was validated by the methodology it pre
 | 2: Self-Validation (Gen 2) | ✅ | 11 meta-research sessions → 10 verdicts → Gen 3 spec |
 | 3: Framework Release (v1.0–v1.1) | ✅ | Framework, generators, templates, bias correction |
 | 4: Methodology Expansion | ✅ | 3 scope levels (Project / Decision / Comparison) |
-| 5: MCP Server | ✅ | Go MCP server with 9 tools, 32/32 tests passing |
+| 5: MCP Server | ✅ | Go MCP server with 9 tools, 26/26 tests passing |
 | 6: Distribution | ✅ | GoReleaser, installers, Homebrew/Scoop/winget, CI pipelines |
 | 7: Demand Proof | Next | Real case study, free wedge skill, content marketing |
 | 8: Research Frontiers | Future | DSPy optimization, multi-agent debate, longitudinal calibration |
