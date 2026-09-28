@@ -3,7 +3,6 @@ package core
 import (
 	"bytes"
 	"fmt"
-	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -21,49 +20,82 @@ type Frontmatter map[string]any
 
 // ParseFrontmatter extracts YAML frontmatter from a Markdown document.
 // Returns the frontmatter (may be nil if none found) and the remaining body.
+//
+// Handles UTF-8 BOM, \r\n line endings, and leading whitespace robustly
+// by tracking byte offsets in the original data rather than string indexing.
 func ParseFrontmatter(data []byte) (Frontmatter, []byte, error) {
-	content := string(data)
+	d := data
+
+	// Skip UTF-8 BOM if present
+	if len(d) >= 3 && d[0] == 0xEF && d[1] == 0xBB && d[2] == 0xBF {
+		d = d[3:]
+	}
+
+	// Skip leading whitespace
+	start := 0
+	for start < len(d) && (d[start] == ' ' || d[start] == '\t' || d[start] == '\r' || d[start] == '\n') {
+		start++
+	}
 
 	// Must start with "---"
-	if !strings.HasPrefix(strings.TrimSpace(content), "---") {
+	if len(d)-start < 3 || !bytes.Equal(d[start:start+3], []byte("---")) {
 		return nil, data, nil
 	}
 
-	// Find opening delimiter
-	trimmed := strings.TrimSpace(content)
-	rest := trimmed[3:] // skip first "---"
+	// Find end of opening "---" line
+	openEnd := start + 3
+	for openEnd < len(d) && d[openEnd] != '\n' {
+		openEnd++
+	}
+	if openEnd < len(d) {
+		openEnd++ // skip the \n
+	}
 
-	// Find closing delimiter — must be "---" on a line by itself
-	endIdx := -1
-	lines := strings.Split(rest, "\n")
-	charCount := 0
-	for i, line := range lines {
-		if i > 0 && strings.TrimSpace(line) == "---" {
-			endIdx = charCount
+	// Scan for closing "---" on a line by itself
+	yamlStart := openEnd
+	closeLineStart := -1
+	closeLineEnd := -1
+	pos := yamlStart
+	for pos < len(d) {
+		lineStart := pos
+		lineEnd := pos
+		for lineEnd < len(d) && d[lineEnd] != '\n' {
+			lineEnd++
+		}
+
+		trimmedLine := bytes.TrimRight(d[lineStart:lineEnd], " \t\r")
+		if bytes.Equal(trimmedLine, []byte("---")) {
+			closeLineStart = lineStart
+			closeLineEnd = lineEnd
+			if closeLineEnd < len(d) {
+				closeLineEnd++ // include the \n
+			}
 			break
 		}
-		charCount += len(line) + 1 // +1 for the \n
+
+		if lineEnd < len(d) {
+			pos = lineEnd + 1
+		} else {
+			pos = lineEnd
+			break
+		}
 	}
-	if endIdx == -1 {
+
+	if closeLineStart == -1 {
 		return nil, data, nil
 	}
 
-	yamlBlock := rest[:endIdx]
-	bodyStart := strings.Index(content, rest[endIdx:])
-
-	// Find the actual body start (skip the closing --- line)
-	remaining := content[bodyStart:]
-	if idx := strings.Index(remaining, "\n"); idx >= 0 {
-		remaining = remaining[idx+1:]
-	}
+	// Extract YAML block and body
+	yamlBlock := d[yamlStart:closeLineStart]
+	body := d[closeLineEnd:]
 
 	// Parse YAML
 	fm := make(Frontmatter)
-	if err := yaml.Unmarshal([]byte(yamlBlock), &fm); err != nil {
+	if err := yaml.Unmarshal(yamlBlock, &fm); err != nil {
 		return nil, data, fmt.Errorf("parsing YAML frontmatter: %w", err)
 	}
 
-	return fm, []byte(remaining), nil
+	return fm, body, nil
 }
 
 // ComposeFrontmatter creates a Markdown document with YAML frontmatter.

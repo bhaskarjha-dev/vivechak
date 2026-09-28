@@ -101,6 +101,58 @@ No frontmatter here.
 	}
 }
 
+func TestParseFrontmatter_LeadingWhitespace(t *testing.T) {
+	input := []byte("\n\n  ---\nsession_id: R-01\ntitle: Test\n---\n\n# Body\n")
+	fm, body, err := ParseFrontmatter(input)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if fm == nil {
+		t.Fatal("expected frontmatter with leading whitespace")
+	}
+	if fm.GetString("session_id") != "R-01" {
+		t.Errorf("session_id: got %q, want %q", fm.GetString("session_id"), "R-01")
+	}
+	if !strings.Contains(string(body), "# Body") {
+		t.Errorf("body should contain '# Body', got %q", string(body))
+	}
+}
+
+func TestParseFrontmatter_BOM(t *testing.T) {
+	// UTF-8 BOM: EF BB BF
+	input := append([]byte{0xEF, 0xBB, 0xBF}, []byte("---\ntitle: BOM Test\n---\n\n# Body\n")...)
+	fm, body, err := ParseFrontmatter(input)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if fm == nil {
+		t.Fatal("expected frontmatter with BOM")
+	}
+	if fm.GetString("title") != "BOM Test" {
+		t.Errorf("title: got %q, want %q", fm.GetString("title"), "BOM Test")
+	}
+	if !strings.Contains(string(body), "# Body") {
+		t.Errorf("body should contain '# Body', got %q", string(body))
+	}
+}
+
+func TestParseFrontmatter_CRLF(t *testing.T) {
+	input := []byte("---\r\nsession_id: R-01\r\ntitle: CRLF Test\r\n---\r\n\r\n# Body\r\n")
+	fm, body, err := ParseFrontmatter(input)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if fm == nil {
+		t.Fatal("expected frontmatter with CRLF")
+	}
+	if fm.GetString("session_id") != "R-01" {
+		t.Errorf("session_id: got %q, want %q", fm.GetString("session_id"), "R-01")
+	}
+	if len(body) == 0 {
+		t.Error("body should not be empty")
+	}
+}
+
 func TestComposeFrontmatter(t *testing.T) {
 	fm := Frontmatter{
 		"session_id": "R-01",
