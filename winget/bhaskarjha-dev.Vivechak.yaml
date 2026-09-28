@@ -1,3 +1,4 @@
+# Reference manifest — GoReleaser generates the published version with correct hashes and URLs.
 # yaml-language-server: $schema=https://aka.ms/winget-manifest.singleton.1.6.0.schema.json
 PackageIdentifier: bhaskarjha-dev.Vivechak
 PackageVersion: 0.1.0

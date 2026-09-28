@@ -11,16 +11,16 @@ class Vivechak < Formula
 
   on_macos do
     url "https://github.com/bhaskarjha-dev/vivechak/releases/download/v#{version}/vivechak_#{version}_darwin_all.tar.gz"
-    sha256 "PLACEHOLDER" # Updated by GoReleaser or CI
+    sha256 "PLACEHOLDER" # Auto-filled by GoReleaser during release — do not edit manually
   end
 
   on_linux do
     if Hardware::CPU.arm?
       url "https://github.com/bhaskarjha-dev/vivechak/releases/download/v#{version}/vivechak_#{version}_linux_arm64.tar.gz"
-      sha256 "PLACEHOLDER" # Updated by GoReleaser or CI
+      sha256 "PLACEHOLDER" # Auto-filled by GoReleaser during release — do not edit manually
     else
       url "https://github.com/bhaskarjha-dev/vivechak/releases/download/v#{version}/vivechak_#{version}_linux_amd64.tar.gz"
-      sha256 "PLACEHOLDER" # Updated by GoReleaser or CI
+      sha256 "PLACEHOLDER" # Auto-filled by GoReleaser during release — do not edit manually
     end
   end
 
