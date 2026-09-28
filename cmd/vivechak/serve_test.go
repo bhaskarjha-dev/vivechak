@@ -20,7 +20,7 @@ type testEnvelope struct {
 	Data     map[string]any `json:"data,omitempty"`
 	Warnings []string       `json:"warnings,omitempty"`
 	NextStep string         `json:"next_step,omitempty"`
-	Meta     map[string]any `json:"_meta,omitempty"`
+	Meta     map[string]any `json:"meta,omitempty"`
 }
 
 func parseTestEnvelope(t *testing.T, res *mcp.CallToolResult) testEnvelope {

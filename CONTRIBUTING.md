@@ -25,6 +25,45 @@ Vivechak was created by applying its own methodology to itself — 11 meta-resea
 
 ---
 
+## Development Setup
+
+### Prerequisites
+- **Go 1.24+** (uses standard library `os.Root` APIs).
+- Git.
+
+### Building
+```bash
+go build ./cmd/vivechak/
+```
+
+### Running Tests
+```bash
+# Run all tests
+go test ./...
+
+# Run tests with race detector
+go test -race ./...
+
+# Measure test coverage
+go test -cover ./...
+```
+
+### Verifying Embed Sync
+The embedded generators and templates in `internal/embed/` must stay synchronized with root-level files:
+```bash
+# Verify generator sync
+diff GENERATOR.md internal/embed/generators/GENERATOR.md
+diff GENERATOR-DECISION.md internal/embed/generators/GENERATOR-DECISION.md
+diff GENERATOR-COMPARISON.md internal/embed/generators/GENERATOR-COMPARISON.md
+
+# Verify template sync
+for f in templates/*.md; do
+  diff "$f" "internal/embed/templates/$(basename "$f")"
+done
+```
+
+---
+
 ## Release Checklist
 
 When releasing a new version, update ALL of the following references:

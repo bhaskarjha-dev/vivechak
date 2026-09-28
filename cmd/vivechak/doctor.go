@@ -116,23 +116,7 @@ func checkWorkspace(workspace string) (bool, []string, []string) {
 			}
 
 			// Check orphaned
-			var id string
-			if fm != nil {
-				if sid := fm.GetString("session_id"); sid != "" {
-					id = sid
-				} else if fid := fm.GetString("id"); fid != "" {
-					id = fid
-				}
-			}
-			if id == "" {
-				name := strings.TrimSuffix(e.Name(), ".md")
-				parts := strings.SplitN(name, "-", 3)
-				if len(parts) >= 2 {
-					id = parts[0] + "-" + parts[1]
-				} else {
-					id = name
-				}
-			}
+			id := core.ExtractSessionID(e.Name(), fm)
 
 			if id != "" && !strings.Contains(pipelineContent, id) {
 				errs = append(errs, fmt.Sprintf("✗ Orphaned session (not in pipeline): %s", e.Name()))

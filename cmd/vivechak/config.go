@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -84,15 +85,51 @@ func runMCPConfig() {
 	}
 
 	// merge with existing
-	var existing map[string]any
+	var out []byte
 	b, err := os.ReadFile(configPath)
 	if err == nil {
-		if jsonErr := json.Unmarshal(b, &existing); jsonErr != nil {
-			fmt.Fprintf(os.Stderr, "Warning: existing config at %s is not valid JSON: %v\n", configPath, jsonErr)
+		merged, mergeErr := mergeConfig(b, exePath)
+		if mergeErr != nil {
+			fmt.Fprintf(os.Stderr, "Warning: %v\n", mergeErr)
 			fmt.Fprintf(os.Stderr, "Creating backup at %s.bak and writing fresh config\n", configPath)
 			if backupErr := os.WriteFile(configPath+".bak", b, 0644); backupErr != nil {
 				fmt.Fprintf(os.Stderr, "Warning: could not create backup: %v\n", backupErr)
 			}
+			fresh, freshErr := mergeConfig(nil, exePath)
+			if freshErr != nil {
+				fmt.Fprintf(os.Stderr, "failed to create fresh config: %v\n", freshErr)
+				os.Exit(1)
+			}
+			out = fresh
+		} else {
+			out = merged
+		}
+	} else {
+		fresh, freshErr := mergeConfig(nil, exePath)
+		if freshErr != nil {
+			fmt.Fprintf(os.Stderr, "failed to create fresh config: %v\n", freshErr)
+			os.Exit(1)
+		}
+		out = fresh
+	}
+
+	if err := writeConfigFile(configPath, out); err != nil {
+		fmt.Fprintln(os.Stderr, err.Error())
+		os.Exit(1)
+	}
+
+	fmt.Fprintf(os.Stderr, "Successfully wrote config to %s\n", configPath)
+}
+
+// mergeConfig merges the vivechak MCP server entry into existing config JSON,
+// preserving number fidelity with json.Number.
+func mergeConfig(existingBytes []byte, exePath string) ([]byte, error) {
+	var existing map[string]any
+	if len(bytes.TrimSpace(existingBytes)) > 0 {
+		dec := json.NewDecoder(bytes.NewReader(existingBytes))
+		dec.UseNumber()
+		if err := dec.Decode(&existing); err != nil {
+			return nil, fmt.Errorf("existing config is not valid JSON: %w", err)
 		}
 	}
 	if existing == nil {
@@ -105,8 +142,7 @@ func runMCPConfig() {
 
 	servers, ok := existing["mcpServers"].(map[string]any)
 	if !ok {
-		fmt.Fprintln(os.Stderr, "mcpServers in config is not a JSON object")
-		os.Exit(1)
+		return nil, fmt.Errorf("mcpServers in config is not a JSON object")
 	}
 
 	servers["vivechak"] = map[string]any{
@@ -114,39 +150,40 @@ func runMCPConfig() {
 		"args":    []string{"serve"},
 	}
 
-	out, _ := json.MarshalIndent(existing, "", "  ")
+	out, err := json.MarshalIndent(existing, "", "  ")
+	if err != nil {
+		return nil, fmt.Errorf("marshaling merged config: %w", err)
+	}
 	out = append(out, '\n')
+	return out, nil
+}
 
+// writeConfigFile atomically writes config content to configPath.
+func writeConfigFile(configPath string, out []byte) error {
 	dir := filepath.Dir(configPath)
 	if err := os.MkdirAll(dir, 0755); err != nil {
-		fmt.Fprintf(os.Stderr, "failed to create directory %s: %v\n", dir, err)
-		os.Exit(1)
+		return fmt.Errorf("failed to create directory %s: %w", dir, err)
 	}
 
 	tmpFile := configPath + ".tmp"
 	f, err := os.OpenFile(tmpFile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to open temp file: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("failed to open temp file: %w", err)
 	}
 	if _, err := f.Write(out); err != nil {
 		f.Close()
-		fmt.Fprintf(os.Stderr, "failed to write temp file: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("failed to write temp file: %w", err)
 	}
 	if err := f.Sync(); err != nil {
 		f.Close()
-		fmt.Fprintf(os.Stderr, "failed to sync temp file: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("failed to sync temp file: %w", err)
 	}
 	f.Close()
 
 	if err := os.Rename(tmpFile, configPath); err != nil {
-		fmt.Fprintf(os.Stderr, "failed to rename temp file: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("failed to rename temp file: %w", err)
 	}
-
-	fmt.Fprintf(os.Stderr, "Successfully wrote config to %s\n", configPath)
+	return nil
 }
 
 // resolveConfigPath returns the destination configuration file path for the host client.

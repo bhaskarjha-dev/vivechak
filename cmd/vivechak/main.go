@@ -12,8 +12,11 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
+	"os/signal"
+	"syscall"
 
 	mcputil "github.com/bhaskarjha-dev/vivechak/internal/mcp"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -22,7 +25,17 @@ import (
 // version is set at build time via ldflags, e.g. -ldflags "-X main.version=vX.Y.Z".
 // During development (go run/go build without ldflags), this default is used.
 // During release, GoReleaser injects the git tag version via ldflags.
-var version = "0.1.0"
+var version = "0.1.0-dev"
+
+func printUsage(w io.Writer) {
+	fmt.Fprintf(w, "vivechak %s\n\n", version)
+	fmt.Fprintf(w, "Usage: vivechak <command>\n\n")
+	fmt.Fprintf(w, "Commands:\n")
+	fmt.Fprintf(w, "  serve        Start MCP server over stdio (default — connects to ANY MCP client)\n")
+	fmt.Fprintf(w, "  version      Print version\n")
+	fmt.Fprintf(w, "  mcp-config   Output universal MCP JSON configuration (or auto-write via --client <preset> / --path <path> --write)\n")
+	fmt.Fprintf(w, "  doctor       Check workspace integrity\n")
+}
 
 func main() {
 	// CRITICAL: slog MUST write to stderr; stdout is MCP protocol-only.
@@ -47,31 +60,22 @@ func main() {
 	case "doctor":
 		runDoctor()
 	case "help", "--help", "-h":
-		fmt.Fprintf(os.Stdout, "vivechak %s\n\n", version)
-		fmt.Fprintf(os.Stdout, "Usage: vivechak <command>\n\n")
-		fmt.Fprintf(os.Stdout, "Commands:\n")
-		fmt.Fprintf(os.Stdout, "  serve        Start MCP server over stdio (default — connects to ANY MCP client)\n")
-		fmt.Fprintf(os.Stdout, "  version      Print version\n")
-		fmt.Fprintf(os.Stdout, "  mcp-config   Output universal MCP JSON configuration (or auto-write via --client <preset> / --path <path> --write)\n")
-		fmt.Fprintf(os.Stdout, "  doctor       Check workspace integrity\n")
+		printUsage(os.Stdout)
 		os.Exit(0)
 	default:
-		fmt.Fprintf(os.Stderr, "vivechak %s\n\n", version)
-		fmt.Fprintf(os.Stderr, "Usage: vivechak <command>\n\n")
-		fmt.Fprintf(os.Stderr, "Commands:\n")
-		fmt.Fprintf(os.Stderr, "  serve        Start MCP server over stdio (default — connects to ANY MCP client)\n")
-		fmt.Fprintf(os.Stderr, "  version      Print version\n")
-		fmt.Fprintf(os.Stderr, "  mcp-config   Output universal MCP JSON configuration (or auto-write via --client <preset> / --path <path> --write)\n")
-		fmt.Fprintf(os.Stderr, "  doctor       Check workspace integrity\n")
+		printUsage(os.Stderr)
 		os.Exit(1)
 	}
 }
 
 func runServe(logger *slog.Logger) {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
 	server := mcputil.NewServer(version, logger)
 
 	logger.Info("starting vivechak MCP server", "version", version)
-	if err := server.Run(context.Background(), &mcp.StdioTransport{}); err != nil {
+	if err := server.Run(ctx, &mcp.StdioTransport{}); err != nil && err != context.Canceled {
 		logger.Error("server exited with error", "err", err)
 		os.Exit(1)
 	}
