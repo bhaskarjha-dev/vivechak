@@ -51,6 +51,13 @@ func handlePrepareGenerator(_ context.Context, _ *sdkmcp.CallToolRequest, in Pre
 				"Use scope 'project', 'decision', or 'comparison'.")
 		}
 		scope = s
+	} else if in.ProjectRoot != "" {
+		if ws, err := core.ResolveWorkspace(in.ProjectRoot); err == nil {
+			info := core.InspectWorkspace(ws)
+			if info.Scope != "" {
+				scope = info.Scope
+			}
+		}
 	}
 
 	// Validate context
@@ -131,11 +138,11 @@ func handlePrepareGenerator(_ context.Context, _ *sdkmcp.CallToolRequest, in Pre
 		Success: true,
 		Message: fmt.Sprintf("Prepared %s generator prompt (%d chars, ~%d tokens)", scope, len(genPrompt), approxTokens),
 		Data: map[string]any{
-			"scope":           scope,
-			"generator_file":  genFile,
-			"prompt":          genPrompt,
-			"char_count":      len(genPrompt),
-			"approx_tokens":   approxTokens,
+			"scope":          scope,
+			"generator_file": genFile,
+			"prompt":         genPrompt,
+			"char_count":     len(genPrompt),
+			"approx_tokens":  approxTokens,
 		},
 		NextStep: "Execute this prompt in a fresh AI session with web search enabled. " +
 			"Save the output using vivechak_save_plan.",

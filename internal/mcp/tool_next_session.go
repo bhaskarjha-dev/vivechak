@@ -99,7 +99,11 @@ func handleNextSession(_ context.Context, _ *sdkmcp.CallToolRequest, in NextSess
 			// Session found but no prompt — return what we have
 			return buildSessionResponse(tool, *session, "", completedIDs, dag, in.Verbose, nil)
 		}
-		return buildSessionResponse(tool, injected.Session, injected.InjectedPrompt, completedIDs, dag, in.Verbose, nil)
+		var injWarnings []string
+		if injected.Warning != "" {
+			injWarnings = append(injWarnings, injected.Warning)
+		}
+		return buildSessionResponse(tool, injected.Session, injected.InjectedPrompt, completedIDs, dag, in.Verbose, injWarnings)
 	}
 
 	// Find next actionable sessions
@@ -138,8 +142,8 @@ func handleNextSession(_ context.Context, _ *sdkmcp.CallToolRequest, in NextSess
 				}
 			}
 			blockedInfo = append(blockedInfo, map[string]any{
-				"session_id":   s.ID,
-				"blocked_by":   missingDeps,
+				"session_id": s.ID,
+				"blocked_by": missingDeps,
 			})
 		}
 
@@ -167,6 +171,9 @@ func handleNextSession(_ context.Context, _ *sdkmcp.CallToolRequest, in NextSess
 	var injWarnings []string
 	if injErr == nil && injected != nil {
 		prompt = injected.InjectedPrompt
+		if injected.Warning != "" {
+			injWarnings = append(injWarnings, injected.Warning)
+		}
 	} else {
 		prompt = nextSession.Prompt
 		if injErr != nil {
@@ -188,16 +195,16 @@ func handleNextSession(_ context.Context, _ *sdkmcp.CallToolRequest, in NextSess
 // buildSessionResponse creates the response envelope for a session.
 func buildSessionResponse(tool string, session core.Session, prompt string, completedIDs map[string]bool, dag *core.DAG, verbose bool, preWarnings []string, otherReady ...string) (*sdkmcp.CallToolResult, Envelope, error) {
 	data := map[string]any{
-		"session_id":          session.ID,
-		"title":               session.Title,
-		"layer":               session.Layer,
-		"door_type":           session.DoorType,
-		"decision_ref":        session.DecisionRef,
-		"dependencies":        session.Dependencies,
-		"output_file":         session.OutputFile,
-		"total_sessions":      len(dag.Sessions),
-		"completed_sessions":  len(completedIDs),
-		"already_completed":   completedIDs[session.ID],
+		"session_id":         session.ID,
+		"title":              session.Title,
+		"layer":              session.Layer,
+		"door_type":          session.DoorType,
+		"decision_ref":       session.DecisionRef,
+		"dependencies":       session.Dependencies,
+		"output_file":        session.OutputFile,
+		"total_sessions":     len(dag.Sessions),
+		"completed_sessions": len(completedIDs),
+		"already_completed":  completedIDs[session.ID],
 	}
 
 	// Progressive disclosure: truncate if prompt is very large

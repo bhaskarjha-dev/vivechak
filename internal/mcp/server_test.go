@@ -258,6 +258,50 @@ func TestPrepareGenerator(t *testing.T) {
 	}
 }
 
+func TestPrepareGenerator_ScopeAutoDetect(t *testing.T) {
+	cs := testServer(t)
+	ctx := context.Background()
+	tmpDir := t.TempDir()
+
+	// Initialize decision-scope workspace
+	_, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_init",
+		Arguments: map[string]any{
+			"project_root": tmpDir,
+			"scope":        "decision",
+		},
+	})
+	if err != nil {
+		t.Fatalf("vivechak_init: %v", err)
+	}
+
+	// Call prepare_generator without scope, providing project_root
+	result, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_prepare_generator",
+		Arguments: map[string]any{
+			"project_root": tmpDir,
+			"context":      "Choose between PostgreSQL and DynamoDB",
+		},
+	})
+	if err != nil {
+		t.Fatalf("vivechak_prepare_generator: %v", err)
+	}
+
+	env := parseEnvelope(t, result)
+	if !env.Success {
+		t.Fatalf("prepare_generator failed: %s", env.Message)
+	}
+
+	data, ok := env.Data.(map[string]any)
+	if !ok {
+		t.Fatal("data should be a map")
+	}
+
+	if data["scope"] != "decision" {
+		t.Errorf("expected scope 'decision' auto-detected from workspace, got %v", data["scope"])
+	}
+}
+
 // TestSaveSessionValidation tests the validation ladder on session save.
 func TestSaveSessionValidation(t *testing.T) {
 	cs := testServer(t)
@@ -303,6 +347,14 @@ Use this approach for production.
 	env := parseEnvelope(t, result)
 	if !env.Success {
 		t.Fatalf("save_session failed: %s", env.Message)
+	}
+
+	data, ok := env.Data.(map[string]any)
+	if !ok {
+		t.Fatal("data should be a map")
+	}
+	if data["validation_passed"] != true {
+		t.Errorf("expected validation_passed = true, got %v", data["validation_passed"])
 	}
 
 	// Verify file was saved
@@ -736,7 +788,7 @@ status: complete
 Findings... A (doc)
 `
 	result, _ = cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_save_session",
+		Name:      "vivechak_save_session",
 		Arguments: map[string]any{"project_root": tmpDir, "session_id": "T1-01", "content": t101Output},
 	})
 
@@ -750,7 +802,7 @@ status: complete
 Findings... B (doc)
 `
 	result, _ = cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_save_session",
+		Name:      "vivechak_save_session",
 		Arguments: map[string]any{"project_root": tmpDir, "session_id": "T1-02", "content": t102Output},
 	})
 
@@ -765,7 +817,7 @@ status: complete
 Combined findings. A (official documentation)
 `
 	result, _ = cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_save_session",
+		Name:      "vivechak_save_session",
 		Arguments: map[string]any{"project_root": tmpDir, "session_id": "SYN-01", "content": syn01Output},
 	})
 
@@ -818,7 +870,7 @@ PostgreSQL 16 selected as primary datastore. A (official documentation)
 All decisions recorded with review triggers. C (team review)
 `
 	result, _ = cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_save_session",
+		Name:      "vivechak_save_session",
 		Arguments: map[string]any{"project_root": tmpDir, "session_id": "FAD", "content": fadOutput},
 	})
 
@@ -931,10 +983,10 @@ func TestIDValidationRejectsTraversal(t *testing.T) {
 	result, err = cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_record_decision",
 		Arguments: map[string]any{
-			"project_root": tmpDir,
+			"project_root":  tmpDir,
 			"artifact_type": "decision",
-			"decision_id":  "../../../hack",
-			"content":      "content",
+			"decision_id":   "../../../hack",
+			"content":       "content",
 		},
 	})
 	if err != nil {
@@ -965,7 +1017,7 @@ func TestContentSizeLimit(t *testing.T) {
 
 	// 10MB + 1 string
 	hugeContent := strings.Repeat("A", 10*1024*1024+1)
-	
+
 	result, err := cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_save_session",
 		Arguments: map[string]any{
@@ -1013,3 +1065,103 @@ func TestInit_RejectsFilesystemRoot(t *testing.T) {
 	}
 }
 
+func TestNextSession_InjectionSizeWarning(t *testing.T) {
+	cs := testServer(t)
+	ctx := context.Background()
+	tmpDir := t.TempDir()
+
+	// 1. Init workspace
+	_, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "vivechak_init",
+		Arguments: map[string]any{"project_root": tmpDir, "scope": "project"},
+	})
+	if err != nil {
+		t.Fatalf("init: %v", err)
+	}
+
+	// 2. Save pipeline with T1-01 and SYN-01
+	pipeline := `# Research Pipeline
+## Sessions
+### Session T1-01
+| Field | Value |
+|---|---|
+| **ID** | T1-01 |
+| **Dependencies** | None |
+
+` + "```prompt" + `
+Prompt T1-01
+` + "```" + `
+
+### Session SYN-01
+| Field | Value |
+|---|---|
+| **ID** | SYN-01 |
+| **Dependencies** | T1-01 |
+
+` + "```prompt" + `
+Synthesize findings:
+[ALL_SESSION_FINDINGS]
+` + "```" + `
+`
+	_, err = cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_save_plan",
+		Arguments: map[string]any{
+			"project_root": tmpDir,
+			"scope":        "project",
+			"content":      pipeline,
+		},
+	})
+	if err != nil {
+		t.Fatalf("save_plan: %v", err)
+	}
+
+	// 3. Save huge T1-01 session (>100KB)
+	largeBody := strings.Repeat("Finding: High-performance caching layer delivers 10x throughput. A (benchmark)\n", 2000)
+	t101Content := `---
+session_id: T1-01
+title: Database Selection
+date: 2026-09-29
+status: complete
+---
+# Findings
+` + largeBody
+	_, err = cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_save_session",
+		Arguments: map[string]any{
+			"project_root": tmpDir,
+			"session_id":   "T1-01",
+			"content":      t101Content,
+		},
+	})
+	if err != nil {
+		t.Fatalf("save_session: %v", err)
+	}
+
+	// 4. Request SYN-01 via next_session
+	res, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_next_session",
+		Arguments: map[string]any{
+			"project_root": tmpDir,
+			"session_id":   "SYN-01",
+		},
+	})
+	if err != nil {
+		t.Fatalf("next_session: %v", err)
+	}
+
+	env := parseEnvelope(t, res)
+	if !env.Success {
+		t.Fatalf("next_session failed: %s", env.Message)
+	}
+
+	foundWarning := false
+	for _, w := range env.Warnings {
+		if strings.Contains(w, "W-INJECTION-SIZE") {
+			foundWarning = true
+			break
+		}
+	}
+	if !foundWarning {
+		t.Errorf("expected W-INJECTION-SIZE warning in env.Warnings, got: %v", env.Warnings)
+	}
+}
