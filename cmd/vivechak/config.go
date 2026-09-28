@@ -11,21 +11,19 @@ import (
 func runMCPConfig() {
 	var host string
 	var write bool
+	var customPath string
 
 	args := os.Args[2:]
 	for i := 0; i < len(args); i++ {
 		if args[i] == "--client" && i+1 < len(args) {
 			host = args[i+1]
 			i++
+		} else if (args[i] == "--path" || args[i] == "--file") && i+1 < len(args) {
+			customPath = args[i+1]
+			i++
 		} else if args[i] == "--write" {
 			write = true
 		}
-	}
-
-	if host == "" {
-		fmt.Fprintln(os.Stderr, "Usage: vivechak mcp-config --client <host> [--write]")
-		fmt.Fprintln(os.Stderr, "Supported clients: cursor, vscode, claude-desktop, windsurf, antigravity, chatgpt, codex, kiro")
-		os.Exit(1)
 	}
 
 	exePath, err := os.Executable()
@@ -48,45 +46,42 @@ func runMCPConfig() {
 		},
 	}
 
-	supportedClients := map[string]bool{
-		"cursor":         true,
-		"vscode":         true,
-		"claude-desktop": true,
-		"windsurf":       true,
-		"antigravity":    true,
-		"chatgpt":        true,
-		"codex":          true,
-		"kiro":           true,
-	}
-
-	if !supportedClients[host] {
-		fmt.Fprintf(os.Stderr, "unknown client: %s\n", host)
-		fmt.Fprintln(os.Stderr, "Supported clients: cursor, vscode, claude-desktop, windsurf, antigravity, chatgpt, codex, kiro")
-		os.Exit(1)
-	}
-
+	// Without --write, print universal MCP config JSON compatible with any MCP client
 	if !write {
 		b, _ := json.MarshalIndent(configObj, "", "  ")
 		fmt.Fprintln(os.Stdout, string(b))
 		os.Exit(0)
 	}
 
+	// With --write, determine destination config path
 	var configPath string
 	cwd, _ := os.Getwd()
 	homeDir, _ := os.UserHomeDir()
 	appData := os.Getenv("APPDATA")
 
-	resolvedPath, err := resolveConfigPath(host, homeDir, appData, cwd, runtime.GOOS)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "%v\n", err)
+	if customPath != "" {
+		configPath = customPath
+	} else if host != "" {
+		resolvedPath, err := resolveConfigPath(host, homeDir, appData, cwd, runtime.GOOS)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%v\n", err)
+			fmt.Fprintln(os.Stderr, "Supported client presets: cursor, vscode, claude-desktop, windsurf, antigravity")
+			fmt.Fprintln(os.Stderr, "Or provide a custom config path: vivechak mcp-config --path <filepath> --write")
+			os.Exit(1)
+		}
+		if resolvedPath == "" {
+			b, _ := json.MarshalIndent(configObj, "", "  ")
+			fmt.Fprintln(os.Stdout, string(b))
+			os.Exit(0)
+		}
+		configPath = resolvedPath
+	} else {
+		fmt.Fprintln(os.Stderr, "Error: --write requires a target file location.")
+		fmt.Fprintln(os.Stderr, "Usage: vivechak mcp-config --client <preset> --write")
+		fmt.Fprintln(os.Stderr, "   or: vivechak mcp-config --path <config_file_path> --write")
+		fmt.Fprintln(os.Stderr, "Supported client presets: cursor, vscode, claude-desktop, windsurf, antigravity")
 		os.Exit(1)
 	}
-	if resolvedPath == "" {
-		b, _ := json.MarshalIndent(configObj, "", "  ")
-		fmt.Fprintln(os.Stdout, string(b))
-		os.Exit(0)
-	}
-	configPath = resolvedPath
 
 	// merge with existing
 	var existing map[string]any
