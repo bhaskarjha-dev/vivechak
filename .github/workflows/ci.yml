@@ -11,8 +11,11 @@ permissions:
 
 jobs:
   test:
-    name: Test
-    runs-on: ubuntu-latest
+    name: Test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
     steps:
       - uses: actions/checkout@v4
 
@@ -23,7 +26,14 @@ jobs:
       - name: Vet
         run: go vet ./...
 
+      - name: Lint
+        if: matrix.os == 'ubuntu-latest'
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest
+
       - name: Embed Sync Check
+        if: matrix.os == 'ubuntu-latest'
         run: |
           # Verify embedded generators match root-level generators
           diff GENERATOR.md internal/embed/generators/GENERATOR.md
@@ -37,6 +47,10 @@ jobs:
           echo "✓ Embed sync verified"
 
       - name: Test
+        run: go test -count=1 ./...
+
+      - name: Test (race)
+        if: matrix.os == 'ubuntu-latest'
         run: go test -count=1 -race ./...
 
       - name: Build
