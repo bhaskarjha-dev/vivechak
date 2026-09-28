@@ -51,7 +51,10 @@ func InjectContext(session Session, sessionsDir string, completedSessions map[st
 
 	if isSynthesis {
 		// For synthesis: inject ALL completed session findings
-		findings, sessions, totalBytes := gatherAllFindings(sessionsDir, completedSessions)
+		findings, sessions, totalBytes, err := gatherAllFindings(sessionsDir, completedSessions)
+		if err != nil {
+			return nil, fmt.Errorf("gathering all findings: %w", err)
+		}
 		// Try AllFindingsSlot first, then UpstreamFindingsSlot, then fallback append.
 		// Only inject once to prevent doubling token consumption.
 		if strings.Contains(prompt, AllFindingsSlot) {
@@ -65,7 +68,10 @@ func InjectContext(session Session, sessionsDir string, completedSessions map[st
 		result.InjectedBytes = totalBytes
 	} else if len(session.Dependencies) > 0 {
 		// For regular sessions: inject only direct dependency findings
-		findings, sessions, totalBytes := gatherDependencyFindings(sessionsDir, session.Dependencies)
+		findings, sessions, totalBytes, err := gatherDependencyFindings(sessionsDir, session.Dependencies)
+		if err != nil {
+			return nil, fmt.Errorf("gathering dependency findings: %w", err)
+		}
 		prompt = injectIntoPrompt(prompt, UpstreamFindingsSlot, findings)
 		result.UpstreamSessions = sessions
 		result.InjectedBytes = totalBytes
@@ -77,7 +83,7 @@ func InjectContext(session Session, sessionsDir string, completedSessions map[st
 
 // gatherAllFindings reads all completed session files and assembles their
 // findings into a single context block.
-func gatherAllFindings(sessionsDir string, completedSessions map[string]bool) (string, []string, int) {
+func gatherAllFindings(sessionsDir string, completedSessions map[string]bool) (string, []string, int, error) {
 	var findings []string
 	var sessionIDs []string
 	totalBytes := 0
@@ -90,7 +96,10 @@ func gatherAllFindings(sessionsDir string, completedSessions map[string]bool) (s
 	sort.Strings(sortedIDs)
 
 	for _, id := range sortedIDs {
-		content := readSessionFile(sessionsDir, id)
+		content, err := readSessionFile(sessionsDir, id)
+		if err != nil {
+			return "", nil, 0, err
+		}
 		if content == "" {
 			continue
 		}
@@ -104,17 +113,20 @@ func gatherAllFindings(sessionsDir string, completedSessions map[string]bool) (s
 		totalBytes += len(excerpt)
 	}
 
-	return strings.Join(findings, "\n\n---\n\n"), sessionIDs, totalBytes
+	return strings.Join(findings, "\n\n---\n\n"), sessionIDs, totalBytes, nil
 }
 
 // gatherDependencyFindings reads only the direct dependency session files.
-func gatherDependencyFindings(sessionsDir string, dependencies []string) (string, []string, int) {
+func gatherDependencyFindings(sessionsDir string, dependencies []string) (string, []string, int, error) {
 	var findings []string
 	var sessionIDs []string
 	totalBytes := 0
 
 	for _, depID := range dependencies {
-		content := readSessionFile(sessionsDir, depID)
+		content, err := readSessionFile(sessionsDir, depID)
+		if err != nil {
+			return "", nil, 0, err
+		}
 		if content == "" {
 			continue
 		}
@@ -127,12 +139,12 @@ func gatherDependencyFindings(sessionsDir string, dependencies []string) (string
 		totalBytes += len(excerpt)
 	}
 
-	return strings.Join(findings, "\n\n---\n\n"), sessionIDs, totalBytes
+	return strings.Join(findings, "\n\n---\n\n"), sessionIDs, totalBytes, nil
 }
 
 // readSessionFile reads a session file from the sessions directory.
 // Tries multiple filename patterns.
-func readSessionFile(sessionsDir string, sessionID string) string {
+func readSessionFile(sessionsDir string, sessionID string) (string, error) {
 	patterns := []string{
 		sessionID + ".md",
 		strings.ToLower(sessionID) + ".md",
@@ -143,26 +155,32 @@ func readSessionFile(sessionsDir string, sessionID string) string {
 		path := filepath.Join(sessionsDir, pattern)
 		data, err := os.ReadFile(path)
 		if err == nil {
-			return string(data)
+			return string(data), nil
+		}
+		// If it's a permission or other serious error, we might want to return it,
+		// but let's keep trying other patterns if it's just not found.
+		if !os.IsNotExist(err) {
+			return "", fmt.Errorf("reading session file %s: %w", path, err)
 		}
 	}
 
 	// Try to find any file containing the session ID
 	entries, err := os.ReadDir(sessionsDir)
 	if err != nil {
-		return ""
+		return "", fmt.Errorf("reading sessions directory: %w", err)
 	}
 	for _, e := range entries {
 		if strings.Contains(strings.ToUpper(e.Name()), strings.ToUpper(sessionID)) {
 			path := filepath.Join(sessionsDir, e.Name())
 			data, err := os.ReadFile(path)
 			if err == nil {
-				return string(data)
+				return string(data), nil
 			}
+			return "", fmt.Errorf("reading session file %s: %w", path, err)
 		}
 	}
 
-	return ""
+	return "", fmt.Errorf("session file not found for ID: %s", sessionID)
 }
 
 // extractFindings creates a compact context excerpt from a session body.

@@ -33,14 +33,23 @@ func ParseFrontmatter(data []byte) (Frontmatter, []byte, error) {
 	trimmed := strings.TrimSpace(content)
 	rest := trimmed[3:] // skip first "---"
 
-	// Find closing delimiter
-	endIdx := strings.Index(rest, "\n---")
+	// Find closing delimiter — must be "---" on a line by itself
+	endIdx := -1
+	lines := strings.Split(rest, "\n")
+	charCount := 0
+	for i, line := range lines {
+		if i > 0 && strings.TrimSpace(line) == "---" {
+			endIdx = charCount
+			break
+		}
+		charCount += len(line) + 1 // +1 for the \n
+	}
 	if endIdx == -1 {
 		return nil, data, nil
 	}
 
 	yamlBlock := rest[:endIdx]
-	bodyStart := strings.Index(content, rest[endIdx:]) + 4 // skip "\n---"
+	bodyStart := strings.Index(content, rest[endIdx:])
 
 	// Find the actual body start (skip the closing --- line)
 	remaining := content[bodyStart:]

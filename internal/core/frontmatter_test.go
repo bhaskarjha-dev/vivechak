@@ -1,6 +1,7 @@
 package core
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -54,6 +55,32 @@ This is the body.
 	bodyStr := string(body)
 	if len(bodyStr) == 0 {
 		t.Error("body should not be empty")
+	}
+}
+
+func TestParseFrontmatter_DashesInYAML(t *testing.T) {
+	input := []byte(`---
+title: My Document
+description: |
+  This has a line
+  ---
+  that looks like a delimiter
+---
+
+# Body here`)
+
+	fm, body, err := ParseFrontmatter(input)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if fm == nil {
+		t.Fatal("expected frontmatter")
+	}
+	if fm.GetString("title") != "My Document" {
+		t.Errorf("expected title 'My Document', got %q", fm.GetString("title"))
+	}
+	if !strings.Contains(string(body), "# Body here") {
+		t.Errorf("body should contain '# Body here', got %q", string(body))
 	}
 }
 
@@ -187,5 +214,49 @@ Single operational surface. Need to monitor graph traversal performance.
 	result := ValidateDecision([]byte(input))
 	if result.HasBlocking() {
 		t.Errorf("valid decision should not have blocking issues: %v", result.Issues)
+	}
+}
+
+func TestValidateSession_WithIdAlias(t *testing.T) {
+	inputSession := `---
+id: T1-01
+title: Test
+date: 2026-09-27
+status: complete
+---
+# Test Session
+Findings... A (doc)
+`
+	resultSession := ValidateSession([]byte(inputSession))
+	for _, issue := range resultSession.Issues {
+		if issue.Code == "V-MISSING-FIELD" && issue.Field == "session_id" {
+			t.Errorf("should not have V-MISSING-FIELD for session_id when 'id' is present")
+		}
+	}
+	if resultSession.HasBlocking() {
+		t.Errorf("session with 'id' alias should be valid, got issues: %v", resultSession.Issues)
+	}
+
+	inputDecision := `---
+id: D-001
+title: Primary Datastore Selection
+status: accepted
+door_type: one-way
+---
+# Context
+We need a database. We evaluated several databases, and PostgreSQL seems to be the best for our needs, given pgvector support.
+# Decision
+Use PostgreSQL.
+# Consequences
+Single operational surface. It is very easy to use and well documented. A (doc)
+`
+	resultDecision := ValidateDecision([]byte(inputDecision))
+	for _, issue := range resultDecision.Issues {
+		if issue.Code == "V-MISSING-FIELD" && issue.Field == "decision_id" {
+			t.Errorf("should not have V-MISSING-FIELD for decision_id when 'id' is present")
+		}
+	}
+	if resultDecision.HasBlocking() || resultDecision.WarningCount() > 0 {
+		t.Errorf("decision with 'id' alias should be valid, got issues: %v", resultDecision.Issues)
 	}
 }
