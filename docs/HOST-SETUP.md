@@ -130,6 +130,36 @@ Edit `.gemini/settings.json` in your project root:
 
 ---
 
+## Windsurf
+
+### Automatic
+```sh
+vivechak mcp-config --client windsurf --write
+```
+
+### Manual
+
+Edit `~/.codeium/windsurf/mcp_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "vivechak": {
+      "command": "/usr/local/bin/vivechak",
+      "args": ["serve"]
+    }
+  }
+}
+```
+
+| OS | Config Path |
+|---|---|
+| macOS | `~/.codeium/windsurf/mcp_config.json` |
+| Linux | `~/.codeium/windsurf/mcp_config.json` |
+| Windows | `%USERPROFILE%\.codeium\windsurf\mcp_config.json` |
+
+---
+
 ## ChatGPT (Codex)
 
 ### Automatic
