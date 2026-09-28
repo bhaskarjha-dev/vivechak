@@ -126,6 +126,7 @@ brews:
     repository:
       owner: bhaskarjha-dev
       name: homebrew-tap
+      token: "{{ if index .Env \"TAP_GITHUB_TOKEN\" }}{{ .Env.TAP_GITHUB_TOKEN }}{{ else }}{{ .Env.GITHUB_TOKEN }}{{ end }}"
     directory: Formula
     homepage: https://github.com/bhaskarjha-dev/vivechak
     description: Evidence-grounded research for technical decisions — MCP server
@@ -142,6 +143,7 @@ scoops:
     repository:
       owner: bhaskarjha-dev
       name: scoop-bucket
+      token: "{{ if index .Env \"TAP_GITHUB_TOKEN\" }}{{ .Env.TAP_GITHUB_TOKEN }}{{ else }}{{ .Env.GITHUB_TOKEN }}{{ end }}"
     homepage: https://github.com/bhaskarjha-dev/vivechak
     description: Evidence-grounded research for technical decisions — MCP server
     license: MIT
