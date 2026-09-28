@@ -147,7 +147,7 @@ vivechak/
 │
 ├── templates/                      ← 5 operational contracts (copy to projects)
 ├── examples/                       ← Concrete adoption walkthroughs
-├── meta-research/                  ← Empirical evidence base (sealed provenance)
+├── docs/meta-research/              ← 14 locked ADRs + evidence provenance
 │
 ├── AGENTS.md                       ← AI agent operating manual
 ├── ROADMAP.md · CHANGELOG.md       ← Project history

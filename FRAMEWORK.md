@@ -744,4 +744,4 @@ This framework was produced by applying Vivechak to itself:
 - **31 evidence nodes** from peer-reviewed studies, industry standards, and empirical benchmarks
 - **10 hypothesis verdicts** — 0 fully validated as-is, 3 refuted, 5 refined, 2 validated with enhancements
 
-The complete evidence base is preserved in [meta-research/](meta-research/). The framework is fully self-contained without it.
+The complete evidence base is preserved in [docs/meta-research/](docs/meta-research/). The framework is fully self-contained without it.

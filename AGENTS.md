@@ -125,7 +125,7 @@ vivechak/
 │   └── PHASE-0-GATE.template.md    ← Two-track pre-codebase exit gate
 │
 ├── examples/                       ← Concrete adoption walkthroughs
-│   └── SAMPLE-PIPELINE.md          ← End-to-end Tier 1 sample project
+│   └── SAMPLE-PIPELINE.md          ← End-to-end MCP workflow sample (Katha project)
 │
 ├── docs/                           ← Documentation
 │   ├── QUICKSTART.md               ← Vivechak in 5 Minutes
@@ -133,15 +133,14 @@ vivechak/
 │   ├── HOST-SETUP.md               ← Per-host MCP config (7 hosts)
 │   ├── MCP-TOOLS.md                ← 9-tool reference with examples
 │   ├── ARCHITECTURE.md             ← Server internals for contributors
-│   └── assets/logo.jpg             ← Minimalist prism logo
-│
-├── meta-research/                  ← Empirical evidence base (sealed)
-│   ├── README.md                   ← Provenance index
-│   ├── DECISIONS.md                ← v1.0: 10 hypothesis verdicts
-│   ├── RESEARCH-PIPELINE.md        ← v1.0: meta-research execution DAG
-│   ├── PROMPT-LIBRARY.md           ← v1.0: 14 meta-research prompts
-│   ├── sessions/                   ← v1.0: 15 primary research artifacts
-│   └── v2-research/                ← v2.0: 12 sessions + FINAL-PLAN (MCP evidence)
+│   ├── assets/logo.jpg             ← Minimalist prism logo
+│   └── meta-research/              ← Empirical evidence base
+│       ├── README.md               ← Provenance index
+│       ├── DECISIONS.md            ← All 14 locked ADRs (D-001–D-014)
+│       ├── RESEARCH-PIPELINE-v1.md ← v1.0: meta-research execution DAG
+│       └── v2/                     ← v1.1: MCP server evidence
+│           ├── FINAL-PLAN.md       ← Definitive 5-phase plan
+│           └── RESEARCH-PIPELINE-v2.md ← v1.1: 6-session pipeline
 │
 ├── Formula/ · scoop/ · winget/     ← Package manager manifests
 │
