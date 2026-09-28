@@ -68,7 +68,10 @@ func handlePrepareGenerator(_ context.Context, _ *sdkmcp.CallToolRequest, in Pre
 			"This is an internal error — the generator file should be embedded in the binary.")
 	}
 
-	// Inject context into the generator prompt
+	// Inject context into the generator prompt.
+	// NOTE: in.Context is injected via string replacement. This is safe because the
+	// output is returned as text for human/agent review, not executed. If this function
+	// is ever extended to directly execute the prompt, sanitization would be required.
 	genPrompt := string(genBytes)
 	switch scope {
 	case core.ScopeProject:

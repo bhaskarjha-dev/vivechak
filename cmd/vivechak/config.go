@@ -65,7 +65,7 @@ func runMCPConfig() {
 		resolvedPath, err := resolveConfigPath(host, homeDir, appData, cwd, runtime.GOOS)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%v\n", err)
-			fmt.Fprintln(os.Stderr, "Supported client presets: cursor, vscode, claude-desktop, windsurf, antigravity")
+			fmt.Fprintln(os.Stderr, "Supported client presets: cursor, vscode, claude-desktop, windsurf, antigravity, chatgpt, codex, kiro")
 			fmt.Fprintln(os.Stderr, "Or provide a custom config path: vivechak mcp-config --path <filepath> --write")
 			os.Exit(1)
 		}
@@ -79,7 +79,7 @@ func runMCPConfig() {
 		fmt.Fprintln(os.Stderr, "Error: --write requires a target file location.")
 		fmt.Fprintln(os.Stderr, "Usage: vivechak mcp-config --client <preset> --write")
 		fmt.Fprintln(os.Stderr, "   or: vivechak mcp-config --path <config_file_path> --write")
-		fmt.Fprintln(os.Stderr, "Supported client presets: cursor, vscode, claude-desktop, windsurf, antigravity")
+		fmt.Fprintln(os.Stderr, "Supported client presets: cursor, vscode, claude-desktop, windsurf, antigravity, chatgpt, codex, kiro")
 		os.Exit(1)
 	}
 
@@ -87,7 +87,13 @@ func runMCPConfig() {
 	var existing map[string]any
 	b, err := os.ReadFile(configPath)
 	if err == nil {
-		json.Unmarshal(b, &existing)
+		if jsonErr := json.Unmarshal(b, &existing); jsonErr != nil {
+			fmt.Fprintf(os.Stderr, "Warning: existing config at %s is not valid JSON: %v\n", configPath, jsonErr)
+			fmt.Fprintf(os.Stderr, "Creating backup at %s.bak and writing fresh config\n", configPath)
+			if backupErr := os.WriteFile(configPath+".bak", b, 0644); backupErr != nil {
+				fmt.Fprintf(os.Stderr, "Warning: could not create backup: %v\n", backupErr)
+			}
+		}
 	}
 	if existing == nil {
 		existing = make(map[string]any)
