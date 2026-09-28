@@ -100,7 +100,7 @@ func ParseFrontmatter(data []byte) (Frontmatter, []byte, error) {
 	}
 
 	if closeLineStart == -1 {
-		return nil, data, nil
+		return nil, data, fmt.Errorf("unclosed frontmatter block")
 	}
 
 	// Extract YAML block and body

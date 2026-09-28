@@ -16,6 +16,9 @@ const (
 
 	// AllFindingsSlot is the placeholder for ALL session findings (used in SYN-01).
 	AllFindingsSlot = "[ALL_SESSION_FINDINGS]"
+
+	// MaxInjectedBytesWarning is the threshold (100KB) above which an injection size warning is emitted.
+	MaxInjectedBytesWarning = 100 * 1024
 )
 
 // InjectedSession is a session prompt with upstream context injected.
@@ -31,6 +34,9 @@ type InjectedSession struct {
 
 	// InjectedBytes is the total size of injected context.
 	InjectedBytes int `json:"injected_bytes"`
+
+	// Warning is set if injected context exceeds size guidelines.
+	Warning string `json:"warning,omitempty"`
 }
 
 // InjectContext takes a session and fills its prompt with findings from
@@ -78,6 +84,9 @@ func InjectContext(session Session, sessionsDir string, completedSessions map[st
 	}
 
 	result.InjectedPrompt = prompt
+	if result.InjectedBytes > MaxInjectedBytesWarning {
+		result.Warning = fmt.Sprintf("W-INJECTION-SIZE: Injected upstream context is %d KB (exceeds %d KB threshold). Consider consolidating upstream sessions.", result.InjectedBytes/1024, MaxInjectedBytesWarning/1024)
+	}
 	return result, nil
 }
 

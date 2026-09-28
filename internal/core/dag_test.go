@@ -232,11 +232,22 @@ func TestParseDependencies(t *testing.T) {
 		want  []string
 	}{
 		{"None (parallel)", nil},
+		{"none (independent)", nil},
+		{"none()", nil},
 		{"None", nil},
+		{"none", nil},
 		{"—", nil},
+		{"-", nil},
+		{"n/a", nil},
+		{"N/A", nil},
+		{"", nil},
+		{"   ", nil},
 		{"T1-01", []string{"T1-01"}},
 		{"T1-01, T1-02", []string{"T1-01", "T1-02"}},
 		{"T2-01, T1-02", []string{"T2-01", "T1-02"}},
+		{"T1-01 (soft), T1-02", []string{"T1-01", "T1-02"}},
+		{"T1-01, T1-02 (none-blocking)", []string{"T1-01", "T1-02"}},
+		{"T1-01, none", []string{"T1-01"}},
 	}
 
 	for _, tc := range tests {

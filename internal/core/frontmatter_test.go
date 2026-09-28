@@ -101,6 +101,24 @@ No frontmatter here.
 	}
 }
 
+func TestParseFrontmatter_Unclosed(t *testing.T) {
+	input := `---
+session_id: R-01
+title: Unclosed Test
+No closing dashes here...
+`
+	fm, _, err := ParseFrontmatter([]byte(input))
+	if err == nil {
+		t.Fatal("expected error for unclosed frontmatter block, got nil")
+	}
+	if !strings.Contains(err.Error(), "unclosed frontmatter block") {
+		t.Errorf("expected 'unclosed frontmatter block' error, got %v", err)
+	}
+	if fm != nil {
+		t.Errorf("expected nil frontmatter, got %v", fm)
+	}
+}
+
 func TestParseFrontmatter_LeadingWhitespace(t *testing.T) {
 	input := []byte("\n\n  ---\nsession_id: R-01\ntitle: Test\n---\n\n# Body\n")
 	fm, body, err := ParseFrontmatter(input)
@@ -338,4 +356,3 @@ func TestExtractSessionID(t *testing.T) {
 		}
 	})
 }
-

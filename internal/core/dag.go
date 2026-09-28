@@ -71,7 +71,7 @@ func (d *DAG) ValidateDAG() error {
 		ids[s.ID] = true
 	}
 
-	// Warn about non-canonical IDs (no hyphen) — these will fail filename-based matching
+	// Reject non-canonical IDs (no hyphen) — these will fail filename-based matching
 	for _, s := range d.Sessions {
 		if !strings.Contains(s.ID, "-") {
 			return fmt.Errorf("session ID %q lacks a hyphen — use canonical form like 'T1-01' or 'SYN-01' for reliable filename matching", s.ID)
@@ -278,13 +278,14 @@ func ParsePipeline(data []byte) (*DAG, error) {
 // No normalization is performed. IDs must be consistent between
 // the header, metadata table, and dependency lists.
 // Canonical format uses a hyphen (e.g., "T1-01", "SYN-01", "D-001-S1").
-// ValidateDAG warns if IDs lack hyphens.
+// ValidateDAG rejects IDs that lack hyphens.
 
 // parseDependencies parses a dependency list from the metadata table.
 // Handles formats like: "None (parallel)", "T1-01", "T1-01, T1-02", "T1-01 (soft)"
 func parseDependencies(value string) []string {
+	value = strings.TrimSpace(value)
 	lower := strings.ToLower(value)
-	if lower == "none" || strings.Contains(lower, "none") || lower == "—" || lower == "-" || lower == "n/a" {
+	if lower == "none" || strings.HasPrefix(lower, "none (") || strings.HasPrefix(lower, "none(") || lower == "—" || lower == "-" || lower == "n/a" || lower == "" {
 		return nil
 	}
 

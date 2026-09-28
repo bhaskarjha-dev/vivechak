@@ -348,3 +348,39 @@ func TestReadSessionFile_Comprehensive(t *testing.T) {
 		}
 	})
 }
+
+func TestInjectContext_SizeWarning(t *testing.T) {
+	tmpDir := t.TempDir()
+	sessionsDir := filepath.Join(tmpDir, "sessions")
+	os.MkdirAll(sessionsDir, 0o755)
+
+	// Create a large session output (>100KB)
+	largeBody := strings.Repeat("Key finding with evidence: PostgreSQL scales linearly. A (benchmark)\n", 2000)
+	sessionContent := "---\nsession_id: T1-01\ntitle: Heavy Session\ndate: 2026-09-29\nstatus: complete\n---\n# Findings\n" + largeBody
+	os.WriteFile(filepath.Join(sessionsDir, "T1-01.md"), []byte(sessionContent), 0o644)
+
+	session := Session{
+		ID:           "SYN-01",
+		Title:        "Synthesis",
+		Dependencies: []string{"T1-01"},
+		Prompt:       "# Synthesis\n[ALL_SESSION_FINDINGS]",
+	}
+
+	completed := map[string]bool{"T1-01": true}
+	injected, err := InjectContext(session, sessionsDir, completed)
+	if err != nil {
+		t.Fatalf("InjectContext: %v", err)
+	}
+
+	if injected.InjectedBytes <= MaxInjectedBytesWarning {
+		t.Fatalf("expected injected bytes > %d, got %d", MaxInjectedBytesWarning, injected.InjectedBytes)
+	}
+
+	if injected.Warning == "" {
+		t.Error("expected size warning when injected bytes exceed threshold, got empty string")
+	}
+
+	if !strings.Contains(injected.Warning, "W-INJECTION-SIZE") {
+		t.Errorf("expected warning to contain 'W-INJECTION-SIZE', got %q", injected.Warning)
+	}
+}
