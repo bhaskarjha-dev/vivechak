@@ -1,11 +1,14 @@
 # Server Architecture Guide
 
+> **Last verified against code:** 2026-09-28 (v0.1.0)
+> If you find discrepancies with the actual code, please file an issue.
+
 Welcome to the internal architecture guide for **Vivechak** (विवेचक). This document is written for Go developers and contributors who want to understand, extend, or maintain the Vivechak MCP server codebase.
 
 Vivechak is an evidence-grounded research meta-framework for technical decisions. It operates across three distinct research scopes:
-1. **Project** ([`GENERATOR.md`](file:///d:/dev/pro/vivechak/GENERATOR.md)) — Full research pipeline producing a Founding Architecture Document (FAD) across 4–30 DAG-ordered sessions.
-2. **Decision** ([`GENERATOR-DECISION.md`](file:///d:/dev/pro/vivechak/GENERATOR-DECISION.md)) — Single architectural decision producing an Architectural Decision Record (ADR) across 1–3 sessions.
-3. **Comparison** ([`GENERATOR-COMPARISON.md`](file:///d:/dev/pro/vivechak/GENERATOR-COMPARISON.md)) — Bounded technology evaluation producing a Weighted Evaluation Protocol (WEP) matrix in a single session.
+1. **Project** ([`GENERATOR.md`](../GENERATOR.md)) — Full research pipeline producing a Founding Architecture Document (FAD) across 4–30 DAG-ordered sessions.
+2. **Decision** ([`GENERATOR-DECISION.md`](../GENERATOR-DECISION.md)) — Single architectural decision producing an Architectural Decision Record (ADR) across 1–3 sessions.
+3. **Comparison** ([`GENERATOR-COMPARISON.md`](../GENERATOR-COMPARISON.md)) — Bounded technology evaluation producing a Weighted Evaluation Protocol (WEP) matrix in a single session.
 
 The project ships as both a zero-dependency manual workflow and an autonomous **Model Context Protocol (MCP)** server providing 9 purpose-built tools.
 
@@ -63,27 +66,27 @@ flowchart TD
 ```
 
 Key architectural rules:
-1. **[`internal/core`](file:///d:/dev/pro/vivechak/internal/core/scope.go#L1-L5) has NO dependency on MCP or Store**: Domain logic relies only on the Go standard library and [`gopkg.in/yaml.v3`](file:///d:/dev/pro/vivechak/go.mod#L16). You can test DAG parsing, upstream injection, frontmatter handling, and validation without launching an MCP server or writing to the disk.
-2. **[`internal/store`](file:///d:/dev/pro/vivechak/internal/store/workspace.go#L1-L8) is independent**: It handles low-level filesystem confinement via `os.Root`, advisory locks via `github.com/gofrs/flock`, and atomic write semantics. It knows nothing about MCP requests or Vivechak research concepts.
-3. **[`internal/mcp`](file:///d:/dev/pro/vivechak/internal/mcp/server.go#L1-L8) bridges protocol to domain**: Handlers decode MCP inputs, call `internal/core` algorithms, persist via `internal/store`, and package results into the standardized [`Envelope`](file:///d:/dev/pro/vivechak/internal/mcp/envelope.go#L24-L44).
-4. **Stdio Protocol Discipline**: As defined in [`main.go`](file:///d:/dev/pro/vivechak/cmd/vivechak/main.go#L26-L30), the server communicates with AI hosts over `stdin`/`stdout`. **`stdout` is strictly reserved for JSON-RPC MCP messages**. Any stray `fmt.Println` or unrouted log on `stdout` corrupts the transport and crashes the host client. All logging is routed through `log/slog` writing exclusively to `os.Stderr`.
+1. **[`internal/core`](../internal/core/scope.go#L1-L5) has NO dependency on MCP or Store**: Domain logic relies only on the Go standard library and [`gopkg.in/yaml.v3`](../go.mod#L16). You can test DAG parsing, upstream injection, frontmatter handling, and validation without launching an MCP server or writing to the disk.
+2. **[`internal/store`](../internal/store/workspace.go#L1-L8) is independent**: It handles low-level filesystem confinement via `os.Root`, advisory locks via `github.com/gofrs/flock`, and atomic write semantics. It knows nothing about MCP requests or Vivechak research concepts.
+3. **[`internal/mcp`](../internal/mcp/server.go#L1-L8) bridges protocol to domain**: Handlers decode MCP inputs, call `internal/core` algorithms, persist via `internal/store`, and package results into the standardized [`Envelope`](../internal/mcp/envelope.go#L24-L44).
+4. **Stdio Protocol Discipline**: As defined in [`main.go`](../cmd/vivechak/main.go#L26-L30), the server communicates with AI hosts over `stdin`/`stdout`. **`stdout` is strictly reserved for JSON-RPC MCP messages**. Any stray `fmt.Println` or unrouted log on `stdout` corrupts the transport and crashes the host client. All logging is routed through `log/slog` writing exclusively to `os.Stderr`.
 
 ---
 
 ## 2. Key Abstractions
 
 ### Scope (`core.Scope`)
-Defined in [`internal/core/scope.go`](file:///d:/dev/pro/vivechak/internal/core/scope.go#L8-L22), [`Scope`](file:///d:/dev/pro/vivechak/internal/core/scope.go#L8) encapsulates the three research tiers:
-- [`ScopeProject`](file:///d:/dev/pro/vivechak/internal/core/scope.go#L13) (`"project"`): Multi-session architectural investigation (4–30 sessions), producing `RESEARCH-PIPELINE.md`, `DECISIONS.md`, and ultimately a Founding Architecture Document (`FAD.md`).
-- [`ScopeDecision`](file:///d:/dev/pro/vivechak/internal/core/scope.go#L17) (`"decision"`): Targeted investigation for a single decision (1–3 sessions), producing an Architectural Decision Record (ADR).
-- [`ScopeComparison`](file:///d:/dev/pro/vivechak/internal/core/scope.go#L21) (`"comparison"`): Rapid, bounded comparison of 2–4 options producing a Weighted Evaluation Protocol matrix in a single session.
+Defined in [`internal/core/scope.go`](../internal/core/scope.go#L8-L22), [`Scope`](../internal/core/scope.go#L8) encapsulates the three research tiers:
+- [`ScopeProject`](../internal/core/scope.go#L13) (`"project"`): Multi-session architectural investigation (4–30 sessions), producing `RESEARCH-PIPELINE.md`, `DECISIONS.md`, and ultimately a Founding Architecture Document (`FAD.md`).
+- [`ScopeDecision`](../internal/core/scope.go#L17) (`"decision"`): Targeted investigation for a single decision (1–3 sessions), producing an Architectural Decision Record (ADR).
+- [`ScopeComparison`](../internal/core/scope.go#L21) (`"comparison"`): Rapid, bounded comparison of 2–4 options producing a Weighted Evaluation Protocol matrix in a single session.
 
 ### Workspace & Resolution Chain
-Defined in [`internal/core/workspace.go`](file:///d:/dev/pro/vivechak/internal/core/workspace.go#L34-L88), [`ResolveWorkspace`](file:///d:/dev/pro/vivechak/internal/core/workspace.go#L43) evaluates a deterministic 4-step resolution chain:
+Defined in [`internal/core/workspace.go`](../internal/core/workspace.go#L34-L88), [`ResolveWorkspace`](../internal/core/workspace.go#L43) evaluates a deterministic 4-step resolution chain:
 1. **Explicit argument**: `project_root` passed directly in the MCP tool call or CLI command.
 2. **Environment variable**: Value of `VIVECHAK_PROJECT_ROOT`.
 3. **CWD Directory Traversal**: Walks upwards from the current working directory searching for an existing `research/` directory.
-4. **Fallback error**: Clear diagnostic error instructing the caller to initialize the workspace with [`vivechak_init`](file:///d:/dev/pro/vivechak/internal/mcp/tool_init.go#L21-L40).
+4. **Fallback error**: Clear diagnostic error instructing the caller to initialize the workspace with [`vivechak_init`](../internal/mcp/tool_init.go#L21-L40).
 
 The workspace layout is standard across all Vivechak projects:
 - `research/` — Workspace root
@@ -94,15 +97,15 @@ The workspace layout is standard across all Vivechak projects:
 - `research/FAD.md` — Synthesized Founding Architecture Document
 
 ### Pipeline DAG (`core.DAG` & `core.Session`)
-Defined in [`internal/core/dag.go`](file:///d:/dev/pro/vivechak/internal/core/dag.go#L10-L49), [`ParsePipeline`](file:///d:/dev/pro/vivechak/internal/core/dag.go#L104) converts `RESEARCH-PIPELINE.md` into an in-memory graph.
-- [`Session`](file:///d:/dev/pro/vivechak/internal/core/dag.go#L10-L34): Represents an individual node, capturing `ID` (e.g., `T1-01`, `SYN-01`), `Layer` (0 for landscape, 1 for deep dives, etc.), `DoorType` (`One-Way` vs `Two-Way`), `DecisionRef`, `Dependencies`, `OutputFile`, and the complete 5-block markdown `Prompt`.
-- [`DAG.NextSessions(completedIDs)`](file:///d:/dev/pro/vivechak/internal/core/dag.go#L63-L85): Computes ready nodes by checking which uncompleted sessions have all upstream dependencies satisfied. Identifies parallel tracks that can execute concurrently.
+Defined in [`internal/core/dag.go`](../internal/core/dag.go#L10-L49), [`ParsePipeline`](../internal/core/dag.go#L104) converts `RESEARCH-PIPELINE.md` into an in-memory graph.
+- [`Session`](../internal/core/dag.go#L10-L34): Represents an individual node, capturing `ID` (e.g., `T1-01`, `SYN-01`), `Layer` (0 for landscape, 1 for deep dives, etc.), `DoorType` (`One-Way` vs `Two-Way`), `DecisionRef`, `Dependencies`, `OutputFile`, and the complete 5-block markdown `Prompt`.
+- [`DAG.NextSessions(completedIDs)`](../internal/core/dag.go#L63-L85): Computes ready nodes by checking which uncompleted sessions have all upstream dependencies satisfied. Identifies parallel tracks that can execute concurrently.
 
 ### Frontmatter Parser (`core.Frontmatter`)
-Defined in [`internal/core/frontmatter.go`](file:///d:/dev/pro/vivechak/internal/core/frontmatter.go#L11-L20), [`ParseFrontmatter`](file:///d:/dev/pro/vivechak/internal/core/frontmatter.go#L24) and [`ComposeFrontmatter`](file:///d:/dev/pro/vivechak/internal/core/frontmatter.go#L61) provide robust YAML frontmatter manipulation without mangling markdown body fences, tables, or unicode content.
+Defined in [`internal/core/frontmatter.go`](../internal/core/frontmatter.go#L11-L20), [`ParseFrontmatter`](../internal/core/frontmatter.go#L24) and [`ComposeFrontmatter`](../internal/core/frontmatter.go#L61) provide robust YAML frontmatter manipulation without mangling markdown body fences, tables, or unicode content.
 
 ### Validation Ladder (`core.ValidationLevel`)
-Defined in [`internal/core/validate.go`](file:///d:/dev/pro/vivechak/internal/core/validate.go#L11-L22), Vivechak uses a 4-level validation ladder to enforce structure without rejecting variations in human/AI writing style:
+Defined in [`internal/core/validate.go`](../internal/core/validate.go#L11-L22), Vivechak uses a 4-level validation ladder to enforce structure without rejecting variations in human/AI writing style:
 
 | Level | Identifier | Behavior | Trigger Conditions |
 |---|---|---|---|
@@ -112,7 +115,7 @@ Defined in [`internal/core/validate.go`](file:///d:/dev/pro/vivechak/internal/co
 | **L4** | `L4Gate` | Exit gate evaluation across project | Pipeline structural completeness and mechanical quality verification. |
 
 ### Response Envelope (`mcputil.Envelope`)
-Defined in [`internal/mcp/envelope.go`](file:///d:/dev/pro/vivechak/internal/mcp/envelope.go#L24-L44), every tool returns the standard envelope:
+Defined in [`internal/mcp/envelope.go`](../internal/mcp/envelope.go#L24-L44), every tool returns the standard envelope:
 ```json
 {
   "success": true,
@@ -129,20 +132,20 @@ Defined in [`internal/mcp/envelope.go`](file:///d:/dev/pro/vivechak/internal/mcp
 ```
 
 #### Dual-Channel Delivery
-[`Envelope.ToResult()`](file:///d:/dev/pro/vivechak/internal/mcp/envelope.go#L69-L82) implements dual-channel delivery:
+[`Envelope.ToResult()`](../internal/mcp/envelope.go#L69-L82) implements dual-channel delivery:
 1. **Text Content**: Formatted JSON string in `CallToolResult.Content`. This ensures clients like Cursor (which historically dropped `StructuredContent`) receive complete data.
 2. **Structured Content**: Strongly typed schema payload auto-populated by the MCP Go SDK generic handler. This ensures clients like Gemini CLI (which require structured content) validate cleanly.
 
 ### Guided Worker Pattern & Context Injection
 Vivechak is built around the **Guided Worker** philosophy:
 1. **Deterministic Guidance**: Every single tool response populates `next_step` with the exact next action the agent should take, eliminating disorientation and drift.
-2. **Context Injection** ([`internal/core/inject.go`](file:///d:/dev/pro/vivechak/internal/core/inject.go#L38-L68)): When an agent invokes [`vivechak_next_session`](file:///d:/dev/pro/vivechak/internal/mcp/tool_next_session.go#L42), the server inspects the session's upstream dependencies, extracts key findings and evidence-graded claims from completed session files, and automatically populates `[UPSTREAM_FINDINGS]` (or `[ALL_SESSION_FINDINGS]` for synthesis `SYN-01`). This eliminates error-prone manual copy-pasting between research sessions.
+2. **Context Injection** ([`internal/core/inject.go`](../internal/core/inject.go#L38-L68)): When an agent invokes [`vivechak_next_session`](../internal/mcp/tool_next_session.go#L42), the server inspects the session's upstream dependencies, extracts key findings and evidence-graded claims from completed session files, and automatically populates `[UPSTREAM_FINDINGS]` (or `[ALL_SESSION_FINDINGS]` for synthesis `SYN-01`). This eliminates error-prone manual copy-pasting between research sessions.
 
 ---
 
 ## 3. Data Flow
 
-Here is the end-to-end lifecycle of a mutating tool call (such as [`vivechak_save_session`](file:///d:/dev/pro/vivechak/internal/mcp/tool_save_session.go#L42)):
+Here is the end-to-end lifecycle of a mutating tool call (such as [`vivechak_save_session`](../internal/mcp/tool_save_session.go#L42)):
 
 ```mermaid
 sequenceDiagram
@@ -169,7 +172,7 @@ sequenceDiagram
     Handler->>Store: WriteFileAtomic(ws.Root(), relPath, data, 0644)
     Store->>FS: Write to .tmp_<nano>_<pid> -> f.Sync() -> root.Rename()
     Store-->>Handler: Write success
-    Handler->>Store: unlock() -> os.Remove("path.lock")
+    Handler->>Store: unlock() -> flock.Unlock()
     Handler->>Handler: Build Envelope(success, status, warnings, next_step)
     Handler->>Handler: env.ToResult() (dual-channel encoding)
     Handler-->>Stdio: *sdkmcp.CallToolResult
@@ -178,17 +181,17 @@ sequenceDiagram
 
 ### Trace Comparison: Read vs Write Tools
 
-- **Read-Only Inspection** ([`vivechak_status`](file:///d:/dev/pro/vivechak/internal/mcp/tool_status.go#L36)):
+- **Read-Only Inspection** ([`vivechak_status`](../internal/mcp/tool_status.go#L36)):
   1. Resolves workspace path. If not found, gracefully returns `initialized: false` with guidance to call `vivechak_init`.
-  2. Scans `research/` directories and counts sessions and templates via [`InspectWorkspace`](file:///d:/dev/pro/vivechak/internal/core/workspace.go#L122).
+  2. Scans `research/` directories and counts sessions and templates via [`InspectWorkspace`](../internal/core/workspace.go#L122).
   3. Formulates status message and computes contextual `next_step` based on pipeline presence and session count.
   4. Acquires no locks and performs no filesystem writes.
 
-- **DAG Progression** ([`vivechak_next_session`](file:///d:/dev/pro/vivechak/internal/mcp/tool_next_session.go#L42)):
-  1. Parses `RESEARCH-PIPELINE.md` into [`core.DAG`](file:///d:/dev/pro/vivechak/internal/core/dag.go#L37).
+- **DAG Progression** ([`vivechak_next_session`](../internal/mcp/tool_next_session.go#L42)):
+  1. Parses `RESEARCH-PIPELINE.md` into [`core.DAG`](../internal/core/dag.go#L37).
   2. Scans `research/sessions/` to collect all completed session IDs.
-  3. Calls [`dag.NextSessions(completedIDs)`](file:///d:/dev/pro/vivechak/internal/core/dag.go#L63) to discover actionable nodes.
-  4. Calls [`core.InjectContext`](file:///d:/dev/pro/vivechak/internal/core/inject.go#L38) to inject upstream dependencies into the prompt.
+  3. Calls [`dag.NextSessions(completedIDs)`](../internal/core/dag.go#L63) to discover actionable nodes.
+  4. Calls [`core.InjectContext`](../internal/core/inject.go#L38) to inject upstream dependencies into the prompt.
   5. Returns prompt, metadata, parallel unblocked sessions in `other_ready_sessions`, and step-by-step instructions.
 
 ---
@@ -221,18 +224,18 @@ The server is designed to run safely within agentic desktop environments where m
 ```
 
 ### `os.Root` Path Confinement
-Implemented in [`internal/store/workspace.go`](file:///d:/dev/pro/vivechak/internal/store/workspace.go#L9-L32), the server opens the workspace root using Go standard library's `os.OpenRoot(absPath)`.
+Implemented in [`internal/store/workspace.go`](../internal/store/workspace.go#L9-L32), the server opens the workspace root using Go standard library's `os.OpenRoot(absPath)`.
 - All downstream filesystem operations (`ReadFile`, `Stat`, `ListDir`, and atomic operations) execute through the `*os.Root` reference.
 - Any attempt to access files outside the workspace root (e.g., via `../../etc/passwd` or symlinks pointing outside the project) is blocked at the operating system / standard library level, preventing path traversal attacks.
 
 ### Cross-Process Advisory Locking
-Implemented in [`internal/store/lock.go`](file:///d:/dev/pro/vivechak/internal/store/lock.go#L14-L37), every mutating operation acquires an advisory file lock (`<target-path>.lock`) using [`github.com/gofrs/flock`](file:///d:/dev/pro/vivechak/go.mod#L6):
+Implemented in [`internal/store/lock.go`](../internal/store/lock.go#L14-L37), every mutating operation acquires an advisory file lock (`<target-path>.lock`) using [`github.com/gofrs/flock`](../go.mod#L6):
 - `LockFile(path, 5*time.Second)` retries with a 10ms poll interval until acquired or until the context deadline expires.
 - Protects workspace files against torn writes or corruption when multiple subagents or background tasks write to the research directory concurrently.
-- The returned `unlock()` closure releases the lock and automatically deletes the temporary `.lock` file.
+- The returned `unlock()` closure releases the advisory lock. Lock files are intentionally retained to avoid TOCTOU race conditions between concurrent processes.
 
 ### Atomic Writes
-Implemented in [`internal/store/atomic.go`](file:///d:/dev/pro/vivechak/internal/store/atomic.go#L10-L54):
+Implemented in [`internal/store/atomic.go`](../internal/store/atomic.go#L10-L54):
 1. A unique temporary file is opened inside `os.Root`: `.tmp_<unixnano>_<pid>`.
 2. Content is fully written to the file descriptor.
 3. `f.Sync()` flushes internal kernel buffers to physical storage.
@@ -247,7 +250,7 @@ Implemented in [`internal/store/atomic.go`](file:///d:/dev/pro/vivechak/internal
 The server binary is completely self-contained. It requires no network access and no external markdown files to initialize projects or prepare generator prompts.
 
 ### `go:embed` Mechanism
-Implemented in [`internal/embed/embed.go`](file:///d:/dev/pro/vivechak/internal/embed/embed.go):
+Implemented in [`internal/embed/embed.go`](../internal/embed/embed.go):
 ```go
 //go:embed generators/*.md
 var Generators embed.FS
@@ -255,8 +258,8 @@ var Generators embed.FS
 //go:embed templates/*.md
 var Templates embed.FS
 ```
-- [`ReadGenerator(name)`](file:///d:/dev/pro/vivechak/internal/embed/embed.go#L26-L32): Retrieves generator prompts by filename (`GENERATOR.md`, `GENERATOR-DECISION.md`, `GENERATOR-COMPARISON.md`).
-- [`ReadTemplate(name)`](file:///d:/dev/pro/vivechak/internal/embed/embed.go#L38-L44): Retrieves output templates (`DECISIONS.template.md`, `CONFLICT-RESOLUTION.template.md`, `COMPARISON-SESSION.template.md`, `FOUNDING-ARCHITECTURE.template.md`, `PHASE-0-GATE.template.md`).
+- [`ReadGenerator(name)`](../internal/embed/embed.go#L26-L32): Retrieves generator prompts by filename (`GENERATOR.md`, `GENERATOR-DECISION.md`, `GENERATOR-COMPARISON.md`).
+- [`ReadTemplate(name)`](../internal/embed/embed.go#L38-L44): Retrieves output templates (`DECISIONS.template.md`, `CONFLICT-RESOLUTION.template.md`, `COMPARISON-SESSION.template.md`, `FOUNDING-ARCHITECTURE.template.md`, `PHASE-0-GATE.template.md`).
 
 ### Synchronization with Root Markdown Files
 Vivechak maintains canonical human-readable files at the repository root and identical copies in `internal/embed/` for binary compilation:
@@ -269,7 +272,7 @@ Vivechak maintains canonical human-readable files at the repository root and ide
 | `templates/*.template.md` | `internal/embed/templates/*.template.md` |
 
 > [!IMPORTANT]
-> Per [`CONTRIBUTING.md`](file:///d:/dev/pro/vivechak/CONTRIBUTING.md#L42-L96) (*Change Propagation Map*), whenever a change is made to any root generator or template, the corresponding file in `internal/embed/` **must be synchronized** before compiling or releasing the server.
+> Per [`CONTRIBUTING.md`](../CONTRIBUTING.md#L42-L96) (*Change Propagation Map*), whenever a change is made to any root generator or template, the corresponding file in `internal/embed/` **must be synchronized** before compiling or releasing the server.
 
 ---
 
@@ -292,17 +295,17 @@ Testing Pyramid:
 ```
 
 ### 1. Core Domain Unit Tests
-- [`internal/core/dag_test.go`](file:///d:/dev/pro/vivechak/internal/core/dag_test.go): Tests pipeline parsing, dependency resolution, topological ordering, parallel branch discovery, and metadata parsing.
-- [`internal/core/frontmatter_test.go`](file:///d:/dev/pro/vivechak/internal/core/frontmatter_test.go): Tests YAML frontmatter extraction, round-trip serialization, missing delimiters, empty documents, and type casting.
-- [`internal/core/inject_test.go`](file:///d:/dev/pro/vivechak/internal/core/inject_test.go): Tests context gathering from dependency session files, synthesis extraction (`[ALL_SESSION_FINDINGS]`), heading and evidence grade filtering, and prompt slot injection.
+- [`internal/core/dag_test.go`](../internal/core/dag_test.go): Tests pipeline parsing, dependency resolution, topological ordering, parallel branch discovery, and metadata parsing.
+- [`internal/core/frontmatter_test.go`](../internal/core/frontmatter_test.go): Tests YAML frontmatter extraction, round-trip serialization, missing delimiters, empty documents, and type casting.
+- [`internal/core/inject_test.go`](../internal/core/inject_test.go): Tests context gathering from dependency session files, synthesis extraction (`[ALL_SESSION_FINDINGS]`), heading and evidence grade filtering, and prompt slot injection.
 
 ### 2. Store Concurrency & Security Tests
-- [`internal/store/workspace_test.go`](file:///d:/dev/pro/vivechak/internal/store/workspace_test.go): Verifies path confinement within `os.Root` and directory creation.
-- [`internal/store/atomic_test.go`](file:///d:/dev/pro/vivechak/internal/store/atomic_test.go): Verifies crash-safe writes and temp file cleanup on errors.
-- [`internal/store/lock_test.go`](file:///d:/dev/pro/vivechak/internal/store/lock_test.go): Verifies mutual exclusion and timeout cancellation under contention.
+- [`internal/store/workspace_test.go`](../internal/store/workspace_test.go): Verifies path confinement within `os.Root` and directory creation.
+- [`internal/store/atomic_test.go`](../internal/store/atomic_test.go): Verifies crash-safe writes and temp file cleanup on errors.
+- [`internal/store/lock_test.go`](../internal/store/lock_test.go): Verifies mutual exclusion and timeout cancellation under contention.
 
 ### 3. In-Memory Wire Tests (`internal/mcp/server_test.go`)
-Implemented in [`internal/mcp/server_test.go`](file:///d:/dev/pro/vivechak/internal/mcp/server_test.go#L15-L39), tests communicate over genuine MCP JSON-RPC protocol without socket or stdio overhead using:
+Implemented in [`internal/mcp/server_test.go`](../internal/mcp/server_test.go#L15-L39), tests communicate over genuine MCP JSON-RPC protocol without socket or stdio overhead using:
 ```go
 st, ct := mcp.NewInMemoryTransports()
 server.Connect(ctx, st, nil)
@@ -310,12 +313,12 @@ client.Connect(ctx, ct, nil)
 ```
 
 Key wire test suites:
-- [`TestToolListing`](file:///d:/dev/pro/vivechak/internal/mcp/server_test.go#L59-L101): Asserts all 9 tools are correctly registered.
-- [`TestAnnotations`](file:///d:/dev/pro/vivechak/internal/mcp/server_test.go#L104-L134): Verifies tool annotations (`ReadOnlyHint`, `IdempotentHint`, `DestructiveHint`, `OpenWorldHint`).
-- [`TestStatusNoWorkspace`](file:///d:/dev/pro/vivechak/internal/mcp/server_test.go#L137-L158): Verifies `vivechak_status` succeeds gracefully even in empty directories.
-- [`TestInitAndStatus`](file:///d:/dev/pro/vivechak/internal/mcp/server_test.go#L161-L222): Verifies directory tree creation and template copying.
-- [`TestGuidedWorkerPattern`](file:///d:/dev/pro/vivechak/internal/mcp/server_test.go#L349-L384): Asserts that **every tool** returns a non-empty `next_step` and valid `meta.tool`.
-- [`TestEndToEndPipelineFlow`](file:///d:/dev/pro/vivechak/internal/mcp/server_test.go#L386-L628): Simulates a complete research lifecycle across multiple layers:
+- [`TestToolListing`](../internal/mcp/server_test.go#L59-L101): Asserts all 9 tools are correctly registered.
+- [`TestAnnotations`](../internal/mcp/server_test.go#L104-L134): Verifies tool annotations (`ReadOnlyHint`, `IdempotentHint`, `DestructiveHint`, `OpenWorldHint`).
+- [`TestStatusNoWorkspace`](../internal/mcp/server_test.go#L137-L158): Verifies `vivechak_status` succeeds gracefully even in empty directories.
+- [`TestInitAndStatus`](../internal/mcp/server_test.go#L161-L222): Verifies directory tree creation and template copying.
+- [`TestGuidedWorkerPattern`](../internal/mcp/server_test.go#L349-L384): Asserts that **every tool** returns a non-empty `next_step` and valid `meta.tool`.
+- [`TestEndToEndPipelineFlow`](../internal/mcp/server_test.go#L386-L628): Simulates a complete research lifecycle across multiple layers:
   1. `vivechak_init` (Initialize project workspace)
   2. `vivechak_save_plan` (Save multi-session DAG pipeline)
   3. `vivechak_next_session` (Receives first Layer 0 session)
@@ -388,7 +391,7 @@ func handleMyTool(ctx context.Context, req *sdkmcp.CallToolRequest, in MyToolInp
 ```
 
 ### Step 4: Register in `server.go`
-Add your registration call to [`NewServer`](file:///d:/dev/pro/vivechak/internal/mcp/server.go#L11-L36) in [`internal/mcp/server.go`](file:///d:/dev/pro/vivechak/internal/mcp/server.go):
+Add your registration call to [`NewServer`](../internal/mcp/server.go#L11-L36) in [`internal/mcp/server.go`](../internal/mcp/server.go):
 ```go
 func NewServer(version string, logger *slog.Logger) *sdkmcp.Server {
     // ...
@@ -400,9 +403,9 @@ func NewServer(version string, logger *slog.Logger) *sdkmcp.Server {
 ```
 
 ### Step 5: Add Wire Tests
-In [`internal/mcp/server_test.go`](file:///d:/dev/pro/vivechak/internal/mcp/server_test.go):
-1. Add `"vivechak_my_tool"` to the `expected` list in [`TestToolListing`](file:///d:/dev/pro/vivechak/internal/mcp/server_test.go#L71-L82).
-2. Update [`TestAnnotations`](file:///d:/dev/pro/vivechak/internal/mcp/server_test.go#L108-L114) with your tool's read-only expectation.
+In [`internal/mcp/server_test.go`](../internal/mcp/server_test.go):
+1. Add `"vivechak_my_tool"` to the `expected` list in [`TestToolListing`](../internal/mcp/server_test.go#L71-L82).
+2. Update [`TestAnnotations`](../internal/mcp/server_test.go#L108-L114) with your tool's read-only expectation.
 3. Write a dedicated unit/wire test verifying request arguments, envelope responses, error handling, and `next_step` guidance.
 
 ---
@@ -410,7 +413,7 @@ In [`internal/mcp/server_test.go`](file:///d:/dev/pro/vivechak/internal/mcp/serv
 ## 8. Build, Test & Run
 
 ### Prerequisites
-- **Go 1.24+** (Uses standard library `os.Root` path confinement; project specifies `go 1.27.0` in [`go.mod`](file:///d:/dev/pro/vivechak/go.mod#L3)).
+- **Go 1.24+** (Uses standard library `os.Root` path confinement; project specifies `go 1.27.0` in [`go.mod`](../go.mod#L3)).
 
 ### Compiling the Binary
 To build the server executable:
