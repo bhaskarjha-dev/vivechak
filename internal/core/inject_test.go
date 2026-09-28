@@ -224,3 +224,28 @@ PostgreSQL handles graph traversal up to 50k nodes at <50ms p95
 		t.Errorf("expected exactly 1 injection of findings when both slots present, got %d", countBoth)
 	}
 }
+
+func TestReadSessionFile_PrefixMatchOnly(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	os.WriteFile(filepath.Join(tmpDir, "T1-01-database-selection.md"), []byte("---\nsession_id: T1-01\ntitle: Database Selection\n---\n# Database Selection\n"), 0o644)
+	os.WriteFile(filepath.Join(tmpDir, "T1-02.md"), []byte("---\nsession_id: T1-02\ntitle: Auth\n---\n# Auth\n"), 0o644)
+
+	// T1-01 should find T1-01-database-selection.md via prefix match
+	content, _, err := readSessionFile(tmpDir, "T1-01")
+	if err != nil {
+		t.Fatalf("readSessionFile T1-01: %v", err)
+	}
+	if !strings.Contains(content, "Database Selection") {
+		t.Error("T1-01 should match T1-01-database-selection.md")
+	}
+
+	// T1 should NOT match T1-01 or T1-02 (Contains is gone)
+	content, _, err = readSessionFile(tmpDir, "T1")
+	if err != nil {
+		t.Fatalf("readSessionFile T1: unexpected error: %v", err)
+	}
+	if content != "" {
+		t.Error("T1 should NOT match T1-01 or T1-02")
+	}
+}

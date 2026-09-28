@@ -178,15 +178,40 @@ func readSessionFile(sessionsDir string, sessionID string) (string, string, erro
 		if e.IsDir() || filepath.Ext(e.Name()) != ".md" {
 			continue
 		}
-		nameUpper := strings.ToUpper(strings.TrimSuffix(e.Name(), ".md"))
+		nameStem := strings.TrimSuffix(e.Name(), ".md")
+		nameUpper := strings.ToUpper(nameStem)
 		idUpper := strings.ToUpper(sessionID)
-		if nameUpper == idUpper || strings.HasPrefix(nameUpper, idUpper+"-") {
+
+		matchesPrefix := false
+		if nameUpper == idUpper {
+			matchesPrefix = true
+		} else if strings.HasPrefix(nameUpper, idUpper+"-") || strings.HasPrefix(nameUpper, idUpper+"_") {
+			// Ensure it's not a compound ID like T1 matching T1-02.
+			// If sessionID has no hyphen and the suffix starts with a digit, it's a sub-session, not a slug.
+			suffix := nameUpper[len(idUpper)+1:]
+			if strings.Contains(sessionID, "-") || (len(suffix) > 0 && (suffix[0] < '0' || suffix[0] > '9')) {
+				matchesPrefix = true
+			}
+		}
+
+		if matchesPrefix {
 			path := filepath.Join(sessionsDir, e.Name())
 			data, err := os.ReadFile(path)
-			if err == nil {
-				return string(data), e.Name(), nil
+			if err != nil {
+				return "", "", fmt.Errorf("reading session file %s: %w", path, err)
 			}
-			return "", "", fmt.Errorf("reading session file %s: %w", path, err)
+			// If file has frontmatter with an explicit session ID, that ID is authoritative.
+			if fm, _, fmErr := ParseFrontmatter(data); fmErr == nil && fm != nil {
+				fileSID := fm.GetString("session_id")
+				if fileSID == "" {
+					fileSID = fm.GetString("id")
+				}
+				if fileSID != "" && !strings.EqualFold(fileSID, sessionID) {
+					// Frontmatter explicitly declares a different session ID. Skip.
+					continue
+				}
+			}
+			return string(data), e.Name(), nil
 		}
 	}
 
