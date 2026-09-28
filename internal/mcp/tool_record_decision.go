@@ -3,6 +3,7 @@ package mcputil
 import (
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -110,26 +111,68 @@ func handleRecordDecision(_ context.Context, _ *sdkmcp.CallToolRequest, in Recor
 			"Check filesystem permissions.")
 	}
 
+	// Dual-write to DECISIONS.md registry for decision artifacts
+	if artifactType == "decision" {
+		decRelPath := core.DecisionsFile
+		decUnlock, decErr := store.LockFile(filepath.Join(root, decRelPath), 5*time.Second)
+		if decErr == nil {
+			defer decUnlock()
+			var existing []byte
+			if data, err := os.ReadFile(filepath.Join(root, decRelPath)); err == nil {
+				existing = data
+			}
+			newDecContent := updateOrAppendDecision(existing, in.DecisionID, in.Content)
+			_ = store.WriteFileAtomic(ws.Root(), decRelPath, newDecContent, 0o644)
+		}
+	}
+
 	var warnings []string
 	for _, issue := range validation.Issues {
 		warnings = append(warnings, issue.String())
 	}
 
+	dataMap := map[string]any{
+		"workspace_root": root,
+		"decision_id":    in.DecisionID,
+		"artifact_type":  artifactType,
+		"file_path":      filepath.Join(core.ResearchDir, filename),
+		"status":         validation.Status,
+		"validation":     validation,
+	}
+	if artifactType == "decision" {
+		dataMap["decisions_file"] = core.DecisionsFile
+	}
+
 	env := Envelope{
 		Success: true,
 		Message: fmt.Sprintf("Saved %s %s as %s", artifactType, in.DecisionID, validation.Status),
-		Data: map[string]any{
-			"workspace_root": root,
-			"decision_id":    in.DecisionID,
-			"artifact_type":  artifactType,
-			"file_path":      filepath.Join(core.ResearchDir, filename),
-			"status":         validation.Status,
-			"validation":     validation,
-		},
+		Data:    dataMap,
 		Warnings: warnings,
 		NextStep: "Run vivechak_next_session for the next research session, or " +
 			"vivechak_status to review overall progress.",
 		Meta: NewMeta(tool),
 	}
 	return env.ToResult()
+}
+
+// updateOrAppendDecision updates or appends a decision entry into DECISIONS.md.
+func updateOrAppendDecision(existing []byte, decisionID string, content string) []byte {
+	startMarker := fmt.Sprintf("<!-- DECISION: %s -->", decisionID)
+	endMarker := fmt.Sprintf("<!-- /DECISION: %s -->", decisionID)
+	entry := fmt.Sprintf("%s\n%s\n%s", startMarker, strings.TrimSpace(content), endMarker)
+
+	str := string(existing)
+	if strings.Contains(str, startMarker) && strings.Contains(str, endMarker) {
+		startIdx := strings.Index(str, startMarker)
+		endIdx := strings.Index(str, endMarker) + len(endMarker)
+		newStr := str[:startIdx] + entry + str[endIdx:]
+		return []byte(newStr)
+	}
+
+	if len(strings.TrimSpace(str)) == 0 {
+		header := "# Architectural Decisions\n\n"
+		return []byte(header + entry + "\n")
+	}
+
+	return []byte(strings.TrimRight(str, "\n") + "\n\n---\n\n" + entry + "\n")
 }

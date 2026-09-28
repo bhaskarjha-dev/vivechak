@@ -130,7 +130,7 @@ func handleSaveSession(_ context.Context, _ *sdkmcp.CallToolRequest, in SaveSess
 		Data: map[string]any{
 			"workspace_root": root,
 			"session_id":     in.SessionID,
-			"file_path":      filepath.Join(core.SessionsDir, filename),
+			"file_path":      relPath,
 			"status":         status,
 			"validation":     validation,
 		},

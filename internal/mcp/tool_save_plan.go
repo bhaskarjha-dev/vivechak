@@ -3,6 +3,7 @@ package mcputil
 import (
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -99,6 +100,17 @@ func handleSavePlan(_ context.Context, _ *sdkmcp.CallToolRequest, in SavePlanInp
 
 	switch scope {
 	case core.ScopeProject:
+		// Validate DAG structure and cycle detection
+		dag, dagErr := core.ParsePipeline([]byte(in.Content))
+		if dagErr != nil {
+			return ErrorResult(tool, fmt.Errorf("parsing pipeline DAG: %w", dagErr),
+				"Ensure RESEARCH-PIPELINE.md contains valid session definitions.")
+		}
+		if valErr := dag.ValidateDAG(); valErr != nil {
+			return ErrorResult(tool, fmt.Errorf("invalid pipeline DAG: %w", valErr),
+				"Fix dependency cycles or dangling session references in the pipeline.")
+		}
+
 		// Save RESEARCH-PIPELINE.md
 		relPath := core.PipelineFile
 		unlock, err := store.LockFile(filepath.Join(root, relPath), 5*time.Second)
@@ -112,6 +124,15 @@ func handleSavePlan(_ context.Context, _ *sdkmcp.CallToolRequest, in SavePlanInp
 				"Check filesystem permissions.")
 		}
 		savedFiles = append(savedFiles, relPath)
+
+		// Ensure DECISIONS.md exists
+		decPath := core.DecisionsFile
+		if _, err := os.Stat(filepath.Join(root, decPath)); os.IsNotExist(err) {
+			initialDecisions := []byte("# Architectural Decision Log\n\n| Decision | Title | Door Type | Status | Date |\n|---|---|---|---|---|\n")
+			if err := store.WriteFileAtomic(ws.Root(), decPath, initialDecisions, 0o644); err == nil {
+				savedFiles = append(savedFiles, decPath)
+			}
+		}
 
 	case core.ScopeDecision:
 		if in.DecisionID == "" {

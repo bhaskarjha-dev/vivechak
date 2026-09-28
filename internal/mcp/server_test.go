@@ -835,17 +835,22 @@ Use Clerk.
 # Consequences
 Tied to Clerk.
 `
-	result, _ = cs.CallTool(ctx, &mcp.CallToolParams{
+	result, err = cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_record_decision",
 		Arguments: map[string]any{
-			"project_root": tmpDir,
+			"project_root":  tmpDir,
 			"artifact_type": "decision",
-			"decision_id": "D-001",
-			"content": decisionOutput,
+			"decision_id":   "D-001",
+			"content":       decisionOutput,
 		},
 	})
-
-	os.WriteFile(filepath.Join(tmpDir, "research", "DECISIONS.md"), []byte(strings.Repeat("A", 150)), 0o644)
+	if err != nil {
+		t.Fatalf("record_decision: %v", err)
+	}
+	decEnv := parseEnvelope(t, result)
+	if !decEnv.Success {
+		t.Fatalf("record_decision failed: %s", decEnv.Message)
+	}
 
 	// Step 7: Run gate
 	result, err = cs.CallTool(ctx, &mcp.CallToolParams{

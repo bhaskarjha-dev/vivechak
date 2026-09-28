@@ -3,7 +3,9 @@ package mcputil
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"strings"
+	"time"
 
 	"github.com/bhaskarjha-dev/vivechak/internal/core"
 	vembed "github.com/bhaskarjha-dev/vivechak/internal/embed"
@@ -78,7 +80,6 @@ func handlePrepareGenerator(_ context.Context, _ *sdkmcp.CallToolRequest, in Pre
 		}
 	case core.ScopeDecision, core.ScopeComparison:
 		// Decision and comparison generators use a ```context block
-		// Replace the entire context block content
 		contextBlockStart := "```context"
 		contextBlockEnd := "```"
 		startIdx := strings.Index(genPrompt, contextBlockStart)
@@ -87,7 +88,33 @@ func handlePrepareGenerator(_ context.Context, _ *sdkmcp.CallToolRequest, in Pre
 			endIdx := strings.Index(genPrompt[afterStart:], contextBlockEnd)
 			if endIdx >= 0 {
 				endIdx += afterStart
-				genPrompt = genPrompt[:afterStart] + "\n" + in.Context + "\n" + genPrompt[endIdx:]
+				blockContent := genPrompt[afterStart:endIdx]
+				today := time.Now().UTC().Format("2006-01-02")
+
+				// If input context already provides structured key-value fields, use it directly
+				if strings.Contains(in.Context, "DECISION:") || strings.Contains(in.Context, "OPTIONS:") || strings.Contains(in.Context, "CONTEXT:") {
+					newBlock := "\n" + strings.TrimSpace(in.Context) + "\n"
+					if strings.Contains(newBlock, "[today]") {
+						newBlock = strings.Replace(newBlock, "[today]", today, 1)
+					}
+					genPrompt = genPrompt[:afterStart] + newBlock + genPrompt[endIdx:]
+				} else {
+					// Otherwise, preserve schema keys and inject into CONTEXT slot, auto-filling DATE
+					placeholderContextDecision := "CONTEXT: [what's being built; workload, team, constraints, what's already decided]"
+					placeholderContextComparison := "CONTEXT: [what's being built; workload, team, constraints, stage]"
+
+					newBlock := blockContent
+					if strings.Contains(newBlock, placeholderContextDecision) {
+						newBlock = strings.Replace(newBlock, placeholderContextDecision, "CONTEXT: "+in.Context, 1)
+					} else if strings.Contains(newBlock, placeholderContextComparison) {
+						newBlock = strings.Replace(newBlock, placeholderContextComparison, "CONTEXT: "+in.Context, 1)
+					} else if strings.Contains(newBlock, "CONTEXT:") {
+						re := regexp.MustCompile(`(?m)^CONTEXT:.*$`)
+						newBlock = re.ReplaceAllString(newBlock, "CONTEXT: "+in.Context)
+					}
+					newBlock = strings.Replace(newBlock, "[today]", today, 1)
+					genPrompt = genPrompt[:afterStart] + newBlock + genPrompt[endIdx:]
+				}
 			}
 		} else {
 			genPrompt = genPrompt + "\n\n## Context\n\n" + in.Context

@@ -248,7 +248,23 @@ func scanCompletedSessions(sessionsDir string) (map[string]bool, error) {
 		if e.IsDir() || filepath.Ext(e.Name()) != ".md" {
 			continue
 		}
-		// Extract session ID from filename (e.g., "T1-01.md" → "T1-01")
+
+		// Try extracting authoritative ID from frontmatter first
+		path := filepath.Join(sessionsDir, e.Name())
+		if data, err := os.ReadFile(path); err == nil {
+			if fm, _, err := core.ParseFrontmatter(data); err == nil && fm != nil {
+				if sid := fm.GetString("session_id"); sid != "" {
+					completed[sid] = true
+					continue
+				}
+				if id := fm.GetString("id"); id != "" {
+					completed[id] = true
+					continue
+				}
+			}
+		}
+
+		// Fallback: extract session ID from filename (e.g., "T1-01.md" → "T1-01")
 		name := strings.TrimSuffix(e.Name(), ".md")
 		completed[name] = true
 
@@ -256,7 +272,6 @@ func scanCompletedSessions(sessionsDir string) (map[string]bool, error) {
 		// by extracting the ID prefix
 		parts := strings.SplitN(name, "-", 3)
 		if len(parts) >= 2 {
-			// Reconstruct short ID: "T1" + "-" + "01" = "T1-01"
 			shortID := parts[0] + "-" + parts[1]
 			completed[shortID] = true
 		}
