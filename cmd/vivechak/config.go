@@ -76,55 +76,17 @@ func runMCPConfig() {
 	homeDir, _ := os.UserHomeDir()
 	appData := os.Getenv("APPDATA")
 
-	switch host {
-	case "cursor":
-		if homeDir == "" {
-			fmt.Fprintln(os.Stderr, "could not determine home dir for cursor config")
-			os.Exit(1)
-		}
-		configPath = filepath.Join(homeDir, ".cursor", "mcp.json")
-	case "vscode":
-		configPath = filepath.Join(cwd, ".vscode", "mcp.json")
-	case "claude-desktop":
-		if runtime.GOOS == "windows" {
-			if appData == "" && homeDir != "" {
-				appData = filepath.Join(homeDir, "AppData", "Roaming")
-			}
-			if appData == "" {
-				fmt.Fprintln(os.Stderr, "could not determine AppData path for claude-desktop")
-				os.Exit(1)
-			}
-			configPath = filepath.Join(appData, "Claude", "claude_desktop_config.json")
-		} else if runtime.GOOS == "darwin" {
-			if homeDir == "" {
-				fmt.Fprintln(os.Stderr, "could not determine home dir for claude-desktop")
-				os.Exit(1)
-			}
-			configPath = filepath.Join(homeDir, "Library", "Application Support", "Claude", "claude_desktop_config.json")
-		} else { // linux and others
-			if homeDir == "" {
-				fmt.Fprintln(os.Stderr, "could not determine home dir for claude-desktop")
-				os.Exit(1)
-			}
-			configPath = filepath.Join(homeDir, ".config", "Claude", "claude_desktop_config.json")
-		}
-	case "antigravity":
-		configPath = filepath.Join(cwd, ".gemini", "settings.json")
-	case "chatgpt", "codex", "kiro":
+	resolvedPath, err := resolveConfigPath(host, homeDir, appData, cwd, runtime.GOOS)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%v\n", err)
+		os.Exit(1)
+	}
+	if resolvedPath == "" {
 		b, _ := json.MarshalIndent(configObj, "", "  ")
 		fmt.Fprintln(os.Stdout, string(b))
 		os.Exit(0)
-	case "windsurf":
-		if homeDir == "" {
-			fmt.Fprintln(os.Stderr, "could not determine home dir for windsurf config")
-			os.Exit(1)
-		}
-		configPath = filepath.Join(homeDir, ".codeium", "windsurf", "mcp_config.json")
-	default:
-		fmt.Fprintf(os.Stderr, "unknown host: %s\n", host)
-		fmt.Fprintln(os.Stderr, "Supported clients: cursor, vscode, claude-desktop, windsurf, antigravity, chatgpt, codex, kiro")
-		os.Exit(1)
 	}
+	configPath = resolvedPath
 
 	// merge with existing
 	var existing map[string]any
@@ -184,4 +146,49 @@ func runMCPConfig() {
 	}
 
 	fmt.Fprintf(os.Stderr, "Successfully wrote config to %s\n", configPath)
+}
+
+// resolveConfigPath returns the destination configuration file path for the host client.
+// Returns an empty string for cloud/extension clients that do not write local files.
+func resolveConfigPath(host, homeDir, appData, cwd, goos string) (string, error) {
+	switch host {
+	case "cursor":
+		if homeDir == "" {
+			return "", fmt.Errorf("could not determine home dir for cursor config")
+		}
+		return filepath.Join(homeDir, ".cursor", "mcp.json"), nil
+	case "vscode":
+		return filepath.Join(cwd, ".vscode", "mcp.json"), nil
+	case "claude-desktop":
+		if goos == "windows" {
+			if appData == "" && homeDir != "" {
+				appData = filepath.Join(homeDir, "AppData", "Roaming")
+			}
+			if appData == "" {
+				return "", fmt.Errorf("could not determine AppData path for claude-desktop")
+			}
+			return filepath.Join(appData, "Claude", "claude_desktop_config.json"), nil
+		} else if goos == "darwin" {
+			if homeDir == "" {
+				return "", fmt.Errorf("could not determine home dir for claude-desktop")
+			}
+			return filepath.Join(homeDir, "Library", "Application Support", "Claude", "claude_desktop_config.json"), nil
+		} else { // linux and others
+			if homeDir == "" {
+				return "", fmt.Errorf("could not determine home dir for claude-desktop")
+			}
+			return filepath.Join(homeDir, ".config", "Claude", "claude_desktop_config.json"), nil
+		}
+	case "antigravity":
+		return filepath.Join(cwd, ".gemini", "settings.json"), nil
+	case "windsurf":
+		if homeDir == "" {
+			return "", fmt.Errorf("could not determine home dir for windsurf config")
+		}
+		return filepath.Join(homeDir, ".codeium", "windsurf", "mcp_config.json"), nil
+	case "chatgpt", "codex", "kiro":
+		return "", nil // cloud or extension-configured clients
+	default:
+		return "", fmt.Errorf("unknown client: %s", host)
+	}
 }

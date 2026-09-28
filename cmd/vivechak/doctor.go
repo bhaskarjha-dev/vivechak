@@ -30,35 +30,56 @@ func runDoctor() {
 	}
 
 	fmt.Fprintf(os.Stdout, "Checking workspace at %s\n", workspace)
+	hasErrors, successes, errs := checkWorkspace(workspace)
+	for _, s := range successes {
+		fmt.Fprintln(os.Stdout, s)
+	}
+	for _, e := range errs {
+		fmt.Fprintln(os.Stderr, e)
+	}
+
+	if hasErrors {
+		os.Exit(1)
+	} else {
+		fmt.Fprintln(os.Stdout, "Workspace is healthy.")
+		os.Exit(0)
+	}
+}
+
+// checkWorkspace performs integrity and consistency checks on the given workspace path.
+// Returns (hasErrors, successes, errors).
+func checkWorkspace(workspace string) (bool, []string, []string) {
 	hasErrors := false
+	var successes []string
+	var errs []string
 
 	// 1. Workspace exists
 	if !core.WorkspaceExists(workspace) {
-		fmt.Fprintln(os.Stderr, "✗ Workspace (research/ directory) does not exist")
+		errs = append(errs, "✗ Workspace (research/ directory) does not exist")
 		hasErrors = true
-	} else {
-		fmt.Fprintln(os.Stdout, "✓ Workspace exists")
+		return hasErrors, successes, errs
 	}
+	successes = append(successes, "✓ Workspace exists")
 
 	// 2. Templates complete
 	templatesDir := filepath.Join(workspace, core.TemplatesDir)
-	missingTemplates := []string{}
+	var missingTemplates []string
 	for _, tpl := range core.TemplatesToCopy {
 		if _, err := os.Stat(filepath.Join(templatesDir, tpl)); err != nil {
 			missingTemplates = append(missingTemplates, tpl)
 		}
 	}
 	if len(missingTemplates) > 0 {
-		fmt.Fprintf(os.Stderr, "✗ Missing templates: %v\n", missingTemplates)
+		errs = append(errs, fmt.Sprintf("✗ Missing templates: %v", missingTemplates))
 		hasErrors = true
 	} else {
-		fmt.Fprintln(os.Stdout, "✓ All templates present")
+		successes = append(successes, "✓ All templates present")
 	}
 
 	// Read pipeline and decisions for cross-checks
 	pipelineBytes, _ := os.ReadFile(filepath.Join(workspace, core.PipelineFile))
 	pipelineContent := string(pipelineBytes)
-	
+
 	decisionsBytes, _ := os.ReadFile(filepath.Join(workspace, core.DecisionsFile))
 	decisionsContent := string(decisionsBytes)
 
@@ -82,14 +103,14 @@ func runDoctor() {
 			}
 
 			if !utf8.Valid(data) {
-				fmt.Fprintf(os.Stderr, "✗ Corrupted UTF-8 in: %s\n", e.Name())
+				errs = append(errs, fmt.Sprintf("✗ Corrupted UTF-8 in: %s", e.Name()))
 				corruptCount++
 				hasErrors = true
 			}
 
 			fm, _, err := core.ParseFrontmatter(data)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "✗ Invalid frontmatter in %s: %v\n", e.Name(), err)
+				errs = append(errs, fmt.Sprintf("✗ Invalid frontmatter in %s: %v", e.Name(), err))
 				invalidFrontmatter++
 				hasErrors = true
 			}
@@ -114,7 +135,7 @@ func runDoctor() {
 			}
 
 			if id != "" && !strings.Contains(pipelineContent, id) {
-				fmt.Fprintf(os.Stderr, "✗ Orphaned session (not in pipeline): %s\n", e.Name())
+				errs = append(errs, fmt.Sprintf("✗ Orphaned session (not in pipeline): %s", e.Name()))
 				orphaned++
 				hasErrors = true
 			}
@@ -124,7 +145,7 @@ func runDoctor() {
 			matches := re.FindAllString(string(data), -1)
 			for _, match := range matches {
 				if !strings.Contains(decisionsContent, match) {
-					fmt.Fprintf(os.Stderr, "✗ Stale decision ref in %s: %s\n", e.Name(), match)
+					errs = append(errs, fmt.Sprintf("✗ Stale decision ref in %s: %s", e.Name(), match))
 					staleRefs++
 					hasErrors = true
 				}
@@ -132,30 +153,24 @@ func runDoctor() {
 		}
 
 		if invalidFrontmatter == 0 {
-			fmt.Fprintln(os.Stdout, "✓ All frontmatters valid")
+			successes = append(successes, "✓ All frontmatters valid")
 		}
 		if orphaned == 0 {
-			fmt.Fprintln(os.Stdout, "✓ No orphaned sessions")
+			successes = append(successes, "✓ No orphaned sessions")
 		}
 		if staleRefs == 0 {
-			fmt.Fprintln(os.Stdout, "✓ No stale cross-references")
+			successes = append(successes, "✓ No stale cross-references")
 		}
 		if corruptCount == 0 {
-			fmt.Fprintln(os.Stdout, "✓ No corrupted files (valid UTF-8)")
+			successes = append(successes, "✓ No corrupted files (valid UTF-8)")
 		}
 
 	} else {
-		// no sessions dir yet, which is fine
-		fmt.Fprintln(os.Stdout, "✓ Frontmatter check skipped (no sessions)")
-		fmt.Fprintln(os.Stdout, "✓ Orphan check skipped (no sessions)")
-		fmt.Fprintln(os.Stdout, "✓ Cross-reference check skipped (no sessions)")
-		fmt.Fprintln(os.Stdout, "✓ Integrity check skipped (no sessions)")
+		successes = append(successes, "✓ Frontmatter check skipped (no sessions)")
+		successes = append(successes, "✓ Orphan check skipped (no sessions)")
+		successes = append(successes, "✓ Cross-reference check skipped (no sessions)")
+		successes = append(successes, "✓ Integrity check skipped (no sessions)")
 	}
 
-	if hasErrors {
-		os.Exit(1)
-	} else {
-		fmt.Fprintln(os.Stdout, "Workspace is healthy.")
-		os.Exit(0)
-	}
+	return hasErrors, successes, errs
 }
