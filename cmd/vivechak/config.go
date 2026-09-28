@@ -24,6 +24,7 @@ func runMCPConfig() {
 
 	if host == "" {
 		fmt.Fprintln(os.Stderr, "Usage: vivechak mcp-config --client <host> [--write]")
+		fmt.Fprintln(os.Stderr, "Supported clients: cursor, vscode, claude-desktop, windsurf, antigravity, chatgpt, codex, kiro")
 		os.Exit(1)
 	}
 
@@ -47,6 +48,23 @@ func runMCPConfig() {
 		},
 	}
 
+	supportedClients := map[string]bool{
+		"cursor":         true,
+		"vscode":         true,
+		"claude-desktop": true,
+		"windsurf":       true,
+		"antigravity":    true,
+		"chatgpt":        true,
+		"codex":          true,
+		"kiro":           true,
+	}
+
+	if !supportedClients[host] {
+		fmt.Fprintf(os.Stderr, "unknown client: %s\n", host)
+		fmt.Fprintln(os.Stderr, "Supported clients: cursor, vscode, claude-desktop, windsurf, antigravity, chatgpt, codex, kiro")
+		os.Exit(1)
+	}
+
 	if !write {
 		b, _ := json.MarshalIndent(configObj, "", "  ")
 		fmt.Fprintln(os.Stdout, string(b))
@@ -68,17 +86,27 @@ func runMCPConfig() {
 	case "vscode":
 		configPath = filepath.Join(cwd, ".vscode", "mcp.json")
 	case "claude-desktop":
-		if appData != "" { // Windows
-			configPath = filepath.Join(appData, "Claude", "claude_desktop_config.json")
-		} else if homeDir != "" {
-			if runtime.GOOS == "linux" {
-				configPath = filepath.Join(homeDir, ".config", "Claude", "claude_desktop_config.json")
-			} else { // macOS
-				configPath = filepath.Join(homeDir, "Library", "Application Support", "Claude", "claude_desktop_config.json")
+		if runtime.GOOS == "windows" {
+			if appData == "" && homeDir != "" {
+				appData = filepath.Join(homeDir, "AppData", "Roaming")
 			}
-		} else {
-			fmt.Fprintln(os.Stderr, "could not determine path for claude-desktop")
-			os.Exit(1)
+			if appData == "" {
+				fmt.Fprintln(os.Stderr, "could not determine AppData path for claude-desktop")
+				os.Exit(1)
+			}
+			configPath = filepath.Join(appData, "Claude", "claude_desktop_config.json")
+		} else if runtime.GOOS == "darwin" {
+			if homeDir == "" {
+				fmt.Fprintln(os.Stderr, "could not determine home dir for claude-desktop")
+				os.Exit(1)
+			}
+			configPath = filepath.Join(homeDir, "Library", "Application Support", "Claude", "claude_desktop_config.json")
+		} else { // linux and others
+			if homeDir == "" {
+				fmt.Fprintln(os.Stderr, "could not determine home dir for claude-desktop")
+				os.Exit(1)
+			}
+			configPath = filepath.Join(homeDir, ".config", "Claude", "claude_desktop_config.json")
 		}
 	case "antigravity":
 		configPath = filepath.Join(cwd, ".gemini", "settings.json")
@@ -91,9 +119,10 @@ func runMCPConfig() {
 			fmt.Fprintln(os.Stderr, "could not determine home dir for windsurf config")
 			os.Exit(1)
 		}
-		configPath = filepath.Join(homeDir, ".windsurf", "mcp.json")
+		configPath = filepath.Join(homeDir, ".codeium", "windsurf", "mcp_config.json")
 	default:
 		fmt.Fprintf(os.Stderr, "unknown host: %s\n", host)
+		fmt.Fprintln(os.Stderr, "Supported clients: cursor, vscode, claude-desktop, windsurf, antigravity, chatgpt, codex, kiro")
 		os.Exit(1)
 	}
 

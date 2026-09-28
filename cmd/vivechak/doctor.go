@@ -14,6 +14,12 @@ import (
 func runDoctor() {
 	var explicit string
 	if len(os.Args) > 2 {
+		if os.Args[2] == "--help" || os.Args[2] == "-h" {
+			fmt.Fprintln(os.Stdout, "Usage: vivechak doctor [workspace_path]")
+			fmt.Fprintln(os.Stdout, "")
+			fmt.Fprintln(os.Stdout, "Check workspace integrity, templates, frontmatter validity, and cross-references.")
+			os.Exit(0)
+		}
 		explicit = os.Args[2]
 	}
 
@@ -89,21 +95,28 @@ func runDoctor() {
 			}
 
 			// Check orphaned
-			if fm != nil && fm.Has("id") {
-				id := fm.GetString("id")
-				if id != "" && !strings.Contains(pipelineContent, id) {
-					fmt.Fprintf(os.Stderr, "✗ Orphaned session (not in pipeline): %s\n", e.Name())
-					orphaned++
-					hasErrors = true
+			var id string
+			if fm != nil {
+				if sid := fm.GetString("session_id"); sid != "" {
+					id = sid
+				} else if fid := fm.GetString("id"); fid != "" {
+					id = fid
 				}
-			} else {
-				// if no frontmatter id, fallback to filename
-				id := strings.TrimSuffix(e.Name(), ".md")
-				if !strings.Contains(pipelineContent, id) {
-					fmt.Fprintf(os.Stderr, "✗ Orphaned session (not in pipeline): %s\n", e.Name())
-					orphaned++
-					hasErrors = true
+			}
+			if id == "" {
+				name := strings.TrimSuffix(e.Name(), ".md")
+				parts := strings.SplitN(name, "-", 3)
+				if len(parts) >= 2 {
+					id = parts[0] + "-" + parts[1]
+				} else {
+					id = name
 				}
+			}
+
+			if id != "" && !strings.Contains(pipelineContent, id) {
+				fmt.Fprintf(os.Stderr, "✗ Orphaned session (not in pipeline): %s\n", e.Name())
+				orphaned++
+				hasErrors = true
 			}
 
 			// Check stale decisions references
