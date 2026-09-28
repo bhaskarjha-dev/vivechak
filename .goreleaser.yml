@@ -118,3 +118,30 @@ release:
   draft: false
   prerelease: auto
   name_template: "v{{.Version}}"
+
+brews:
+  - name: vivechak
+    ids:
+      - default
+    repository:
+      owner: bhaskarjha-dev
+      name: homebrew-tap
+    directory: Formula
+    homepage: https://github.com/bhaskarjha-dev/vivechak
+    description: Evidence-grounded research for technical decisions — MCP server
+    license: MIT
+    install: |
+      bin.install "vivechak"
+    test: |
+      system "#{bin}/vivechak", "version"
+
+scoops:
+  - name: vivechak
+    ids:
+      - default
+    repository:
+      owner: bhaskarjha-dev
+      name: scoop-bucket
+    homepage: https://github.com/bhaskarjha-dev/vivechak
+    description: Evidence-grounded research for technical decisions — MCP server
+    license: MIT

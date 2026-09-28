@@ -27,5 +27,11 @@ Installers:
     InstallerType: portable
     Commands:
       - vivechak
+  - Architecture: arm64
+    InstallerUrl: https://github.com/bhaskarjha-dev/vivechak/releases/download/v0.0.1/vivechak_0.0.1_windows_arm64.zip
+    InstallerSha256: PLACEHOLDER
+    InstallerType: portable
+    Commands:
+      - vivechak
 ManifestType: singleton
 ManifestVersion: 1.6.0

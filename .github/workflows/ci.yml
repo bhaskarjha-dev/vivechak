@@ -23,6 +23,19 @@ jobs:
       - name: Vet
         run: go vet ./...
 
+      - name: Embed Sync Check
+        run: |
+          # Verify embedded generators match root-level generators
+          diff GENERATOR.md internal/embed/generators/GENERATOR.md
+          diff GENERATOR-DECISION.md internal/embed/generators/GENERATOR-DECISION.md
+          diff GENERATOR-COMPARISON.md internal/embed/generators/GENERATOR-COMPARISON.md
+          # Verify embedded templates match root-level templates
+          for f in templates/*.md; do
+            base=$(basename "$f")
+            diff "$f" "internal/embed/templates/$base"
+          done
+          echo "✓ Embed sync verified"
+
       - name: Test
         run: go test -count=1 -race ./...
 
