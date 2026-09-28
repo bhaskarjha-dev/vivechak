@@ -41,9 +41,7 @@ func WriteFileAtomic(root *os.Root, relPath string, data []byte, perm os.FileMod
 		return err
 	}
 
-	// Rename over the target
-	// Go 1.25+ os.Root doesn't necessarily have Rename in all early drafts, let's try calling it.
-	// We will compile and fix if it fails.
+	// Atomic rename over the target path.
 	err = root.Rename(tmpPath, relPath)
 	if err != nil {
 		return err

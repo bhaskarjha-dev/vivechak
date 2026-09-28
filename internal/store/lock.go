@@ -2,7 +2,6 @@ package store
 
 import (
 	"context"
-	"os"
 	"time"
 
 	"github.com/gofrs/flock"
@@ -28,9 +27,7 @@ func LockFile(path string, timeout time.Duration) (func() error, error) {
 	}
 
 	unlock := func() error {
-		err := f.Unlock()
-		os.Remove(lockPath)
-		return err
+		return f.Unlock()
 	}
 
 	return unlock, nil
