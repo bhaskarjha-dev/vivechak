@@ -11,6 +11,8 @@ import (
 	"github.com/bhaskarjha-dev/vivechak/internal/core"
 )
 
+var decisionIDRe = regexp.MustCompile(`D-\d+`)
+
 func runDoctor() {
 	var explicit string
 	if len(os.Args) > 2 {
@@ -125,8 +127,7 @@ func checkWorkspace(workspace string) (bool, []string, []string) {
 			}
 
 			// Check stale decisions references
-			re := regexp.MustCompile(`D-\d+`)
-			matches := re.FindAllString(string(data), -1)
+			matches := decisionIDRe.FindAllString(string(data), -1)
 			for _, match := range matches {
 				if !strings.Contains(decisionsContent, match) {
 					errs = append(errs, fmt.Sprintf("✗ Stale decision ref in %s: %s", e.Name(), match))

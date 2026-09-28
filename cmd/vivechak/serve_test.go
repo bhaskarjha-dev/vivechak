@@ -146,33 +146,39 @@ func TestLiveMCPServer_EndToEnd(t *testing.T) {
 ## Session DAG
 
 ### Session T1-01 — Database Selection
-- **ID**: T1-01
-- **Layer**: 1
-- **Door Type**: one-way
-- **Dependencies**: None
-- **Output File**: ` + "`T1-01-database.md`" + `
+| Field | Value |
+|---|---|
+| **ID** | T1-01 |
+| **Layer** | 1 |
+| **Door Type** | one-way |
+| **Dependencies** | None |
+| **Output File** | ` + "`T1-01-database.md`" + ` |
 
 ` + "```prompt" + `
 Investigate database engines.
 ` + "```" + `
 
 ### Session T1-02 — Consensus
-- **ID**: T1-02
-- **Layer**: 1
-- **Door Type**: one-way
-- **Dependencies**: None
-- **Output File**: ` + "`T1-02-consensus.md`" + `
+| Field | Value |
+|---|---|
+| **ID** | T1-02 |
+| **Layer** | 1 |
+| **Door Type** | one-way |
+| **Dependencies** | None |
+| **Output File** | ` + "`T1-02-consensus.md`" + ` |
 
 ` + "```prompt" + `
 Investigate consensus protocols.
 ` + "```" + `
 
 ### Session SYN-01 — Synthesis
-- **ID**: SYN-01
-- **Layer**: 2
-- **Door Type**: one-way
-- **Dependencies**: T1-01, T1-02
-- **Output File**: ` + "`FAD.md`" + `
+| Field | Value |
+|---|---|
+| **ID** | SYN-01 |
+| **Layer** | 2 |
+| **Door Type** | one-way |
+| **Dependencies** | T1-01, T1-02 |
+| **Output File** | ` + "`FAD.md`" + ` |
 
 ` + "```prompt" + `
 Synthesize findings:
@@ -230,6 +236,7 @@ Synthesize findings:
 			"content": `---
 session_id: T1-01
 title: Database Selection
+date: 2026-09-29
 status: complete
 ---
 # Findings
@@ -267,6 +274,7 @@ Use RocksDB. A (benchmark)
 			"content": `---
 session_id: T1-02
 title: Consensus
+date: 2026-09-29
 status: complete
 ---
 # Findings
@@ -358,6 +366,7 @@ Dry run test.
 	fadContent := `---
 session_id: SYN-01
 title: Founding Architecture Document
+date: 2026-09-29
 status: accepted
 ---
 # FAD

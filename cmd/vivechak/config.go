@@ -16,7 +16,12 @@ func runMCPConfig() {
 
 	args := os.Args[2:]
 	for i := 0; i < len(args); i++ {
-		if args[i] == "--client" && i+1 < len(args) {
+		if args[i] == "--help" || args[i] == "-h" {
+			fmt.Fprintln(os.Stdout, "Usage: vivechak mcp-config [--client <preset>] [--path <filepath>] [--write]")
+			fmt.Fprintln(os.Stdout, "")
+			fmt.Fprintln(os.Stdout, "Supported client presets: cursor, vscode, claude-desktop, windsurf, antigravity, chatgpt, codex, kiro")
+			os.Exit(0)
+		} else if args[i] == "--client" && i+1 < len(args) {
 			host = args[i+1]
 			i++
 		} else if (args[i] == "--path" || args[i] == "--file") && i+1 < len(args) {
