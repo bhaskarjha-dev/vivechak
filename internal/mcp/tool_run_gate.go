@@ -3,10 +3,9 @@ package mcputil
 import (
 	"context"
 	"fmt"
-	"os"
-	"path/filepath"
 
 	"github.com/bhaskarjha-dev/vivechak/internal/core"
+	"github.com/bhaskarjha-dev/vivechak/internal/store"
 	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -51,6 +50,13 @@ func handleRunGate(_ context.Context, _ *sdkmcp.CallToolRequest, in RunGateInput
 			"Run vivechak_init first.")
 	}
 
+	ws, err := store.OpenWorkspace(root)
+	if err != nil {
+		return ErrorResult(tool, fmt.Errorf("opening workspace: %w", err),
+			"Provide a valid workspace.")
+	}
+	defer ws.Close()
+
 	info := core.InspectWorkspace(root)
 
 	// Track A: Structural completeness
@@ -87,9 +93,8 @@ func handleRunGate(_ context.Context, _ *sdkmcp.CallToolRequest, in RunGateInput
 	}
 
 	// Check 5: FAD exists
-	fadPath := filepath.Join(root, "research", "FAD.md")
 	hasFAD := false
-	if _, err := os.Stat(fadPath); err == nil {
+	if _, err := ws.Stat(core.FADFile); err == nil {
 		hasFAD = true
 		trackAPassed++
 	} else {
@@ -119,7 +124,7 @@ func handleRunGate(_ context.Context, _ *sdkmcp.CallToolRequest, in RunGateInput
 
 	// Check B2: FAD has evidence grades if it exists
 	if hasFAD {
-		fadData, err := os.ReadFile(fadPath)
+		fadData, err := ws.ReadFile(core.FADFile)
 		if err == nil {
 			fadValidation := core.ValidateArtifact(fadData)
 			if fadValidation.WarningCount() == 0 {
@@ -138,7 +143,7 @@ func handleRunGate(_ context.Context, _ *sdkmcp.CallToolRequest, in RunGateInput
 
 	// Check B3: Decisions file has content
 	if info.HasDecisions {
-		decData, err := os.ReadFile(filepath.Join(root, core.DecisionsFile))
+		decData, err := ws.ReadFile(core.DecisionsFile)
 		if err == nil && len(decData) > 100 {
 			trackBPassed++
 		} else {

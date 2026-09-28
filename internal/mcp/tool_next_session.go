@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/bhaskarjha-dev/vivechak/internal/core"
+	"github.com/bhaskarjha-dev/vivechak/internal/store"
 	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -53,9 +54,15 @@ func handleNextSession(_ context.Context, _ *sdkmcp.CallToolRequest, in NextSess
 			"Run vivechak_init first.")
 	}
 
+	ws, err := store.OpenWorkspace(root)
+	if err != nil {
+		return ErrorResult(tool, fmt.Errorf("opening workspace: %w", err),
+			"Provide a valid workspace.")
+	}
+	defer ws.Close()
+
 	// Read pipeline file
-	pipelinePath := filepath.Join(root, core.PipelineFile)
-	pipelineData, err := os.ReadFile(pipelinePath)
+	pipelineData, err := ws.ReadFile(core.PipelineFile)
 	if err != nil {
 		return ErrorResult(tool,
 			fmt.Errorf("no research pipeline found — run vivechak_save_plan first"),
@@ -73,7 +80,7 @@ func handleNextSession(_ context.Context, _ *sdkmcp.CallToolRequest, in NextSess
 
 	// Scan completed sessions
 	sessionsDir := filepath.Join(root, core.SessionsDir)
-	completedIDs, err := scanCompletedSessions(sessionsDir)
+	completedIDs, err := scanCompletedSessions(ws)
 	if err != nil {
 		return ErrorResult(tool, err, "Check workspace directory permissions.")
 	}
@@ -239,44 +246,46 @@ func buildSessionResponse(tool string, session core.Session, prompt string, comp
 	return env.ToResult()
 }
 
-// scanCompletedSessions reads the sessions directory and returns completed IDs.
-// Authoritative IDs come from YAML frontmatter (session_id or id fields).
-// Falls back to full filename stem only — no heuristic ID extraction.
-func scanCompletedSessions(sessionsDir string) (map[string]bool, error) {
+// scanCompletedSessions reads the sessions directory and FAD file using workspace confinement,
+// returning completed IDs. Authoritative IDs come from YAML frontmatter (session_id or id fields), falling back to filename stem.
+func scanCompletedSessions(ws *store.Workspace) (map[string]bool, error) {
 	completed := map[string]bool{}
-	entries, err := os.ReadDir(sessionsDir)
+	entries, err := ws.ListDir(core.SessionsDir)
 	if err != nil {
-		if os.IsNotExist(err) {
-			return completed, nil // Sessions dir not yet created — expected
+		if !os.IsNotExist(err) {
+			return nil, fmt.Errorf("reading sessions directory: %w", err)
 		}
-		return nil, fmt.Errorf("reading sessions directory: %w", err)
-	}
+		// Sessions dir not yet created — expected on fresh workspace
+	} else {
+		for _, e := range entries {
+			if e.IsDir() || filepath.Ext(e.Name()) != ".md" {
+				continue
+			}
 
-	for _, e := range entries {
-		if e.IsDir() || filepath.Ext(e.Name()) != ".md" {
-			continue
-		}
-
-		// Try extracting authoritative ID from frontmatter first
-		path := filepath.Join(sessionsDir, e.Name())
-		if data, err := os.ReadFile(path); err == nil {
-			if fm, _, err := core.ParseFrontmatter(data); err == nil && fm != nil {
-				if sid := fm.GetString("session_id"); sid != "" {
-					completed[sid] = true
-					continue
-				}
-				if id := fm.GetString("id"); id != "" {
-					completed[id] = true
-					continue
+			relPath := filepath.Join(core.SessionsDir, e.Name())
+			var fm core.Frontmatter
+			if data, err := ws.ReadFile(relPath); err == nil {
+				if parsed, _, err := core.ParseFrontmatter(data); err == nil {
+					fm = parsed
 				}
 			}
+			id := core.ExtractSessionID(e.Name(), fm)
+			if id != "" {
+				completed[id] = true
+			}
 		}
+	}
 
-		// Fallback: use full filename stem (without extension) as identity.
-		// Do NOT attempt heuristic ID extraction via SplitN — this creates
-		// phantom completions where "T1-01-database.md" falsely registers "T1-01".
-		name := strings.TrimSuffix(e.Name(), ".md")
-		completed[name] = true
+	// Also check for FAD at the research root
+	if data, err := ws.ReadFile(core.FADFile); err == nil {
+		var fm core.Frontmatter
+		if parsed, _, err := core.ParseFrontmatter(data); err == nil {
+			fm = parsed
+		}
+		id := core.ExtractSessionID(filepath.Base(core.FADFile), fm)
+		if id != "" {
+			completed[id] = true
+		}
 	}
 
 	return completed, nil

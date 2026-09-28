@@ -56,6 +56,12 @@ func handleInit(_ context.Context, req *sdkmcp.CallToolRequest, in InitInput) (*
 			"Provide a valid absolute or relative path as project_root.")
 	}
 
+	// Guard against initializing at a filesystem root
+	if absRoot == "/" || absRoot == "\\" || filepath.Dir(absRoot) == absRoot {
+		return ErrorResult(tool, fmt.Errorf("project_root cannot be a filesystem root: %q", absRoot),
+			"Provide a project directory path, not a filesystem root.")
+	}
+
 	// Ensure the root directory exists — init is the only tool that creates it
 	if err := os.MkdirAll(absRoot, 0o755); err != nil {
 		return ErrorResult(tool, fmt.Errorf("creating directory %q: %w", absRoot, err),

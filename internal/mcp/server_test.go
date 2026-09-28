@@ -982,3 +982,34 @@ func TestContentSizeLimit(t *testing.T) {
 		t.Error("expected save_session to fail for huge content")
 	}
 }
+
+func TestInit_RejectsFilesystemRoot(t *testing.T) {
+	cs := testServer(t)
+	ctx := context.Background()
+
+	rootPaths := []string{"/"}
+	vol := filepath.VolumeName(t.TempDir())
+	if vol != "" {
+		rootPaths = append(rootPaths, vol+"\\", vol+"/")
+	}
+
+	for _, root := range rootPaths {
+		result, err := cs.CallTool(ctx, &mcp.CallToolParams{
+			Name: "vivechak_init",
+			Arguments: map[string]any{
+				"project_root": root,
+			},
+		})
+		if err != nil {
+			t.Fatalf("call init with %s: %v", root, err)
+		}
+		env := parseEnvelope(t, result)
+		if env.Success {
+			t.Errorf("expected vivechak_init to reject filesystem root %q", root)
+		}
+		if !strings.Contains(env.Message, "cannot be a filesystem root") {
+			t.Errorf("expected error message to mention filesystem root, got: %s", env.Message)
+		}
+	}
+}
+

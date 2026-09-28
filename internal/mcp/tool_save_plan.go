@@ -127,7 +127,7 @@ func handleSavePlan(ctx context.Context, _ *sdkmcp.CallToolRequest, in SavePlanI
 
 		// Ensure DECISIONS.md exists
 		decPath := core.DecisionsFile
-		if _, err := os.Stat(filepath.Join(root, decPath)); os.IsNotExist(err) {
+		if _, err := ws.Stat(decPath); os.IsNotExist(err) {
 			initialDecisions := []byte("# Architectural Decision Log\n\n| Decision | Title | Door Type | Status | Date |\n|---|---|---|---|---|\n")
 			if err := store.WriteFileAtomic(ws.Root(), decPath, initialDecisions, 0o644); err == nil {
 				savedFiles = append(savedFiles, decPath)

@@ -89,7 +89,7 @@ func handleSaveSession(ctx context.Context, _ *sdkmcp.CallToolRequest, in SaveSe
 	// FAD (Founding Architecture Document) writes to research/FAD.md, not sessions/
 	var relPath string
 	if in.SessionID == "FAD" {
-		relPath = filepath.Join(core.ResearchDir, filename)
+		relPath = core.FADFile
 	} else {
 		relPath = filepath.Join(core.SessionsDir, filename)
 	}

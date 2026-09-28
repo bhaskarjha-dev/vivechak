@@ -3,7 +3,6 @@ package mcputil
 import (
 	"context"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -118,7 +117,7 @@ func handleRecordDecision(ctx context.Context, _ *sdkmcp.CallToolRequest, in Rec
 		if decErr == nil {
 			defer decUnlock()
 			var existing []byte
-			if data, err := os.ReadFile(filepath.Join(root, decRelPath)); err == nil {
+			if data, err := ws.ReadFile(decRelPath); err == nil {
 				existing = data
 			}
 			newDecContent := updateOrAppendDecision(existing, in.DecisionID, in.Content)
@@ -167,11 +166,14 @@ func updateOrAppendDecision(existing []byte, decisionID string, content string) 
 	entry := fmt.Sprintf("%s\n%s\n%s", startMarker, strings.TrimSpace(content), endMarker)
 
 	str := string(existing)
-	if strings.Contains(str, startMarker) && strings.Contains(str, endMarker) {
-		startIdx := strings.Index(str, startMarker)
-		endIdx := strings.Index(str, endMarker) + len(endMarker)
-		newStr := str[:startIdx] + entry + str[endIdx:]
-		return []byte(newStr)
+	startIdx := strings.Index(str, startMarker)
+	if startIdx >= 0 {
+		endRel := strings.Index(str[startIdx:], endMarker)
+		if endRel >= 0 {
+			endIdx := startIdx + endRel + len(endMarker)
+			newStr := str[:startIdx] + entry + str[endIdx:]
+			return []byte(newStr)
+		}
 	}
 
 	if len(strings.TrimSpace(str)) == 0 {
