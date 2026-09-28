@@ -87,6 +87,7 @@ func gatherAllFindings(sessionsDir string, completedSessions map[string]bool) (s
 	var findings []string
 	var sessionIDs []string
 	totalBytes := 0
+	seenFiles := make(map[string]bool)
 
 	// Collect and sort IDs for deterministic ordering
 	var sortedIDs []string
@@ -96,13 +97,14 @@ func gatherAllFindings(sessionsDir string, completedSessions map[string]bool) (s
 	sort.Strings(sortedIDs)
 
 	for _, id := range sortedIDs {
-		content, err := readSessionFile(sessionsDir, id)
+		content, fileName, err := readSessionFile(sessionsDir, id)
 		if err != nil {
 			return "", nil, 0, err
 		}
-		if content == "" {
+		if content == "" || seenFiles[fileName] {
 			continue
 		}
+		seenFiles[fileName] = true
 
 		sessionIDs = append(sessionIDs, id)
 
@@ -121,15 +123,17 @@ func gatherDependencyFindings(sessionsDir string, dependencies []string) (string
 	var findings []string
 	var sessionIDs []string
 	totalBytes := 0
+	seenFiles := make(map[string]bool)
 
 	for _, depID := range dependencies {
-		content, err := readSessionFile(sessionsDir, depID)
+		content, fileName, err := readSessionFile(sessionsDir, depID)
 		if err != nil {
 			return "", nil, 0, err
 		}
-		if content == "" {
+		if content == "" || seenFiles[fileName] {
 			continue
 		}
+		seenFiles[fileName] = true
 
 		sessionIDs = append(sessionIDs, depID)
 
@@ -143,8 +147,8 @@ func gatherDependencyFindings(sessionsDir string, dependencies []string) (string
 }
 
 // readSessionFile reads a session file from the sessions directory.
-// Tries multiple filename patterns.
-func readSessionFile(sessionsDir string, sessionID string) (string, error) {
+// Tries multiple filename patterns and returns the content and resolved filename.
+func readSessionFile(sessionsDir string, sessionID string) (string, string, error) {
 	patterns := []string{
 		sessionID + ".md",
 		strings.ToLower(sessionID) + ".md",
@@ -155,32 +159,35 @@ func readSessionFile(sessionsDir string, sessionID string) (string, error) {
 		path := filepath.Join(sessionsDir, pattern)
 		data, err := os.ReadFile(path)
 		if err == nil {
-			return string(data), nil
+			return string(data), pattern, nil
 		}
-		// If it's a permission or other serious error, we might want to return it,
-		// but let's keep trying other patterns if it's just not found.
 		if !os.IsNotExist(err) {
-			return "", fmt.Errorf("reading session file %s: %w", path, err)
+			return "", "", fmt.Errorf("reading session file %s: %w", path, err)
 		}
 	}
 
 	// Try to find any file containing the session ID
 	entries, err := os.ReadDir(sessionsDir)
 	if err != nil {
-		return "", fmt.Errorf("reading sessions directory: %w", err)
+		return "", "", fmt.Errorf("reading sessions directory: %w", err)
 	}
 	for _, e := range entries {
-		if strings.Contains(strings.ToUpper(e.Name()), strings.ToUpper(sessionID)) {
+		if e.IsDir() || filepath.Ext(e.Name()) != ".md" {
+			continue
+		}
+		nameUpper := strings.ToUpper(e.Name())
+		idUpper := strings.ToUpper(sessionID)
+		if strings.HasPrefix(nameUpper, idUpper+"-") || strings.HasPrefix(nameUpper, idUpper+".") || strings.Contains(nameUpper, idUpper) {
 			path := filepath.Join(sessionsDir, e.Name())
 			data, err := os.ReadFile(path)
 			if err == nil {
-				return string(data), nil
+				return string(data), e.Name(), nil
 			}
-			return "", fmt.Errorf("reading session file %s: %w", path, err)
+			return "", "", fmt.Errorf("reading session file %s: %w", path, err)
 		}
 	}
 
-	return "", fmt.Errorf("session file not found for ID: %s", sessionID)
+	return "", "", fmt.Errorf("session file not found for ID: %s", sessionID)
 }
 
 // extractFindings creates a compact context excerpt from a session body.
@@ -199,10 +206,14 @@ func extractFindings(body string, sessionID string) string {
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
 
-		// Always include headings
+		// Always include headings, except rejected alternatives sections
 		if strings.HasPrefix(trimmed, "#") {
-			excerpt.WriteString(line + "\n")
 			lower := strings.ToLower(trimmed)
+			if strings.Contains(lower, "rejected") || strings.Contains(lower, "alternatives considered") {
+				inRelevantSection = false
+				continue
+			}
+			excerpt.WriteString(line + "\n")
 			inRelevantSection = strings.Contains(lower, "recommendation") ||
 				strings.Contains(lower, "finding") ||
 				strings.Contains(lower, "conclusion") ||

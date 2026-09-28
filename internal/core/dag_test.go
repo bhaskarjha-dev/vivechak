@@ -282,3 +282,83 @@ func containsStr2(slice []string, target string) bool {
 	}
 	return false
 }
+
+func TestValidateDAG(t *testing.T) {
+	// Valid DAG should pass
+	dag, err := ParsePipeline([]byte(samplePipeline))
+	if err != nil {
+		t.Fatalf("ParsePipeline: %v", err)
+	}
+	if err := dag.ValidateDAG(); err != nil {
+		t.Errorf("expected valid DAG, got: %v", err)
+	}
+
+	// Dangling dependency should fail
+	dangling := DAG{
+		Sessions: []Session{
+			{ID: "T1-01", Dependencies: []string{"NONEXISTENT"}},
+		},
+	}
+	if err := dangling.ValidateDAG(); err == nil {
+		t.Error("expected error for dangling dependency, got nil")
+	}
+
+	// Duplicate session ID should fail
+	duplicate := DAG{
+		Sessions: []Session{
+			{ID: "T1-01"},
+			{ID: "T1-01"},
+		},
+	}
+	if err := duplicate.ValidateDAG(); err == nil {
+		t.Error("expected error for duplicate session ID, got nil")
+	}
+
+	// Direct cycle (A -> B -> A) should fail
+	cyclic := DAG{
+		Sessions: []Session{
+			{ID: "A", Dependencies: []string{"B"}},
+			{ID: "B", Dependencies: []string{"A"}},
+		},
+	}
+	if err := cyclic.ValidateDAG(); err == nil {
+		t.Error("expected error for cyclic DAG, got nil")
+	}
+}
+
+func TestComplexityScore(t *testing.T) {
+	dag, err := ParsePipeline([]byte(samplePipeline))
+	if err != nil {
+		t.Fatalf("ParsePipeline: %v", err)
+	}
+	if dag.ComplexityScore != 8 {
+		t.Errorf("expected ComplexityScore 8, got %d", dag.ComplexityScore)
+	}
+	if dag.Tier != "**Tier 1 (4–8 Sessions)**" {
+		t.Errorf("expected Tier '**Tier 1 (4–8 Sessions)**', got %q", dag.Tier)
+	}
+}
+
+func TestFlexibleSessionHeaders(t *testing.T) {
+	pipeline := `# Pipeline
+### D-001-S1: Deep Dive Decision Session
+| Field | Value |
+|---|---|
+| **ID** | D-001-S1 |
+| **Dependencies** | None |
+
+` + "```prompt" + `
+Prompt content
+` + "```" + `
+`
+	dag, err := ParsePipeline([]byte(pipeline))
+	if err != nil {
+		t.Fatalf("ParsePipeline: %v", err)
+	}
+	if len(dag.Sessions) != 1 {
+		t.Fatalf("expected 1 session, got %d", len(dag.Sessions))
+	}
+	if dag.Sessions[0].ID != "D-001-S1" {
+		t.Errorf("expected ID D-001-S1, got %s", dag.Sessions[0].ID)
+	}
+}

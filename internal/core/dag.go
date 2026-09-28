@@ -58,6 +58,64 @@ func (d *DAG) SessionByID(id string) *Session {
 	return nil
 }
 
+// ValidateDAG checks the pipeline graph for cycles, unknown dependencies, and duplicates.
+func (d *DAG) ValidateDAG() error {
+	ids := make(map[string]bool)
+	for _, s := range d.Sessions {
+		if s.ID == "" {
+			return fmt.Errorf("session with empty ID found")
+		}
+		if ids[s.ID] {
+			return fmt.Errorf("duplicate session ID: %s", s.ID)
+		}
+		ids[s.ID] = true
+	}
+
+	// Check for dangling dependencies
+	for _, s := range d.Sessions {
+		for _, dep := range s.Dependencies {
+			if !ids[dep] {
+				return fmt.Errorf("session %s depends on nonexistent session %s", s.ID, dep)
+			}
+		}
+	}
+
+	// Cycle detection using DFS (0=unvisited, 1=visiting, 2=visited)
+	visited := make(map[string]int)
+	var dfs func(id string, path []string) error
+	dfs = func(id string, path []string) error {
+		visited[id] = 1 // visiting (gray)
+		path = append(path, id)
+
+		session := d.SessionByID(id)
+		if session != nil {
+			for _, dep := range session.Dependencies {
+				if visited[dep] == 1 {
+					return fmt.Errorf("cycle detected in pipeline DAG: %s -> %s", strings.Join(path, " -> "), dep)
+				}
+				if visited[dep] == 0 {
+					if err := dfs(dep, path); err != nil {
+						return err
+					}
+				}
+			}
+		}
+
+		visited[id] = 2 // visited (black)
+		return nil
+	}
+
+	for _, s := range d.Sessions {
+		if visited[s.ID] == 0 {
+			if err := dfs(s.ID, nil); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
 // NextSessions returns sessions whose dependencies are all satisfied.
 // completedIDs is the set of session IDs that have been completed.
 func (d *DAG) NextSessions(completedIDs map[string]bool) []Session {
@@ -86,8 +144,8 @@ func (d *DAG) NextSessions(completedIDs map[string]bool) []Session {
 
 // Patterns for parsing the pipeline format
 var (
-	// Matches session headers like: #### T1-01: Graph Persistence Landscape
-	sessionHeaderRe = regexp.MustCompile(`^#{2,4}\s+((?:T\d+-\d+|SYN-\d+|R-\d+)):?\s*(.*)`)
+	// Matches session headers like: #### T1-01: Graph Persistence Landscape, #### D-001-S1: Spike
+	sessionHeaderRe = regexp.MustCompile(`^#{2,4}\s+([A-Za-z0-9]+(?:-[A-Za-z0-9]+)+):?\s*(.*)`)
 
 	// Matches metadata table rows like: | **ID** | T1-01 |
 	metaFieldRe = regexp.MustCompile(`\|\s*\*\*([^*]+)\*\*\s*\|\s*(.+?)\s*\|`)
@@ -175,6 +233,11 @@ func ParsePipeline(data []byte) (*DAG, error) {
 			// Extract score and tier
 			if idx := strings.Index(trimmed, "→"); idx > 0 {
 				dag.Tier = strings.TrimSpace(trimmed[idx+len("→"):])
+				beforeArrow := trimmed[:idx]
+				re := regexp.MustCompile(`(\d+)(?:\s*/\s*\d+)?`)
+				if matches := re.FindStringSubmatch(beforeArrow); len(matches) > 1 {
+					fmt.Sscanf(matches[1], "%d", &dag.ComplexityScore)
+				}
 			}
 		}
 
@@ -218,10 +281,10 @@ func normalizeSessionID(id string) string {
 }
 
 // parseDependencies parses a dependency list from the metadata table.
-// Handles formats like: "None (parallel)", "T1-01", "T1-01, T1-02"
+// Handles formats like: "None (parallel)", "T1-01", "T1-01, T1-02", "T1-01 (soft)"
 func parseDependencies(value string) []string {
 	lower := strings.ToLower(value)
-	if lower == "none" || strings.Contains(lower, "none") || lower == "—" || lower == "-" {
+	if lower == "none" || strings.Contains(lower, "none") || lower == "—" || lower == "-" || lower == "n/a" {
 		return nil
 	}
 
@@ -229,7 +292,10 @@ func parseDependencies(value string) []string {
 	var deps []string
 	for _, p := range parts {
 		p = strings.TrimSpace(p)
-		if p != "" {
+		if idx := strings.Index(p, "("); idx > 0 {
+			p = strings.TrimSpace(p[:idx])
+		}
+		if p != "" && !strings.EqualFold(p, "none") && !strings.EqualFold(p, "n/a") {
 			deps = append(deps, p)
 		}
 	}
