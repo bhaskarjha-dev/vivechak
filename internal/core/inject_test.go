@@ -225,27 +225,126 @@ PostgreSQL handles graph traversal up to 50k nodes at <50ms p95
 	}
 }
 
-func TestReadSessionFile_PrefixMatchOnly(t *testing.T) {
+func TestReadSessionFile_Comprehensive(t *testing.T) {
 	tmpDir := t.TempDir()
 
+	// 1. File with canonical ID and hyphenated title slug
 	os.WriteFile(filepath.Join(tmpDir, "T1-01-database-selection.md"), []byte("---\nsession_id: T1-01\ntitle: Database Selection\n---\n# Database Selection\n"), 0o644)
+	// 2. File with canonical ID and no slug (exact match)
 	os.WriteFile(filepath.Join(tmpDir, "T1-02.md"), []byte("---\nsession_id: T1-02\ntitle: Auth\n---\n# Auth\n"), 0o644)
+	// 3. File with no frontmatter at all and numeric sub-session stem
+	os.WriteFile(filepath.Join(tmpDir, "T1-03.md"), []byte("# Plain Markdown with no frontmatter\n"), 0o644)
+	// 4. File whose filename prefix matches T1-04, but frontmatter explicitly declares T1-99
+	os.WriteFile(filepath.Join(tmpDir, "T1-04-old-name.md"), []byte("---\nsession_id: T1-99\ntitle: Renamed Session\n---\n# Stale name\n"), 0o644)
+	// 5. File with underscore separator
+	os.WriteFile(filepath.Join(tmpDir, "T2-01_caching_layer.md"), []byte("---\nsession_id: T2-01\ntitle: Caching\n---\n# Caching\n"), 0o644)
+	// 6. Sub-session of a decision (D-001 vs D-001-S1)
+	os.WriteFile(filepath.Join(tmpDir, "D-001-S1-investigation.md"), []byte("---\nsession_id: D-001-S1\ntitle: Investigation\n---\n# Investigation\n"), 0o644)
 
-	// T1-01 should find T1-01-database-selection.md via prefix match
-	content, _, err := readSessionFile(tmpDir, "T1-01")
-	if err != nil {
-		t.Fatalf("readSessionFile T1-01: %v", err)
-	}
-	if !strings.Contains(content, "Database Selection") {
-		t.Error("T1-01 should match T1-01-database-selection.md")
-	}
+	t.Run("canonical ID matches file with title slug", func(t *testing.T) {
+		content, filename, err := readSessionFile(tmpDir, "T1-01")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !strings.Contains(content, "Database Selection") {
+			t.Errorf("expected content from T1-01-database-selection.md, got %q", content)
+		}
+		if filename != "T1-01-database-selection.md" {
+			t.Errorf("expected filename T1-01-database-selection.md, got %q", filename)
+		}
+	})
 
-	// T1 should NOT match T1-01 or T1-02 (Contains is gone)
-	content, _, err = readSessionFile(tmpDir, "T1")
-	if err != nil {
-		t.Fatalf("readSessionFile T1: unexpected error: %v", err)
-	}
-	if content != "" {
-		t.Error("T1 should NOT match T1-01 or T1-02")
-	}
+	t.Run("canonical ID matches exact filename", func(t *testing.T) {
+		content, filename, err := readSessionFile(tmpDir, "T1-02")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !strings.Contains(content, "Auth") {
+			t.Errorf("expected content from T1-02.md, got %q", content)
+		}
+		if filename != "T1-02.md" {
+			t.Errorf("expected filename T1-02.md, got %q", filename)
+		}
+	})
+
+	t.Run("canonical ID matches underscore slug", func(t *testing.T) {
+		content, filename, err := readSessionFile(tmpDir, "T2-01")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !strings.Contains(content, "Caching") {
+			t.Errorf("expected content from T2-01_caching_layer.md, got %q", content)
+		}
+		if filename != "T2-01_caching_layer.md" {
+			t.Errorf("expected filename T2-01_caching_layer.md, got %q", filename)
+		}
+	})
+
+	t.Run("sub-session ID matches sub-session file", func(t *testing.T) {
+		content, filename, err := readSessionFile(tmpDir, "D-001-S1")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !strings.Contains(content, "Investigation") {
+			t.Errorf("expected content from D-001-S1-investigation.md, got %q", content)
+		}
+		if filename != "D-001-S1-investigation.md" {
+			t.Errorf("expected filename D-001-S1-investigation.md, got %q", filename)
+		}
+	})
+
+	t.Run("parent decision ID does NOT falsely match sub-session file", func(t *testing.T) {
+		// D-001 should NOT match D-001-S1-investigation.md because frontmatter is D-001-S1
+		content, _, err := readSessionFile(tmpDir, "D-001")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if content != "" {
+			t.Errorf("D-001 must not match D-001-S1, got %q", content)
+		}
+	})
+
+	t.Run("prefix substring T1 does NOT match compound IDs T1-01, T1-02, or T1-03", func(t *testing.T) {
+		// T1 is a non-canonical prefix of T1-01, T1-02, T1-03.
+		// It must never match any of them.
+		content, _, err := readSessionFile(tmpDir, "T1")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if content != "" {
+			t.Errorf("T1 must not match any T1-XX files, got %q", content)
+		}
+	})
+
+	t.Run("frontmatter authority rejects file with mismatched session_id", func(t *testing.T) {
+		// T1-04-old-name.md has session_id: T1-99 in frontmatter.
+		// Querying T1-04 must NOT return it because the file declared itself to be T1-99.
+		content, _, err := readSessionFile(tmpDir, "T1-04")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if content != "" {
+			t.Errorf("T1-04 must not match file declaring session_id T1-99, got %q", content)
+		}
+
+		// But querying T1-99 via prefix should NOT match T1-04-old-name because filename doesn't start with T1-99.
+		// This protects integrity from both sides.
+		content99, _, err := readSessionFile(tmpDir, "T1-99")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if content99 != "" {
+			t.Errorf("T1-99 should not match T1-04-old-name without filename match, got %q", content99)
+		}
+	})
+
+	t.Run("nonexistent session returns empty content without error", func(t *testing.T) {
+		content, filename, err := readSessionFile(tmpDir, "NONEXISTENT-99")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if content != "" || filename != "" {
+			t.Errorf("expected empty result, got content=%q filename=%q", content, filename)
+		}
+	})
 }
