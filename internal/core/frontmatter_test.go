@@ -312,3 +312,30 @@ Single operational surface. It is very easy to use and well documented. A (doc)
 		t.Errorf("decision with 'id' alias should be valid, got issues: %v", resultDecision.Issues)
 	}
 }
+
+func TestExtractSessionID(t *testing.T) {
+	t.Run("session_id takes precedence", func(t *testing.T) {
+		fm := Frontmatter{"session_id": "T1-01", "id": "other"}
+		if got := ExtractSessionID("T1-01-database.md", fm); got != "T1-01" {
+			t.Errorf("expected T1-01, got %q", got)
+		}
+	})
+
+	t.Run("id alias used when session_id absent", func(t *testing.T) {
+		fm := Frontmatter{"id": "T1-02"}
+		if got := ExtractSessionID("T1-02-auth.md", fm); got != "T1-02" {
+			t.Errorf("expected T1-02, got %q", got)
+		}
+	})
+
+	t.Run("fallback to full filename stem without SplitN truncation", func(t *testing.T) {
+		if got := ExtractSessionID("T1-01-database-selection.md", nil); got != "T1-01-database-selection" {
+			t.Errorf("expected T1-01-database-selection, got %q", got)
+		}
+		emptyFm := Frontmatter{}
+		if got := ExtractSessionID("T1-01-database-selection.md", emptyFm); got != "T1-01-database-selection" {
+			t.Errorf("expected T1-01-database-selection, got %q", got)
+		}
+	})
+}
+

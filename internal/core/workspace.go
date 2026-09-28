@@ -20,6 +20,8 @@ const (
 	PipelineFile = "research/RESEARCH-PIPELINE.md"
 	// DecisionsFile is the decision registry.
 	DecisionsFile = "research/DECISIONS.md"
+	// FADFile is the Founding Architecture Document (terminal synthesis).
+	FADFile = "research/FAD.md"
 	// MetadataFile stores workspace metadata (scope, init timestamp).
 	MetadataFile = "research/.vivechak.json"
 )
@@ -144,14 +146,16 @@ func InspectWorkspace(root string) WorkspaceInfo {
 	}
 
 	// Try to detect scope from metadata file first
+	hasMetadataScope := false
 	if metaData, err := os.ReadFile(filepath.Join(root, MetadataFile)); err == nil {
 		var meta WorkspaceMeta
 		if json.Unmarshal(metaData, &meta) == nil && ValidScope(meta.Scope) {
 			info.Scope = meta.Scope
+			hasMetadataScope = true
 		}
 	}
-	// Pipeline presence overrides — project scope is authoritative when pipeline exists
-	if info.HasPipeline {
+	// Only infer project scope from pipeline if metadata didn't provide one
+	if !hasMetadataScope && info.HasPipeline {
 		info.Scope = ScopeProject
 	}
 

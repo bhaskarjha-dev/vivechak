@@ -130,8 +130,19 @@ func (r *ValidationResult) AddIssueWithHint(level ValidationLevel, code, message
 	})
 }
 
+// AddFieldIssueWithHint appends a validation issue with a field and a fix hint.
+func (r *ValidationResult) AddFieldIssueWithHint(level ValidationLevel, code, field, message, fixHint string) {
+	r.Issues = append(r.Issues, ValidationIssue{
+		Level:   level,
+		Code:    code,
+		Field:   field,
+		Message: message,
+		FixHint: fixHint,
+	})
+}
+
 // evidenceGradePattern matches inline evidence grades like "A (source)", "[Grade A]", "(Grade B · ...)", etc.
-var evidenceGradePattern = regexp.MustCompile(`(?i)(?:\[?Grade\s+[A-E][^\]\)\n]*\]?|\b[A-E]\s*\([^)]+\)|\(Grade\s+[A-E][^)]*\))`)
+var evidenceGradePattern = regexp.MustCompile(`(?:\[?[Gg]rade\s+[A-E][^\]\)\n]*\]?|\b[A-E]\s*\([^)]+\)|\([Gg]rade\s+[A-E][^)]*\))`)
 
 // ValidateSession checks a research session output against the validation ladder.
 // Returns issues at levels L1-L3 (L4 is project-wide, not per-session).
@@ -163,9 +174,23 @@ func ValidateSession(data []byte) *ValidationResult {
 			has = fm.Has("id")
 		}
 		if !has {
-			result.AddIssueWithHint(L2Block, "V-MISSING-FIELD",
+			hint := fmt.Sprintf("Add '%s: <value>' to the frontmatter block", field)
+			if field == "session_id" {
+				hint = "Add 'session_id: <value>' (or 'id: <value>') to the frontmatter block"
+			}
+			result.AddFieldIssueWithHint(L2Block, "V-MISSING-FIELD", field,
 				fmt.Sprintf("Required frontmatter field %q is missing", field),
-				fmt.Sprintf("Add '%s: <value>' to the frontmatter block", field))
+				hint)
+		}
+	}
+
+	// L3: Check date format (YYYY-MM-DD)
+	if fm.Has("date") {
+		dateStr := fm.GetString("date")
+		if matched, _ := regexp.MatchString(`^\d{4}-\d{2}-\d{2}$`, dateStr); !matched {
+			result.AddIssueWithHint(L3Warn, "W-INVALID-DATE-FORMAT",
+				"Date field is not in YYYY-MM-DD format",
+				"Use ISO 8601 format: date: 2026-09-29")
 		}
 	}
 
@@ -227,7 +252,7 @@ func ValidateDecision(data []byte) *ValidationResult {
 			has = fm.Has("id")
 		}
 		if !has {
-			result.AddIssueWithHint(L2Block, "V-MISSING-FIELD",
+			result.AddFieldIssueWithHint(L2Block, "V-MISSING-FIELD", field,
 				fmt.Sprintf("Required field %q missing from decision", field),
 				fmt.Sprintf("Add '%s: <value>' to the frontmatter", field))
 		}

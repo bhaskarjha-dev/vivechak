@@ -3,6 +3,9 @@ package core
 import (
 	"bytes"
 	"fmt"
+	"path/filepath"
+	"strings"
+	"time"
 
 	"gopkg.in/yaml.v3"
 )
@@ -17,6 +20,21 @@ import (
 //	---
 //	<markdown body>
 type Frontmatter map[string]any
+
+// ExtractSessionID extracts the authoritative session ID from frontmatter (session_id or id fields),
+// falling back to the filename stem (without .md extension).
+func ExtractSessionID(filename string, fm Frontmatter) string {
+	if fm != nil {
+		if sid := fm.GetString("session_id"); sid != "" {
+			return sid
+		}
+		if id := fm.GetString("id"); id != "" {
+			return id
+		}
+	}
+	base := filepath.Base(filename)
+	return strings.TrimSuffix(base, ".md")
+}
 
 // ParseFrontmatter extracts YAML frontmatter from a Markdown document.
 // Returns the frontmatter (may be nil if none found) and the remaining body.
@@ -124,11 +142,19 @@ func (fm Frontmatter) GetString(key string) string {
 		return ""
 	}
 	v, ok := fm[key]
-	if !ok {
+	if !ok || v == nil {
 		return ""
 	}
-	s, _ := v.(string)
-	return s
+	switch val := v.(type) {
+	case string:
+		return val
+	case time.Time:
+		return val.Format("2006-01-02")
+	case fmt.Stringer:
+		return val.String()
+	default:
+		return fmt.Sprintf("%v", val)
+	}
 }
 
 // GetStringSlice returns a string slice from frontmatter.

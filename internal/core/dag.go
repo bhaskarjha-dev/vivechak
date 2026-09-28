@@ -252,12 +252,9 @@ func ParsePipeline(data []byte) (*DAG, error) {
 
 		// Parse archetype
 		if strings.Contains(trimmed, "Primary Archetype") {
-			if idx := strings.LastIndex(trimmed, "**"); idx > 0 {
-				// Try to extract the value after the last **
-				parts := strings.SplitN(trimmed, ":", 2)
-				if len(parts) == 2 {
-					dag.Archetype = strings.TrimSpace(strings.Trim(parts[1], "* "))
-				}
+			parts := strings.SplitN(trimmed, ":", 2)
+			if len(parts) == 2 {
+				dag.Archetype = strings.TrimSpace(strings.Trim(parts[1], "* "))
 			}
 		}
 	}
