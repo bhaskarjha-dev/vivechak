@@ -71,6 +71,13 @@ func (d *DAG) ValidateDAG() error {
 		ids[s.ID] = true
 	}
 
+	// Warn about non-canonical IDs (no hyphen) — these will fail filename-based matching
+	for _, s := range d.Sessions {
+		if !strings.Contains(s.ID, "-") {
+			return fmt.Errorf("session ID %q lacks a hyphen — use canonical form like 'T1-01' or 'SYN-01' for reliable filename matching", s.ID)
+		}
+	}
+
 	// Check for dangling dependencies
 	for _, s := range d.Sessions {
 		for _, dep := range s.Dependencies {
@@ -181,7 +188,7 @@ func ParsePipeline(data []byte) (*DAG, error) {
 			}
 
 			currentSession = &Session{
-				ID:    normalizeSessionID(matches[1]),
+				ID:    strings.TrimSpace(matches[1]),
 				Title: strings.TrimSpace(strings.TrimPrefix(matches[2], "—")),
 			}
 			continue
@@ -213,7 +220,7 @@ func ParsePipeline(data []byte) (*DAG, error) {
 
 				switch strings.ToLower(field) {
 				case "id":
-					currentSession.ID = normalizeSessionID(value)
+					currentSession.ID = strings.TrimSpace(value)
 				case "layer":
 					fmt.Sscanf(value, "%d", &currentSession.Layer)
 				case "door type":
@@ -268,17 +275,11 @@ func ParsePipeline(data []byte) (*DAG, error) {
 	return dag, nil
 }
 
-// normalizeSessionID converts various formats to a canonical form.
-// E.g., "T01" → "T1-01", "SYN01" → "SYN-01"
-func normalizeSessionID(id string) string {
-	id = strings.TrimSpace(id)
-	// Already in canonical form
-	if strings.Contains(id, "-") {
-		return id
-	}
-	// Handle T01 → T1-01 (but this is ambiguous, keep as-is)
-	return id
-}
+// Session IDs are used exactly as they appear in the pipeline.
+// No normalization is performed. IDs must be consistent between
+// the header, metadata table, and dependency lists.
+// Canonical format uses a hyphen (e.g., "T1-01", "SYN-01", "D-001-S1").
+// ValidateDAG warns if IDs lack hyphens.
 
 // parseDependencies parses a dependency list from the metadata table.
 // Handles formats like: "None (parallel)", "T1-01", "T1-01, T1-02", "T1-01 (soft)"
