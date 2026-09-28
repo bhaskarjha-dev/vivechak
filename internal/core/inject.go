@@ -147,7 +147,8 @@ func gatherDependencyFindings(sessionsDir string, dependencies []string) (string
 }
 
 // readSessionFile reads a session file from the sessions directory.
-// Tries multiple filename patterns and returns the content and resolved filename.
+// Tries exact filename patterns first, then prefix-based matching.
+// Returns empty content with nil error if file not found (normal condition).
 func readSessionFile(sessionsDir string, sessionID string) (string, string, error) {
 	patterns := []string{
 		sessionID + ".md",
@@ -166,7 +167,9 @@ func readSessionFile(sessionsDir string, sessionID string) (string, string, erro
 		}
 	}
 
-	// Try to find any file containing the session ID
+	// Try to find a file whose name starts with the session ID (prefix match only).
+	// This handles cases like "T1-01-database-selection.md" for session "T1-01".
+	// We do NOT use Contains — that would match "T1-02.md" for session "T1".
 	entries, err := os.ReadDir(sessionsDir)
 	if err != nil {
 		return "", "", fmt.Errorf("reading sessions directory: %w", err)
@@ -175,9 +178,9 @@ func readSessionFile(sessionsDir string, sessionID string) (string, string, erro
 		if e.IsDir() || filepath.Ext(e.Name()) != ".md" {
 			continue
 		}
-		nameUpper := strings.ToUpper(e.Name())
+		nameUpper := strings.ToUpper(strings.TrimSuffix(e.Name(), ".md"))
 		idUpper := strings.ToUpper(sessionID)
-		if strings.HasPrefix(nameUpper, idUpper+"-") || strings.HasPrefix(nameUpper, idUpper+".") || strings.Contains(nameUpper, idUpper) {
+		if nameUpper == idUpper || strings.HasPrefix(nameUpper, idUpper+"-") {
 			path := filepath.Join(sessionsDir, e.Name())
 			data, err := os.ReadFile(path)
 			if err == nil {
@@ -187,7 +190,8 @@ func readSessionFile(sessionsDir string, sessionID string) (string, string, erro
 		}
 	}
 
-	return "", "", fmt.Errorf("session file not found for ID: %s", sessionID)
+	// Not an error — session file simply doesn't exist yet
+	return "", "", nil
 }
 
 // extractFindings creates a compact context excerpt from a session body.
@@ -239,9 +243,9 @@ func extractFindings(body string, sessionID string) string {
 
 	result := excerpt.String()
 
-	// If the excerpt is too small, include the first 2000 chars of the body
+	// If the excerpt is too small, supplement with raw body (up to 4000 chars)
 	if len(result) < 200 && len(body) > 0 {
-		maxLen := 2000
+		maxLen := 4000
 		if len(body) < maxLen {
 			maxLen = len(body)
 		}

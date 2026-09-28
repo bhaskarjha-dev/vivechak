@@ -90,9 +90,9 @@ func handleNextSession(_ context.Context, _ *sdkmcp.CallToolRequest, in NextSess
 		injected, err := core.InjectContext(*session, sessionsDir, completedIDs)
 		if err != nil {
 			// Session found but no prompt — return what we have
-			return buildSessionResponse(tool, *session, "", completedIDs, dag, in.Verbose)
+			return buildSessionResponse(tool, *session, "", completedIDs, dag, in.Verbose, nil)
 		}
-		return buildSessionResponse(tool, injected.Session, injected.InjectedPrompt, completedIDs, dag, in.Verbose)
+		return buildSessionResponse(tool, injected.Session, injected.InjectedPrompt, completedIDs, dag, in.Verbose, nil)
 	}
 
 	// Find next actionable sessions
@@ -154,13 +154,19 @@ func handleNextSession(_ context.Context, _ *sdkmcp.CallToolRequest, in NextSess
 
 	// Return the first ready session with context injected
 	nextSession := ready[0]
-	injected, err := core.InjectContext(nextSession, sessionsDir, completedIDs)
+	injected, injErr := core.InjectContext(nextSession, sessionsDir, completedIDs)
 
 	var prompt string
-	if err == nil && injected != nil {
+	var injWarnings []string
+	if injErr == nil && injected != nil {
 		prompt = injected.InjectedPrompt
 	} else {
 		prompt = nextSession.Prompt
+		if injErr != nil {
+			injWarnings = append(injWarnings, fmt.Sprintf(
+				"W-INJECT-FAILED: context injection failed for %s: %v \u2014 using raw prompt without upstream findings",
+				nextSession.ID, injErr))
+		}
 	}
 
 	// Build response with all ready sessions listed
@@ -169,11 +175,11 @@ func handleNextSession(_ context.Context, _ *sdkmcp.CallToolRequest, in NextSess
 		otherReady = append(otherReady, s.ID)
 	}
 
-	return buildSessionResponse(tool, nextSession, prompt, completedIDs, dag, in.Verbose, otherReady...)
+	return buildSessionResponse(tool, nextSession, prompt, completedIDs, dag, in.Verbose, injWarnings, otherReady...)
 }
 
 // buildSessionResponse creates the response envelope for a session.
-func buildSessionResponse(tool string, session core.Session, prompt string, completedIDs map[string]bool, dag *core.DAG, verbose bool, otherReady ...string) (*sdkmcp.CallToolResult, Envelope, error) {
+func buildSessionResponse(tool string, session core.Session, prompt string, completedIDs map[string]bool, dag *core.DAG, verbose bool, preWarnings []string, otherReady ...string) (*sdkmcp.CallToolResult, Envelope, error) {
 	data := map[string]any{
 		"session_id":          session.ID,
 		"title":               session.Title,
@@ -187,28 +193,28 @@ func buildSessionResponse(tool string, session core.Session, prompt string, comp
 		"already_completed":   completedIDs[session.ID],
 	}
 
-	if prompt != "" {
-		data["prompt"] = prompt
-		data["prompt_char_count"] = len(prompt)
-		data["prompt_approx_tokens"] = len(prompt) / 4
-	}
-
-	if len(otherReady) > 0 {
-		data["other_ready_sessions"] = otherReady
-	}
-
+	// Progressive disclosure: truncate if prompt is very large
 	var warnings []string
-
-	// Progressive disclosure: warn if prompt is very large
+	warnings = append(warnings, preWarnings...)
+	displayPrompt := prompt
 	approxTokens := len(prompt) / 4
 	truncated := false
 	if !verbose && approxTokens > 10000 {
 		warnings = append(warnings, "W-OUTPUT-SIZE: Prompt exceeds 10K tokens and was truncated. Use verbose=true for full prompt.")
 		truncated = true
 		if len(prompt) > 2000 {
-			prompt = prompt[:2000] + "... [truncated, use verbose=true for full prompt]"
+			displayPrompt = prompt[:2000] + "... [truncated, use verbose=true for full prompt]"
 		}
-		data["prompt"] = prompt
+	}
+
+	if displayPrompt != "" {
+		data["prompt"] = displayPrompt
+		data["prompt_char_count"] = len(prompt)
+		data["prompt_approx_tokens"] = approxTokens
+	}
+
+	if len(otherReady) > 0 {
+		data["other_ready_sessions"] = otherReady
 	}
 
 	var nextStep string
@@ -234,6 +240,8 @@ func buildSessionResponse(tool string, session core.Session, prompt string, comp
 }
 
 // scanCompletedSessions reads the sessions directory and returns completed IDs.
+// Authoritative IDs come from YAML frontmatter (session_id or id fields).
+// Falls back to full filename stem only — no heuristic ID extraction.
 func scanCompletedSessions(sessionsDir string) (map[string]bool, error) {
 	completed := map[string]bool{}
 	entries, err := os.ReadDir(sessionsDir)
@@ -264,17 +272,11 @@ func scanCompletedSessions(sessionsDir string) (map[string]bool, error) {
 			}
 		}
 
-		// Fallback: extract session ID from filename (e.g., "T1-01.md" → "T1-01")
+		// Fallback: use full filename stem (without extension) as identity.
+		// Do NOT attempt heuristic ID extraction via SplitN — this creates
+		// phantom completions where "T1-01-database.md" falsely registers "T1-01".
 		name := strings.TrimSuffix(e.Name(), ".md")
 		completed[name] = true
-
-		// Also try to match longer filenames like "T1-01-graph-persistence.md"
-		// by extracting the ID prefix
-		parts := strings.SplitN(name, "-", 3)
-		if len(parts) >= 2 {
-			shortID := parts[0] + "-" + parts[1]
-			completed[shortID] = true
-		}
 	}
 
 	return completed, nil
