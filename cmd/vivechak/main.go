@@ -19,7 +19,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-// version is set at build time via ldflags: -ldflags "-X main.version=v1.0.0"
+// version is set at build time via ldflags, e.g. -ldflags "-X main.version=vX.Y.Z"
 var version = "dev"
 
 func main() {
@@ -50,7 +50,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Commands:\n")
 		fmt.Fprintf(os.Stderr, "  serve        Start MCP server over stdio (default)\n")
 		fmt.Fprintf(os.Stderr, "  version      Print version\n")
-		fmt.Fprintf(os.Stderr, "  mcp-config   Generate MCP host configuration\n")
+		fmt.Fprintf(os.Stderr, "  mcp-config   Generate MCP host configuration (supports: windsurf, cursor, claude-desktop, vscode)\n")
 		fmt.Fprintf(os.Stderr, "  doctor       Check workspace integrity\n")
 		os.Exit(0)
 	default:
@@ -59,7 +59,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Commands:\n")
 		fmt.Fprintf(os.Stderr, "  serve        Start MCP server over stdio (default)\n")
 		fmt.Fprintf(os.Stderr, "  version      Print version\n")
-		fmt.Fprintf(os.Stderr, "  mcp-config   Generate MCP host configuration\n")
+		fmt.Fprintf(os.Stderr, "  mcp-config   Generate MCP host configuration (supports: windsurf, cursor, claude-desktop, vscode)\n")
 		fmt.Fprintf(os.Stderr, "  doctor       Check workspace integrity\n")
 		os.Exit(1)
 	}

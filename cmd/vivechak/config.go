@@ -86,6 +86,12 @@ func runMCPConfig() {
 		b, _ := json.MarshalIndent(configObj, "", "  ")
 		fmt.Fprintln(os.Stdout, string(b))
 		os.Exit(0)
+	case "windsurf":
+		if homeDir == "" {
+			fmt.Fprintln(os.Stderr, "could not determine home dir for windsurf config")
+			os.Exit(1)
+		}
+		configPath = filepath.Join(homeDir, ".windsurf", "mcp.json")
 	default:
 		fmt.Fprintf(os.Stderr, "unknown host: %s\n", host)
 		os.Exit(1)
