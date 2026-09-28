@@ -23,7 +23,7 @@ func runDoctor() {
 		os.Exit(1)
 	}
 
-	fmt.Fprintf(os.Stderr, "Checking workspace at %s\n", workspace)
+	fmt.Fprintf(os.Stdout, "Checking workspace at %s\n", workspace)
 	hasErrors := false
 
 	// 1. Workspace exists
@@ -31,7 +31,7 @@ func runDoctor() {
 		fmt.Fprintln(os.Stderr, "✗ Workspace (research/ directory) does not exist")
 		hasErrors = true
 	} else {
-		fmt.Fprintln(os.Stderr, "✓ Workspace exists")
+		fmt.Fprintln(os.Stdout, "✓ Workspace exists")
 	}
 
 	// 2. Templates complete
@@ -46,7 +46,7 @@ func runDoctor() {
 		fmt.Fprintf(os.Stderr, "✗ Missing templates: %v\n", missingTemplates)
 		hasErrors = true
 	} else {
-		fmt.Fprintln(os.Stderr, "✓ All templates present")
+		fmt.Fprintln(os.Stdout, "✓ All templates present")
 	}
 
 	// Read pipeline and decisions for cross-checks
@@ -107,7 +107,7 @@ func runDoctor() {
 			}
 
 			// Check stale decisions references
-			re := regexp.MustCompile(`DECISION-\d+`)
+			re := regexp.MustCompile(`D-\d+`)
 			matches := re.FindAllString(string(data), -1)
 			for _, match := range matches {
 				if !strings.Contains(decisionsContent, match) {
@@ -119,30 +119,30 @@ func runDoctor() {
 		}
 
 		if invalidFrontmatter == 0 {
-			fmt.Fprintln(os.Stderr, "✓ All frontmatters valid")
+			fmt.Fprintln(os.Stdout, "✓ All frontmatters valid")
 		}
 		if orphaned == 0 {
-			fmt.Fprintln(os.Stderr, "✓ No orphaned sessions")
+			fmt.Fprintln(os.Stdout, "✓ No orphaned sessions")
 		}
 		if staleRefs == 0 {
-			fmt.Fprintln(os.Stderr, "✓ No stale cross-references")
+			fmt.Fprintln(os.Stdout, "✓ No stale cross-references")
 		}
 		if corruptCount == 0 {
-			fmt.Fprintln(os.Stderr, "✓ No corrupted files (valid UTF-8)")
+			fmt.Fprintln(os.Stdout, "✓ No corrupted files (valid UTF-8)")
 		}
 
 	} else {
 		// no sessions dir yet, which is fine
-		fmt.Fprintln(os.Stderr, "✓ No frontmatters valid (no sessions)")
-		fmt.Fprintln(os.Stderr, "✓ No orphaned sessions (no sessions)")
-		fmt.Fprintln(os.Stderr, "✓ No stale cross-references (no sessions)")
-		fmt.Fprintln(os.Stderr, "✓ No corrupted files (no sessions)")
+		fmt.Fprintln(os.Stdout, "✓ Frontmatter check skipped (no sessions)")
+		fmt.Fprintln(os.Stdout, "✓ Orphan check skipped (no sessions)")
+		fmt.Fprintln(os.Stdout, "✓ Cross-reference check skipped (no sessions)")
+		fmt.Fprintln(os.Stdout, "✓ Integrity check skipped (no sessions)")
 	}
 
 	if hasErrors {
 		os.Exit(1)
 	} else {
-		fmt.Fprintln(os.Stderr, "Workspace is healthy.")
+		fmt.Fprintln(os.Stdout, "Workspace is healthy.")
 		os.Exit(0)
 	}
 }

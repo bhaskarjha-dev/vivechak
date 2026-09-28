@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 )
 
 func runMCPConfig() {
@@ -48,7 +49,7 @@ func runMCPConfig() {
 
 	if !write {
 		b, _ := json.MarshalIndent(configObj, "", "  ")
-		fmt.Fprintln(os.Stderr, string(b))
+		fmt.Fprintln(os.Stdout, string(b))
 		os.Exit(0)
 	}
 
@@ -69,8 +70,12 @@ func runMCPConfig() {
 	case "claude-desktop":
 		if appData != "" { // Windows
 			configPath = filepath.Join(appData, "Claude", "claude_desktop_config.json")
-		} else if homeDir != "" { // macOS/Linux
-			configPath = filepath.Join(homeDir, "Library", "Application Support", "Claude", "claude_desktop_config.json")
+		} else if homeDir != "" {
+			if runtime.GOOS == "linux" {
+				configPath = filepath.Join(homeDir, ".config", "Claude", "claude_desktop_config.json")
+			} else { // macOS
+				configPath = filepath.Join(homeDir, "Library", "Application Support", "Claude", "claude_desktop_config.json")
+			}
 		} else {
 			fmt.Fprintln(os.Stderr, "could not determine path for claude-desktop")
 			os.Exit(1)
@@ -79,7 +84,7 @@ func runMCPConfig() {
 		configPath = filepath.Join(cwd, ".gemini", "settings.json")
 	case "chatgpt", "codex", "kiro":
 		b, _ := json.MarshalIndent(configObj, "", "  ")
-		fmt.Fprintln(os.Stderr, string(b))
+		fmt.Fprintln(os.Stdout, string(b))
 		os.Exit(0)
 	default:
 		fmt.Fprintf(os.Stderr, "unknown host: %s\n", host)

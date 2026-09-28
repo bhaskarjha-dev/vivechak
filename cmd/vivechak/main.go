@@ -20,7 +20,7 @@ import (
 )
 
 // version is set at build time via ldflags: -ldflags "-X main.version=v1.0.0"
-var version = "1.0.0"
+var version = "dev"
 
 func main() {
 	// CRITICAL: slog MUST write to stderr; stdout is MCP protocol-only.
@@ -39,14 +39,29 @@ func main() {
 	case "serve", "":
 		runServe(logger)
 	case "version":
-		fmt.Fprintf(os.Stderr, "vivechak %s\n", version)
+		fmt.Fprintf(os.Stdout, "vivechak %s\n", version)
 	case "mcp-config":
 		runMCPConfig()
 	case "doctor":
 		runDoctor()
+	case "help", "--help", "-h":
+		fmt.Fprintf(os.Stderr, "vivechak %s\n\n", version)
+		fmt.Fprintf(os.Stderr, "Usage: vivechak <command>\n\n")
+		fmt.Fprintf(os.Stderr, "Commands:\n")
+		fmt.Fprintf(os.Stderr, "  serve        Start MCP server over stdio (default)\n")
+		fmt.Fprintf(os.Stderr, "  version      Print version\n")
+		fmt.Fprintf(os.Stderr, "  mcp-config   Generate MCP host configuration\n")
+		fmt.Fprintf(os.Stderr, "  doctor       Check workspace integrity\n")
+		os.Exit(0)
 	default:
-		// If no recognized subcommand, default to serve (for MCP stdio)
-		runServe(logger)
+		fmt.Fprintf(os.Stderr, "vivechak %s\n\n", version)
+		fmt.Fprintf(os.Stderr, "Usage: vivechak <command>\n\n")
+		fmt.Fprintf(os.Stderr, "Commands:\n")
+		fmt.Fprintf(os.Stderr, "  serve        Start MCP server over stdio (default)\n")
+		fmt.Fprintf(os.Stderr, "  version      Print version\n")
+		fmt.Fprintf(os.Stderr, "  mcp-config   Generate MCP host configuration\n")
+		fmt.Fprintf(os.Stderr, "  doctor       Check workspace integrity\n")
+		os.Exit(1)
 	}
 }
 
