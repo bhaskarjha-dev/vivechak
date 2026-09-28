@@ -1,6 +1,11 @@
 package embed
 
-import "testing"
+import (
+	"bytes"
+	"os"
+	"path/filepath"
+	"testing"
+)
 
 func TestEmbedIntegrity_Generators(t *testing.T) {
 	expected := []string{"GENERATOR.md", "GENERATOR-DECISION.md", "GENERATOR-COMPARISON.md"}
@@ -52,6 +57,50 @@ func TestEmbedIntegrity_Templates(t *testing.T) {
 		}
 		if len(data) < 100 {
 			t.Errorf("template %q seems too small (%d bytes)", name, len(data))
+		}
+	}
+}
+
+func TestEmbeddedFilesMatchRoot(t *testing.T) {
+	rootGenDir := filepath.Join("..", "..")
+	for _, name := range []string{"GENERATOR.md", "GENERATOR-DECISION.md", "GENERATOR-COMPARISON.md"} {
+		rootPath := filepath.Join(rootGenDir, name)
+		rootData, err := os.ReadFile(rootPath)
+		if os.IsNotExist(err) {
+			t.Skip("root files not found (running outside git repo)")
+			return
+		}
+		if err != nil {
+			t.Fatalf("reading %s: %v", rootPath, err)
+		}
+		embedData, err := ReadGenerator(name)
+		if err != nil {
+			t.Fatalf("ReadGenerator(%s): %v", name, err)
+		}
+		if !bytes.Equal(rootData, embedData) {
+			t.Errorf("Embedded generator %s does not match root %s (bytes: %d embed vs %d root)", name, rootPath, len(embedData), len(rootData))
+		}
+	}
+
+	rootTmplDir := filepath.Join("..", "..", "templates")
+	for _, name := range []string{
+		"COMPARISON-SESSION.template.md",
+		"CONFLICT-RESOLUTION.template.md",
+		"DECISIONS.template.md",
+		"FOUNDING-ARCHITECTURE.template.md",
+		"PHASE-0-GATE.template.md",
+	} {
+		rootPath := filepath.Join(rootTmplDir, name)
+		rootData, err := os.ReadFile(rootPath)
+		if err != nil {
+			t.Fatalf("reading %s: %v", rootPath, err)
+		}
+		embedData, err := ReadTemplate(name)
+		if err != nil {
+			t.Fatalf("ReadTemplate(%s): %v", name, err)
+		}
+		if !bytes.Equal(rootData, embedData) {
+			t.Errorf("Embedded template %s does not match root %s (bytes: %d embed vs %d root)", name, rootPath, len(embedData), len(rootData))
 		}
 	}
 }
