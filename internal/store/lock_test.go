@@ -11,13 +11,13 @@ func TestLockFile(t *testing.T) {
 	tmpDir := t.TempDir()
 	lockPath := filepath.Join(tmpDir, "mylock")
 
-	unlock1, err := LockFile(lockPath, 100*time.Millisecond)
+	unlock1, err := LockFile(context.Background(), lockPath, 100*time.Millisecond)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// Second lock attempt should fail
-	_, err = LockFile(lockPath, 50*time.Millisecond)
+	_, err = LockFile(context.Background(), lockPath, 50*time.Millisecond)
 	if err != context.DeadlineExceeded {
 		t.Fatalf("expected DeadlineExceeded, got %v", err)
 	}
@@ -29,7 +29,7 @@ func TestLockFile(t *testing.T) {
 	}
 
 	// Now second lock attempt should succeed
-	unlock2, err := LockFile(lockPath, 100*time.Millisecond)
+	unlock2, err := LockFile(context.Background(), lockPath, 100*time.Millisecond)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -43,7 +43,7 @@ func registerSavePlan(server *sdkmcp.Server) {
 	)
 }
 
-func handleSavePlan(_ context.Context, _ *sdkmcp.CallToolRequest, in SavePlanInput) (*sdkmcp.CallToolResult, Envelope, error) {
+func handleSavePlan(ctx context.Context, _ *sdkmcp.CallToolRequest, in SavePlanInput) (*sdkmcp.CallToolResult, Envelope, error) {
 	const tool = "vivechak_save_plan"
 
 	// Resolve workspace
@@ -113,7 +113,7 @@ func handleSavePlan(_ context.Context, _ *sdkmcp.CallToolRequest, in SavePlanInp
 
 		// Save RESEARCH-PIPELINE.md
 		relPath := core.PipelineFile
-		unlock, err := store.LockFile(filepath.Join(root, relPath), 5*time.Second)
+		unlock, err := store.LockFile(ctx, filepath.Join(root, relPath), 5*time.Second)
 		if err != nil {
 			return ErrorResult(tool, fmt.Errorf("could not acquire lock: %w", err), "Another process may be writing. Try again.")
 		}
@@ -145,7 +145,7 @@ func handleSavePlan(_ context.Context, _ *sdkmcp.CallToolRequest, in SavePlanInp
 		}
 		filename := fmt.Sprintf("%s-%s.md", in.DecisionID, slug)
 		relPath := filepath.Join(core.ResearchDir, filename)
-		unlock, err := store.LockFile(filepath.Join(root, relPath), 5*time.Second)
+		unlock, err := store.LockFile(ctx, filepath.Join(root, relPath), 5*time.Second)
 		if err != nil {
 			return ErrorResult(tool, fmt.Errorf("could not acquire lock: %w", err), "Another process may be writing. Try again.")
 		}
@@ -164,7 +164,7 @@ func handleSavePlan(_ context.Context, _ *sdkmcp.CallToolRequest, in SavePlanInp
 		}
 		filename := fmt.Sprintf("%s-comparison.md", in.DecisionID)
 		relPath := filepath.Join(core.ResearchDir, filename)
-		unlock, err := store.LockFile(filepath.Join(root, relPath), 5*time.Second)
+		unlock, err := store.LockFile(ctx, filepath.Join(root, relPath), 5*time.Second)
 		if err != nil {
 			return ErrorResult(tool, fmt.Errorf("could not acquire lock: %w", err), "Another process may be writing. Try again.")
 		}

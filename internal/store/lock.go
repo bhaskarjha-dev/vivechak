@@ -2,7 +2,6 @@ package store
 
 import (
 	"context"
-	"os"
 	"time"
 
 	"github.com/gofrs/flock"
@@ -11,15 +10,15 @@ import (
 // LockFile acquires an exclusive advisory lock on the given path.
 // Returns an unlock function. The lock file is created at path + ".lock".
 // Timeout is how long to wait for the lock before giving up.
-func LockFile(path string, timeout time.Duration) (func() error, error) {
+func LockFile(ctx context.Context, path string, timeout time.Duration) (func() error, error) {
 	lockPath := path + ".lock"
 	f := flock.New(lockPath)
 
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	lockCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
 	// Retry every 10ms
-	locked, err := f.TryLockContext(ctx, 10*time.Millisecond)
+	locked, err := f.TryLockContext(lockCtx, 10*time.Millisecond)
 	if err != nil {
 		return nil, err
 	}
@@ -28,9 +27,10 @@ func LockFile(path string, timeout time.Duration) (func() error, error) {
 	}
 
 	unlock := func() error {
-		err := f.Unlock()
-		_ = os.Remove(lockPath)
-		return err
+		// Lock file is intentionally NOT removed on unlock.
+		// Removing it creates a TOCTOU race: another process can acquire the
+		// lock between Unlock() and Remove(), then we delete their lock file.
+		return f.Unlock()
 	}
 
 	return unlock, nil

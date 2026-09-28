@@ -41,7 +41,7 @@ func registerRecordDecision(server *sdkmcp.Server) {
 	)
 }
 
-func handleRecordDecision(_ context.Context, _ *sdkmcp.CallToolRequest, in RecordDecisionInput) (*sdkmcp.CallToolResult, Envelope, error) {
+func handleRecordDecision(ctx context.Context, _ *sdkmcp.CallToolRequest, in RecordDecisionInput) (*sdkmcp.CallToolResult, Envelope, error) {
 	const tool = "vivechak_record_decision"
 
 	root, err := core.ResolveWorkspace(in.ProjectRoot)
@@ -100,7 +100,7 @@ func handleRecordDecision(_ context.Context, _ *sdkmcp.CallToolRequest, in Recor
 
 	// Save to research directory
 	relPath := filepath.Join(core.ResearchDir, filename)
-	unlock, err := store.LockFile(filepath.Join(root, relPath), 5*time.Second)
+	unlock, err := store.LockFile(ctx, filepath.Join(root, relPath), 5*time.Second)
 	if err != nil {
 		return ErrorResult(tool, fmt.Errorf("could not acquire lock: %w", err), "Another process may be writing. Try again.")
 	}
@@ -114,7 +114,7 @@ func handleRecordDecision(_ context.Context, _ *sdkmcp.CallToolRequest, in Recor
 	// Dual-write to DECISIONS.md registry for decision artifacts
 	if artifactType == "decision" {
 		decRelPath := core.DecisionsFile
-		decUnlock, decErr := store.LockFile(filepath.Join(root, decRelPath), 5*time.Second)
+		decUnlock, decErr := store.LockFile(ctx, filepath.Join(root, decRelPath), 5*time.Second)
 		if decErr == nil {
 			defer decUnlock()
 			var existing []byte
@@ -129,6 +129,11 @@ func handleRecordDecision(_ context.Context, _ *sdkmcp.CallToolRequest, in Recor
 	var warnings []string
 	for _, issue := range validation.Issues {
 		warnings = append(warnings, issue.String())
+	}
+
+	// Warn if content contains decision boundary markers that could confuse the registry
+	if strings.Contains(in.Content, "<!-- DECISION:") || strings.Contains(in.Content, "<!-- /DECISION:") {
+		warnings = append(warnings, "W-MARKER-CONFLICT: content contains HTML decision markers that may conflict with the registry format")
 	}
 
 	dataMap := map[string]any{

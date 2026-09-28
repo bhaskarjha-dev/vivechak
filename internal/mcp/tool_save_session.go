@@ -39,7 +39,7 @@ func registerSaveSession(server *sdkmcp.Server) {
 	)
 }
 
-func handleSaveSession(_ context.Context, _ *sdkmcp.CallToolRequest, in SaveSessionInput) (*sdkmcp.CallToolResult, Envelope, error) {
+func handleSaveSession(ctx context.Context, _ *sdkmcp.CallToolRequest, in SaveSessionInput) (*sdkmcp.CallToolResult, Envelope, error) {
 	const tool = "vivechak_save_session"
 
 	root, err := core.ResolveWorkspace(in.ProjectRoot)
@@ -93,7 +93,7 @@ func handleSaveSession(_ context.Context, _ *sdkmcp.CallToolRequest, in SaveSess
 	} else {
 		relPath = filepath.Join(core.SessionsDir, filename)
 	}
-	unlock, err := store.LockFile(filepath.Join(root, relPath), 5*time.Second)
+	unlock, err := store.LockFile(ctx, filepath.Join(root, relPath), 5*time.Second)
 	if err != nil {
 		return ErrorResult(tool, fmt.Errorf("could not acquire lock: %w", err), "Another process may be writing. Try again.")
 	}
