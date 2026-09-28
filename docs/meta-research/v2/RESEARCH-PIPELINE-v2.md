@@ -1,5 +1,5 @@
 # Research Pipeline: Vivechak v2.0 — MCP Server & Methodology Evolution
-## Generated manually following Vivechak v1.1 methodology (dogfooding)
+## Generated manually following Vivechak v0.1.0 methodology (dogfooding)
 
 **Project Repository:** https://github.com/bhaskarjha-dev/vivechak
 
@@ -13,7 +13,7 @@
 - **Primary Constraint:** Must serve existing Vivechak methodology; delivery mechanism, not methodology replacement
 - **Key Open Questions:** MCP server architecture details, multi-scope generator design, competitive positioning, real-world validation approach
 - **Regulatory Exposure:** None (0)
-- **Stage:** Mid-project evolution (Vivechak v1.1 → v2.0 capabilities)
+- **Stage:** Mid-project evolution (Vivechak v0.1.0 capabilities)
 - **Repository:** https://github.com/bhaskarjha-dev/vivechak
 
 ### Complexity Score
@@ -294,7 +294,7 @@ YAML frontmatter (id: R-02, title, date, status: draft, topic: mcp-architecture,
 
 Research how structured research methodologies handle different scope levels — from investigating an entire system architecture down to comparing two specific technology options. The goal is to design Vivechak's (https://github.com/bhaskarjha-dev/vivechak) multi-scope capability: extending the existing project-level pipeline generator to also handle decision-level and comparison-level research.
 
-Current Vivechak (v1.1) only supports project-level research — you paste a full project vision, get a 4–30 session pipeline, and produce a Founding Architecture Document. But the methodology is genuinely useful at smaller scopes:
+Current Vivechak (v0.1.0) only supports project-level research — you paste a full project vision, get a 4–30 session pipeline, and produce a Founding Architecture Document. But the methodology is genuinely useful at smaller scopes:
 
 - **Decision-level:** "Should we use MCP or build a custom plugin system?" → 1–3 focused sessions → produces a grounded ADR
 - **Comparison-level:** "PostgreSQL vs CockroachDB for our write-heavy workload" → 1 session → produces a weighted evaluation matrix

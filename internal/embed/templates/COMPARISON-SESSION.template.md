@@ -1,4 +1,4 @@
-# Comparison Session Template — Vivechak v1.1
+# Comparison Session Template — Vivechak v0.1.0
 ### Single-Session WEP Comparison Output Format
 
 > **Usage:** Use this template as the output format for comparison-scope research
@@ -18,7 +18,7 @@ tags: []
 informs_decisions: ["[D-NNN]"]   # Decision ID this comparison informs, or [] if standalone
 confidence: null                 # high | medium | low — set after research
 scope_level: comparison          # project | decision | comparison
-schema_version: "1.1"
+schema_version: "0.1.0"
 ---
 ```
 

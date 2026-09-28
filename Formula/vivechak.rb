@@ -6,7 +6,7 @@
 class Vivechak < Formula
   desc "Evidence-grounded research for technical decisions — MCP server"
   homepage "https://github.com/bhaskarjha-dev/vivechak"
-  version "0.0.1" # Updated by GoReleaser or CI
+  version "0.1.0" # Updated by GoReleaser or CI
   license "MIT"
 
   on_macos do

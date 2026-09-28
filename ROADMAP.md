@@ -3,30 +3,32 @@
 
 ---
 
-## Current State: v1.1 (September 2026)
+## Current State: v0.1.0 (September 2026)
 
-**Status:** Operational and battle-tested. Used on multiple real projects including non-software domains.
+**Status:** Operational, battle-tested, and automated via Model Context Protocol (MCP).
 
-The framework was released as v1.0 in August 2026, then refined to v1.1 through real-world usage across multiple projects and a comprehensive first-principles audit. Key v1.1 improvements include: the Bounded Exploration Mandate (P4 enhancement), Weighted Evaluation Protocol (comparison bias correction), domain-agnostic generator language, and extensive documentation cleanup.
+Vivechak v0.1.0 marks the initial unified release combining the evidence-grounded research methodology with an autonomous Go MCP server and multi-scope pipeline generators.
 
-### What v1.1 Delivers
+### What v0.1.0 Delivers
 
 | Component | State | Description |
 |---|---|---|
-| **GENERATOR.md** | ✅ Ship-ready | Open-ended vision input, AI-driven classification, self-contained prompt |
-| **FRAMEWORK.md** | ✅ Consolidated | Complete standalone spec (principles + evidence grading + methodology) |
-| **4 Templates** | ✅ Agent-ready | Decisions, Conflict Resolution, FAD, Phase 0 Gate |
-| **README.md** | ✅ Streamlined | Quick start, repo structure, agentic workflow, origin |
-| **meta-research/** | ✅ Sealed | 15 artifacts, 31 evidence nodes, 10 hypothesis verdicts |
+| **Multi-Scope Generators** | ✅ Ship-ready | `GENERATOR.md` (Project), `GENERATOR-DECISION.md` (Decision), `GENERATOR-COMPARISON.md` (Comparison) |
+| **Go MCP Server** | ✅ Shipped | 9 atomic tools implementing the Guided Worker pattern with 32/32 tests passing |
+| **CLI & Diagnostics** | ✅ Shipped | `vivechak mcp-config` (7 AI hosts) and `vivechak doctor` workspace integrity checker |
+| **FRAMEWORK.md** | ✅ Consolidated | Complete standalone spec (principles + evidence grading + multi-scope methodology) |
+| **5 Templates** | ✅ Agent-ready | Decisions, Conflict Resolution, Comparison Session, FAD, Phase 0 Gate (`schema_version: "0.1.0"`) |
+| **Package Distribution** | ✅ Shipped | GoReleaser (6 platforms), Homebrew tap, Scoop bucket, WinGet manifest, shell installers |
+| **meta-research/** | ✅ Sealed | 14 locked ADRs (D-001–D-014), 27 research artifacts, empirical evidence base |
 
 ### Repository Evolution
 
 ```
-2024-2025         8 independent project pipelines → pre-development patterns discovered
-Early 2026        Consolidated into initial meta-framework (rigid: 17-27 sessions, mandatory triangulation)
-Mid 2026          11 independent research sessions tested every legacy axiom
-v1.0 (Aug 2026)   First public release of Vivechak (8 principles, 4 tiers, 5-block prompts)
-v1.1 (Sep 2026)   Real-world usage refinements, first-principles audit, version normalization
+2024–2025          8 independent project pipelines → pre-development patterns discovered
+Mid 2026           Methodology Genesis: 11 meta-research sessions tested legacy axioms
+Late 2026 (v0.1.0) Initial Unified Release: Go MCP Server (9 tools), Multi-Scope Generators, Package Distribution
+Next (v0.2.0)      Host feedback, client auto-discovery, telemetry & cost tracking
+Future (v1.0.0)    First LTS release — frozen MCP tool schemas, locked template contracts, knowledge graph
 ```
 
 ---
@@ -118,9 +120,9 @@ These architectural decisions were made during the pre-v1.0 empirical overhaul a
 
 ---
 
-## What's Next
+## Completed Evolution Phases
 
-### Phase 4: Framework Polish (DONE — v1.1.0, 2026-09-22)
+### Phase 4: Framework Polish (DONE — September 2026)
 
 Real-world usage across multiple projects (including non-software domains) validated the core methodology but revealed documentation gaps and refinement opportunities. All items completed and committed.
 
@@ -172,6 +174,7 @@ Items identified during the comprehensive repository audit that are valid but no
 - Tool-use calibration — about agent harness design, not research methodology
 - FAD → Fitness Functions — post-Vivechak concern (the coding tool owns fitness functions)
 - Archetype fallback monitoring — only relevant when archetypes are programmatic (Engine v1.0+)
+
 ### Phase 4.5: Methodology Expansion (DONE — 2026-09-27)
 
 Three-scope model: Vivechak now operates at project, decision, and comparison scope levels. Research corpus: 12 sessions (~770KB), audited implementation plan.
@@ -188,9 +191,9 @@ Three-scope model: Vivechak now operates at project, decision, and comparison sc
 
 ### Phase 5: MCP Server — Evidence-Grounded Automation
 
-**Status:** Research complete. Implementation pending.
+**Status:** ✅ Completed and Shipped in v0.1.0 (September 2026)
 
-**What changed:** 12 research sessions (~770KB of evidence) investigated how to transform Vivechak from a copy-paste workflow into tooling that agents can invoke directly. The research decisively concluded that an MCP (Model Context Protocol) server is the correct delivery vehicle — not a standalone Engine built on LangGraph, ADK, or CrewAI.
+**What was built:** 12 research sessions (~770KB of evidence) investigated how to transform Vivechak from a copy-paste workflow into tooling that agents can invoke directly. The research decisively concluded that an MCP (Model Context Protocol) server is the correct delivery vehicle — not a standalone Engine built on LangGraph, ADK, or CrewAI.
 
 **Key decisions (all locked, evidence-grounded):**
 
@@ -229,13 +232,17 @@ These items were evaluated during Phase 4 planning and deferred to the MCP serve
 
 | Item | What | Target | Rationale for Deferral |
 |---|---|---|---|
-| Template init script (`vivechak init`) | Automate the 5-template copy + directory creation | `vivechak_init` tool ✅ | Implemented |
-| YAML frontmatter validator | Validate ADR schema before synthesis | `vivechak_validate` tool ✅ | Implemented |
-| Code-based generator CLI | Replace copy-paste prompt with CLI interface | `vivechak_prepare_generator` tool ✅ | Implemented |
+| Template init script (`vivechak init`) | Automate the 5-template copy + directory creation | `vivechak_init` tool ✅ | Implemented in v0.1.0 |
+| YAML frontmatter validator | Validate ADR schema before synthesis | `vivechak_validate` tool ✅ | Implemented in v0.1.0 |
+| Code-based generator CLI | Replace copy-paste prompt with CLI interface | `vivechak_prepare_generator` tool ✅ | Implemented in v0.1.0 |
 | Blast-radius tracker | Track which decisions affect which components | Post-Phase 5 | Needs 5+ projects with tracked evidence |
 | AI cost tracking | Track token/API costs per session and pipeline | Post-Phase 5 | Only relevant when host agent tracks costs |
 
-### Phase 6: Research Frontiers (Future)
+---
+
+## Future Roadmap
+
+### Phase 6: Research Frontiers (v0.2.0+ and v1.0.0 Milestones)
 
 These require significant accumulated project data from MCP server usage. Each has explicit gate conditions:
 

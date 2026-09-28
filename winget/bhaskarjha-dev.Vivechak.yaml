@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://aka.ms/winget-manifest.singleton.1.6.0.schema.json
 PackageIdentifier: bhaskarjha-dev.Vivechak
-PackageVersion: 0.0.1
+PackageVersion: 0.1.0
 PackageLocale: en-US
 Publisher: bhaskarjha-dev
 PublisherUrl: https://github.com/bhaskarjha-dev
@@ -22,13 +22,13 @@ Tags:
   - cli
 Installers:
   - Architecture: x64
-    InstallerUrl: https://github.com/bhaskarjha-dev/vivechak/releases/download/v0.0.1/vivechak_0.0.1_windows_amd64.zip
+    InstallerUrl: https://github.com/bhaskarjha-dev/vivechak/releases/download/v0.1.0/vivechak_0.1.0_windows_amd64.zip
     InstallerSha256: PLACEHOLDER
     InstallerType: portable
     Commands:
       - vivechak
   - Architecture: arm64
-    InstallerUrl: https://github.com/bhaskarjha-dev/vivechak/releases/download/v0.0.1/vivechak_0.0.1_windows_arm64.zip
+    InstallerUrl: https://github.com/bhaskarjha-dev/vivechak/releases/download/v0.1.0/vivechak_0.1.0_windows_arm64.zip
     InstallerSha256: PLACEHOLDER
     InstallerType: portable
     Commands:

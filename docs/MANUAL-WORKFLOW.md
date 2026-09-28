@@ -210,7 +210,7 @@ prediction: "ClickHouse handles 100k events/sec at <150MB RAM on edge with zstd 
 tags: [storage, logs, edge]
 authored_by: "Principal Architect"
 human_reviewed: true
-schema_version: "1.1"
+schema_version: "0.1.0"
 ---
 
 # D-001: Analytical Datastore: ClickHouse vs. VictoriaLogs

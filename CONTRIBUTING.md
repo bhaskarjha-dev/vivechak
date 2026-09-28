@@ -6,9 +6,9 @@ Thank you for your interest in improving Vivechak! We welcome contributions that
 
 ## The Golden Rule: Evidence-Grounded Evolution
 
-Vivechak was created by applying its own methodology to itself — 11 meta-research sessions tested 10 founding hypotheses before v1.0 was written.
+Vivechak was created by applying its own methodology to itself — 11 meta-research sessions tested 10 founding hypotheses before the framework was codified.
 
-**Any proposed change to the core methodology (`FRAMEWORK.md`, `GENERATOR.md`, or `templates/`) must satisfy the Anti-Bias & Evidence Threshold:**
+**Any proposed change to the core methodology (`FRAMEWORK.md`, `GENERATOR*.md`, or `templates/`) must satisfy the Anti-Bias & Evidence Threshold:**
 
 1. **Cite Grounded Evidence:** Modifications to prompt structure, evidence grading, scaling tiers, or gating criteria must cite empirical benchmarks, peer-reviewed literature, or documented research trajectories.
 2. **No Uncalibrated Dogma:** Avoid introducing arbitrary rules (e.g. "always run 5 sessions" or "always use 3 models"). Rules must scale with risk (One-Way vs Two-Way doors).
@@ -35,7 +35,9 @@ When releasing a new version, update ALL of the following references:
 - [ ] `AGENTS.md` — header version
 - [ ] `GENERATOR.md` — title version, Design Notes version
 - [ ] `FRAMEWORK.md` — header version (if applicable)
-- [ ] `templates/` — header version in all 4 templates, `schema_version` in DECISIONS template if schema changed
+- [ ] `templates/` — header version in all 5 templates, `schema_version` in templates if schema changed
+- [ ] `internal/embed/` — verify 1:1 embed sync with root generators and templates
+- [ ] Package manifests — `Formula/vivechak.rb`, `scoop/vivechak.json`, `winget/bhaskarjha-dev.Vivechak.yaml`
 
 ---
 

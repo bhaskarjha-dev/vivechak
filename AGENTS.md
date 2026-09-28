@@ -1,5 +1,5 @@
 # Vivechak (विवेचक) — Agent Operating Manual
-### Vivechak v1.1 · Single Source of Truth for AI Agent Operations
+### Vivechak v0.1.0 · Single Source of Truth for AI Agent Operations
 
 > **Read this file COMPLETELY before doing anything in this repository.**
 
@@ -137,10 +137,10 @@ vivechak/
 │   └── meta-research/              ← Empirical evidence base
 │       ├── README.md               ← Provenance index
 │       ├── DECISIONS.md            ← All 14 locked ADRs (D-001–D-014)
-│       ├── RESEARCH-PIPELINE-v1.md ← v1.0: meta-research execution DAG
-│       └── v2/                     ← v1.1: MCP server evidence
-│           ├── FINAL-PLAN.md       ← Definitive 5-phase plan
-│           └── RESEARCH-PIPELINE-v2.md ← v1.1: 6-session pipeline
+│       ├── RESEARCH-PIPELINE-v1.md ← Initial methodology meta-research DAG
+│       └── v2/                     ← MCP server & multi-scope research evidence
+│           ├── FINAL-PLAN.md       ← 5-phase server implementation plan
+│           └── RESEARCH-PIPELINE-v2.md ← Multi-scope & MCP server research pipeline
 │
 ├── Formula/ · scoop/ · winget/     ← Package manager manifests
 │

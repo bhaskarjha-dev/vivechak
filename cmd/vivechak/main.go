@@ -20,7 +20,7 @@ import (
 )
 
 // version is set at build time via ldflags, e.g. -ldflags "-X main.version=vX.Y.Z"
-var version = "dev"
+var version = "0.1.0"
 
 func main() {
 	// CRITICAL: slog MUST write to stderr; stdout is MCP protocol-only.

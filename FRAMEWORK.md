@@ -1,6 +1,6 @@
 # The Vivechak Meta-Framework
 ### Complete Specification for Evidence-Grounded Technical Research
-*Version 1.1 — Empirically Validated via 11 Meta-Research Sessions*
+*Version 0.1.0 — Empirically Validated via 11 Meta-Research Sessions*
 
 ---
 
@@ -58,7 +58,7 @@ PROJECT VISION
 
 ## 2. Core Principles
 
-Vivechak v1.1 is governed by 8 evidence-grounded principles. Each was empirically validated through the meta-research pipeline and cites its supporting evidence.
+Vivechak v0.1.0 is governed by 8 evidence-grounded principles. Each was empirically validated through the meta-research pipeline and cites its supporting evidence.
 
 ### P1: The Context Architecture Law
 *Supersedes: pre-validation Aspect-Isolation Law*
@@ -163,7 +163,7 @@ Architectural analysis must prioritize **falsification over confirmation**.
 
 ### 3.1 Topology: Constrained DAG with Adaptive Checkpoints
 
-Vivechak v1.1 replaces rigid stage gating with a **Directed Acyclic Graph** governed by explicit information dependencies.
+Vivechak v0.1.0 replaces rigid stage gating with a **Directed Acyclic Graph** governed by explicit information dependencies.
 
 #### The Inverted Dependency Default
 Every research session defaults to **unblocked** (eligible to execute immediately) unless an explicit hard information dependency is declared.
@@ -349,7 +349,7 @@ Deliver a structured Markdown document covering:
 
 ## FORMAT
 Deliver as a single, complete Markdown file artifact with YAML frontmatter
-per the Vivechak v1.1 session schema.
+per the Vivechak v0.1.0 session schema.
 **Filename:** `[Session-ID]-[slug].md` (e.g., `T1-01-primary-datastore-selection.md`)
 ```
 
@@ -460,7 +460,7 @@ prediction: "PostgreSQL will handle projected load for 18+ months"
 tags: [datastore, infrastructure]
 authored_by: "agent-vivechak"
 human_reviewed: true      # Mandatory for one-way doors
-schema_version: "1.1"
+schema_version: "0.1.0"
 ---
 ```
 
@@ -507,7 +507,7 @@ status: draft                  # draft | sealed
 research_sessions_ingested: 0   # Count of final sessions ingested
 decisions_locked: 0             # Count of accepted ADRs
 open_questions: 0               # Count of unresolved questions
-schema_version: "1.0"
+schema_version: "0.1.0"
 ---
 ```
 

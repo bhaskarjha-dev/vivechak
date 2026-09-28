@@ -19,7 +19,7 @@ func testServer(t *testing.T) *mcp.ClientSession {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelWarn}))
 	ctx := context.Background()
 
-	server := NewServer("0.0.1-test", logger)
+	server := NewServer("0.1.0-test", logger)
 
 	st, ct := mcp.NewInMemoryTransports()
 	if _, err := server.Connect(ctx, st, nil); err != nil {

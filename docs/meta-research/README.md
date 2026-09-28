@@ -13,10 +13,10 @@ the framework practices what it preaches.
 | File | What |
 |---|---|
 | [`DECISIONS.md`](DECISIONS.md) | All 14 locked architectural decisions (D-001–D-014) in Vivechak ADR format |
-| [`RESEARCH-PIPELINE-v1.md`](RESEARCH-PIPELINE-v1.md) | v1.0 meta-research pipeline — how Vivechak researched itself |
-| [`v2/FINAL-PLAN.md`](v2/FINAL-PLAN.md) | The definitive v1.1 plan — 5 phases, risk register, kill criteria |
-| [`v2/RESEARCH-PIPELINE-v2.md`](v2/RESEARCH-PIPELINE-v2.md) | v1.1 meta-research pipeline — MCP server + multi-scope |
-| [`v2/README.md`](v2/README.md) | v1.1 research context and methodology notes |
+| [`RESEARCH-PIPELINE-v1.md`](RESEARCH-PIPELINE-v1.md) | Foundational meta-research pipeline — methodology genesis (D-001–D-010) |
+| [`v2/FINAL-PLAN.md`](v2/FINAL-PLAN.md) | The definitive implementation plan for v0.1.0 — 5 phases, risk register, kill criteria |
+| [`v2/RESEARCH-PIPELINE-v2.md`](v2/RESEARCH-PIPELINE-v2.md) | MCP server & multi-scope research pipeline (D-011–D-014) |
+| [`v2/README.md`](v2/README.md) | MCP server & multi-scope research context and methodology notes |
 
 ## Raw Research Sessions
 

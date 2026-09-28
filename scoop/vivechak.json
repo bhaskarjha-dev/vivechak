@@ -1,15 +1,15 @@
 {
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "Evidence-grounded research for technical decisions — MCP server",
   "homepage": "https://github.com/bhaskarjha-dev/vivechak",
   "license": "MIT",
   "architecture": {
     "64bit": {
-      "url": "https://github.com/bhaskarjha-dev/vivechak/releases/download/v0.0.1/vivechak_0.0.1_windows_amd64.zip",
+      "url": "https://github.com/bhaskarjha-dev/vivechak/releases/download/v0.1.0/vivechak_0.1.0_windows_amd64.zip",
       "hash": "PLACEHOLDER"
     },
     "arm64": {
-      "url": "https://github.com/bhaskarjha-dev/vivechak/releases/download/v0.0.1/vivechak_0.0.1_windows_arm64.zip",
+      "url": "https://github.com/bhaskarjha-dev/vivechak/releases/download/v0.1.0/vivechak_0.1.0_windows_arm64.zip",
       "hash": "PLACEHOLDER"
     }
   },

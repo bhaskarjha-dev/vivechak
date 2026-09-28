@@ -71,7 +71,7 @@ These are non-negotiable truths, validated by evidence:
 
 ### Phase 0: Fix Live Bugs (~1–2 days)
 
-These are methodological defects in the SHIPPED v1.1 framework. Every pipeline executed with the current templates has subtle quality issues. Fix before ANY new work.
+These are methodological defects in the SHIPPED v0.1.0 framework. Every pipeline executed with the current templates has subtle quality issues. Fix before ANY new work.
 
 | # | Fix | File(s) | What Exactly To Do |
 |---|---|---|---|

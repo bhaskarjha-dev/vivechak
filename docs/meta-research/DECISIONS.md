@@ -1,10 +1,10 @@
 # Vivechak — Architectural Decision Registry
 ### Decisions D-001 through D-014 · Status: All Locked
-**Schema Version:** 1.1 · **Last Updated:** 2026-09-28
+**Schema Version:** 0.1.0 · **Last Updated:** 2026-09-28
 
 > This file documents every locked architectural decision for Vivechak.
-> Decisions D-001–D-010 were made during v1.0 (methodology design, August 2026).
-> Decisions D-011–D-014 were made during v1.1 (MCP server + multi-scope, September 2026).
+> Decisions D-001–D-010 established the core research methodology (August 2026).
+> Decisions D-011–D-014 established the Go MCP server and multi-scope architecture for v0.1.0 (September 2026).
 > Raw research sessions are preserved in git history under `meta-research/sessions/`.
 
 ---
@@ -44,7 +44,7 @@ date: 2026-08-15
 confidence: high
 informed_by_sessions: [T1-02, T1-03, T2-01]
 review_trigger: "Context windows exceed 2M tokens across all frontier models"
-schema_version: "1.1"
+schema_version: "0.1.0"
 ---
 ```
 
@@ -89,7 +89,7 @@ date: 2026-08-15
 confidence: high
 informed_by_sessions: [T1-01, T2-04]
 review_trigger: "Reversal cost drops below research cost for One-Way Doors"
-schema_version: "1.1"
+schema_version: "0.1.0"
 ---
 ```
 
@@ -129,7 +129,7 @@ date: 2026-08-15
 confidence: high
 informed_by_sessions: [T1-01, T2-03]
 review_trigger: "Evidence that linear pipelines outperform DAGs for typical projects"
-schema_version: "1.1"
+schema_version: "0.1.0"
 ---
 ```
 
@@ -159,7 +159,7 @@ date: 2026-08-15
 confidence: high
 informed_by_sessions: [T1-01, T2-04]
 review_trigger: "Calibration data from 20+ real pipelines available"
-schema_version: "1.1"
+schema_version: "0.1.0"
 ---
 ```
 
@@ -189,7 +189,7 @@ date: 2026-08-15
 confidence: high
 informed_by_sessions: [T1-01, T1-02, T2-05]
 review_trigger: "Evidence that the grading system creates false precision"
-schema_version: "1.1"
+schema_version: "0.1.0"
 ---
 ```
 
@@ -219,7 +219,7 @@ date: 2026-08-15
 confidence: very-high
 informed_by_sessions: [T1-03, T2-06]
 review_trigger: "Empirical evidence that structured XML outperforms natural language"
-schema_version: "1.1"
+schema_version: "0.1.0"
 ---
 ```
 
@@ -252,7 +252,7 @@ date: 2026-08-15
 confidence: high
 informed_by_sessions: [T1-01, T2-07]
 review_trigger: "Git line-level diffing no longer relevant for artifact management"
-schema_version: "1.1"
+schema_version: "0.1.0"
 ---
 ```
 
@@ -278,7 +278,7 @@ date: 2026-08-15
 confidence: high
 informed_by_sessions: [T1-01, T2-04, SYN-01]
 review_trigger: "Proprietary infrastructure creates measurable competitive advantage"
-schema_version: "1.1"
+schema_version: "0.1.0"
 ---
 ```
 
@@ -300,7 +300,7 @@ date: 2026-08-15
 confidence: high
 informed_by_sessions: [T1-01, T2-05, SYN-01]
 review_trigger: "Gate false-positive rate exceeds 20%"
-schema_version: "1.1"
+schema_version: "0.1.0"
 ---
 ```
 
@@ -322,7 +322,7 @@ date: 2026-08-15
 confidence: high
 informed_by_sessions: [T1-03, T3-01]
 review_trigger: "Generator prompt exceeds 30K tokens"
-schema_version: "1.1"
+schema_version: "0.1.0"
 ---
 ```
 
@@ -352,7 +352,7 @@ date: 2026-09-25
 confidence: high
 informed_by_sessions: [R-02, R-04]
 review_trigger: "MCP spec adds stateful session management"
-schema_version: "1.1"
+schema_version: "0.1.0"
 ---
 ```
 
@@ -393,7 +393,7 @@ date: 2026-09-25
 confidence: high
 informed_by_sessions: [R-03, R-06]
 review_trigger: "Demand signal for additional scope levels"
-schema_version: "1.1"
+schema_version: "0.1.0"
 ---
 ```
 
@@ -428,7 +428,7 @@ date: 2026-09-27
 confidence: high
 informed_by_sessions: [R-02, R-04]
 review_trigger: "MCP spec adds tool namespacing that conflicts with prefix convention"
-schema_version: "1.1"
+schema_version: "0.1.0"
 ---
 ```
 
@@ -472,7 +472,7 @@ date: 2026-09-25
 confidence: high
 informed_by_sessions: [R-05]
 review_trigger: "Agent Plugins become universal across all major hosts"
-schema_version: "1.1"
+schema_version: "0.1.0"
 ---
 ```
 

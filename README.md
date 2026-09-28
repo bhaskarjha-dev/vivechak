@@ -12,7 +12,7 @@
 
 ---
 
-### v1.1 — Separating evidence from assumption, truth from bias
+### v0.1.0 — Separating evidence from assumption, truth from bias
 
 > **Transform technical decisions from gut-feel and cached training data into structured, evidence-graded research — whether you're architecting a whole project, researching a single decision, or comparing specific options.**
 
@@ -234,7 +234,7 @@ Vivechak's most distinctive property: it was validated by the methodology it pre
 |---|---|---|
 | 1: Foundation (Gen 1) | ✅ | 8 project methodologies consolidated into initial patterns |
 | 2: Self-Validation (Gen 2) | ✅ | 11 meta-research sessions → 10 verdicts → Gen 3 spec |
-| 3: Framework Release (v1.0–v1.1) | ✅ | Framework, generators, templates, bias correction |
+| 3: Framework Release (v0.1.0) | ✅ | Framework, generators, templates, bias correction |
 | 4: Methodology Expansion | ✅ | 3 scope levels (Project / Decision / Comparison) |
 | 5: MCP Server | ✅ | Go MCP server with 9 tools, 32/32 tests passing |
 | 6: Distribution | ✅ | GoReleaser, installers, Homebrew/Scoop/winget, CI pipelines |

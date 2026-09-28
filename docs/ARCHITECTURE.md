@@ -419,7 +419,7 @@ To build the server executable:
 go build -o bin/vivechak ./cmd/vivechak
 
 # Release build with version injection via ldflags
-go build -ldflags "-X main.version=v1.0.0" -o bin/vivechak ./cmd/vivechak
+go build -ldflags "-X main.version=v0.1.0" -o bin/vivechak ./cmd/vivechak
 ```
 
 ### Running Tests
