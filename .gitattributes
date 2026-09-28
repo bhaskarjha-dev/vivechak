@@ -1,0 +1,27 @@
+# Vivechak line ending normalization
+# All text files get LF in the repo, native endings on checkout
+
+# Auto-detect text files and normalize to LF
+* text=auto
+
+# Force LF for all source code and config
+*.go text eol=lf
+*.mod text eol=lf
+*.sum text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+*.rb text eol=lf
+*.sh text eol=lf
+
+# Force CRLF for Windows-specific scripts
+*.ps1 text eol=crlf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Binary files — no line ending conversion
+*.exe binary
+*.jpg binary
+*.png binary
+*.ico binary

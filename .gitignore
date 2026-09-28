@@ -1,9 +1,10 @@
 # Vivechak (विवेचक) .gitignore
-# Pre-v1.0 reference materials superseded by meta-research evidence base
+
+# Archived development materials
 references/
 brain-archive/
 
-# Operating System Files
+# Operating System
 .DS_Store
 Thumbs.db
 desktop.ini
@@ -13,39 +14,31 @@ desktop.ini
 .env.*
 !.env.example
 
-# Logs and Diagnostics
+# Logs
 *.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
 
-# Node / Dependencies
-node_modules/
-build/
-.cache/
-
-# IDE / Editor Settings
+# IDE / Editor
 .vscode/*
 !.vscode/settings.json
 !.vscode/tasks.json
 !.vscode/launch.json
 !.vscode/extensions.json
 .idea/
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
 *.sw?
 
-
-# Go
+# Go build artifacts
 bin/
 dist/
 *.exe
 *.exe~
+
+# Go test/coverage
 coverage*
 *.out
 
-# temp
+# Temporary working directories
 temp/
 tmp/
+
+# Lock files left by advisory locking
+*.lock

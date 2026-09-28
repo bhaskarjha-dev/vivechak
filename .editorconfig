@@ -1,0 +1,34 @@
+# Vivechak EditorConfig
+# https://editorconfig.org
+
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = tab
+indent_size = 4
+
+# Go source — tabs per gofmt convention
+[*.go]
+indent_style = tab
+
+# Markdown — preserve trailing whitespace (line breaks)
+[*.md]
+trim_trailing_whitespace = false
+
+# YAML/JSON — spaces
+[*.{yml,yaml,json}]
+indent_style = space
+indent_size = 2
+
+# Windows scripts — CRLF
+[*.{ps1,bat,cmd}]
+end_of_line = crlf
+
+# Ruby (Homebrew formula)
+[*.rb]
+indent_style = space
+indent_size = 2
