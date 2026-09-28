@@ -53,6 +53,12 @@ func handleSaveSession(_ context.Context, _ *sdkmcp.CallToolRequest, in SaveSess
 			"Provide the session identifier (e.g., 'R-01', 'R-02', 'SYN-01').")
 	}
 
+	// Validate session ID format to prevent path traversal
+	if !isValidID(in.SessionID) {
+		return ErrorResult(tool, fmt.Errorf("invalid session_id %q — must be alphanumeric with optional hyphens, underscores, dots", in.SessionID),
+			"Use a simple ID like 'T1-01', 'SYN-01', or 'FAD'.")
+	}
+
 	if strings.TrimSpace(in.Content) == "" {
 		return ErrorResult(tool, fmt.Errorf("content is required"),
 			"Provide the session output content (Markdown with YAML frontmatter).")
@@ -76,7 +82,13 @@ func handleSaveSession(_ context.Context, _ *sdkmcp.CallToolRequest, in SaveSess
 			"Check filesystem permissions.")
 	}
 
-	relPath := filepath.Join(core.SessionsDir, filename)
+	// FAD (Founding Architecture Document) writes to research/FAD.md, not sessions/
+	var relPath string
+	if in.SessionID == "FAD" {
+		relPath = filepath.Join(core.ResearchDir, filename)
+	} else {
+		relPath = filepath.Join(core.SessionsDir, filename)
+	}
 	unlock, err := store.LockFile(filepath.Join(root, relPath), 5*time.Second)
 	if err != nil {
 		return ErrorResult(tool, fmt.Errorf("could not acquire lock: %w", err), "Another process may be writing. Try again.")

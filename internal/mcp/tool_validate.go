@@ -56,8 +56,10 @@ func handleValidate(_ context.Context, _ *sdkmcp.CallToolRequest, in ValidateInp
 	case "decision":
 		validation = core.ValidateDecision([]byte(in.Content))
 	case "plan", "fad":
-		// Basic validation for plans and FADs
-		validation = core.ValidateSession([]byte(in.Content))
+		// Plans and FADs have different structures than sessions.
+		// Validate frontmatter presence and non-empty body without
+		// requiring session-specific fields like session_id.
+		validation = core.ValidateArtifact([]byte(in.Content))
 	default:
 		return ErrorResult(tool, fmt.Errorf("unknown artifact_type %q", artifactType),
 			"Use 'session', 'decision', 'plan', or 'fad'.")

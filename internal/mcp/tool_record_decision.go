@@ -54,6 +54,12 @@ func handleRecordDecision(_ context.Context, _ *sdkmcp.CallToolRequest, in Recor
 			"Provide a decision identifier like 'D-015'.")
 	}
 
+	// Validate decision ID format to prevent path traversal
+	if !isValidID(in.DecisionID) {
+		return ErrorResult(tool, fmt.Errorf("invalid decision_id %q — must be alphanumeric with optional hyphens, underscores, dots", in.DecisionID),
+			"Use a simple ID like 'D-01'.")
+	}
+
 	if strings.TrimSpace(in.Content) == "" {
 		return ErrorResult(tool, fmt.Errorf("content is required"),
 			"Provide the decision record content (Markdown with YAML frontmatter).")

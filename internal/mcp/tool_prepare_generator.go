@@ -67,15 +67,31 @@ func handlePrepareGenerator(_ context.Context, _ *sdkmcp.CallToolRequest, in Pre
 	}
 
 	// Inject context into the generator prompt
-	// The generators use [PASTE YOUR PROJECT DESCRIPTION HERE] as the placeholder
 	genPrompt := string(genBytes)
-	placeholder := "[PASTE YOUR PROJECT DESCRIPTION HERE]"
-	if strings.Contains(genPrompt, placeholder) {
-		genPrompt = strings.Replace(genPrompt, placeholder, in.Context, 1)
-	} else {
-		// For decision/comparison generators that may use different placeholders
-		// Append the context at a sensible location
-		genPrompt = genPrompt + "\n\n## Context\n\n" + in.Context
+	switch scope {
+	case core.ScopeProject:
+		placeholder := "[PASTE YOUR PROJECT DESCRIPTION HERE]"
+		if strings.Contains(genPrompt, placeholder) {
+			genPrompt = strings.Replace(genPrompt, placeholder, in.Context, 1)
+		} else {
+			genPrompt = genPrompt + "\n\n## Context\n\n" + in.Context
+		}
+	case core.ScopeDecision, core.ScopeComparison:
+		// Decision and comparison generators use a ```context block
+		// Replace the entire context block content
+		contextBlockStart := "```context"
+		contextBlockEnd := "```"
+		startIdx := strings.Index(genPrompt, contextBlockStart)
+		if startIdx >= 0 {
+			afterStart := startIdx + len(contextBlockStart)
+			endIdx := strings.Index(genPrompt[afterStart:], contextBlockEnd)
+			if endIdx >= 0 {
+				endIdx += afterStart
+				genPrompt = genPrompt[:afterStart] + "\n" + in.Context + "\n" + genPrompt[endIdx:]
+			}
+		} else {
+			genPrompt = genPrompt + "\n\n## Context\n\n" + in.Context
+		}
 	}
 
 	// Calculate approximate token count for the prompt

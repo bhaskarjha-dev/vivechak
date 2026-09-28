@@ -15,9 +15,16 @@ package mcputil
 import (
 	"encoding/json"
 	"fmt"
+	"regexp"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
+
+var validIDPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_.\-]*$`)
+
+func isValidID(id string) bool {
+	return validIDPattern.MatchString(id)
+}
 
 // Envelope is the standardized response every Vivechak tool returns.
 // It carries both success/failure state and Guided Worker process guidance.
