@@ -111,6 +111,7 @@ func TestAnnotations(t *testing.T) {
 		"vivechak_status":            true,
 		"vivechak_next_session":      true,
 		"vivechak_validate":          true,
+		"vivechak_run_gate":          true,
 	}
 
 	for tool, err := range cs.Tools(ctx, nil) {
@@ -823,7 +824,7 @@ All decisions recorded with review triggers. C (team review)
 
 	// Step 6.5: Record a decision to create DECISIONS.md (needed for gate PASS)
 	decisionOutput := `---
-decision_id: D-001
+decision_id: D-002
 title: Auth Strategy
 status: accepted
 door_type: two-way
@@ -840,7 +841,7 @@ Tied to Clerk.
 		Arguments: map[string]any{
 			"project_root":  tmpDir,
 			"artifact_type": "decision",
-			"decision_id":   "D-001",
+			"decision_id":   "D-002",
 			"content":       decisionOutput,
 		},
 	})

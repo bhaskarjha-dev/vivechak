@@ -1,6 +1,7 @@
 package core
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -19,7 +20,15 @@ const (
 	PipelineFile = "research/RESEARCH-PIPELINE.md"
 	// DecisionsFile is the decision registry.
 	DecisionsFile = "research/DECISIONS.md"
+	// MetadataFile stores workspace metadata (scope, init timestamp).
+	MetadataFile = "research/.vivechak.json"
 )
+
+// WorkspaceMeta holds metadata written during vivechak_init.
+type WorkspaceMeta struct {
+	Scope     Scope  `json:"scope"`
+	CreatedAt string `json:"created_at,omitempty"`
+}
 
 // TemplatesToCopy lists the template files that vivechak_init copies
 // into the workspace's research/templates/ directory.
@@ -132,6 +141,17 @@ func InspectWorkspace(root string) WorkspaceInfo {
 	// Check for pipeline
 	if _, err := os.Stat(filepath.Join(root, PipelineFile)); err == nil {
 		info.HasPipeline = true
+	}
+
+	// Try to detect scope from metadata file first
+	if metaData, err := os.ReadFile(filepath.Join(root, MetadataFile)); err == nil {
+		var meta WorkspaceMeta
+		if json.Unmarshal(metaData, &meta) == nil && ValidScope(meta.Scope) {
+			info.Scope = meta.Scope
+		}
+	}
+	// Pipeline presence overrides — project scope is authoritative when pipeline exists
+	if info.HasPipeline {
 		info.Scope = ScopeProject
 	}
 

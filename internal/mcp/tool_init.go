@@ -2,9 +2,11 @@ package mcputil
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/bhaskarjha-dev/vivechak/internal/core"
 	vembed "github.com/bhaskarjha-dev/vivechak/internal/embed"
@@ -122,6 +124,16 @@ func handleInit(_ context.Context, req *sdkmcp.CallToolRequest, in InitInput) (*
 				"Check filesystem permissions and try again.")
 		}
 		copied = append(copied, tmpl)
+	}
+
+	// Write workspace metadata (scope + creation timestamp)
+	meta := core.WorkspaceMeta{
+		Scope:     scope,
+		CreatedAt: time.Now().UTC().Format(time.RFC3339),
+	}
+	metaBytes, _ := json.Marshal(meta)
+	if err := store.WriteFileAtomic(ws.Root(), core.MetadataFile, metaBytes, 0o644); err != nil {
+		warnings = append(warnings, fmt.Sprintf("W-META-WRITE: could not write workspace metadata: %v", err))
 	}
 
 	env := Envelope{

@@ -27,7 +27,7 @@ func registerRunGate(server *sdkmcp.Server) {
 				"substantive?) is the host agent's responsibility. " +
 				"Supports progressive disclosure via verbose parameter.",
 			Annotations: &sdkmcp.ToolAnnotations{
-				ReadOnlyHint:    false,
+				ReadOnlyHint:    true,
 				IdempotentHint:  true,
 				DestructiveHint: BoolPtr(false),
 				OpenWorldHint:   BoolPtr(false),
@@ -101,18 +101,27 @@ func handleRunGate(_ context.Context, _ *sdkmcp.CallToolRequest, in RunGateInput
 	var trackBPassed int
 	trackBTotal := 3
 
-	// Check B1: At least 3 sessions for a meaningful pipeline
-	if info.SessionCount >= 3 {
+	// Check B1: Session count meets minimum for scope
+	minSessions := 3 // project scope default
+	switch info.Scope {
+	case core.ScopeComparison:
+		minSessions = 1
+	case core.ScopeDecision:
+		minSessions = 1
+	}
+	if info.SessionCount >= minSessions {
 		trackBPassed++
 	} else {
-		trackBIssues = append(trackBIssues, fmt.Sprintf("Only %d sessions — minimum 3 recommended for a meaningful pipeline", info.SessionCount))
+		trackBIssues = append(trackBIssues, fmt.Sprintf(
+			"Only %d sessions — minimum %d recommended for %s scope",
+			info.SessionCount, minSessions, info.Scope))
 	}
 
 	// Check B2: FAD has evidence grades if it exists
 	if hasFAD {
 		fadData, err := os.ReadFile(fadPath)
 		if err == nil {
-			fadValidation := core.ValidateSession(fadData)
+			fadValidation := core.ValidateArtifact(fadData)
 			if fadValidation.WarningCount() == 0 {
 				trackBPassed++
 			} else {
