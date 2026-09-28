@@ -151,8 +151,8 @@ func (d *DAG) NextSessions(completedIDs map[string]bool) []Session {
 
 // Patterns for parsing the pipeline format
 var (
-	// Matches session headers like: #### T1-01: Graph Persistence Landscape, #### D-001-S1: Spike
-	sessionHeaderRe = regexp.MustCompile(`^#{2,4}\s+([A-Za-z0-9]+(?:-[A-Za-z0-9]+)+):?\s*(.*)`)
+	// Matches session headers like: #### T1-01: Graph Persistence Landscape, ### Session T1-01: Spike, #### D-001-S1 — Spike
+	sessionHeaderRe = regexp.MustCompile(`^#{2,4}\s+(?:Session\s+)?([A-Za-z0-9]+(?:-[A-Za-z0-9]+)+):?\s*(.*)`)
 
 	// Matches metadata table rows like: | **ID** | T1-01 |
 	metaFieldRe = regexp.MustCompile(`\|\s*\*\*([^*]+)\*\*\s*\|\s*(.+?)\s*\|`)
@@ -197,7 +197,9 @@ func ParsePipeline(data []byte) (*DAG, error) {
 		// Collect prompt block
 		if inPrompt {
 			if promptEndRe.MatchString(trimmed) {
-				currentSession.Prompt = strings.Join(promptLines, "\n")
+				if currentSession != nil {
+					currentSession.Prompt = strings.Join(promptLines, "\n")
+				}
 				inPrompt = false
 				promptLines = nil
 			} else {

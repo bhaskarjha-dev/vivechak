@@ -350,6 +350,50 @@ func TestFlexibleSessionHeaders(t *testing.T) {
 ` + "```prompt" + `
 Prompt content
 ` + "```" + `
+
+### Session T1-01 — Database Architecture
+| Field | Value |
+|---|---|
+| **ID** | T1-01 |
+| **Dependencies** | None |
+
+` + "```prompt" + `
+Database prompt content
+` + "```" + `
+`
+	dag, err := ParsePipeline([]byte(pipeline))
+	if err != nil {
+		t.Fatalf("ParsePipeline: %v", err)
+	}
+	if len(dag.Sessions) != 2 {
+		t.Fatalf("expected 2 sessions, got %d", len(dag.Sessions))
+	}
+	if dag.Sessions[0].ID != "D-001-S1" {
+		t.Errorf("expected ID D-001-S1, got %s", dag.Sessions[0].ID)
+	}
+	if dag.Sessions[1].ID != "T1-01" {
+		t.Errorf("expected ID T1-01, got %s", dag.Sessions[1].ID)
+	}
+}
+
+func TestParsePipeline_StrayPromptBlockDoesNotPanic(t *testing.T) {
+	// A pipeline with a prompt code block before any session header must not crash
+	pipeline := `# Pipeline with intro block
+
+Here is an example prompt template:
+` + "```prompt" + `
+Stray intro prompt
+` + "```" + `
+
+### T1-01: First Real Session
+| Field | Value |
+|---|---|
+| **ID** | T1-01 |
+| **Dependencies** | None |
+
+` + "```prompt" + `
+Real session prompt
+` + "```" + `
 `
 	dag, err := ParsePipeline([]byte(pipeline))
 	if err != nil {
@@ -358,7 +402,10 @@ Prompt content
 	if len(dag.Sessions) != 1 {
 		t.Fatalf("expected 1 session, got %d", len(dag.Sessions))
 	}
-	if dag.Sessions[0].ID != "D-001-S1" {
-		t.Errorf("expected ID D-001-S1, got %s", dag.Sessions[0].ID)
+	if dag.Sessions[0].ID != "T1-01" {
+		t.Errorf("expected ID T1-01, got %s", dag.Sessions[0].ID)
+	}
+	if dag.Sessions[0].Prompt != "Real session prompt" {
+		t.Errorf("expected prompt 'Real session prompt', got %q", dag.Sessions[0].Prompt)
 	}
 }
