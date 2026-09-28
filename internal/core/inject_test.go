@@ -172,3 +172,55 @@ func TestInjectContext_NoDependencies(t *testing.T) {
 		t.Error("prompt should be unchanged when no dependencies")
 	}
 }
+
+func TestInjectContext_SingleInjection(t *testing.T) {
+	tmpDir := t.TempDir()
+	sessionsDir := filepath.Join(tmpDir, "sessions")
+	os.MkdirAll(sessionsDir, 0o755)
+
+	os.WriteFile(filepath.Join(sessionsDir, "T1-01.md"), []byte(`---
+session_id: T1-01
+title: Database Selection
+date: 2026-09-27
+---
+
+## Findings
+PostgreSQL handles graph traversal up to 50k nodes at <50ms p95
+`), 0o644)
+
+	// Session WITH [ALL_SESSION_FINDINGS]
+	session := Session{
+		ID:           "SYN-01",
+		Dependencies: []string{"T1-01"},
+		Prompt:       "# Synthesis\n\n[ALL_SESSION_FINDINGS]\n\nAnd some more [ALL_SESSION_FINDINGS]",
+	}
+
+	completed := map[string]bool{"T1-01": true}
+	injected, err := InjectContext(session, sessionsDir, completed)
+	if err != nil {
+		t.Fatalf("InjectContext: %v", err)
+	}
+
+	// Count occurrences of the injected text
+	count := strings.Count(injected.InjectedPrompt, "PostgreSQL handles graph")
+	if count != 1 {
+		t.Errorf("expected exactly 1 injection of findings, got %d", count)
+	}
+
+	// Session with BOTH slots
+	sessionBoth := Session{
+		ID:           "SYN-02",
+		Dependencies: []string{"T1-01"},
+		Prompt:       "# Synthesis\n\n[ALL_SESSION_FINDINGS]\n\n[UPSTREAM_FINDINGS]",
+	}
+
+	injectedBoth, err := InjectContext(sessionBoth, sessionsDir, completed)
+	if err != nil {
+		t.Fatalf("InjectContext: %v", err)
+	}
+
+	countBoth := strings.Count(injectedBoth.InjectedPrompt, "PostgreSQL handles graph")
+	if countBoth != 1 {
+		t.Errorf("expected exactly 1 injection of findings when both slots present, got %d", countBoth)
+	}
+}
