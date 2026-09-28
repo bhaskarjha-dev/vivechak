@@ -64,6 +64,10 @@ func handleSaveSession(_ context.Context, _ *sdkmcp.CallToolRequest, in SaveSess
 			"Provide the session output content (Markdown with YAML frontmatter).")
 	}
 
+	if err := validateContentSize(in.Content); err != nil {
+		return ErrorResult(tool, err, "Reduce content size or split into multiple artifacts.")
+	}
+
 	// Validate the session content
 	validation := core.ValidateSession([]byte(in.Content))
 

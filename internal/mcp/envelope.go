@@ -22,8 +22,17 @@ import (
 
 var validIDPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_.\-]*$`)
 
+const MaxContentBytes = 10 * 1024 * 1024 // 10 MB
+
+func validateContentSize(content string) error {
+	if len(content) > MaxContentBytes {
+		return fmt.Errorf("content exceeds maximum size of %d bytes (got %d)", MaxContentBytes, len(content))
+	}
+	return nil
+}
+
 func isValidID(id string) bool {
-	return validIDPattern.MatchString(id)
+	return len(id) <= 128 && validIDPattern.MatchString(id)
 }
 
 // Envelope is the standardized response every Vivechak tool returns.

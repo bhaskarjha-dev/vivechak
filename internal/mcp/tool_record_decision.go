@@ -65,6 +65,10 @@ func handleRecordDecision(_ context.Context, _ *sdkmcp.CallToolRequest, in Recor
 			"Provide the decision record content (Markdown with YAML frontmatter).")
 	}
 
+	if err := validateContentSize(in.Content); err != nil {
+		return ErrorResult(tool, err, "Reduce content size or split into multiple artifacts.")
+	}
+
 	// Validate artifact type
 	artifactType := in.ArtifactType
 	if artifactType == "" {

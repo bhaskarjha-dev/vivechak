@@ -73,7 +73,10 @@ func handleNextSession(_ context.Context, _ *sdkmcp.CallToolRequest, in NextSess
 
 	// Scan completed sessions
 	sessionsDir := filepath.Join(root, core.SessionsDir)
-	completedIDs := scanCompletedSessions(sessionsDir)
+	completedIDs, err := scanCompletedSessions(sessionsDir)
+	if err != nil {
+		return ErrorResult(tool, err, "Check workspace directory permissions.")
+	}
 
 	// If a specific session is requested, return it directly
 	if in.SessionID != "" {
@@ -231,11 +234,14 @@ func buildSessionResponse(tool string, session core.Session, prompt string, comp
 }
 
 // scanCompletedSessions reads the sessions directory and returns completed IDs.
-func scanCompletedSessions(sessionsDir string) map[string]bool {
+func scanCompletedSessions(sessionsDir string) (map[string]bool, error) {
 	completed := map[string]bool{}
 	entries, err := os.ReadDir(sessionsDir)
 	if err != nil {
-		return completed
+		if os.IsNotExist(err) {
+			return completed, nil // Sessions dir not yet created — expected
+		}
+		return nil, fmt.Errorf("reading sessions directory: %w", err)
 	}
 
 	for _, e := range entries {
@@ -256,7 +262,7 @@ func scanCompletedSessions(sessionsDir string) map[string]bool {
 		}
 	}
 
-	return completed
+	return completed, nil
 }
 
 // sessionIDList returns a comma-separated list of session IDs in the DAG.
