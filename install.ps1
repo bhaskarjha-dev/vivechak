@@ -79,7 +79,9 @@ try {
     Write-Host "vivechak $Tag installed to $InstallDir\vivechak.exe" -ForegroundColor Green
     Write-Host ''
     Write-Host 'Next step: configure your AI host:' -ForegroundColor Cyan
-    Write-Host '  vivechak mcp-config --client cursor --write'
+    Write-Host '  vivechak mcp-config                          # output universal MCP configuration'
+    Write-Host '  vivechak mcp-config --path <file> --write    # write directly to any agent config'
+    Write-Host '  vivechak mcp-config --preset <name> --write  # or use desktop shortcut (e.g. cursor, vscode)'
     Write-Host ''
 } finally {
     Remove-Item -Path $TmpDir -Recurse -Force -ErrorAction SilentlyContinue

@@ -107,7 +107,7 @@ vivechak/
 │
 ├── cmd/vivechak/                   ← MCP server + CLI entry point
 │   ├── main.go                     ← Entry point (serve, version, mcp-config, doctor)
-│   ├── config.go                   ← mcp-config --client <host> --write
+│   ├── config.go                   ← mcp-config (universal config + desktop presets)
 │   └── doctor.go                   ← Workspace integrity checker
 │
 ├── internal/                       ← Server implementation (Go)
@@ -129,7 +129,7 @@ vivechak/
 ├── docs/                           ← Documentation
 │   ├── QUICKSTART.md               ← Vivechak in 5 Minutes
 │   ├── MANUAL-WORKFLOW.md          ← Complete manual copy-paste guide
-│   ├── HOST-SETUP.md               ← Per-host MCP config (7 hosts)
+│   ├── HOST-SETUP.md               ← Universal MCP setup & desktop shortcuts
 │   ├── MCP-TOOLS.md                ← 9-tool reference with examples
 │   ├── ARCHITECTURE.md             ← Server internals for contributors
 │   ├── assets/logo.jpg             ← Minimalist prism logo

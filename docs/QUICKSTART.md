@@ -46,13 +46,19 @@ go install github.com/bhaskarjha-dev/vivechak/cmd/vivechak@latest               
 
 ### 2. Configure Your AI Host
 
-Auto-detect binary path and register the MCP server in one command:
+Register the MCP server with your AI host or editor:
 
 ```sh
-vivechak mcp-config --client cursor --write
-# Supported clients: cursor, vscode, claude-desktop, antigravity, chatgpt, codex, kiro
+# Output universal MCP JSON configuration (compatible with any MCP client):
+vivechak mcp-config
+
+# Or write directly to a configuration file (works with any harness):
+vivechak mcp-config --path <filepath> --write
+
+# Or use a desktop path shortcut (e.g. cursor, vscode, zed, windsurf):
+vivechak mcp-config --preset <shortcut> --write
 ```
-*(For manual config or client-specific details, see the [Host Setup Guide](HOST-SETUP.md).)*
+*(For manual configuration, terminal harnesses, or desktop path shortcuts, see the [Host Setup Guide](HOST-SETUP.md).)*
 
 ### 3. Prompt Your AI Agent
 

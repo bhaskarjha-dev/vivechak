@@ -112,7 +112,7 @@ The agent executes the research using web search and tool capabilities, producin
 ```json
 {
   "session_id": "T1-01",
-  "content": "# T1-01: Graph Persistence Landscape\\n\\n## Findings\\nPostgreSQL 16 + recursive CTEs handles graph traversal up to ~50k nodes at <50ms p95. Dedicated Graph DB operational overhead is unnecessary at this scale.\\n## Evidence\\n- [Grade A] PostgreSQL 16 Docs\\n- [Grade B] Internal PGBench runs..."
+  "content": "---\\nsession_id: T1-01\\ntitle: Graph Persistence Landscape\\ndate: 2026-09-01\\nstatus: complete\\n---\\n\\n# T1-01: Graph Persistence Landscape\\n\\n## Findings\\nPostgreSQL 16 + recursive CTEs handles graph traversal up to ~50k nodes at <50ms p95. Dedicated Graph DB operational overhead is unnecessary at this scale.\\n## Evidence\\n- [Grade A] PostgreSQL 16 Docs\\n- [Grade B] Internal PGBench runs..."
 }
 ```
 

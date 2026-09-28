@@ -4,7 +4,7 @@
 //
 //	vivechak                    # Start MCP server on stdio (default)
 //	vivechak serve              # Explicit serve subcommand
-//	vivechak mcp-config --client <host> --write   # Generate client config
+//	vivechak mcp-config         # Universal MCP config (or --path <path> / --preset <shortcut> --write)
 //	vivechak doctor             # Check workspace integrity
 //	vivechak version            # Print version
 package main
@@ -33,8 +33,7 @@ func printUsage(w io.Writer) {
 	fmt.Fprintf(w, "Commands:\n")
 	fmt.Fprintf(w, "  serve        Start MCP server over stdio (default — connects to ANY MCP client)\n")
 	fmt.Fprintf(w, "  version      Print version\n")
-	fmt.Fprintf(w, "  mcp-config   Output universal MCP JSON configuration (or auto-write via --client <preset> / --path <path> --write)\n")
-	fmt.Fprintf(w, "               Presets: cursor, vscode, claude-desktop, windsurf, antigravity, chatgpt, codex, kiro\n")
+	fmt.Fprintf(w, "  mcp-config   Output universal MCP JSON configuration (or write via --path <path> / --preset <shortcut> --write)\n")
 	fmt.Fprintf(w, "  doctor       Check workspace integrity\n")
 }
 

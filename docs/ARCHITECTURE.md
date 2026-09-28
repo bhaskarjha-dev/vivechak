@@ -23,7 +23,7 @@ vivechak/
 ├── cmd/
 │   └── vivechak/           # CLI entry points and host configurations
 │       ├── main.go         # Command dispatcher, stdio server startup, slog routing
-│       ├── config.go       # "mcp-config" client config generator
+│       ├── config.go       # "mcp-config" universal config generator & desktop presets
 │       └── doctor.go       # "doctor" workspace integrity verification
 ├── internal/
 │   ├── core/               # Pure business logic (DAG, validation, injection, scopes)
@@ -102,7 +102,7 @@ Defined in [`internal/core/dag.go`](../internal/core/dag.go#L10-L49), [`ParsePip
 - [`DAG.NextSessions(completedIDs)`](../internal/core/dag.go#L63-L85): Computes ready nodes by checking which uncompleted sessions have all upstream dependencies satisfied. Identifies parallel tracks that can execute concurrently.
 
 ### Frontmatter Parser (`core.Frontmatter`)
-Defined in [`internal/core/frontmatter.go`](../internal/core/frontmatter.go#L11-L20), [`ParseFrontmatter`](../internal/core/frontmatter.go#L24) and [`ComposeFrontmatter`](../internal/core/frontmatter.go#L61) provide robust YAML frontmatter manipulation without mangling markdown body fences, tables, or unicode content.
+Defined in [`internal/core/frontmatter.go`](../internal/core/frontmatter.go#L11-L20), [`ParseFrontmatter`](../internal/core/frontmatter.go#L44) and [`ComposeFrontmatter`](../internal/core/frontmatter.go#L120) provide robust YAML frontmatter manipulation without mangling markdown body fences, tables, or unicode content.
 
 ### Validation Ladder (`core.ValidationLevel`)
 Defined in [`internal/core/validate.go`](../internal/core/validate.go#L11-L22), Vivechak uses a 4-level validation ladder to enforce structure without rejecting variations in human/AI writing style:
@@ -272,7 +272,7 @@ Vivechak maintains canonical human-readable files at the repository root and ide
 | `templates/*.template.md` | `internal/embed/templates/*.template.md` |
 
 > [!IMPORTANT]
-> Per [`CONTRIBUTING.md`](../CONTRIBUTING.md#L42-L96) (*Change Propagation Map*), whenever a change is made to any root generator or template, the corresponding file in `internal/embed/` **must be synchronized** before compiling or releasing the server.
+> Per [`CONTRIBUTING.md`](../CONTRIBUTING.md#L42-L96) (*Change Propagation Map*), whenever a change is made to any root generator or template, the corresponding file in `internal/embed/` **must be synchronized** before compiling or releasing the server. This synchronization is automatically verified by [`TestEmbeddedFilesMatchRoot`](../internal/embed/embed_test.go#L64) in CI.
 
 ---
 
@@ -283,6 +283,9 @@ The test suite consists of pure domain unit tests and end-to-end MCP JSON-RPC wi
 ```
 Testing Pyramid:
 ┌────────────────────────────────────────────────────────┐
+│  cmd/vivechak/serve_test.go                            │
+│  Subprocess Live MCP Server Tests (Stdio Transport)    │
+├────────────────────────────────────────────────────────┤
 │  mcp/server_test.go                                    │
 │  In-Memory JSON-RPC Wire Tests (Transports & Protocol) │
 ├────────────────────────────────────────────────────────┤
@@ -326,6 +329,9 @@ Key wire test suites:
   5. `vivechak_save_session` (Save T1-02 output)
   6. `vivechak_next_session` (Receives SYN-01 with T1-01 and T1-02 findings automatically injected)
   7. `vivechak_run_gate` (Executes Phase 0 exit gate)
+
+### 4. Subprocess Live Stdio Integration Tests (`cmd/vivechak/serve_test.go`)
+Spawns the compiled `vivechak serve` binary as a genuine subprocess, connecting via JSON-RPC stdio pipes. Executes a full 17-step end-to-end lifecycle (`init` → `save_plan` → `next_session` → `save_session` → `record_decision` → `validate` → `run_gate`), validating subprocess signal handling, real stdio transport hygiene, and exit gates.
 
 ---
 
@@ -444,10 +450,12 @@ The compiled binary provides useful administrative subcommands:
 # Run workspace diagnostic check
 ./bin/vivechak doctor
 
-# Generate client configuration for Cursor, VSCode, or Claude Desktop
-./bin/vivechak mcp-config --client cursor
-./bin/vivechak mcp-config --client vscode --write
-./bin/vivechak mcp-config --client claude-desktop --write
+# Output universal MCP JSON configuration (compatible with any MCP client)
+./bin/vivechak mcp-config
+
+# Auto-write configuration directly to an agent config file or via desktop shortcut
+./bin/vivechak mcp-config --path <filepath> --write
+./bin/vivechak mcp-config --preset <shortcut> --write
 ```
 
 ### Running Locally with MCP Inspector

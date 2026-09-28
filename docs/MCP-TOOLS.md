@@ -3,7 +3,7 @@
 > **Last verified against code:** 2026-09-28 (v0.1.0)
 > Tool schemas and behaviors described here should match `internal/mcp/server.go`. If you find discrepancies, please file an issue.
 
-The Model Context Protocol (MCP) server for [Vivechak](../README.md) exposes 9 specialized tools designed to run evidence-grounded research pipelines directly inside MCP-compatible AI hosts (Claude Desktop, Cursor, VS Code, Google Gemini Antigravity, OpenAI Codex).
+The Model Context Protocol (MCP) server for [Vivechak](../README.md) exposes 9 specialized tools designed to run evidence-grounded research pipelines directly inside any MCP-compatible AI host, agent runtime, or IDE.
 
 Vivechak supports two execution models:
 1. **MCP Server Workflow**: Autonomous or semi-autonomous execution where the host agent calls MCP tools to prepare prompts, manage DAG session progression, validate outputs, record ADRs, and verify Phase 0 exit gates.
@@ -268,7 +268,7 @@ Defined in [`PrepareGeneratorInput`](../internal/mcp/tool_prepare_generator.go#L
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
-| `project_root` | `string` | Optional | Workspace root path (optional; uses resolution chain if omitted). |
+| `project_root` | `string` | Optional | Workspace root path (optional; uses resolution chain if omitted; used to auto-detect workspace scope if scope is omitted). |
 | `scope` | `string` | Optional | Research scope: `project` \| `decision` \| `comparison` (default: `project`). |
 | `context` | `string` | **Required** | Project vision, decision context, or comparison context to inject into the generator prompt. |
 
@@ -523,6 +523,8 @@ When sessions remain but are blocked by incomplete dependencies:
 
 #### Common Warnings
 - `W-OUTPUT-SIZE: Prompt exceeds 10K tokens and was truncated. Use verbose=true for full prompt.`: Fired when upstream injected context causes the prompt to exceed 10,000 tokens and `verbose` is `false`.
+- `W-INJECTION-SIZE: Injected upstream context is N KB (exceeds 100 KB threshold). Consider consolidating upstream sessions.`: Fired when aggregate upstream findings injected into context slots exceed 100 KB.
+- `W-INJECT-FAILED: context injection failed for <session_id>: <error> — using raw prompt without upstream findings`: Fired if upstream context injection encounters a file read or parsing error.
 
 ---
 
@@ -550,6 +552,7 @@ Defined in [`SaveSessionInput`](../internal/mcp/tool_save_session.go#L16-L20):
 - `session_id` (`string`): Session ID.
 - `file_path` (`string`): Relative output file path (`research/sessions/<session_id>.md`).
 - `status` (`string`): Validation status: `valid`, `valid-with-warnings`, or `draft`.
+- `validation_passed` (`boolean`): Whether validation passed without blocking Level 2 issues (`true` if valid or valid-with-warnings, `false` if draft).
 - `validation` ([`ValidationResult`](../internal/core/validate.go#L67-L73)): Object containing `status` and `issues` array.
 
 #### Example
@@ -571,6 +574,7 @@ Defined in [`SaveSessionInput`](../internal/mcp/tool_save_session.go#L16-L20):
     "session_id": "T1-01",
     "file_path": "research/sessions/T1-01.md",
     "status": "valid",
+    "validation_passed": true,
     "validation": {
       "status": "valid"
     }
@@ -587,6 +591,7 @@ Defined in [`SaveSessionInput`](../internal/mcp/tool_save_session.go#L16-L20):
 - `[L3-WARN] W-NO-EVIDENCE-GRADES: No inline evidence grades found (expected A-E grades per P3) (fix: Add evidence grades like 'A (official docs)' or 'B (peer-reviewed study)' to claims)`
 - `[L2-BLOCK] V-MISSING-FIELD: Required frontmatter field "date" is missing (fix: Add 'date: <value>' to the frontmatter block)`
 - `[L2-BLOCK] V-MISSING-FRONTMATTER: Session output has no YAML frontmatter`
+- `[L2-BLOCK] V-INVALID-FRONTMATTER: YAML frontmatter is malformed: unclosed frontmatter block (fix: Ensure opening '---' has a matching closing '---' line)`
 
 ---
 

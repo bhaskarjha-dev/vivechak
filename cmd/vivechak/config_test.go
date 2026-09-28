@@ -74,21 +74,70 @@ func TestResolveConfigPath(t *testing.T) {
 		t.Errorf("claude linux path: got %s, want %s", p, expectedClaudeLinux)
 	}
 
-	// Cloud / extension hosts (no local file)
-	for _, client := range []string{"chatgpt", "codex", "kiro"} {
-		p, err = resolveConfigPath(client, homeDir, appData, cwd, "linux")
-		if err != nil {
-			t.Errorf("%s: unexpected error %v", client, err)
-		}
-		if p != "" {
-			t.Errorf("%s: expected empty path, got %s", client, p)
-		}
+	// Zed on Linux
+	p, err = resolveConfigPath("zed", homeDir, appData, cwd, "linux")
+	if err != nil {
+		t.Fatalf("zed linux: %v", err)
+	}
+	expectedZedLinux := filepath.Join(homeDir, ".config", "zed", "settings.json")
+	if p != expectedZedLinux {
+		t.Errorf("zed linux path: got %s, want %s", p, expectedZedLinux)
 	}
 
-	// Unknown client
-	_, err = resolveConfigPath("invalidclient", homeDir, appData, cwd, "linux")
-	if err == nil {
-		t.Error("expected error for unknown client, got nil")
+	// Zed on Windows
+	p, err = resolveConfigPath("zed", homeDir, "C:\\Users\\user\\AppData\\Roaming", cwd, "windows")
+	if err != nil {
+		t.Fatalf("zed windows: %v", err)
+	}
+	expectedZedWin := filepath.Join("C:\\Users\\user\\AppData\\Roaming", "Zed", "settings.json")
+	if p != expectedZedWin {
+		t.Errorf("zed windows path: got %s, want %s", p, expectedZedWin)
+	}
+
+	// Kiro
+	p, err = resolveConfigPath("kiro", homeDir, appData, cwd, "linux")
+	if err != nil {
+		t.Fatalf("kiro: %v", err)
+	}
+	expectedKiro := filepath.Join(homeDir, ".aws", ".kiro", "mcp.json")
+	if p != expectedKiro {
+		t.Errorf("kiro path: got %s, want %s", p, expectedKiro)
+	}
+
+	// Unsupported write clients return error
+	for _, client := range []string{"chatgpt", "codex", "invalidclient"} {
+		_, err = resolveConfigPath(client, homeDir, appData, cwd, "linux")
+		if err == nil {
+			t.Errorf("%s: expected error for unsupported write client, got nil", client)
+		}
+	}
+}
+
+func TestDetermineServerKey(t *testing.T) {
+	// VS Code default is servers
+	if k := determineServerKey("vscode", "/ws/.vscode/mcp.json", nil); k != "servers" {
+		t.Errorf("vscode default key: got %s, want servers", k)
+	}
+
+	// VS Code with existing mcpServers retains mcpServers
+	existing := map[string]any{"mcpServers": map[string]any{}}
+	if k := determineServerKey("vscode", "/ws/.vscode/mcp.json", existing); k != "mcpServers" {
+		t.Errorf("vscode with mcpServers: got %s, want mcpServers", k)
+	}
+
+	// Zed is context_servers
+	if k := determineServerKey("zed", "/home/user/.config/zed/settings.json", nil); k != "context_servers" {
+		t.Errorf("zed key: got %s, want context_servers", k)
+	}
+
+	// Default client is mcpServers
+	if k := determineServerKey("cursor", "/home/user/.cursor/mcp.json", nil); k != "mcpServers" {
+		t.Errorf("cursor key: got %s, want mcpServers", k)
+	}
+
+	// Path heuristic for .vscode/mcp.json without host
+	if k := determineServerKey("", filepath.Join("project", ".vscode", "mcp.json"), nil); k != "servers" {
+		t.Errorf("path heuristic .vscode key: got %s, want servers", k)
 	}
 }
 
@@ -111,6 +160,42 @@ func TestMergeConfig(t *testing.T) {
 		v, ok := servers["vivechak"].(map[string]any)
 		if !ok || v["command"] != exePath {
 			t.Errorf("expected command %s, got %v", exePath, v)
+		}
+	})
+
+	t.Run("creates fresh servers entry for vscode", func(t *testing.T) {
+		out, err := mergeConfig(nil, exePath, "servers")
+		if err != nil {
+			t.Fatalf("mergeConfig(nil, servers): %v", err)
+		}
+		var parsed map[string]any
+		if err := json.Unmarshal(out, &parsed); err != nil {
+			t.Fatalf("unmarshal: %v", err)
+		}
+		servers, ok := parsed["servers"].(map[string]any)
+		if !ok {
+			t.Fatalf("servers key not found: %v", parsed)
+		}
+		if servers["vivechak"] == nil {
+			t.Error("vivechak server missing")
+		}
+	})
+
+	t.Run("creates fresh context_servers entry for zed", func(t *testing.T) {
+		out, err := mergeConfig(nil, exePath, "context_servers")
+		if err != nil {
+			t.Fatalf("mergeConfig(nil, context_servers): %v", err)
+		}
+		var parsed map[string]any
+		if err := json.Unmarshal(out, &parsed); err != nil {
+			t.Fatalf("unmarshal: %v", err)
+		}
+		servers, ok := parsed["context_servers"].(map[string]any)
+		if !ok {
+			t.Fatalf("context_servers key not found: %v", parsed)
+		}
+		if servers["vivechak"] == nil {
+			t.Error("vivechak server missing")
 		}
 	})
 
@@ -200,4 +285,38 @@ func TestWriteConfigFile(t *testing.T) {
 		t.Errorf("got %q, want %q", readBack2, newContent)
 	}
 }
+
+func TestIsSupportedPreset(t *testing.T) {
+	valid := []string{"cursor", "vscode", "claude-desktop", "windsurf", "antigravity", "zed", "kiro"}
+	for _, v := range valid {
+		if !isSupportedPreset(v) {
+			t.Errorf("expected %s to be recognized as supported preset", v)
+		}
+	}
+
+	invalid := []string{"", "random", "cursro", "vs-code", "sublime", "chatgpt", "codex"}
+	for _, inv := range invalid {
+		if isSupportedPreset(inv) {
+			t.Errorf("expected %s to NOT be recognized as supported preset", inv)
+		}
+	}
+}
+
+func TestPresetAndClientCompatibility(t *testing.T) {
+	home := "/test/home"
+	appData := "/test/appdata"
+	cwd := "/test/cwd"
+
+	presets := []string{"cursor", "vscode", "claude-desktop", "windsurf", "antigravity", "zed", "kiro"}
+	for _, p := range presets {
+		pathFromPreset, err1 := resolveConfigPath(p, home, appData, cwd, "linux")
+		if err1 != nil {
+			t.Fatalf("resolveConfigPath(%q) failed: %v", p, err1)
+		}
+		if pathFromPreset == "" {
+			t.Errorf("empty path for preset %q", p)
+		}
+	}
+}
+
 

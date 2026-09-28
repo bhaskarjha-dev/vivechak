@@ -33,11 +33,18 @@ First public release of the automated **Vivechak (विवेचक)** system �
   - `FOUNDING-ARCHITECTURE.template.md`: Map-Reduce synthesis template for technical architectures.
   - `PHASE-0-GATE.template.md`: Two-track pre-codebase exit gate with Klein premortem protocol.
 - **CLI Subcommands:**
-  - `vivechak mcp-config --client <host> --write` supporting 7 AI hosts: Cursor, VS Code, Claude Desktop, Antigravity, ChatGPT, Codex, and Kiro.
+  - `vivechak mcp-config` universal MCP JSON configuration generator with auto-write presets for 7 desktop hosts (Cursor, VS Code, Claude Desktop, Antigravity, Windsurf, Zed, and AWS Kiro).
   - `vivechak doctor` for workspace contract validation and dependency diagnostics.
 - **Cross-Platform Distribution:** GoReleaser matrix across 6 OS/architecture targets, standalone shell installers (`install.sh`, `install.ps1`), and package manager manifests (Homebrew, Scoop, WinGet).
 - **Sealed Meta-Research Evidence Base:** 15 foundational research artifacts, 14 locked ADRs (D-001–D-014), and 31 empirical evidence nodes proving the methodology through empirical self-application.
-- **Comprehensive Test Suite:** 32 unit and wire-level integration tests covering DAG parsing, frontmatter validation, atomic file storage, advisory locking, and end-to-end MCP flows.
+- **Comprehensive Test Suite:** 47+ unit, wire-level in-memory tests, and live subprocess stdio end-to-end integration tests covering DAG parsing, frontmatter validation, atomic file storage, advisory locking, and exit gates.
+
+### Changed
+- **Dependency Parser Hardening:** Fixed prefix matching in `parseDependencies` so parenthetical annotations (e.g. `(none-blocking)`) do not inadvertently drop valid dependency lists.
+- **Frontmatter Diagnostics:** `ParseFrontmatter` returns an explicit error when opening `---` has no closing delimiter, enabling precise `V-INVALID-FRONTMATTER` diagnosis.
+- **Guided Worker & API Ergonomics:** `vivechak_save_session` response data includes a `"validation_passed"` boolean; `vivechak_prepare_generator` auto-detects workspace scope from metadata when omitted.
+- **Context Injection Safeguards:** Introduced `W-INJECTION-SIZE` warning across `vivechak_next_session` when aggregate injected upstream context exceeds 100 KB.
+- **CLI & Test Fixtures:** Hoisted regex compilation in `doctor`, added `--help` flag handling to `mcp-config`, and switched test pipeline fixtures to table format.
 
 ---
 

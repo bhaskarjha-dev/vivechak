@@ -44,11 +44,19 @@ go install github.com/bhaskarjha-dev/vivechak/cmd/vivechak@latest
 ```
 
 **Then configure your AI host:**
+Vivechak is a universal Model Context Protocol (MCP) server compatible with any MCP client:
 ```sh
-vivechak mcp-config --client cursor --write    # or: vscode, claude-desktop, antigravity, chatgpt, codex, kiro
+# Output universal MCP JSON configuration (compatible with any MCP client):
+vivechak mcp-config
+
+# Or write directly to a configuration file (works with any harness):
+vivechak mcp-config --path <filepath> --write
+
+# Or use a desktop path shortcut (e.g. cursor, vscode, zed, windsurf):
+vivechak mcp-config --preset <shortcut> --write
 ```
 
-Done. Your agent now has 9 MCP tools for evidence-grounded research. See [Host Setup Guide](docs/HOST-SETUP.md) for manual configuration and per-host details.
+Done. Your agent now has 9 MCP tools for evidence-grounded research. See [Host Setup Guide](docs/HOST-SETUP.md) for harness instructions, desktop shortcuts, and manual setup details.
 
 ---
 
@@ -119,7 +127,7 @@ Compile all findings into a Founding Architecture Document using `templates/FOUN
 vivechak/
 ├── cmd/vivechak/                   ← MCP server + CLI entry point
 │   ├── main.go                     ← Entry point (serve, version, mcp-config, doctor)
-│   ├── config.go                   ← mcp-config --client <host> --write
+│   ├── config.go                   ← mcp-config (universal config + desktop presets)
 │   └── doctor.go                   ← Workspace integrity checker
 │
 ├── internal/                       ← Server implementation
@@ -143,7 +151,7 @@ vivechak/
 ├── GENERATOR-DECISION.md           ← Decision-scope generator (1–3 sessions → ADR)
 ├── GENERATOR-COMPARISON.md         ← Comparison-scope generator (1 session → WEP matrix)
 ├── FRAMEWORK.md                    ← Deep methodology reference
-├── docs/HOST-SETUP.md              ← Per-host MCP config guide (7 hosts)
+├── docs/HOST-SETUP.md              ← Universal MCP setup & desktop shortcuts
 │
 ├── templates/                      ← 5 operational contracts (copy to projects)
 ├── examples/                       ← Concrete adoption walkthroughs
@@ -159,7 +167,7 @@ vivechak/
 
 ## Using with AI Agents
 
-Vivechak ships as an **MCP server** — install the binary, run `vivechak mcp-config --client <host> --write`, and your AI agent gets 9 tools:
+Vivechak ships as a universal **MCP server** — install the binary, register it with your AI host or agent harness (`vivechak mcp-config`), and your AI agent gets 9 tools:
 
 | Tool | What It Does |
 |---|---|

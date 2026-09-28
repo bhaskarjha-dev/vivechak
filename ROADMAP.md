@@ -15,7 +15,7 @@ Vivechak v0.1.0 marks the initial unified release combining the evidence-grounde
 |---|---|---|
 | **Multi-Scope Generators** | ✅ Ship-ready | `GENERATOR.md` (Project), `GENERATOR-DECISION.md` (Decision), `GENERATOR-COMPARISON.md` (Comparison) |
 | **Go MCP Server** | ✅ Shipped | 9 atomic tools implementing the Guided Worker pattern with 32/32 tests passing |
-| **CLI & Diagnostics** | ✅ Shipped | `vivechak mcp-config` (7 AI hosts) and `vivechak doctor` workspace integrity checker |
+| **CLI & Diagnostics** | ✅ Shipped | `vivechak mcp-config` (universal config + 7 desktop presets) and `vivechak doctor` workspace integrity checker |
 | **FRAMEWORK.md** | ✅ Consolidated | Complete standalone spec (principles + evidence grading + multi-scope methodology) |
 | **5 Templates** | ✅ Agent-ready | Decisions, Conflict Resolution, Comparison Session, FAD, Phase 0 Gate (`schema_version: "0.1.0"`) |
 | **Package Distribution** | ✅ Shipped | GoReleaser (6 platforms), Homebrew tap, Scoop bucket, WinGet manifest, shell installers |
@@ -222,7 +222,7 @@ Automated (MCP Server):
   → vivechak_run_gate → sealed FAD
 ```
 
-**Distribution:** GitHub Releases (GoReleaser, 6 platforms) → shell installers → `vivechak mcp-config --client <host> --write` → Homebrew/Scoop/winget → thin Agent Plugin → MCP Registry.
+**Distribution:** GitHub Releases (GoReleaser, 6 platforms) → shell installers → `vivechak mcp-config` (universal config + desktop presets) → Homebrew/Scoop/winget → thin Agent Plugin → MCP Registry.
 
 **Evidence base:** 12 research sessions (~770KB evidence corpus) archived in `meta-research/v2-research/`. Full implementation plan in `meta-research/v2-research/FINAL-PLAN.md`.
 
