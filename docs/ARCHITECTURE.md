@@ -22,8 +22,8 @@ The codebase follows a strict separation of concerns. Pure domain logic has zero
 vivechak/
 ├── cmd/
 │   └── vivechak/           # CLI entry points and host configurations
-│       ├── main.go         # Command dispatcher, stdio server startup, slog routing
-│       ├── config.go       # "mcp-config" universal config generator & desktop presets
+│       ├── main.go         # Command dispatcher, stdio server startup, slog routing (vck alias)
+│       ├── config.go       # "setup" and "mcp-config" host configuration & 14 presets
 │       └── doctor.go       # "doctor" workspace integrity verification
 ├── internal/
 │   ├── core/               # Pure business logic (DAG, validation, injection, scopes)
@@ -442,20 +442,25 @@ go test -v -race ./internal/...
 ```
 
 ### CLI Subcommands
-The compiled binary provides useful administrative subcommands:
+The compiled binary provides useful administrative subcommands (accessible via `vivechak` or the official 3-letter shorthand `vck`):
 ```bash
-# Print version
-./bin/vivechak version
+# Set up Vivechak in an AI host or config file in 1 second
+vck setup cursor
+vck setup vscode
+vck setup claude
+vck setup agy
+vck setup                               # auto-detect workspace host
+vck setup <filepath>                    # direct custom config file write
+vck setup cursor --dry-run              # preview configuration changes
+
+# Output universal MCP JSON configuration (pipeable)
+vck mcp-config
 
 # Run workspace diagnostic check
-./bin/vivechak doctor
+vck doctor
 
-# Output universal MCP JSON configuration (compatible with any MCP client)
-./bin/vivechak mcp-config
-
-# Auto-write configuration directly to an agent config file or via desktop shortcut
-./bin/vivechak mcp-config --path <filepath> --write
-./bin/vivechak mcp-config --preset <shortcut> --write
+# Print version
+vck version
 ```
 
 ### Running Locally with MCP Inspector

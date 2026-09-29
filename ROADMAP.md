@@ -222,7 +222,7 @@ Automated (MCP Server):
   → vivechak_run_gate → sealed FAD
 ```
 
-**Distribution:** GitHub Releases (GoReleaser, 6 platforms) → shell installers → `vivechak mcp-config` (universal config + desktop presets) → Homebrew/Scoop/winget → thin Agent Plugin → MCP Registry.
+**Distribution:** GitHub Releases (GoReleaser, 6 platforms) → shell installers (with `vck` shorthand alias) → `vck setup` / `vck mcp-config` (1-second host configuration + 14 desktop/harness presets) → Homebrew/Scoop/winget → thin Agent Plugin → MCP Registry.
 
 **Evidence base:** 12 research sessions (~770KB evidence corpus) archived in `meta-research/v2-research/`. Full implementation plan in `meta-research/v2-research/FINAL-PLAN.md`.
 

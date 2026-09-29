@@ -412,7 +412,7 @@ func TestWriteConfigFile(t *testing.T) {
 
 func TestIsSupportedPreset(t *testing.T) {
 	valid := []string{
-		"cursor", "vscode", "claude-desktop", "windsurf", "antigravity", "agy", "zed", "kiro",
+		"cursor", "vscode", "code", "claude-desktop", "claude", "windsurf", "antigravity", "agy", "zed", "kiro",
 		"trae", "omp", "openhands", "droid", "cline", "roo", "devin",
 	}
 	for _, v := range valid {
@@ -435,7 +435,7 @@ func TestPresetAndClientCompatibility(t *testing.T) {
 	cwd := "/test/cwd"
 
 	presets := []string{
-		"cursor", "vscode", "claude-desktop", "windsurf", "antigravity", "agy", "zed", "kiro",
+		"cursor", "vscode", "code", "claude-desktop", "claude", "windsurf", "antigravity", "agy", "zed", "kiro",
 		"trae", "omp", "openhands", "droid", "cline", "roo", "devin",
 	}
 	for _, p := range presets {
@@ -444,9 +444,119 @@ func TestPresetAndClientCompatibility(t *testing.T) {
 			t.Fatalf("resolveConfigPath(%q) failed: %v", p, err1)
 		}
 		if pathFromPreset == "" {
-			t.Errorf("empty path for preset %q", p)
+			t.Fatalf("expected non-empty path for preset %q", p)
 		}
 	}
 }
+
+func TestRunSetupWithArgs_Help(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	code := runSetupWithArgs([]string{"--help"}, &stdout, &stderr)
+	if code != 0 {
+		t.Fatalf("expected 0, got %d", code)
+	}
+	if !strings.Contains(stdout.String(), "Usage: vivechak setup") {
+		t.Errorf("expected usage output, got: %s", stdout.String())
+	}
+	if !strings.Contains(stdout.String(), "vck setup cursor") {
+		t.Errorf("expected vck example, got: %s", stdout.String())
+	}
+}
+
+func TestRunSetupWithArgs_DirectFileAndDryRun(t *testing.T) {
+	tempFile := filepath.Join(t.TempDir(), "test-mcp.json")
+
+	// 1. Dry run should NOT create the file
+	var stdoutDry, stderrDry bytes.Buffer
+	code := runSetupWithArgs([]string{tempFile, "--dry-run"}, &stdoutDry, &stderrDry)
+	if code != 0 {
+		t.Fatalf("dry-run failed with code %d: %s", code, stderrDry.String())
+	}
+	if _, err := os.Stat(tempFile); !os.IsNotExist(err) {
+		t.Fatalf("dry-run should not create file on disk")
+	}
+	if !strings.Contains(stdoutDry.String(), "[dry-run]") {
+		t.Errorf("expected [dry-run] marker, got: %s", stdoutDry.String())
+	}
+
+	// 2. Real setup should write the file
+	var stdoutReal, stderrReal bytes.Buffer
+	code = runSetupWithArgs([]string{tempFile}, &stdoutReal, &stderrReal)
+	if code != 0 {
+		t.Fatalf("setup failed with code %d: %s", code, stderrReal.String())
+	}
+	if _, err := os.Stat(tempFile); err != nil {
+		t.Fatalf("setup should have created file: %v", err)
+	}
+	if !strings.Contains(stdoutReal.String(), "Successfully registered Vivechak") {
+		t.Errorf("expected success message, got: %s", stdoutReal.String())
+	}
+
+	// Verify content
+	data, err := os.ReadFile(tempFile)
+	if err != nil {
+		t.Fatalf("reading file: %v", err)
+	}
+	var parsed map[string]any
+	if err := json.Unmarshal(data, &parsed); err != nil {
+		t.Fatalf("invalid JSON written: %v", err)
+	}
+	servers, ok := parsed["mcpServers"].(map[string]any)
+	if !ok || servers["vivechak"] == nil {
+		t.Errorf("expected vivechak entry under mcpServers, got: %v", parsed)
+	}
+}
+
+func TestRunSetupWithArgs_AutoDetectWorkspace(t *testing.T) {
+	tempWS := t.TempDir()
+	_ = os.MkdirAll(filepath.Join(tempWS, ".cursor"), 0o755)
+
+	oldWd, _ := os.Getwd()
+	_ = os.Chdir(tempWS)
+	defer func() { _ = os.Chdir(oldWd) }()
+
+	var stdout, stderr bytes.Buffer
+	code := runSetupWithArgs([]string{"--dry-run"}, &stdout, &stderr)
+	if code != 0 {
+		t.Fatalf("expected 0, got %d; stderr: %s", code, stderr.String())
+	}
+	if !strings.Contains(stdout.String(), "Detected Cursor workspace") {
+		t.Errorf("expected auto-detection of Cursor, got: %s", stdout.String())
+	}
+}
+
+func TestRunSetupWithArgs_InvalidTarget(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	code := runSetupWithArgs([]string{"nonexistent-preset"}, &stdout, &stderr)
+	if code == 0 {
+		t.Fatalf("expected failure for invalid preset, got 0")
+	}
+	if !strings.Contains(stderr.String(), "unrecognized host preset or file path") {
+		t.Errorf("expected error message, got: %s", stderr.String())
+	}
+}
+
+func TestFormatHostName(t *testing.T) {
+	tests := map[string]string{
+		"cursor":          "Cursor",
+		"vscode":          "VS Code",
+		"code":            "VS Code",
+		"claude-desktop":  "Claude Desktop",
+		"claude":          "Claude Desktop",
+		"antigravity":     "Google Antigravity",
+		"agy":             "Google Antigravity",
+		"zed":             "Zed",
+		"kiro":            "AWS Kiro",
+		"trae":            "ByteDance Trae",
+		"omp":             "Oh My Pi (OMP)",
+		"unknown":         "unknown",
+	}
+	for in, want := range tests {
+		if got := formatHostName(in); got != want {
+			t.Errorf("formatHostName(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
 
 

@@ -105,9 +105,9 @@ vivechak/
 ├── .goreleaser.yml                 ← 6-platform cross-compilation
 ├── install.sh · install.ps1        ← Shell installers
 │
-├── cmd/vivechak/                   ← MCP server + CLI entry point
-│   ├── main.go                     ← Entry point (serve, version, mcp-config, doctor)
-│   ├── config.go                   ← mcp-config (universal config + desktop presets)
+├── cmd/vivechak/                   ← MCP server + CLI entry point (vck alias)
+│   ├── main.go                     ← Entry point (serve, setup, mcp-config, doctor, version)
+│   ├── config.go                   ← setup & mcp-config (auto-detection + 14 presets)
 │   └── doctor.go                   ← Workspace integrity checker
 │
 ├── internal/                       ← Server implementation (Go)

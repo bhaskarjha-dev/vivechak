@@ -26,9 +26,11 @@ class Vivechak < Formula
 
   def install
     bin.install "vivechak"
+    bin.install_symlink "vivechak" => "vck"
   end
 
   test do
     system "#{bin}/vivechak", "version"
+    system "#{bin}/vck", "version"
   end
 end

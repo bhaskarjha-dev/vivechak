@@ -11,7 +11,7 @@ import (
 	"strings"
 )
 
-const desktopShortcutsList = "cursor, vscode, claude-desktop, windsurf, antigravity (or agy), zed, kiro, trae, omp, openhands, droid, cline, roo, devin"
+const desktopShortcutsList = "cursor, vscode, claude-desktop (or claude), windsurf, antigravity (or agy), zed, kiro, trae, omp, openhands, droid, cline, roo, devin"
 
 func runMCPConfig() {
 	var args []string
@@ -76,7 +76,7 @@ func runMCPConfigWithArgs(args []string, stdout, stderr io.Writer) int {
 	}
 
 	serverKey := "mcpServers"
-	if host == "vscode" {
+	if host == "vscode" || host == "code" {
 		serverKey = "servers"
 	} else if host == "zed" {
 		serverKey = "context_servers"
@@ -173,7 +173,7 @@ func runMCPConfigWithArgs(args []string, stdout, stderr io.Writer) int {
 
 // determineServerKey returns the appropriate top-level JSON key ("servers", "context_servers", or "mcpServers").
 func determineServerKey(host, configPath string, existing map[string]any) string {
-	if host == "vscode" {
+	if host == "vscode" || host == "code" {
 		if existing != nil && existing["mcpServers"] != nil && existing["servers"] == nil {
 			return "mcpServers"
 		}
@@ -295,9 +295,9 @@ func resolveConfigPath(host, homeDir, appData, cwd, goos string) (string, error)
 			return "", fmt.Errorf("could not determine home dir for cursor config")
 		}
 		return filepath.Join(homeDir, ".cursor", "mcp.json"), nil
-	case "vscode":
+	case "vscode", "code":
 		return filepath.Join(cwd, ".vscode", "mcp.json"), nil
-	case "claude-desktop":
+	case "claude-desktop", "claude":
 		if goos == "windows" {
 			if appData == "" && homeDir != "" {
 				appData = filepath.Join(homeDir, "AppData", "Roaming")
@@ -426,7 +426,7 @@ func resolveConfigPath(host, homeDir, appData, cwd, goos string) (string, error)
 // isSupportedPreset checks whether the given host name is a recognized desktop preset.
 func isSupportedPreset(host string) bool {
 	switch host {
-	case "cursor", "vscode", "claude-desktop", "windsurf", "antigravity", "agy", "zed", "kiro",
+	case "cursor", "vscode", "code", "claude-desktop", "claude", "windsurf", "antigravity", "agy", "zed", "kiro",
 		"trae", "omp", "openhands", "droid", "cline", "roo", "devin":
 		return true
 	default:
@@ -457,4 +457,213 @@ func resolveVSCodeStoragePath(extID, homeDir, appData, goos string) (string, err
 		baseDir = filepath.Join(homeDir, ".config", "Code", "User")
 	}
 	return filepath.Join(baseDir, "globalStorage", extID, "settings", "cline_mcp_settings.json"), nil
+}
+
+// runSetupWithArgs handles the "setup" (and "install") subcommand.
+// Usage: vivechak setup [host|filepath] [--dry-run]
+func runSetupWithArgs(args []string, stdout, stderr io.Writer) int {
+	var target string
+	var dryRun bool
+
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		if arg == "--help" || arg == "-h" {
+			printSetupUsage(stdout)
+			return 0
+		} else if arg == "--dry-run" || arg == "-n" {
+			dryRun = true
+		} else if !strings.HasPrefix(arg, "-") && target == "" {
+			target = arg
+		}
+	}
+
+	cwd, _ := os.Getwd()
+	homeDir, _ := os.UserHomeDir()
+	appData := os.Getenv("APPDATA")
+
+	// If no target provided, attempt smart workspace auto-detection
+	if target == "" {
+		detectedHost := detectWorkspaceHost(cwd)
+		if detectedHost != "" {
+			fmt.Fprintf(stdout, "Detected %s workspace in current directory.\n", formatHostName(detectedHost))
+			target = detectedHost
+		} else {
+			// No target and no workspace detected: print concise guidance
+			printSetupUsage(stdout)
+			return 0
+		}
+	}
+
+	exePath, err := os.Executable()
+	if err != nil {
+		fmt.Fprintf(stderr, "failed to get executable path: %v\n", err)
+		return 1
+	}
+	exePath, err = filepath.Abs(exePath)
+	if err != nil {
+		fmt.Fprintf(stderr, "failed to make path absolute: %v\n", err)
+		return 1
+	}
+
+	var configPath string
+	var hostName string
+
+	if isSupportedPreset(target) {
+		hostName = formatHostName(target)
+		resolvedPath, err := resolveConfigPath(target, homeDir, appData, cwd, runtime.GOOS)
+		if err != nil {
+			fmt.Fprintf(stderr, "Error resolving path for %s: %v\n", target, err)
+			return 1
+		}
+		configPath = resolvedPath
+	} else if strings.Contains(target, "/") || strings.Contains(target, "\\") || strings.HasSuffix(target, ".json") || strings.HasSuffix(target, ".jsonc") {
+		configPath = target
+		hostName = filepath.Base(target)
+	} else {
+		fmt.Fprintf(stderr, "Error: unrecognized host preset or file path: %q\n", target)
+		fmt.Fprintf(stderr, "Available presets: %s\n", desktopShortcutsList)
+		fmt.Fprintf(stderr, "Or specify a direct configuration file path: vck setup ./mcp.json\n")
+		return 1
+	}
+
+	targetKey := determineServerKey(target, configPath, nil)
+
+	var out []byte
+	b, err := os.ReadFile(configPath)
+	if err == nil {
+		if len(bytes.TrimSpace(b)) > 0 {
+			var existing map[string]any
+			dec := json.NewDecoder(bytes.NewReader(b))
+			if dec.Decode(&existing) == nil {
+				targetKey = determineServerKey(target, configPath, existing)
+			}
+		}
+		merged, mergeErr := mergeConfig(b, exePath, targetKey)
+		if mergeErr != nil {
+			fmt.Fprintf(stderr, "Warning: %v\n", mergeErr)
+			if !dryRun {
+				fmt.Fprintf(stderr, "Creating backup at %s.bak and writing fresh config\n", configPath)
+				_ = os.WriteFile(configPath+".bak", b, 0644)
+			}
+			fresh, freshErr := mergeConfig(nil, exePath, targetKey)
+			if freshErr != nil {
+				fmt.Fprintf(stderr, "failed to create fresh config: %v\n", freshErr)
+				return 1
+			}
+			out = fresh
+		} else {
+			out = merged
+		}
+	} else {
+		fresh, freshErr := mergeConfig(nil, exePath, targetKey)
+		if freshErr != nil {
+			fmt.Fprintf(stderr, "failed to create fresh config: %v\n", freshErr)
+			return 1
+		}
+		out = fresh
+	}
+
+	if dryRun {
+		fmt.Fprintf(stdout, "[dry-run] Would write Vivechak configuration to %s (%s):\n", configPath, targetKey)
+		fmt.Fprintln(stdout, string(out))
+		return 0
+	}
+
+	if err := writeConfigFile(configPath, out); err != nil {
+		fmt.Fprintf(stderr, "Error writing configuration: %v\n", err)
+		return 1
+	}
+
+	fmt.Fprintf(stdout, "✓ Successfully registered Vivechak in %s (%s)\n", hostName, configPath)
+	return 0
+}
+
+// detectWorkspaceHost checks the current working directory for known workspace indicators.
+func detectWorkspaceHost(cwd string) string {
+	if cwd == "" {
+		return ""
+	}
+	checks := []struct {
+		dir  string
+		host string
+	}{
+		{".cursor", "cursor"},
+		{".agents", "antigravity"},
+		{".vscode", "vscode"},
+		{".trae", "trae"},
+		{".omp", "omp"},
+		{".factory", "droid"},
+		{".kiro", "kiro"},
+		{".devin", "devin"},
+		{".cline", "cline"},
+		{".roo", "roo"},
+	}
+	for _, c := range checks {
+		if fi, err := os.Stat(filepath.Join(cwd, c.dir)); err == nil && fi.IsDir() {
+			return c.host
+		}
+	}
+	return ""
+}
+
+// formatHostName returns a human-friendly name for a host preset.
+func formatHostName(h string) string {
+	switch h {
+	case "cursor":
+		return "Cursor"
+	case "vscode", "code":
+		return "VS Code"
+	case "claude-desktop", "claude":
+		return "Claude Desktop"
+	case "windsurf":
+		return "Windsurf"
+	case "antigravity", "agy":
+		return "Google Antigravity"
+	case "zed":
+		return "Zed"
+	case "kiro":
+		return "AWS Kiro"
+	case "trae":
+		return "ByteDance Trae"
+	case "omp":
+		return "Oh My Pi (OMP)"
+	case "openhands":
+		return "OpenHands"
+	case "droid":
+		return "Factory Droid"
+	case "cline":
+		return "Cline"
+	case "roo":
+		return "Roo Code"
+	case "devin":
+		return "Cognition Devin"
+	default:
+		return h
+	}
+}
+
+// printSetupUsage prints user guidance for the setup subcommand.
+func printSetupUsage(w io.Writer) {
+	fmt.Fprintln(w, "Usage: vivechak setup [host|filepath] [--dry-run]")
+	fmt.Fprintln(w, "Alias: vivechak install (or: vck setup, vck install)")
+	fmt.Fprintln(w, "")
+	fmt.Fprintln(w, "Set up Vivechak Model Context Protocol (MCP) in your AI editor, IDE, or agent harness.")
+	fmt.Fprintln(w, "")
+	fmt.Fprintln(w, "Arguments:")
+	fmt.Fprintln(w, "  <host>        Desktop shortcut (e.g. cursor, agy, vscode, zed, kiro, trae, omp, etc.)")
+	fmt.Fprintln(w, "  <filepath>    Target configuration file path to write and merge into")
+	fmt.Fprintln(w, "")
+	fmt.Fprintln(w, "Flags:")
+	fmt.Fprintln(w, "  --dry-run, -n  Preview configuration changes without writing to disk")
+	fmt.Fprintln(w, "  --help, -h     Show this help message")
+	fmt.Fprintln(w, "")
+	fmt.Fprintln(w, "Available Presets:")
+	fmt.Fprintf(w, "  %s\n", desktopShortcutsList)
+	fmt.Fprintln(w, "")
+	fmt.Fprintln(w, "Examples:")
+	fmt.Fprintln(w, "  vck setup cursor                       # Configure Cursor")
+	fmt.Fprintln(w, "  vck setup agy                          # Configure Google Antigravity (IDE, 2.0, CLI)")
+	fmt.Fprintln(w, "  vck setup vscode                       # Configure VS Code workspace")
+	fmt.Fprintln(w, "  vck setup ./custom-mcp.json            # Write directly to any agent config file")
+	fmt.Fprintln(w, "  vck setup cursor --dry-run             # Preview configuration without writing")
 }

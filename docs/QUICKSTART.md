@@ -46,19 +46,20 @@ go install github.com/bhaskarjha-dev/vivechak/cmd/vivechak@latest               
 
 ### 2. Configure Your AI Host
 
-Register the MCP server with your AI host or editor:
+Configure your AI host or editor in 1 second using the official shorthand **`vck`** (or `vivechak`):
 
 ```sh
-# Output universal MCP JSON configuration (compatible with any MCP client):
-vivechak mcp-config
+# Fast setup for your AI host / IDE:
+vck setup cursor                             # Cursor IDE
+vck setup vscode                             # VS Code (Copilot Agent mode)
+vck setup claude                             # Claude Desktop
+vck setup agy                                # Google Antigravity
+vck setup                                    # auto-detect host in current workspace
 
-# Or write directly to a configuration file (works with any harness):
-vivechak mcp-config --path <filepath> --write
-
-# Or use a desktop path shortcut (e.g. cursor, vscode, zed, windsurf):
-vivechak mcp-config --preset <shortcut> --write
+# Or output universal MCP JSON configuration:
+vck mcp-config
 ```
-*(For manual configuration, terminal harnesses, or desktop path shortcuts, see the [Host Setup Guide](HOST-SETUP.md).)*
+*(For all 14 presets, terminal harnesses, or manual configs, see the [Host Setup Guide](HOST-SETUP.md).)*
 
 ### 3. Prompt Your AI Agent
 

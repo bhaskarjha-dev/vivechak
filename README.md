@@ -44,16 +44,17 @@ go install github.com/bhaskarjha-dev/vivechak/cmd/vivechak@latest
 ```
 
 **Then configure your AI host:**
-Vivechak is a universal Model Context Protocol (MCP) server compatible with any MCP client:
+Vivechak installs the official 3-letter shorthand **`vck`** alongside `vivechak`. Configure your AI host in 1 second:
 ```sh
-# Output universal MCP JSON configuration (compatible with any MCP client):
-vivechak mcp-config
+# Fast host setup (auto-resolves config paths and merges cleanly):
+vck setup cursor                             # Cursor IDE
+vck setup vscode                             # VS Code (Copilot Agent mode)
+vck setup claude                             # Claude Desktop
+vck setup agy                                # Google Antigravity
+vck setup                                    # auto-detect host in current workspace
 
-# Or write directly to a configuration file (works with any harness):
-vivechak mcp-config --path <filepath> --write
-
-# Or use a desktop path shortcut (e.g. cursor, vscode, zed, windsurf):
-vivechak mcp-config --preset <shortcut> --write
+# Or output universal MCP JSON configuration:
+vck mcp-config
 ```
 
 Done. Your agent now has 9 MCP tools for evidence-grounded research. See [Host Setup Guide](docs/HOST-SETUP.md) for harness instructions, desktop shortcuts, and manual setup details.
@@ -121,13 +122,13 @@ Compile all findings into a Founding Architecture Document using `templates/FOUN
 
 ## Repository Structure
 
-> **For most users:** Install the binary, run `mcp-config`, and you're done. The repository structure below is for contributors and those who want to understand the internals.
+> **For most users:** Install the binary, run `vck setup <host>`, and you're done. The repository structure below is for contributors and those who want to understand the internals.
 
 ```
 vivechak/
 ├── cmd/vivechak/                   ← MCP server + CLI entry point
-│   ├── main.go                     ← Entry point (serve, version, mcp-config, doctor)
-│   ├── config.go                   ← mcp-config (universal config + desktop presets)
+│   ├── main.go                     ← Entry point (serve, setup, mcp-config, doctor, version)
+│   ├── config.go                   ← setup & mcp-config (auto-detection + 14 presets)
 │   └── doctor.go                   ← Workspace integrity checker
 │
 ├── internal/                       ← Server implementation

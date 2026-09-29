@@ -63,6 +63,7 @@ try {
     # Install
     New-Item -ItemType Directory -Path $InstallDir -Force | Out-Null
     Copy-Item (Join-Path $TmpDir 'vivechak.exe') -Destination (Join-Path $InstallDir 'vivechak.exe') -Force
+    Copy-Item (Join-Path $TmpDir 'vivechak.exe') -Destination (Join-Path $InstallDir 'vck.exe') -Force
 
     # Add to PATH if not already there (preserving unexpanded variables like %USERPROFILE%)
     $RegKey = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Environment', $true)
@@ -86,12 +87,13 @@ try {
     $env:PATH = "$InstallDir;$env:PATH"
 
     Write-Host ''
-    Write-Host "vivechak $Tag installed to $InstallDir\vivechak.exe" -ForegroundColor Green
+    Write-Host "vivechak $Tag and shorthand 'vck' installed to $InstallDir" -ForegroundColor Green
     Write-Host ''
-    Write-Host 'Next step: configure your AI host:' -ForegroundColor Cyan
-    Write-Host '  vivechak mcp-config                          # output universal MCP configuration'
-    Write-Host '  vivechak mcp-config --path <file> --write    # write directly to any agent config'
-    Write-Host '  vivechak mcp-config --preset <name> --write  # or use desktop shortcut (e.g. cursor, vscode)'
+    Write-Host 'Next steps: configure your AI host:' -ForegroundColor Cyan
+    Write-Host '  vck setup cursor                             # configure Cursor IDE'
+    Write-Host '  vck setup claude                             # configure Claude Desktop'
+    Write-Host '  vck setup                                    # auto-detect workspace host'
+    Write-Host '  vck mcp-config                               # print universal MCP config'
     Write-Host ''
 } finally {
     Remove-Item -Path $TmpDir -Recurse -Force -ErrorAction SilentlyContinue

@@ -242,3 +242,53 @@ func TestRunCLI_Serve(t *testing.T) {
 		t.Errorf("expected exit code 0 for default command with canceled context, got %d", code)
 	}
 }
+
+func TestRunCLI_SetupAndInstall(t *testing.T) {
+	// 1. setup --help
+	var stdout, stderr bytes.Buffer
+	code := runCLI([]string{"vivechak", "setup", "--help"}, &stdout, &stderr)
+	if code != 0 {
+		t.Errorf("expected exit code 0 for setup --help, got %d", code)
+	}
+	if !strings.Contains(stdout.String(), "Usage: vivechak setup") {
+		t.Errorf("expected setup usage, got %q", stdout.String())
+	}
+
+	// 2. install alias --help
+	stdout.Reset()
+	stderr.Reset()
+	code = runCLI([]string{"vivechak", "install", "--help"}, &stdout, &stderr)
+	if code != 0 {
+		t.Errorf("expected exit code 0 for install --help, got %d", code)
+	}
+	if !strings.Contains(stdout.String(), "Usage: vivechak setup") {
+		t.Errorf("expected setup usage via install alias, got %q", stdout.String())
+	}
+
+	// 3. setup directly to custom file
+	targetFile := filepath.Join(t.TempDir(), "direct-setup.json")
+	stdout.Reset()
+	stderr.Reset()
+	code = runCLI([]string{"vivechak", "setup", targetFile}, &stdout, &stderr)
+	if code != 0 {
+		t.Errorf("expected exit code 0 for setup file, got %d (stderr: %s)", code, stderr.String())
+	}
+	if !strings.Contains(stdout.String(), "Successfully registered Vivechak") {
+		t.Errorf("expected success message, got: %s", stdout.String())
+	}
+	if _, err := os.Stat(targetFile); err != nil {
+		t.Errorf("expected target file %s to be created", targetFile)
+	}
+
+	// 4. vck invocation works identically
+	stdout.Reset()
+	stderr.Reset()
+	code = runCLI([]string{"vck", "version"}, &stdout, &stderr)
+	if code != 0 {
+		t.Errorf("expected exit code 0 for vck version, got %d", code)
+	}
+	if !strings.Contains(stdout.String(), version) {
+		t.Errorf("expected version output for vck, got %q", stdout.String())
+	}
+}
+

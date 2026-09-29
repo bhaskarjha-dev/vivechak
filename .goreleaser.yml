@@ -133,8 +133,10 @@ brews:
     license: MIT
     install: |
       bin.install "vivechak"
+      bin.install_symlink "vivechak" => "vck"
     test: |
       system "#{bin}/vivechak", "version"
+      system "#{bin}/vck", "version"
 
 scoops:
   - name: vivechak
@@ -147,3 +149,6 @@ scoops:
     homepage: https://github.com/bhaskarjha-dev/vivechak
     description: Evidence-grounded research for technical decisions — MCP server
     license: MIT
+    bin:
+      - "vivechak.exe"
+      - ["vivechak.exe", "vck"]

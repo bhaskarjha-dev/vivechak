@@ -28,13 +28,14 @@ import (
 var version = "0.1.0-dev"
 
 func printUsage(w io.Writer) {
-	fmt.Fprintf(w, "vivechak %s\n\n", version)
-	fmt.Fprintf(w, "Usage: vivechak <command>\n\n")
+	fmt.Fprintf(w, "vivechak (vck) %s\n\n", version)
+	fmt.Fprintf(w, "Usage: vivechak <command>  (or: vck <command>)\n\n")
 	fmt.Fprintf(w, "Commands:\n")
-	fmt.Fprintf(w, "  serve        Start MCP server over stdio (default — connects to ANY MCP client)\n")
-	fmt.Fprintf(w, "  version      Print version\n")
-	fmt.Fprintf(w, "  mcp-config   Output universal MCP JSON configuration (or write via --path <path> / --preset <shortcut> --write)\n")
-	fmt.Fprintf(w, "  doctor       Check workspace integrity\n")
+	fmt.Fprintf(w, "  setup <host|path>  Set up Vivechak in an AI host or config file (alias: install)\n")
+	fmt.Fprintf(w, "  serve              Start MCP server over stdio (default — connects to ANY MCP client)\n")
+	fmt.Fprintf(w, "  doctor             Check workspace integrity\n")
+	fmt.Fprintf(w, "  mcp-config         Output universal MCP JSON configuration (pipeable)\n")
+	fmt.Fprintf(w, "  version            Print version\n")
 }
 
 func main() {
@@ -73,6 +74,12 @@ func runCLIWithContext(ctx context.Context, args []string, stdout, stderr io.Wri
 	case "version", "--version", "-v":
 		fmt.Fprintf(stdout, "vivechak %s\n", version)
 		return 0
+	case "setup", "install":
+		var subArgs []string
+		if len(args) > 2 {
+			subArgs = args[2:]
+		}
+		return runSetupWithArgs(subArgs, stdout, stderr)
 	case "mcp-config":
 		var subArgs []string
 		if len(args) > 2 {

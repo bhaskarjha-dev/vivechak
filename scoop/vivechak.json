@@ -14,7 +14,13 @@
       "hash": "PLACEHOLDER"
     }
   },
-  "bin": "vivechak.exe",
+  "bin": [
+    "vivechak.exe",
+    [
+      "vivechak.exe",
+      "vck"
+    ]
+  ],
   "checkver": "github",
   "autoupdate": {
     "architecture": {
