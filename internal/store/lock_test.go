@@ -33,5 +33,5 @@ func TestLockFile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer unlock2()
+	defer func() { _ = unlock2() }()
 }

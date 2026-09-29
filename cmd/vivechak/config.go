@@ -13,14 +13,6 @@ import (
 
 const desktopShortcutsList = "cursor, vscode, claude-desktop (or claude), windsurf, antigravity (or agy), zed, kiro, trae, omp, openhands, droid, cline, roo, devin"
 
-func runMCPConfig() {
-	var args []string
-	if len(os.Args) > 2 {
-		args = os.Args[2:]
-	}
-	os.Exit(runMCPConfigWithArgs(args, os.Stdout, os.Stderr))
-}
-
 func runMCPConfigWithArgs(args []string, stdout, stderr io.Writer) int {
 	var host string
 	var write bool
@@ -77,9 +69,10 @@ func runMCPConfigWithArgs(args []string, stdout, stderr io.Writer) int {
 	}
 
 	serverKey := "mcpServers"
-	if host == "vscode" || host == "code" {
+	switch host {
+	case "vscode", "code":
 		serverKey = "servers"
-	} else if host == "zed" {
+	case "zed":
 		serverKey = "context_servers"
 	}
 
@@ -302,7 +295,8 @@ func resolveConfigPath(host, homeDir, appData, cwd, goos string) (string, error)
 	case "vscode", "code":
 		return filepath.Join(cwd, ".vscode", "mcp.json"), nil
 	case "claude-desktop", "claude":
-		if goos == "windows" {
+		switch goos {
+		case "windows":
 			if appData == "" && homeDir != "" {
 				appData = filepath.Join(homeDir, "AppData", "Roaming")
 			}
@@ -310,12 +304,12 @@ func resolveConfigPath(host, homeDir, appData, cwd, goos string) (string, error)
 				return "", fmt.Errorf("could not determine AppData path for claude-desktop")
 			}
 			return filepath.Join(appData, "Claude", "claude_desktop_config.json"), nil
-		} else if goos == "darwin" {
+		case "darwin":
 			if homeDir == "" {
 				return "", fmt.Errorf("could not determine home dir for claude-desktop")
 			}
 			return filepath.Join(homeDir, "Library", "Application Support", "Claude", "claude_desktop_config.json"), nil
-		} else { // linux and others
+		default: // linux and others
 			if homeDir == "" {
 				return "", fmt.Errorf("could not determine home dir for claude-desktop")
 			}
@@ -441,7 +435,8 @@ func isSupportedPreset(host string) bool {
 // resolveVSCodeStoragePath resolves the globalStorage configuration path for VS Code extension agents.
 func resolveVSCodeStoragePath(extID, homeDir, appData, goos string) (string, error) {
 	var baseDir string
-	if goos == "windows" {
+	switch goos {
+	case "windows":
 		if appData == "" && homeDir != "" {
 			appData = filepath.Join(homeDir, "AppData", "Roaming")
 		}
@@ -449,12 +444,12 @@ func resolveVSCodeStoragePath(extID, homeDir, appData, goos string) (string, err
 			return "", fmt.Errorf("could not determine AppData path for VS Code extension storage")
 		}
 		baseDir = filepath.Join(appData, "Code", "User")
-	} else if goos == "darwin" {
+	case "darwin":
 		if homeDir == "" {
 			return "", fmt.Errorf("could not determine home dir for VS Code extension storage")
 		}
 		baseDir = filepath.Join(homeDir, "Library", "Application Support", "Code", "User")
-	} else {
+	default:
 		if homeDir == "" {
 			return "", fmt.Errorf("could not determine home dir for VS Code extension storage")
 		}

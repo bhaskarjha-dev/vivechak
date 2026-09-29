@@ -123,7 +123,7 @@ func handleSavePlan(ctx context.Context, _ *sdkmcp.CallToolRequest, in SavePlanI
 		if err != nil {
 			return ErrorResult(tool, fmt.Errorf("could not acquire lock: %w", err), "Another process may be writing. Try again.")
 		}
-		defer unlock()
+		defer func() { _ = unlock() }()
 
 		if err := store.WriteFileAtomic(ws.Root(), relPath, []byte(in.Content), 0o644); err != nil {
 			return ErrorResult(tool, fmt.Errorf("writing pipeline: %w", err),
@@ -155,7 +155,7 @@ func handleSavePlan(ctx context.Context, _ *sdkmcp.CallToolRequest, in SavePlanI
 		if err != nil {
 			return ErrorResult(tool, fmt.Errorf("could not acquire lock: %w", err), "Another process may be writing. Try again.")
 		}
-		defer unlock()
+		defer func() { _ = unlock() }()
 
 		if err := store.WriteFileAtomic(ws.Root(), relPath, []byte(in.Content), 0o644); err != nil {
 			return ErrorResult(tool, fmt.Errorf("writing decision plan: %w", err),
@@ -191,7 +191,7 @@ func handleSavePlan(ctx context.Context, _ *sdkmcp.CallToolRequest, in SavePlanI
 		if err != nil {
 			return ErrorResult(tool, fmt.Errorf("could not acquire lock: %w", err), "Another process may be writing. Try again.")
 		}
-		defer unlock()
+		defer func() { _ = unlock() }()
 
 		if err := store.WriteFileAtomic(ws.Root(), relPath, []byte(in.Content), 0o644); err != nil {
 			return ErrorResult(tool, fmt.Errorf("writing comparison plan: %w", err),

@@ -113,6 +113,9 @@ func TestValidation_HelpersAndArtifact(t *testing.T) {
 
 func TestResolveWorkspace_And_Exists(t *testing.T) {
 	tmpDir := t.TempDir()
+	if canonical, err := filepath.EvalSymlinks(tmpDir); err == nil {
+		tmpDir = canonical
+	}
 
 	// WorkspaceExists on nonexistent
 	if WorkspaceExists(tmpDir) {
@@ -169,7 +172,11 @@ func TestResolveWorkspace_And_Exists(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ResolveWorkspace walk up: %v", err)
 	}
-	if resWalk != tmpDir {
+	realWalk, err := filepath.EvalSymlinks(resWalk)
+	if err != nil {
+		realWalk = resWalk
+	}
+	if realWalk != tmpDir {
 		t.Errorf("expected %s from walk up, got %s", tmpDir, resWalk)
 	}
 

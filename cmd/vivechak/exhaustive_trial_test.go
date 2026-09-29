@@ -1194,7 +1194,7 @@ Both are valid under different workloads. Adopt tuned write buffers and separate
 		}
 
 		// Initialize
-		cs.CallTool(ctx, &mcp.CallToolParams{
+		_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
 			Name: "vivechak_init",
 			Arguments: map[string]any{"project_root": gateDir, "scope": "project"},
 		})
@@ -1232,7 +1232,7 @@ Both are valid under different workloads. Adopt tuned write buffers and separate
 	// -------------------------------------------------------------
 	t.Run("L1Construct_AutoDetection", func(t *testing.T) {
 		cDir := t.TempDir()
-		cs.CallTool(ctx, &mcp.CallToolParams{
+		_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
 			Name: "vivechak_init",
 			Arguments: map[string]any{"project_root": cDir, "scope": "project"},
 		})

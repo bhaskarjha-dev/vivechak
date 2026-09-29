@@ -23,7 +23,7 @@ func WriteFileAtomic(root *os.Root, relPath string, data []byte, perm os.FileMod
 	success := false
 	defer func() {
 		if !success {
-			root.Remove(tmpPath)
+			_ = root.Remove(tmpPath)
 		}
 	}()
 

@@ -375,7 +375,7 @@ Ledger architecture. A (pipeline)
 ## Decisions
 Storage and consensus accepted. A (formal proof)
 `
-	res, err = cs.CallTool(ctx, &mcp.CallToolParams{
+	_, err = cs.CallTool(ctx, &mcp.CallToolParams{
 		Name:      "vivechak_save_session",
 		Arguments: map[string]any{"project_root": workDir, "session_id": "SYN-01", "content": fadContent},
 	})

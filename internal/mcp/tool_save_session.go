@@ -98,7 +98,7 @@ func handleSaveSession(ctx context.Context, _ *sdkmcp.CallToolRequest, in SaveSe
 	if err != nil {
 		return ErrorResult(tool, fmt.Errorf("could not acquire lock: %w", err), "Another process may be writing. Try again.")
 	}
-	defer unlock()
+	defer func() { _ = unlock() }()
 
 	// L1 Construct: auto-remedy missing status in frontmatter via in-place insertion
 	contentToSave := core.EnsureFrontmatterField([]byte(in.Content), "status", "draft")

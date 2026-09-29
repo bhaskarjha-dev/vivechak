@@ -14,14 +14,6 @@ import (
 
 var decisionIDRe = regexp.MustCompile(`\bD-\d+\b`)
 
-func runDoctor() {
-	var args []string
-	if len(os.Args) > 2 {
-		args = os.Args[2:]
-	}
-	os.Exit(runDoctorWithArgs(args, os.Stdout, os.Stderr))
-}
-
 func runDoctorWithArgs(args []string, stdout, stderr io.Writer) int {
 	var explicit string
 	if len(args) > 0 {

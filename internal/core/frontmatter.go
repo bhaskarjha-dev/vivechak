@@ -156,7 +156,6 @@ func ParseFrontmatter(data []byte) (Frontmatter, []byte, error) {
 		if lineEnd < len(d) {
 			pos = lineEnd + 1
 		} else {
-			pos = lineEnd
 			break
 		}
 	}
@@ -192,7 +191,7 @@ func ParseFrontmatter(data []byte) (Frontmatter, []byte, error) {
 
 // ComposeFrontmatter creates a Markdown document with YAML frontmatter.
 func ComposeFrontmatter(fm Frontmatter, body []byte) ([]byte, error) {
-	if fm == nil || len(fm) == 0 {
+	if len(fm) == 0 {
 		return body, nil
 	}
 

@@ -102,13 +102,6 @@ func runCLIWithContext(ctx context.Context, args []string, stdout, stderr io.Wri
 	}
 }
 
-func runServe(logger *slog.Logger) int {
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
-
-	return runServeWithContext(ctx, logger)
-}
-
 func runServeWithContext(ctx context.Context, logger *slog.Logger) int {
 	server := mcputil.NewServer(version, logger)
 

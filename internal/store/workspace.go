@@ -57,7 +57,7 @@ func (w *Workspace) FileExists(relPath string) bool {
 
 // MkdirAll creates directories within the workspace, validating that the
 // path remains local (no traversal). Falls back to os.MkdirAll since
-// os.Root does not provide MkdirAll as of Go 1.27.
+// os.Root does not provide MkdirAll as of Go 1.25.
 //
 // SECURITY NOTE: This function validates paths via filepath.IsLocal but does NOT
 // use os.Root kernel-level confinement for directory creation. os.Root confinement

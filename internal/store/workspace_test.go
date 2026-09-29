@@ -3,7 +3,6 @@ package store
 import (
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 )
 
@@ -71,7 +70,5 @@ func TestWorkspace(t *testing.T) {
 	_, err = w.ReadFile("../test.txt")
 	if err == nil {
 		t.Error("expected error for path traversal, got nil")
-	} else if !strings.Contains(err.Error(), "invalid path") && !os.IsNotExist(err) && !os.IsPermission(err) {
-		// Just ensuring it failed.
 	}
 }

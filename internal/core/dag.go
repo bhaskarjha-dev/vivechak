@@ -3,6 +3,7 @@ package core
 import (
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -167,7 +168,6 @@ var (
 
 	// Matches the prompt code block
 	promptStartRe = regexp.MustCompile("^`{3,}prompt")
-	promptEndRe   = regexp.MustCompile("^`{3,}$")
 )
 
 // ParsePipeline parses a RESEARCH-PIPELINE.md or decision plan file into a DAG structure.
@@ -318,7 +318,9 @@ func ParsePipeline(data []byte) (*DAG, error) {
 					currentSession = getOrCreateSession(value)
 				case "layer":
 					if currentSession != nil {
-						fmt.Sscanf(value, "%d", &currentSession.Layer)
+						if l, err := strconv.Atoi(strings.TrimSpace(value)); err == nil {
+							currentSession.Layer = l
+						}
 					}
 				case "door type":
 					if currentSession != nil && currentSession.DoorType == "" {
@@ -349,7 +351,9 @@ func ParsePipeline(data []byte) (*DAG, error) {
 				beforeArrow := trimmed[:idx]
 				re := regexp.MustCompile(`(\d+)(?:\s*/\s*\d+)?`)
 				if matches := re.FindStringSubmatch(beforeArrow); len(matches) > 1 {
-					fmt.Sscanf(matches[1], "%d", &dag.ComplexityScore)
+					if score, err := strconv.Atoi(matches[1]); err == nil {
+						dag.ComplexityScore = score
+					}
 				}
 			}
 		}

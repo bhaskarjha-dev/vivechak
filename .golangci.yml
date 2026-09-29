@@ -1,21 +1,27 @@
+version: "2"
 run:
-  timeout: 5m
-  go: "1.27"
-
+  go: "1.25"
 linters:
-  enable:
-    - errcheck
-    - gosimple
-    - govet
-    - ineffassign
-    - staticcheck
-    - unused
-
-linters-settings:
-  govet:
-    enable-all: false
-    disable-all: false
-
-issues:
-  exclude-dirs:
-    - internal/embed
+  settings:
+    govet:
+      enable-all: false
+      disable-all: false
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    paths:
+      - internal/embed
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$

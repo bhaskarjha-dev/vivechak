@@ -12,7 +12,7 @@ func TestInjectContext_Dependencies(t *testing.T) {
 	// Create temp dir with session files
 	tmpDir := t.TempDir()
 	sessionsDir := filepath.Join(tmpDir, "sessions")
-	os.MkdirAll(sessionsDir, 0o755)
+	_ = os.MkdirAll(sessionsDir, 0o755)
 
 	// Write upstream session T1-01
 	t101Content := `---
@@ -33,7 +33,7 @@ PostgreSQL 16 is recommended for this use case. A (official docs)
 - PostgreSQL handles graph traversal up to 50k nodes at <50ms p95
 - Neo4j adds operational overhead not justified at this scale
 `
-	os.WriteFile(filepath.Join(sessionsDir, "T1-01.md"), []byte(t101Content), 0o644)
+	_ = os.WriteFile(filepath.Join(sessionsDir, "T1-01.md"), []byte(t101Content), 0o644)
 
 	// Session T2-01 depends on T1-01
 	session := Session{
@@ -72,10 +72,10 @@ PostgreSQL 16 is recommended for this use case. A (official docs)
 func TestInjectContext_Synthesis(t *testing.T) {
 	tmpDir := t.TempDir()
 	sessionsDir := filepath.Join(tmpDir, "sessions")
-	os.MkdirAll(sessionsDir, 0o755)
+	_ = os.MkdirAll(sessionsDir, 0o755)
 
 	// Write two completed sessions
-	os.WriteFile(filepath.Join(sessionsDir, "T1-01.md"), []byte(`---
+	_ = os.WriteFile(filepath.Join(sessionsDir, "T1-01.md"), []byte(`---
 session_id: T1-01
 title: Database Selection
 date: 2026-09-27
@@ -85,7 +85,7 @@ date: 2026-09-27
 Use PostgreSQL. A (docs)
 `), 0o644)
 
-	os.WriteFile(filepath.Join(sessionsDir, "T1-02.md"), []byte(`---
+	_ = os.WriteFile(filepath.Join(sessionsDir, "T1-02.md"), []byte(`---
 session_id: T1-02
 title: Auth Strategy
 date: 2026-09-27
@@ -126,9 +126,9 @@ Use Clerk for auth. B (comparison)
 func TestInjectContext_NoSlot(t *testing.T) {
 	tmpDir := t.TempDir()
 	sessionsDir := filepath.Join(tmpDir, "sessions")
-	os.MkdirAll(sessionsDir, 0o755)
+	_ = os.MkdirAll(sessionsDir, 0o755)
 
-	os.WriteFile(filepath.Join(sessionsDir, "T1-01.md"), []byte(`---
+	_ = os.WriteFile(filepath.Join(sessionsDir, "T1-01.md"), []byte(`---
 session_id: T1-01
 title: Test
 date: 2026-09-27
@@ -177,9 +177,9 @@ func TestInjectContext_NoDependencies(t *testing.T) {
 func TestInjectContext_SingleInjection(t *testing.T) {
 	tmpDir := t.TempDir()
 	sessionsDir := filepath.Join(tmpDir, "sessions")
-	os.MkdirAll(sessionsDir, 0o755)
+	_ = os.MkdirAll(sessionsDir, 0o755)
 
-	os.WriteFile(filepath.Join(sessionsDir, "T1-01.md"), []byte(`---
+	_ = os.WriteFile(filepath.Join(sessionsDir, "T1-01.md"), []byte(`---
 session_id: T1-01
 title: Database Selection
 date: 2026-09-27
@@ -230,17 +230,17 @@ func TestReadSessionFile_Comprehensive(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// 1. File with canonical ID and hyphenated title slug
-	os.WriteFile(filepath.Join(tmpDir, "T1-01-database-selection.md"), []byte("---\nsession_id: T1-01\ntitle: Database Selection\n---\n# Database Selection\n"), 0o644)
+	_ = os.WriteFile(filepath.Join(tmpDir, "T1-01-database-selection.md"), []byte("---\nsession_id: T1-01\ntitle: Database Selection\n---\n# Database Selection\n"), 0o644)
 	// 2. File with canonical ID and no slug (exact match)
-	os.WriteFile(filepath.Join(tmpDir, "T1-02.md"), []byte("---\nsession_id: T1-02\ntitle: Auth\n---\n# Auth\n"), 0o644)
+	_ = os.WriteFile(filepath.Join(tmpDir, "T1-02.md"), []byte("---\nsession_id: T1-02\ntitle: Auth\n---\n# Auth\n"), 0o644)
 	// 3. File with no frontmatter at all and numeric sub-session stem
-	os.WriteFile(filepath.Join(tmpDir, "T1-03.md"), []byte("# Plain Markdown with no frontmatter\n"), 0o644)
+	_ = os.WriteFile(filepath.Join(tmpDir, "T1-03.md"), []byte("# Plain Markdown with no frontmatter\n"), 0o644)
 	// 4. File whose filename prefix matches T1-04, but frontmatter explicitly declares T1-99
-	os.WriteFile(filepath.Join(tmpDir, "T1-04-old-name.md"), []byte("---\nsession_id: T1-99\ntitle: Renamed Session\n---\n# Stale name\n"), 0o644)
+	_ = os.WriteFile(filepath.Join(tmpDir, "T1-04-old-name.md"), []byte("---\nsession_id: T1-99\ntitle: Renamed Session\n---\n# Stale name\n"), 0o644)
 	// 5. File with underscore separator
-	os.WriteFile(filepath.Join(tmpDir, "T2-01_caching_layer.md"), []byte("---\nsession_id: T2-01\ntitle: Caching\n---\n# Caching\n"), 0o644)
+	_ = os.WriteFile(filepath.Join(tmpDir, "T2-01_caching_layer.md"), []byte("---\nsession_id: T2-01\ntitle: Caching\n---\n# Caching\n"), 0o644)
 	// 6. Sub-session of a decision (D-001 vs D-001-S1)
-	os.WriteFile(filepath.Join(tmpDir, "D-001-S1-investigation.md"), []byte("---\nsession_id: D-001-S1\ntitle: Investigation\n---\n# Investigation\n"), 0o644)
+	_ = os.WriteFile(filepath.Join(tmpDir, "D-001-S1-investigation.md"), []byte("---\nsession_id: D-001-S1\ntitle: Investigation\n---\n# Investigation\n"), 0o644)
 
 	t.Run("canonical ID matches file with title slug", func(t *testing.T) {
 		content, filename, err := readSessionFile(tmpDir, "T1-01")
@@ -353,12 +353,12 @@ func TestReadSessionFile_Comprehensive(t *testing.T) {
 func TestInjectContext_SizeWarning(t *testing.T) {
 	tmpDir := t.TempDir()
 	sessionsDir := filepath.Join(tmpDir, "sessions")
-	os.MkdirAll(sessionsDir, 0o755)
+	_ = os.MkdirAll(sessionsDir, 0o755)
 
 	// Create a large session output (>100KB)
 	largeBody := strings.Repeat("Key finding with evidence: PostgreSQL scales linearly. A (benchmark)\n", 2000)
 	sessionContent := "---\nsession_id: T1-01\ntitle: Heavy Session\ndate: 2026-09-29\nstatus: complete\n---\n# Findings\n" + largeBody
-	os.WriteFile(filepath.Join(sessionsDir, "T1-01.md"), []byte(sessionContent), 0o644)
+	_ = os.WriteFile(filepath.Join(sessionsDir, "T1-01.md"), []byte(sessionContent), 0o644)
 
 	session := Session{
 		ID:           "SYN-01",
@@ -389,7 +389,7 @@ func TestInjectContext_SizeWarning(t *testing.T) {
 func TestInjectContext_DecisionShortlistSlot(t *testing.T) {
 	tmpDir := t.TempDir()
 	sessionsDir := filepath.Join(tmpDir, "sessions")
-	os.MkdirAll(sessionsDir, 0o755)
+	_ = os.MkdirAll(sessionsDir, 0o755)
 
 	s1Content := `---
 session_id: D-015-S1
@@ -399,7 +399,7 @@ status: complete
 # Landscape Findings
 Shortlist: Redis, Dragonfly, KeyDB. A (official docs)
 `
-	os.WriteFile(filepath.Join(sessionsDir, "D-015-S1.md"), []byte(s1Content), 0o644)
+	_ = os.WriteFile(filepath.Join(sessionsDir, "D-015-S1.md"), []byte(s1Content), 0o644)
 
 	session := Session{
 		ID:           "D-015-S2",
@@ -428,7 +428,7 @@ func TestExtractFindings_Comprehensive(t *testing.T) {
 		// and technical body content below that lacks formal evidence grades.
 		var sb strings.Builder
 		for i := 1; i <= 8; i++ {
-			sb.WriteString(fmt.Sprintf("## Architectural Constraint Analysis Chapter %d: Operational Considerations\n", i))
+			fmt.Fprintf(&sb, "## Architectural Constraint Analysis Chapter %d: Operational Considerations\n", i)
 		}
 		sb.WriteString("Core finding: PostgreSQL with pgvector scales to 1M embeddings at 12ms latency.\n")
 		sb.WriteString("Cluster deployment requires 3 nodes with 64GB RAM.\n")

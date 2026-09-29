@@ -101,7 +101,7 @@ vivechak/
 ├── CHANGELOG.md                    ← Release history
 ├── CONTRIBUTING.md                 ← Evidence-grounding contribution rules
 ├── CODE_OF_CONDUCT.md · LICENSE    ← Contributor Covenant v2.1 · MIT License
-├── go.mod · go.sum                 ← Go 1.27+ module
+├── go.mod · go.sum                 ← Go 1.25+ module
 ├── .goreleaser.yml                 ← 6-platform cross-compilation
 ├── install.sh · install.ps1        ← Shell installers
 │

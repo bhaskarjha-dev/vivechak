@@ -118,9 +118,7 @@ func handlePrepareGenerator(_ context.Context, _ *sdkmcp.CallToolRequest, in Pre
 				// If input context already provides structured key-value fields, use it directly
 				if strings.Contains(in.Context, "DECISION:") || strings.Contains(in.Context, "OPTIONS:") || strings.Contains(in.Context, "CONTEXT:") {
 					newBlock := "\n" + strings.TrimSpace(in.Context) + "\n"
-					if strings.Contains(newBlock, "[today]") {
-						newBlock = strings.Replace(newBlock, "[today]", today, 1)
-					}
+					newBlock = strings.Replace(newBlock, "[today]", today, 1)
 					genPrompt = genPrompt[:afterStart] + newBlock + genPrompt[endIdx:]
 				} else {
 					// Otherwise, preserve schema keys and inject into CONTEXT slot, auto-filling DATE

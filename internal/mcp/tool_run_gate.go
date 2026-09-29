@@ -64,7 +64,7 @@ func handleRunGate(_ context.Context, _ *sdkmcp.CallToolRequest, in RunGateInput
 	// Structural completeness checks (Track A)
 	var trackAIssues []string
 	var trackAPassed int
-	trackATotal := 5
+	var trackATotal int
 
 	switch info.Scope {
 	case core.ScopeDecision:
@@ -158,7 +158,7 @@ func handleRunGate(_ context.Context, _ *sdkmcp.CallToolRequest, in RunGateInput
 	// Quality indicators (Track B)
 	var trackBIssues []string
 	var trackBPassed int
-	trackBTotal := 3
+	var trackBTotal int
 
 	switch info.Scope {
 	case core.ScopeComparison:

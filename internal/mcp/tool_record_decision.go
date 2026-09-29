@@ -109,7 +109,7 @@ func handleRecordDecision(ctx context.Context, _ *sdkmcp.CallToolRequest, in Rec
 	if err != nil {
 		return ErrorResult(tool, fmt.Errorf("could not acquire lock: %w", err), "Another process may be writing. Try again.")
 	}
-	defer unlock()
+	defer func() { _ = unlock() }()
 
 	if err := store.WriteFileAtomic(ws.Root(), relPath, []byte(in.Content), 0o644); err != nil {
 		return ErrorResult(tool, fmt.Errorf("writing %s: %w", filename, err),
@@ -128,7 +128,7 @@ func handleRecordDecision(ctx context.Context, _ *sdkmcp.CallToolRequest, in Rec
 		if decErr != nil {
 			warnings = append(warnings, fmt.Sprintf("W-DECISIONS-LOCK: Could not acquire lock on %s: %v", decRelPath, decErr))
 		} else {
-			defer decUnlock()
+			defer func() { _ = decUnlock() }()
 			var existing []byte
 			if data, err := ws.ReadFile(decRelPath); err == nil {
 				existing = data

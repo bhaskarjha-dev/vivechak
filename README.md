@@ -42,7 +42,7 @@ brew install bhaskarjha-dev/tap/vivechak
 winget install bhaskarjha-dev.Vivechak
 # or: scoop bucket add vivechak https://github.com/bhaskarjha-dev/scoop-bucket && scoop install vivechak
 
-# Go (requires Go 1.27+)
+# Go (requires Go 1.25+)
 go install github.com/bhaskarjha-dev/vivechak/cmd/vivechak@latest
 ```
 
@@ -164,7 +164,7 @@ vivechak/
 ├── AGENTS.md                       ← AI agent operating manual
 ├── ROADMAP.md · CHANGELOG.md       ← Project history
 ├── CONTRIBUTING.md · LICENSE        ← MIT License
-└── go.mod · go.sum                 ← Go 1.27+ module
+└── go.mod · go.sum                 ← Go 1.25+ module
 ```
 
 ---

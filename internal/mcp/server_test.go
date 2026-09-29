@@ -309,7 +309,7 @@ func TestSaveSessionValidation(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Init workspace first
-	cs.CallTool(ctx, &mcp.CallToolParams{
+	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
 		Name:      "vivechak_init",
 		Arguments: map[string]any{"project_root": tmpDir},
 	})
@@ -561,7 +561,7 @@ Compile findings.
 	}
 
 	// Check that parallel sessions are detected
-	otherReady, _ := data["other_ready_sessions"]
+	otherReady := data["other_ready_sessions"]
 	if otherReady == nil {
 		t.Log("No parallel sessions detected (may be correct if T1-01 returned first)")
 	}
@@ -624,7 +624,7 @@ Clerk provides the best developer experience. B (comparison analysis)
 
 Use Clerk for authentication.
 `
-	result, err = cs.CallTool(ctx, &mcp.CallToolParams{
+	_, err = cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_save_session",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
@@ -688,8 +688,9 @@ func TestFADSaveAndGatePass(t *testing.T) {
 	ctx := context.Background()
 	tmpDir := t.TempDir()
 
+	var result *mcp.CallToolResult
 	// Step 1: Init workspace
-	result, err := cs.CallTool(ctx, &mcp.CallToolParams{
+	_, err := cs.CallTool(ctx, &mcp.CallToolParams{
 		Name:      "vivechak_init",
 		Arguments: map[string]any{"project_root": tmpDir, "scope": "project"},
 	})
@@ -765,7 +766,7 @@ Compile findings.
 [ALL_SESSION_FINDINGS]
 ` + "```" + `
 `
-	result, err = cs.CallTool(ctx, &mcp.CallToolParams{
+	_, err = cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_save_plan",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
@@ -787,7 +788,7 @@ status: complete
 # Database Selection
 Findings... A (doc)
 `
-	result, _ = cs.CallTool(ctx, &mcp.CallToolParams{
+	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
 		Name:      "vivechak_save_session",
 		Arguments: map[string]any{"project_root": tmpDir, "session_id": "T1-01", "content": t101Output},
 	})
@@ -801,7 +802,7 @@ status: complete
 # Auth Strategy
 Findings... B (doc)
 `
-	result, _ = cs.CallTool(ctx, &mcp.CallToolParams{
+	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
 		Name:      "vivechak_save_session",
 		Arguments: map[string]any{"project_root": tmpDir, "session_id": "T1-02", "content": t102Output},
 	})
@@ -829,7 +830,7 @@ PostgreSQL 16 selected as primary datastore. A (official documentation)
 
 All decisions recorded with review triggers. C (team review)
 `
-	result, err = cs.CallTool(ctx, &mcp.CallToolParams{
+	_, err = cs.CallTool(ctx, &mcp.CallToolParams{
 		Name:      "vivechak_save_session",
 		Arguments: map[string]any{"project_root": tmpDir, "session_id": "SYN-01", "content": syn01Output},
 	})
@@ -853,7 +854,7 @@ We need a database. A (official documentation)
 ## Decision
 Use PostgreSQL 16. B (benchmark comparison)
 `
-	result, _ = cs.CallTool(ctx, &mcp.CallToolParams{
+	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_record_decision",
 		Arguments: map[string]any{
 			"project_root":  tmpDir,
@@ -1005,7 +1006,7 @@ func TestIDValidationRejectsTraversal(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Init workspace
-	cs.CallTool(ctx, &mcp.CallToolParams{
+	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
 		Name:      "vivechak_init",
 		Arguments: map[string]any{"project_root": tmpDir, "scope": "project"},
 	})
@@ -1084,7 +1085,7 @@ func TestContentSizeLimit(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Init workspace
-	cs.CallTool(ctx, &mcp.CallToolParams{
+	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
 		Name:      "vivechak_init",
 		Arguments: map[string]any{"project_root": tmpDir, "scope": "project"},
 	})
@@ -1340,7 +1341,7 @@ date: 2026-09-29
 # Cache Comparison
 Findings: Redis chosen for cluster stability. A (official documentation)
 `
-	res, err = cs.CallTool(ctx, &mcp.CallToolParams{
+	_, err = cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_save_session",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
@@ -1395,7 +1396,7 @@ func TestComparisonScope_EndToEnd(t *testing.T) {
 	comparisonPrompt := `# RESEARCH BRIEF: Queue Selection
 Compare Kafka vs RabbitMQ. A (benchmark)
 `
-	res, err = cs.CallTool(ctx, &mcp.CallToolParams{
+	_, err = cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_save_plan",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
@@ -1434,7 +1435,7 @@ date: 2026-09-29
 # Queue Comparison Matrix
 Kafka chosen for stream retention. A (official docs)
 `
-	res, err = cs.CallTool(ctx, &mcp.CallToolParams{
+	_, err = cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_save_session",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
@@ -1470,7 +1471,7 @@ func TestNextSession_NotFound_SessionIDList(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Init
-	cs.CallTool(ctx, &mcp.CallToolParams{
+	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
 		Name:      "vivechak_init",
 		Arguments: map[string]any{"project_root": tmpDir, "scope": "project"},
 	})
@@ -1484,7 +1485,7 @@ Prompt one
 ` + "```" + `
 `
 	// Save pipeline
-	cs.CallTool(ctx, &mcp.CallToolParams{
+	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_save_plan",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
