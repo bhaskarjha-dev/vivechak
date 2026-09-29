@@ -33,7 +33,7 @@ First public release of the automated **Vivechak (विवेचक)** system �
   - `FOUNDING-ARCHITECTURE.template.md`: Map-Reduce synthesis template for technical architectures.
   - `PHASE-0-GATE.template.md`: Two-track pre-codebase exit gate with Klein premortem protocol.
 - **CLI Subcommands:**
-  - `vivechak mcp-config` universal MCP JSON configuration generator with auto-write presets for 7 desktop hosts (Cursor, VS Code, Claude Desktop, Antigravity, Windsurf, Zed, and AWS Kiro).
+  - `vivechak mcp-config` universal MCP JSON configuration generator with auto-write presets for 14 desktop hosts and agent harnesses (Cursor, VS Code, Claude Desktop, Antigravity, Windsurf, Zed, AWS Kiro, Trae, OMP, OpenHands, Factory Droid, Cline, Roo Code, and Devin).
   - `vivechak doctor` for workspace contract validation and dependency diagnostics.
 - **Cross-Platform Distribution:** GoReleaser matrix across 6 OS/architecture targets, standalone shell installers (`install.sh`, `install.ps1`), and package manager manifests (Homebrew, Scoop, WinGet).
 - **Sealed Meta-Research Evidence Base:** 15 foundational research artifacts, 14 locked ADRs (D-001–D-014), and 31 empirical evidence nodes proving the methodology through empirical self-application.

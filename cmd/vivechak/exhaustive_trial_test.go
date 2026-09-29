@@ -74,7 +74,10 @@ func TestExhaustive_AllFeatures_AllScenarios(t *testing.T) {
 	})
 
 	t.Run("CLI_MCP_Config_AllPresets", func(t *testing.T) {
-		presets := []string{"claude-desktop", "vscode", "cursor", "windsurf", "zed"}
+		presets := []string{
+			"claude-desktop", "vscode", "cursor", "windsurf", "zed", "antigravity", "agy", "kiro",
+			"trae", "omp", "openhands", "droid", "cline", "roo", "devin",
+		}
 		for _, preset := range presets {
 			cmd := exec.CommandContext(ctx, binPath, "mcp-config", "--preset", preset)
 			out, err := cmd.CombinedOutput()

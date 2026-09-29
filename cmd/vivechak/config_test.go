@@ -94,14 +94,138 @@ func TestResolveConfigPath(t *testing.T) {
 		t.Errorf("zed windows path: got %s, want %s", p, expectedZedWin)
 	}
 
-	// Kiro
+	// Kiro (canonical ~/.kiro/settings/mcp.json by default)
 	p, err = resolveConfigPath("kiro", homeDir, appData, cwd, "linux")
 	if err != nil {
 		t.Fatalf("kiro: %v", err)
 	}
-	expectedKiro := filepath.Join(homeDir, ".aws", ".kiro", "mcp.json")
+	expectedKiro := filepath.Join(homeDir, ".kiro", "settings", "mcp.json")
 	if p != expectedKiro {
 		t.Errorf("kiro path: got %s, want %s", p, expectedKiro)
+	}
+
+	// Kiro (workspace when .kiro exists in cwd)
+	tempKiroWS := t.TempDir()
+	_ = os.MkdirAll(filepath.Join(tempKiroWS, ".kiro"), 0o755)
+	p, err = resolveConfigPath("kiro", homeDir, appData, tempKiroWS, "linux")
+	if err != nil {
+		t.Fatalf("kiro workspace: %v", err)
+	}
+	expectedKiroWS := filepath.Join(tempKiroWS, ".kiro", "settings", "mcp.json")
+	if p != expectedKiroWS {
+		t.Errorf("kiro workspace path: got %s, want %s", p, expectedKiroWS)
+	}
+
+	// Kiro (legacy fallback when ~/.aws/.kiro exists)
+	tempKiroHome := t.TempDir()
+	_ = os.MkdirAll(filepath.Join(tempKiroHome, ".aws", ".kiro"), 0o755)
+	p, err = resolveConfigPath("kiro", tempKiroHome, appData, cwd, "linux")
+	if err != nil {
+		t.Fatalf("kiro legacy: %v", err)
+	}
+	expectedKiroLegacy := filepath.Join(tempKiroHome, ".aws", ".kiro", "mcp.json")
+	if p != expectedKiroLegacy {
+		t.Errorf("kiro legacy path: got %s, want %s", p, expectedKiroLegacy)
+	}
+
+	// Antigravity (global default when no .agents in cwd)
+	p, err = resolveConfigPath("antigravity", homeDir, appData, cwd, "linux")
+	if err != nil {
+		t.Fatalf("antigravity: %v", err)
+	}
+	expectedAGGlobal := filepath.Join(homeDir, ".gemini", "config", "mcp_config.json")
+	if p != expectedAGGlobal {
+		t.Errorf("antigravity global path: got %s, want %s", p, expectedAGGlobal)
+	}
+
+	// Antigravity (workspace when .agents exists in cwd)
+	tempWS := t.TempDir()
+	_ = os.MkdirAll(filepath.Join(tempWS, ".agents"), 0o755)
+	p, err = resolveConfigPath("antigravity", homeDir, appData, tempWS, "linux")
+	if err != nil {
+		t.Fatalf("antigravity workspace: %v", err)
+	}
+	expectedAGWS := filepath.Join(tempWS, ".agents", "mcp_config.json")
+	if p != expectedAGWS {
+		t.Errorf("antigravity workspace path: got %s, want %s", p, expectedAGWS)
+	}
+
+	// Trae
+	p, err = resolveConfigPath("trae", homeDir, appData, cwd, "linux")
+	if err != nil {
+		t.Fatalf("trae: %v", err)
+	}
+	expectedTrae := filepath.Join(cwd, ".trae", "mcp.json")
+	if p != expectedTrae {
+		t.Errorf("trae path: got %s, want %s", p, expectedTrae)
+	}
+
+	// OMP (global)
+	p, err = resolveConfigPath("omp", homeDir, appData, cwd, "linux")
+	if err != nil {
+		t.Fatalf("omp: %v", err)
+	}
+	expectedOMP := filepath.Join(homeDir, ".omp", "agent", "mcp.json")
+	if p != expectedOMP {
+		t.Errorf("omp path: got %s, want %s", p, expectedOMP)
+	}
+
+	// OpenHands (global)
+	p, err = resolveConfigPath("openhands", homeDir, appData, cwd, "linux")
+	if err != nil {
+		t.Fatalf("openhands: %v", err)
+	}
+	expectedOH := filepath.Join(homeDir, ".openhands", "mcp.json")
+	if p != expectedOH {
+		t.Errorf("openhands path: got %s, want %s", p, expectedOH)
+	}
+
+	// Factory Droid (global)
+	p, err = resolveConfigPath("droid", homeDir, appData, cwd, "linux")
+	if err != nil {
+		t.Fatalf("droid: %v", err)
+	}
+	expectedDroid := filepath.Join(homeDir, ".factory", "mcp.json")
+	if p != expectedDroid {
+		t.Errorf("droid path: got %s, want %s", p, expectedDroid)
+	}
+
+	// Cline (Linux, Mac, Windows)
+	p, err = resolveConfigPath("cline", homeDir, appData, cwd, "linux")
+	if err != nil {
+		t.Fatalf("cline linux: %v", err)
+	}
+	expectedClineLinux := filepath.Join(homeDir, ".config", "Code", "User", "globalStorage", "saoudrizwan.claude-dev", "settings", "cline_mcp_settings.json")
+	if p != expectedClineLinux {
+		t.Errorf("cline linux path: got %s, want %s", p, expectedClineLinux)
+	}
+	p, err = resolveConfigPath("cline", homeDir, "C:\\Users\\user\\AppData\\Roaming", cwd, "windows")
+	if err != nil {
+		t.Fatalf("cline windows: %v", err)
+	}
+	expectedClineWin := filepath.Join("C:\\Users\\user\\AppData\\Roaming", "Code", "User", "globalStorage", "saoudrizwan.claude-dev", "settings", "cline_mcp_settings.json")
+	if p != expectedClineWin {
+		t.Errorf("cline windows path: got %s, want %s", p, expectedClineWin)
+	}
+
+	// Roo (Linux, Windows)
+	p, err = resolveConfigPath("roo", homeDir, appData, cwd, "linux")
+	if err != nil {
+		t.Fatalf("roo linux: %v", err)
+	}
+	expectedRooLinux := filepath.Join(homeDir, ".config", "Code", "User", "globalStorage", "rooveterinaryinc.roo-cline", "settings", "cline_mcp_settings.json")
+	if p != expectedRooLinux {
+		t.Errorf("roo linux path: got %s, want %s", p, expectedRooLinux)
+	}
+
+	// Devin
+	p, err = resolveConfigPath("devin", homeDir, appData, cwd, "linux")
+	if err != nil {
+		t.Fatalf("devin: %v", err)
+	}
+	expectedDevin := filepath.Join(cwd, ".devin", "mcp_config.local.json")
+	if p != expectedDevin {
+		t.Errorf("devin path: got %s, want %s", p, expectedDevin)
 	}
 
 	// Unsupported write clients return error
@@ -287,7 +411,10 @@ func TestWriteConfigFile(t *testing.T) {
 }
 
 func TestIsSupportedPreset(t *testing.T) {
-	valid := []string{"cursor", "vscode", "claude-desktop", "windsurf", "antigravity", "zed", "kiro"}
+	valid := []string{
+		"cursor", "vscode", "claude-desktop", "windsurf", "antigravity", "agy", "zed", "kiro",
+		"trae", "omp", "openhands", "droid", "cline", "roo", "devin",
+	}
 	for _, v := range valid {
 		if !isSupportedPreset(v) {
 			t.Errorf("expected %s to be recognized as supported preset", v)
@@ -307,7 +434,10 @@ func TestPresetAndClientCompatibility(t *testing.T) {
 	appData := "/test/appdata"
 	cwd := "/test/cwd"
 
-	presets := []string{"cursor", "vscode", "claude-desktop", "windsurf", "antigravity", "zed", "kiro"}
+	presets := []string{
+		"cursor", "vscode", "claude-desktop", "windsurf", "antigravity", "agy", "zed", "kiro",
+		"trae", "omp", "openhands", "droid", "cline", "roo", "devin",
+	}
 	for _, p := range presets {
 		pathFromPreset, err1 := resolveConfigPath(p, home, appData, cwd, "linux")
 		if err1 != nil {

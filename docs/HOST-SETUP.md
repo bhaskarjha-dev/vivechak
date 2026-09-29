@@ -38,9 +38,10 @@ Agent harnesses connect to MCP servers using one of three standard integration p
 
 | Integration Pattern | Harness Examples | How to Connect |
 |---|---|---|
-| **JSON Configuration File** | **Cline**, **OpenCode**, **OMP (Oh My Pi)**, **Continue**, **Roo Code** | Run `vivechak mcp-config` and copy the JSON snippet into your agent's config file (e.g. `cline_mcp_settings.json`, `opencode.json`, `~/.omp/agent/mcp.json`). |
-| **CLI Registration Command** | **Claude Code**, **Block Goose** | Register via the agent's CLI:<br>• Claude Code: `claude mcp add vivechak -- /path/to/vivechak serve`<br>• Goose: `goose configure` (add extension → `stdio` → command: `vivechak`, args: `serve`) |
-| **Interactive Settings Panel** | **Factory Droid**, **Desktop AI apps**, **Agent Dashboards** | In the agent's MCP settings panel, add a server with Command: `/path/to/vivechak` (run `vivechak mcp-config` to copy it) and Arguments: `serve`. |
+| **Preset Shortcut (`--preset`)** | **Cursor**, **VS Code**, **Claude Desktop**, **Windsurf**, **Antigravity**, **Zed**, **Kiro**, **Trae**, **OMP**, **OpenHands**, **Factory Droid**, **Cline**, **Roo Code**, **Devin** | Run `vivechak mcp-config --preset <name> --write` to automatically resolve and merge into the target file. |
+| **Universal JSON Path (`--path`)** | **OpenCode**, **Continue**, **Warp**, **Qwen Code**, **Kilo Code**, custom pipelines | Run `vivechak mcp-config --path <file> --write` (supports `.mcp.json`, `opencode.json`, `config.json`, etc.). |
+| **CLI Registration Command** | **Antigravity CLI (`agy`)**, **Claude Code**, **Block Goose**, **Grok Build**, **Factory Droid**, **OpenHands CLI**, **Copilot CLI**, **Sourcegraph Amp** | Register via the agent's CLI:<br>• Antigravity CLI: `agy mcp add vivechak /path/to/vivechak`<br>• Claude Code: `claude mcp add vivechak -- /path/to/vivechak serve`<br>• Grok Build: `grok mcp add vivechak -- /path/to/vivechak serve`<br>• Factory Droid: `droid mcp add vivechak /path/to/vivechak`<br>• OpenHands CLI: `openhands mcp add vivechak --transport stdio /path/to/vivechak serve`<br>• Copilot CLI: `copilot mcp add vivechak /path/to/vivechak serve`<br>• Sourcegraph Amp: `amp mcp add vivechak /path/to/vivechak`<br>• Goose: `goose configure` (add extension → `stdio` → command: `vivechak`, args: `serve`) |
+| **Interactive Settings Panel** | **Antigravity IDE / 2.0**, **Warp Terminal**, **Agent Dashboards**, **Desktop AI apps** | In the agent's MCP settings panel, add a server with Command: `/path/to/vivechak` (run `vivechak mcp-config` to copy it) and Arguments: `serve`. |
 
 Once connected, simply prompt your agent:
 > *"Use Vivechak to research the architecture for our project. We need to evaluate our primary backend and datastore trade-offs."*
@@ -53,7 +54,7 @@ Vivechak can automatically merge its server definition directly into existing JS
 
 ### Universal File Writing (Any Agent Harness)
 
-To configure any agent harness that reads an MCP configuration file (e.g. **Cline**, **OpenCode**, **OMP**, **Continue**, **Roo Code**, or custom pipelines), pass the path to its file:
+To configure any agent harness that reads an MCP configuration file (e.g. **OpenCode**, **Continue**, **Warp**, or custom pipelines), pass the path to its file:
 
 ```sh
 vivechak mcp-config --path /path/to/mcp-settings.json --write
@@ -64,24 +65,31 @@ Vivechak automatically inspects the target file and applies the correct schema k
 - If the target is a Zed settings file or uses `"context_servers"`, it merges under `"context_servers"`.
 - Otherwise, it merges under the standard `"mcpServers"` key.
 
-### Optional Desktop Path Shortcuts (Convenience)
+### Built-in Desktop & Harness Path Shortcuts
 
-For common desktop IDEs, Vivechak provides built-in path shortcuts (`--preset <shortcut>`) so you don't have to manually look up and type their default configuration paths:
+Vivechak provides built-in path shortcuts (`--preset <shortcut>`) so you don't have to manually look up and type default configuration paths across macOS, Windows, and Linux:
 
 ```sh
 vivechak mcp-config --preset <shortcut> --write
 # (--client <shortcut> is also supported as a backward-compatible alias)
 ```
 
-| Desktop IDE | Preset Shortcut | Default Config Location | Schema Key |
+| Environment / Harness | Preset Shortcut | Default Config Location | Schema Key |
 |---|---|---|---|
-| **Cursor** | `cursor` | `~/.cursor/mcp.json` | `mcpServers` |
+| **Cursor** | `cursor` | `~/.cursor/mcp.json` (global) or `.cursor/mcp.json` (workspace) | `mcpServers` |
 | **VS Code** | `vscode` | `.vscode/mcp.json` (workspace) | `servers` |
-| **Claude Desktop** | `claude-desktop` | `claude_desktop_config.json` | `mcpServers` |
+| **Claude Desktop** | `claude-desktop` | `claude_desktop_config.json` (OS-specific application storage) | `mcpServers` |
 | **Windsurf** | `windsurf` | `~/.codeium/windsurf/mcp_config.json` | `mcpServers` |
-| **Antigravity** | `antigravity` | `.gemini/settings.json` (workspace) | `mcpServers` |
-| **Zed** | `zed` | `~/.config/zed/settings.json` | `context_servers` |
-| **AWS Kiro** | `kiro` | `~/.aws/.kiro/mcp.json` | `mcpServers` |
+| **Google Antigravity** | `antigravity`, `agy` | `~/.gemini/config/mcp_config.json` (global) or `.agents/mcp_config.json` (workspace) | `mcpServers` |
+| **Zed Editor** | `zed` | `~/.config/zed/settings.json` (or `%APPDATA%\Zed\settings.json`) | `context_servers` |
+| **AWS Kiro** | `kiro` | `~/.kiro/settings/mcp.json` (global) or `.kiro/settings/mcp.json` (workspace) | `mcpServers` |
+| **ByteDance Trae** | `trae` | `.trae/mcp.json` (workspace) or `~/.trae/mcp.json` (global) | `mcpServers` |
+| **Oh My Pi (OMP)** | `omp` | `~/.omp/agent/mcp.json` (global) or `.omp/mcp.json` (workspace) | `mcpServers` |
+| **OpenHands (OpenDevin)** | `openhands` | `~/.openhands/mcp.json` | `mcpServers` |
+| **Factory Droid** | `droid` | `.factory/mcp.json` (workspace) or `~/.factory/mcp.json` (global) | `mcpServers` |
+| **Cline (VS Code)** | `cline` | `saoudrizwan.claude-dev/.../cline_mcp_settings.json` (or `.cline/mcp.json`) | `mcpServers` |
+| **Roo Code (VS Code)** | `roo` | `rooveterinaryinc.roo-cline/.../cline_mcp_settings.json` (or `.roo/mcp.json`) | `mcpServers` |
+| **Devin (Cognition)** | `devin` | `.devin/mcp_config.local.json` | `mcpServers` |
 
 > **Protocol Neutrality Note:** These presets are strictly convenience shortcuts for filesystem path resolution across macOS, Windows, and Linux. At runtime, every MCP harness and editor interacts with Vivechak through the exact same JSON-RPC 2.0 wire protocol over `stdio`.
 
@@ -209,15 +217,30 @@ Edit `~/.codeium/windsurf/mcp_config.json`:
 
 ---
 
-### Google Antigravity / Gemini CLI
+### Google Antigravity (Antigravity IDE, Antigravity 2.0, & Antigravity CLI `agy`)
 
-#### Automatic
+Antigravity discovers MCP servers via **`mcp_config.json`**. This single configuration is shared seamlessly across all Antigravity surfaces:
+- **Antigravity IDE**: Standalone in-editor AI pair programmer (VS Code-based).
+- **Antigravity 2.0**: The desktop application (chat canvas, agent orchestrator).
+- **Antigravity CLI (`agy`)**: The lightweight terminal interface / TUI.
+
+#### Automatic Setup
+Run either shortcut (both `--preset antigravity` and `--preset agy` are supported):
 ```sh
 vivechak mcp-config --preset antigravity --write
+# or: vivechak mcp-config --preset agy --write
 ```
+*Writes to `~/.gemini/config/mcp_config.json` (global, available across all projects and CLI sessions) or `.agents/mcp_config.json` if run inside a project with an `.agents/` directory.*
 
-#### Manual
-Edit `.gemini/settings.json` (or `.agents/mcp_config.json`) in your project root:
+#### Antigravity CLI (`agy`) Native Command
+You can also register Vivechak directly via the `agy` CLI command:
+```sh
+agy mcp add vivechak /path/to/vivechak
+```
+*(Or inspect configured servers in `agy` via `agy mcp list`, or press `/mcp` inside the interactive TUI).*
+
+#### Manual JSON Configuration
+Add Vivechak to `~/.gemini/config/mcp_config.json` (global) or `<project-root>/.agents/mcp_config.json` (workspace):
 
 ```json
 {
@@ -229,6 +252,13 @@ Edit `.gemini/settings.json` (or `.agents/mcp_config.json`) in your project root
   }
 }
 ```
+
+| Scope | Location | Applies To |
+|---|---|---|
+| **Global** | `~/.gemini/config/mcp_config.json` | All Antigravity surfaces (IDE, 2.0, CLI `agy`) across all projects |
+| **Workspace** | `.agents/mcp_config.json` | Project-specific workspace |
+
+> **Tip:** In Antigravity IDE or Antigravity 2.0, you can verify active MCP servers anytime in the chat panel via **"..." (More Options) > "Manage MCP Servers" > "View raw config"**. Inside the `agy` terminal, use `/mcp` or `agy mcp list`.
 
 ---
 
@@ -265,15 +295,16 @@ Edit `settings.json` (accessible via Command Palette: `zed: open settings`):
 
 ### AWS Kiro
 
-AWS Kiro supports MCP servers natively.
+AWS Kiro supports MCP servers natively at both user and workspace levels.
 
 #### Automatic
 ```sh
 vivechak mcp-config --preset kiro --write
 ```
+*Auto-detects: If `.kiro` directory exists in the workspace, writes to `.kiro/settings/mcp.json`. Otherwise writes to global `~/.kiro/settings/mcp.json` (or `~/.aws/.kiro/mcp.json` if existing).*
 
 #### Manual
-Edit `~/.aws/.kiro/mcp.json`:
+Edit `~/.kiro/settings/mcp.json` (global) or `.kiro/settings/mcp.json` (workspace):
 
 ```json
 {
@@ -287,6 +318,109 @@ Edit `~/.aws/.kiro/mcp.json`:
 ```
 
 > **Tip:** You can verify your active MCP servers in Kiro chat by running `/mcp`.
+
+---
+
+### ByteDance Trae IDE
+
+Trae reads project-scoped MCP configurations from `.trae/mcp.json`.
+
+```sh
+vivechak mcp-config --preset trae --write
+```
+*Auto-writes to `.trae/mcp.json` in your workspace (or `~/.trae/mcp.json` if global).*
+
+---
+
+### Oh My Pi (OMP)
+
+Oh My Pi provides native terminal MCP agent orchestration:
+
+```sh
+vivechak mcp-config --preset omp --write
+```
+*Writes to `~/.omp/agent/mcp.json` (or workspace `.omp/mcp.json` if `.omp` exists). In the OMP terminal, use `/mcp` to inspect loaded servers.*
+
+---
+
+### OpenHands (OpenDevin)
+
+OpenHands CLI and Agent Canvas read MCP server definitions from `~/.openhands/mcp.json`:
+
+```sh
+vivechak mcp-config --preset openhands --write
+```
+*Or register directly via OpenHands CLI:*
+```sh
+openhands mcp add vivechak --transport stdio /path/to/vivechak serve
+```
+
+---
+
+### Factory Droid
+
+Factory Droid connects via `~/.factory/mcp.json` or `.factory/mcp.json`:
+
+```sh
+vivechak mcp-config --preset droid --write
+```
+*Or register via Droid CLI:*
+```sh
+droid mcp add vivechak /path/to/vivechak
+```
+
+---
+
+### Cline & Roo Code (VS Code Extensions)
+
+Both Cline and Roo Code store global MCP server settings in VS Code extension storage (`saoudrizwan.claude-dev` and `rooveterinaryinc.roo-cline`):
+
+```sh
+# For Cline:
+vivechak mcp-config --preset cline --write
+
+# For Roo Code:
+vivechak mcp-config --preset roo --write
+```
+*Auto-resolves the correct OS-specific VS Code storage directory on Windows, macOS, and Linux (or workspace `.cline/mcp.json` / `.roo/mcp.json` if present).*
+
+---
+
+### Cognition Devin
+
+Devin local and CLI configurations read from `.devin/mcp_config.local.json`:
+
+```sh
+vivechak mcp-config --preset devin --write
+```
+
+---
+
+### CLI-Native Agent Harnesses
+
+For terminal agents with built-in MCP management commands, you can register Vivechak directly without manually touching configuration files:
+
+- **Claude Code**:
+  ```sh
+  claude mcp add vivechak -- /path/to/vivechak serve
+  ```
+- **xAI Grok Build**:
+  ```sh
+  grok mcp add vivechak -- /path/to/vivechak serve
+  ```
+- **GitHub Copilot CLI**:
+  ```sh
+  copilot mcp add vivechak /path/to/vivechak serve
+  ```
+- **Block Goose**:
+  ```sh
+  goose configure
+  # Select stdio -> name: vivechak -> command: /path/to/vivechak -> args: serve
+  ```
+- **Sourcegraph Amp**:
+  ```sh
+  amp mcp add vivechak /path/to/vivechak
+  ```
 
 ---
 

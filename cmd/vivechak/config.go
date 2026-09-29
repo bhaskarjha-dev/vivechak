@@ -11,6 +11,8 @@ import (
 	"strings"
 )
 
+const desktopShortcutsList = "cursor, vscode, claude-desktop, windsurf, antigravity (or agy), zed, kiro, trae, omp, openhands, droid, cline, roo, devin"
+
 func runMCPConfig() {
 	var args []string
 	if len(os.Args) > 2 {
@@ -38,12 +40,13 @@ func runMCPConfigWithArgs(args []string, stdout, stderr io.Writer) int {
 			fmt.Fprintln(stdout, "  --client <shortcut>     Alias for --preset (backward compatible)")
 			fmt.Fprintln(stdout, "")
 			fmt.Fprintln(stdout, "Desktop Path Shortcuts:")
-			fmt.Fprintln(stdout, "  cursor, vscode, claude-desktop, windsurf, antigravity, zed, kiro")
+			fmt.Fprintf(stdout, "  %s\n", desktopShortcutsList)
 			fmt.Fprintln(stdout, "")
 			fmt.Fprintln(stdout, "Examples:")
 			fmt.Fprintln(stdout, "  vivechak mcp-config                                     # Universal MCP JSON to stdout")
 			fmt.Fprintln(stdout, "  vivechak mcp-config --path ~/.omp/agent/mcp.json --write # Write directly to any agent config")
 			fmt.Fprintln(stdout, "  vivechak mcp-config --preset cursor --write             # Desktop shortcut for Cursor")
+			fmt.Fprintln(stdout, "  vivechak mcp-config --preset agy --write                # Shortcut for Antigravity (IDE, 2.0, CLI)")
 			return 0
 		} else if (args[i] == "--preset" || args[i] == "--client") && i+1 < len(args) {
 			host = args[i+1]
@@ -68,7 +71,7 @@ func runMCPConfigWithArgs(args []string, stdout, stderr io.Writer) int {
 	}
 
 	if host != "" && !isSupportedPreset(host) {
-		fmt.Fprintf(stderr, "Error: unknown desktop preset: %s (available shortcuts: cursor, vscode, claude-desktop, windsurf, antigravity, zed, kiro)\n", host)
+		fmt.Fprintf(stderr, "Error: unknown desktop preset: %s (available shortcuts: %s)\n", host, desktopShortcutsList)
 		return 1
 	}
 
@@ -114,7 +117,7 @@ func runMCPConfigWithArgs(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "Error: --write requires a target file location.")
 		fmt.Fprintln(stderr, "Usage: vivechak mcp-config --path <config_file_path> --write")
 		fmt.Fprintln(stderr, "   or: vivechak mcp-config --preset <shortcut> --write")
-		fmt.Fprintln(stderr, "Available desktop shortcuts: cursor, vscode, claude-desktop, windsurf, antigravity, zed, kiro")
+		fmt.Fprintf(stderr, "Available desktop shortcuts: %s\n", desktopShortcutsList)
 		return 1
 	}
 
@@ -314,8 +317,17 @@ func resolveConfigPath(host, homeDir, appData, cwd, goos string) (string, error)
 			}
 			return filepath.Join(homeDir, ".config", "Claude", "claude_desktop_config.json"), nil
 		}
-	case "antigravity":
-		return filepath.Join(cwd, ".gemini", "settings.json"), nil
+	case "antigravity", "agy":
+		// If workspace has .agents directory or .agents/mcp_config.json, use workspace configuration
+		if _, err := os.Stat(filepath.Join(cwd, ".agents")); err == nil {
+			return filepath.Join(cwd, ".agents", "mcp_config.json"), nil
+		}
+		// Otherwise use canonical global Antigravity config in ~/.gemini/config/mcp_config.json
+		// (shared across Antigravity IDE, Antigravity 2.0, and Antigravity CLI 'agy')
+		if homeDir != "" {
+			return filepath.Join(homeDir, ".gemini", "config", "mcp_config.json"), nil
+		}
+		return filepath.Join(cwd, ".agents", "mcp_config.json"), nil
 	case "windsurf":
 		if homeDir == "" {
 			return "", fmt.Errorf("could not determine home dir for windsurf config")
@@ -336,21 +348,113 @@ func resolveConfigPath(host, homeDir, appData, cwd, goos string) (string, error)
 		}
 		return filepath.Join(homeDir, ".config", "zed", "settings.json"), nil
 	case "kiro":
+		// Workspace-level Kiro configuration if .kiro directory exists
+		if _, err := os.Stat(filepath.Join(cwd, ".kiro")); err == nil {
+			return filepath.Join(cwd, ".kiro", "settings", "mcp.json"), nil
+		}
 		if homeDir == "" {
 			return "", fmt.Errorf("could not determine home dir for kiro config")
 		}
-		return filepath.Join(homeDir, ".aws", ".kiro", "mcp.json"), nil
+		// If legacy ~/.aws/.kiro directory exists, maintain backward compatibility
+		if _, err := os.Stat(filepath.Join(homeDir, ".aws", ".kiro")); err == nil {
+			return filepath.Join(homeDir, ".aws", ".kiro", "mcp.json"), nil
+		}
+		// Canonical official Kiro configuration path
+		return filepath.Join(homeDir, ".kiro", "settings", "mcp.json"), nil
+	case "trae":
+		// ByteDance Trae IDE: project .trae/mcp.json or global ~/.trae/mcp.json
+		if _, err := os.Stat(filepath.Join(cwd, ".trae")); err == nil {
+			return filepath.Join(cwd, ".trae", "mcp.json"), nil
+		}
+		if homeDir != "" {
+			if _, err := os.Stat(filepath.Join(homeDir, ".trae")); err == nil {
+				return filepath.Join(homeDir, ".trae", "mcp.json"), nil
+			}
+		}
+		return filepath.Join(cwd, ".trae", "mcp.json"), nil
+	case "omp":
+		// Oh My Pi (OMP): workspace .omp/mcp.json or global ~/.omp/agent/mcp.json
+		if _, err := os.Stat(filepath.Join(cwd, ".omp")); err == nil {
+			return filepath.Join(cwd, ".omp", "mcp.json"), nil
+		}
+		if homeDir != "" {
+			return filepath.Join(homeDir, ".omp", "agent", "mcp.json"), nil
+		}
+		return filepath.Join(cwd, ".omp", "mcp.json"), nil
+	case "openhands":
+		if homeDir == "" {
+			return "", fmt.Errorf("could not determine home dir for openhands config")
+		}
+		return filepath.Join(homeDir, ".openhands", "mcp.json"), nil
+	case "droid":
+		// Factory Droid: workspace .factory/mcp.json or global ~/.factory/mcp.json
+		if _, err := os.Stat(filepath.Join(cwd, ".factory")); err == nil {
+			return filepath.Join(cwd, ".factory", "mcp.json"), nil
+		}
+		if homeDir != "" {
+			return filepath.Join(homeDir, ".factory", "mcp.json"), nil
+		}
+		return filepath.Join(cwd, ".factory", "mcp.json"), nil
+	case "cline":
+		// Cline VS Code extension: workspace .cline/mcp.json or global extension storage
+		if _, err := os.Stat(filepath.Join(cwd, ".cline")); err == nil {
+			return filepath.Join(cwd, ".cline", "mcp.json"), nil
+		}
+		return resolveVSCodeStoragePath("saoudrizwan.claude-dev", homeDir, appData, goos)
+	case "roo":
+		// Roo Code VS Code extension: workspace .roo/mcp.json or global extension storage
+		if _, err := os.Stat(filepath.Join(cwd, ".roo")); err == nil {
+			return filepath.Join(cwd, ".roo", "mcp.json"), nil
+		}
+		return resolveVSCodeStoragePath("rooveterinaryinc.roo-cline", homeDir, appData, goos)
+	case "devin":
+		// Cognition Devin CLI / local config: .devin/mcp_config.local.json
+		if _, err := os.Stat(filepath.Join(cwd, ".devin")); err == nil {
+			return filepath.Join(cwd, ".devin", "mcp_config.local.json"), nil
+		}
+		if homeDir != "" {
+			if _, err := os.Stat(filepath.Join(homeDir, ".devin")); err == nil {
+				return filepath.Join(homeDir, ".devin", "mcp_config.local.json"), nil
+			}
+		}
+		return filepath.Join(cwd, ".devin", "mcp_config.local.json"), nil
 	default:
-		return "", fmt.Errorf("unknown desktop preset: %s (available shortcuts: cursor, vscode, claude-desktop, windsurf, antigravity, zed, kiro)", host)
+		return "", fmt.Errorf("unknown desktop preset: %s (available shortcuts: %s)", host, desktopShortcutsList)
 	}
 }
 
 // isSupportedPreset checks whether the given host name is a recognized desktop preset.
 func isSupportedPreset(host string) bool {
 	switch host {
-	case "cursor", "vscode", "claude-desktop", "windsurf", "antigravity", "zed", "kiro":
+	case "cursor", "vscode", "claude-desktop", "windsurf", "antigravity", "agy", "zed", "kiro",
+		"trae", "omp", "openhands", "droid", "cline", "roo", "devin":
 		return true
 	default:
 		return false
 	}
+}
+
+// resolveVSCodeStoragePath resolves the globalStorage configuration path for VS Code extension agents.
+func resolveVSCodeStoragePath(extID, homeDir, appData, goos string) (string, error) {
+	var baseDir string
+	if goos == "windows" {
+		if appData == "" && homeDir != "" {
+			appData = filepath.Join(homeDir, "AppData", "Roaming")
+		}
+		if appData == "" {
+			return "", fmt.Errorf("could not determine AppData path for VS Code extension storage")
+		}
+		baseDir = filepath.Join(appData, "Code", "User")
+	} else if goos == "darwin" {
+		if homeDir == "" {
+			return "", fmt.Errorf("could not determine home dir for VS Code extension storage")
+		}
+		baseDir = filepath.Join(homeDir, "Library", "Application Support", "Code", "User")
+	} else {
+		if homeDir == "" {
+			return "", fmt.Errorf("could not determine home dir for VS Code extension storage")
+		}
+		baseDir = filepath.Join(homeDir, ".config", "Code", "User")
+	}
+	return filepath.Join(baseDir, "globalStorage", extID, "settings", "cline_mcp_settings.json"), nil
 }
