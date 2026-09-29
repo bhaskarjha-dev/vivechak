@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" role="img">
+  <title>Vivechak</title>
+  <!-- Vivechak favicon cut, 32 x 32 grid. S = 4 (bar and V thickness). Bar 7S = 28, x 2..30, y 2..6. V arms 30 deg. Hole: equilateral, side 3S = 12, top corners on x = 10 and 22, corners r = 1. Tip r = 2. Fillets r = 1.2. Dot diameter 5 (1.25S), y 25..30; gap to tip 0.65S. -->
+  <path fill="#12203F" fill-rule="evenodd" d="
+    M 4 2 H 28 A 2 2 0 0 1 28 6 H 27.31 A 1.2 1.2 0 0 0 26.27 6.6 L 17.73 21.39 A 2 2 0 0 1 14.27 21.39 L 5.73 6.6 A 1.2 1.2 0 0 0 4.69 6 H 4 A 2 2 0 0 1 4 2 Z
+    M 20.27 6 H 11.73 A 1 1 0 0 0 10.87 7.5 L 15.13 14.89 A 1 1 0 0 0 16.87 14.89 L 21.13 7.5 A 1 1 0 0 0 20.27 6 Z"/>
+  <circle cx="16" cy="27.5" r="2.5" fill="#F2A33A"/>
+</svg>

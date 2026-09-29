@@ -1,6 +1,9 @@
 <div align="center">
 
-<img src="docs/assets/logo.jpg" alt="Vivechak" width="180" />
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/logo-dark.svg">
+  <img src="docs/assets/logo.svg" alt="Vivechak" width="180" />
+</picture>
 
 # Vivechak (विवेचक)
 
