@@ -57,4 +57,45 @@ func TestUpdateOrAppendDecision(t *testing.T) {
 			t.Errorf("expected fixed content, got %q", s)
 		}
 	})
+
+	t.Run("replace unanchored decision in place (F-07)", func(t *testing.T) {
+		existing := []byte(`# Architectural Decisions
+
+---
+id: D-001
+title: Old Database Title
+status: proposed
+---
+
+# D-001: Old Database Title
+Initial hypothesis content.
+
+---
+id: D-002
+title: Auth Strategy
+status: proposed
+---
+`)
+		res := updateOrAppendDecision(existing, "D-001", `---
+id: D-001
+title: New Database Title
+status: accepted
+---
+
+# D-001: New Database Title
+Accepted content.`)
+		s := string(res)
+		if strings.Contains(s, "Old Database Title") {
+			t.Errorf("expected old unanchored content to be replaced, got: %s", s)
+		}
+		if !strings.Contains(s, "<!-- DECISION: D-001 -->") {
+			t.Errorf("expected new anchored content, got: %s", s)
+		}
+		if !strings.Contains(s, "New Database Title") {
+			t.Errorf("expected updated title, got: %s", s)
+		}
+		if !strings.Contains(s, "id: D-002") {
+			t.Errorf("lost D-002 during update, got: %s", s)
+		}
+	})
 }

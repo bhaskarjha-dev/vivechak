@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -140,9 +141,14 @@ func handleRecordDecision(ctx context.Context, _ *sdkmcp.CallToolRequest, in Rec
 		}
 	}
 
-	// Warn if content contains decision boundary markers that could confuse the registry
-	if strings.Contains(in.Content, "<!-- DECISION:") || strings.Contains(in.Content, "<!-- /DECISION:") {
-		warnings = append(warnings, "W-MARKER-CONFLICT: content contains HTML decision markers that may conflict with the registry format")
+	// Warn if content contains unexpected or nested decision boundary markers that could confuse the registry
+	startMarker := fmt.Sprintf("<!-- DECISION: %s -->", in.DecisionID)
+	endMarker := fmt.Sprintf("<!-- /DECISION: %s -->", in.DecisionID)
+	innerContent := strings.TrimSpace(in.Content)
+	innerContent = strings.TrimPrefix(innerContent, startMarker)
+	innerContent = strings.TrimSuffix(innerContent, endMarker)
+	if strings.Contains(innerContent, "<!-- DECISION:") || strings.Contains(innerContent, "<!-- /DECISION:") {
+		warnings = append(warnings, "W-MARKER-CONFLICT: content contains unexpected nested HTML decision markers that may conflict with the registry format")
 	}
 
 	dataMap := map[string]any{
@@ -173,7 +179,12 @@ func handleRecordDecision(ctx context.Context, _ *sdkmcp.CallToolRequest, in Rec
 func updateOrAppendDecision(existing []byte, decisionID string, content string) []byte {
 	startMarker := fmt.Sprintf("<!-- DECISION: %s -->", decisionID)
 	endMarker := fmt.Sprintf("<!-- /DECISION: %s -->", decisionID)
-	entry := fmt.Sprintf("%s\n%s\n%s", startMarker, strings.TrimSpace(content), endMarker)
+
+	cleanContent := strings.TrimSpace(content)
+	cleanContent = strings.TrimPrefix(cleanContent, startMarker)
+	cleanContent = strings.TrimSuffix(cleanContent, endMarker)
+	cleanContent = strings.TrimSpace(cleanContent)
+	entry := fmt.Sprintf("%s\n%s\n%s", startMarker, cleanContent, endMarker)
 
 	str := string(existing)
 	startIdx := strings.Index(str, startMarker)
@@ -186,10 +197,44 @@ func updateOrAppendDecision(existing []byte, decisionID string, content string) 
 		}
 	}
 
+	// Fallback: look for an unanchored decision entry matching decisionID
+	if sIdx, eIdx, ok := findUnanchoredDecision(str, decisionID); ok {
+		newStr := str[:sIdx] + entry + str[eIdx:]
+		return []byte(newStr)
+	}
+
 	if len(strings.TrimSpace(str)) == 0 {
 		header := "# Architectural Decisions\n\n"
 		return []byte(header + entry + "\n")
 	}
 
 	return []byte(strings.TrimRight(str, "\n") + "\n\n---\n\n" + entry + "\n")
+}
+
+// findUnanchoredDecision locates an unanchored decision block (YAML frontmatter and optional markdown)
+// for the given decisionID within DECISIONS.md content.
+func findUnanchoredDecision(content string, decisionID string) (int, int, bool) {
+	// Look for a YAML block containing "id: <decisionID>" or "decision_id: <decisionID>"
+	pattern := fmt.Sprintf(`(?m)^---\s*\n(?:[^\n]*\n)*?(?:id|decision_id):\s*["']?%s["']?\b(?:[^\n]*\n)*?---\s*`, regexp.QuoteMeta(decisionID))
+	re := regexp.MustCompile(pattern)
+	loc := re.FindStringIndex(content)
+	if loc == nil {
+		// Look for a Markdown header like "# D-001:" or "## D-001:"
+		headerPattern := fmt.Sprintf(`(?m)^#{1,4}\s+.*?\b%s\b.*?\n`, regexp.QuoteMeta(decisionID))
+		headerRe := regexp.MustCompile(headerPattern)
+		loc = headerRe.FindStringIndex(content)
+		if loc == nil {
+			return 0, 0, false
+		}
+	}
+
+	startIdx := loc[0]
+	// The entry extends until the next "---", next "<!-- DECISION:", or end of content
+	rest := content[loc[1]:]
+	nextBoundaryRe := regexp.MustCompile(`(?m)(?:^---\s*\n|^<!-- DECISION:)`)
+	if nextLoc := nextBoundaryRe.FindStringIndex(rest); nextLoc != nil {
+		endIdx := loc[1] + nextLoc[0]
+		return startIdx, endIdx, true
+	}
+	return startIdx, len(content), true
 }

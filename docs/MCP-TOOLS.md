@@ -680,7 +680,7 @@ Defined in [`ValidateInput`](../internal/mcp/tool_validate.go):
 | Parameter | Type | Required | Description |
 |---|---|---|---|
 | `project_root` | `string` | Optional | Workspace root path. |
-| `artifact_type` | `string` | **Required** | What to validate: `session` \| `decision` \| `plan` \| `fad`. |
+| `artifact_type` | `string` | **Required** | What to validate: `session` \| `decision` \| `conflict-resolution` \| `plan` \| `fad`. |
 | `content` | `string` | **Required** | Content to validate (Markdown). |
 
 #### Response (`data` field)
@@ -747,7 +747,7 @@ Defined in [`ValidateInput`](../internal/mcp/tool_validate.go):
 
 ### 9. `vivechak_run_gate`
 **Title:** Run Phase 0 Gate  
-**Annotations:** Read-Only: `false` | Idempotent: `true` | Destructive: `false` | Open-World: `false`
+**Annotations:** Read-Only: `true` | Idempotent: `true` | Destructive: `false` | Open-World: `false`
 
 #### Description
 Execute the Phase 0 exit gate check (Track A + Track B).
@@ -755,11 +755,11 @@ Execute the Phase 0 exit gate check (Track A + Track B).
 #### What It Does
 Executes the mechanical verification checks for the Phase 0 Exit Gate, tailored to the workspace scope:
 - **Project Scope:**
-  - **Structural Completeness (5 checks):** Confirms presence of `RESEARCH-PIPELINE.md`, at least 1 completed session, all 5 core template files, `DECISIONS.md`, and `research/FAD.md`.
-  - **Quality Indicators (3 checks):** Confirms at least 3 completed sessions for pipeline significance, verifies that `FAD.md` contains valid evidence grades, and checks that `DECISIONS.md` contains non-trivial content (>100 bytes).
+  - **Structural Completeness (5 checks):** Confirms presence of `RESEARCH-PIPELINE.md`, all DAG sessions completed, all 5 core template files, `DECISIONS.md`, and `research/FAD.md`.
+  - **Quality Indicators (3 checks):** Confirms at least 3 completed sessions for pipeline significance, verifies that `FAD.md` contains valid evidence grades, and mechanically validates ADRs (all decisions accepted, and all one-way doors define explicit reversal triggers).
 - **Decision Scope:**
   - **Structural Completeness (3 checks):** Confirms at least 1 completed session, template directory present, and decision record/ADR exists (`[ID]-[slug].md` or `DECISIONS.md`).
-  - **Quality Indicators (2 checks):** Confirms completed decision session and non-trivial ADR body (>100 bytes).
+  - **Quality Indicators (2 checks):** Confirms completed decision session, and verifies decision record is substantive (>100 bytes), accepted, with reversal triggers present for one-way doors.
 - **Comparison Scope:**
   - **Structural Completeness (2 checks):** Confirms at least 1 completed session and template directory present.
   - **Quality Indicators (2 checks):** Confirms completed comparison session and valid inline evidence grades.

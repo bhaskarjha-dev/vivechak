@@ -270,10 +270,10 @@ Requirements:
 A decision registry seeded with initial hypotheses. This is a **living
 document** that evolves as research sessions are executed:
 
-- For each architectural decision identified, create a D-NNN entry with
-  YAML frontmatter using this schema:
+- For each architectural decision identified, create a D-NNN entry wrapped in HTML decision comments (`<!-- DECISION: D-NNN --> ... <!-- /DECISION: D-NNN -->`) with YAML frontmatter using this schema:
 
-  ```yaml
+  ```markdown
+  <!-- DECISION: D-NNN -->
   ---
   id: D-NNN
   title: "[Decision Title]"
@@ -294,6 +294,12 @@ document** that evolves as research sessions are executed:
   human_reviewed: false      # Mandatory true for one-way doors before acceptance
   schema_version: "0.1.0"
   ---
+
+  # D-NNN: [Decision Title]
+
+  ## Initial Context & Hypotheses
+  [Initial rationale, competing options, and research direction]
+  <!-- /DECISION: D-NNN -->
   ```
 
   At generation time, populate: `id`, `title`, `status: proposed`,

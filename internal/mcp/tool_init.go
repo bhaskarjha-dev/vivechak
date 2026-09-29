@@ -63,6 +63,16 @@ func handleInit(_ context.Context, req *sdkmcp.CallToolRequest, in InitInput) (*
 			"Provide a project directory path, not a filesystem root.")
 	}
 
+	// Guard against unguided initialization in user's root home directory when project_root was omitted (F-05)
+	if in.ProjectRoot == "" {
+		if home, err := os.UserHomeDir(); err == nil && home != "" {
+			if absHome, err := filepath.Abs(home); err == nil && absRoot == absHome {
+				return ErrorResult(tool, fmt.Errorf("refusing to initialize workspace directly in user home directory %q without explicit project_root", absRoot),
+					"Specify project_root explicitly to initialize a workspace inside a project directory.")
+			}
+		}
+	}
+
 	// Ensure the root directory exists — init is the only tool that creates it
 	if err := os.MkdirAll(absRoot, 0o755); err != nil {
 		return ErrorResult(tool, fmt.Errorf("creating directory %q: %w", absRoot, err),

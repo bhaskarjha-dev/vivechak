@@ -221,3 +221,32 @@ func TestCheckWorkspace_SessionWithoutFrontmatter(t *testing.T) {
 	}
 }
 
+func TestCheckWorkspace_CasualTextDoesNotTriggerStaleRef(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	_ = os.MkdirAll(filepath.Join(tmpDir, core.TemplatesDir), 0o755)
+	_ = os.MkdirAll(filepath.Join(tmpDir, core.SessionsDir), 0o755)
+	for _, tmpl := range core.TemplatesToCopy {
+		_ = os.WriteFile(filepath.Join(tmpDir, core.TemplatesDir, tmpl), []byte("# Template "+tmpl), 0o644)
+	}
+
+	_ = os.WriteFile(filepath.Join(tmpDir, core.PipelineFile), []byte("# Pipeline\n#### T1-01: Foo\n"), 0o644)
+	_ = os.WriteFile(filepath.Join(tmpDir, core.DecisionsFile), []byte("# Decisions\n<!-- DECISION: D-001 -->\n"), 0o644)
+
+	// Session casually mentions D-100 tier instances, D-25 connectors, but no decision references
+	sessionContent := `---
+session_id: T1-01
+title: Foo
+informs_decisions: [D-001]
+---
+# Hardware & Deployment
+Deploy on AWS D-100 tier servers with D-25 cable connectors. A (spec)
+`
+	_ = os.WriteFile(filepath.Join(tmpDir, core.SessionsDir, "T1-01.md"), []byte(sessionContent), 0o644)
+
+	hasErrors, _, errs := checkWorkspace(tmpDir)
+	if hasErrors {
+		t.Errorf("expected no errors for casual D-100/D-25 text, got errors: %v", errs)
+	}
+}
+

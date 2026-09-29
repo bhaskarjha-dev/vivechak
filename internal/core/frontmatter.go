@@ -49,10 +49,20 @@ func ParseFrontmatter(data []byte) (Frontmatter, []byte, error) {
 		d = d[3:]
 	}
 
-	// Skip leading whitespace
+	// Skip leading whitespace and HTML comments (e.g. <!-- DECISION: D-001 -->)
 	start := 0
-	for start < len(d) && (d[start] == ' ' || d[start] == '\t' || d[start] == '\r' || d[start] == '\n') {
-		start++
+	for {
+		for start < len(d) && (d[start] == ' ' || d[start] == '\t' || d[start] == '\r' || d[start] == '\n') {
+			start++
+		}
+		if bytes.HasPrefix(d[start:], []byte("<!--")) {
+			endComment := bytes.Index(d[start:], []byte("-->"))
+			if endComment != -1 {
+				start += endComment + 3
+				continue
+			}
+		}
+		break
 	}
 
 	trimmed := d[start:]
@@ -245,6 +255,8 @@ func (fm Frontmatter) GetStringSlice(key string) []string {
 		for _, item := range val {
 			if s, ok := item.(string); ok {
 				result = append(result, s)
+			} else if item != nil {
+				result = append(result, fmt.Sprintf("%v", item))
 			}
 		}
 		return result
@@ -252,6 +264,25 @@ func (fm Frontmatter) GetStringSlice(key string) []string {
 		return val
 	}
 	return nil
+}
+
+// GetBool returns a boolean value from frontmatter, or false if missing/non-boolean.
+func (fm Frontmatter) GetBool(key string) bool {
+	if fm == nil {
+		return false
+	}
+	v, ok := fm[key]
+	if !ok || v == nil {
+		return false
+	}
+	switch val := v.(type) {
+	case bool:
+		return val
+	case string:
+		return strings.EqualFold(val, "true") || val == "1" || strings.EqualFold(val, "yes")
+	default:
+		return false
+	}
 }
 
 // Has reports whether the frontmatter contains the given key.

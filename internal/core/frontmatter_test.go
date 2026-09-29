@@ -524,3 +524,33 @@ title: "Comparison --- Option A vs Option B"
 	})
 }
 
+func TestParseFrontmatter_LeadingHTMLComment(t *testing.T) {
+	input := `<!-- DECISION: D-001 -->
+---
+id: D-001
+title: Primary Datastore
+status: accepted
+door_type: one-way
+---
+
+# Body Content
+Decision details here.
+<!-- /DECISION: D-001 -->
+`
+	fm, body, err := ParseFrontmatter([]byte(input))
+	if err != nil {
+		t.Fatalf("ParseFrontmatter with leading comment failed: %v", err)
+	}
+	if fm == nil {
+		t.Fatal("expected non-nil frontmatter when leading HTML comment is present")
+	}
+	if fm.GetString("id") != "D-001" {
+		t.Errorf("got id %q, want 'D-001'", fm.GetString("id"))
+	}
+	if fm.GetString("status") != "accepted" {
+		t.Errorf("got status %q, want 'accepted'", fm.GetString("status"))
+	}
+	if !strings.Contains(string(body), "Decision details here.") {
+		t.Errorf("expected body to contain decision details, got: %s", string(body))
+	}
+}

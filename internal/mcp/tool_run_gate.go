@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/bhaskarjha-dev/vivechak/internal/core"
@@ -126,8 +127,53 @@ func handleRunGate(_ context.Context, _ *sdkmcp.CallToolRequest, in RunGateInput
 			trackAIssues = append(trackAIssues, "RESEARCH-PIPELINE.md not found")
 		}
 
-		// Check 2: At least 1 session completed
-		if info.SessionCount > 0 {
+		// Check 2: DAG sessions completed
+		if info.HasPipeline {
+			if pipeData, err := ws.ReadFile(core.PipelineFile); err == nil {
+				if dag, err := core.ParsePipeline(pipeData); err == nil && len(dag.Sessions) > 0 {
+					completedCount := 0
+					for _, s := range dag.Sessions {
+						found := false
+						if s.OutputFile != "" {
+							if _, err := ws.Stat(s.OutputFile); err == nil {
+								found = true
+							}
+						}
+						if !found {
+							if entries, err := ws.ListDir(core.SessionsDir); err == nil {
+								for _, e := range entries {
+									if strings.HasPrefix(e.Name(), s.ID) && strings.HasSuffix(e.Name(), ".md") {
+										found = true
+										break
+									}
+								}
+							}
+						}
+						if !found && (s.ID == "SYN-01" || s.ID == "SYN" || s.ID == "FAD") {
+							if _, err := ws.Stat(core.FADFile); err == nil {
+								found = true
+							}
+						}
+						if found {
+							completedCount++
+						}
+					}
+					if completedCount == len(dag.Sessions) {
+						trackAPassed++
+					} else {
+						trackAIssues = append(trackAIssues, fmt.Sprintf("Pipeline DAG incomplete: %d/%d sessions completed", completedCount, len(dag.Sessions)))
+					}
+				} else if info.SessionCount > 0 {
+					trackAPassed++
+				} else {
+					trackAIssues = append(trackAIssues, "No completed sessions found")
+				}
+			} else if info.SessionCount > 0 {
+				trackAPassed++
+			} else {
+				trackAIssues = append(trackAIssues, "No completed sessions found")
+			}
+		} else if info.SessionCount > 0 {
 			trackAPassed++
 		} else {
 			trackAIssues = append(trackAIssues, "No completed sessions found")
@@ -254,13 +300,104 @@ func handleRunGate(_ context.Context, _ *sdkmcp.CallToolRequest, in RunGateInput
 			trackBIssues = append(trackBIssues, "Cannot check FAD quality — FAD not yet created")
 		}
 
-		// Check B3: Decisions file has content
+		// Check B3: Decisions mechanical validation (ADR lock status, review triggers)
 		if info.HasDecisions {
-			decData, err := ws.ReadFile(core.DecisionsFile)
-			if err == nil && len(decData) > 100 {
-				trackBPassed++
+			var allDecisionChunks [][]byte
+			if decData, err := ws.ReadFile(core.DecisionsFile); err == nil && len(decData) > 0 {
+				allDecisionChunks = append(allDecisionChunks, decData)
+			}
+			if entries, err := ws.ListDir(core.ResearchDir); err == nil {
+				for _, e := range entries {
+					name := e.Name()
+					if !e.IsDir() && strings.HasSuffix(name, ".md") &&
+						!strings.HasSuffix(name, "-plan.md") &&
+						!strings.EqualFold(name, "RESEARCH-PIPELINE.md") &&
+						!strings.EqualFold(name, "FAD.md") &&
+						!strings.EqualFold(name, "DECISIONS.md") {
+						if dData, err := ws.ReadFile(filepath.Join(core.ResearchDir, name)); err == nil && len(dData) > 0 {
+							allDecisionChunks = append(allDecisionChunks, dData)
+						}
+					}
+				}
+			}
+
+			if len(allDecisionChunks) > 0 {
+				hasDecisionsParsed := false
+				allAccepted := true
+				missingReviewTrigger := 0
+				processedIDs := make(map[string]bool)
+
+				checkDecisionFM := func(fm core.Frontmatter) {
+					if fm == nil || (!fm.Has("id") && !fm.Has("decision_id")) {
+						return
+					}
+					id := fm.GetString("id")
+					if id == "" {
+						id = fm.GetString("decision_id")
+					}
+					if processedIDs[id] {
+						return
+					}
+					processedIDs[id] = true
+					hasDecisionsParsed = true
+
+					status := strings.ToLower(strings.TrimSpace(fm.GetString("status")))
+					if status != "accepted" && status != "superseded" && status != "deprecated" {
+						allAccepted = false
+					}
+					isOneWay := strings.EqualFold(fm.GetString("door_type"), "one-way")
+					if isOneWay {
+						hasReversal := (fm.Has("review_trigger") && strings.TrimSpace(fm.GetString("review_trigger")) != "") ||
+							(fm.Has("reversal_triggers") && len(fm.GetStringSlice("reversal_triggers")) > 0) ||
+							(fm.Has("review_date") && strings.TrimSpace(fm.GetString("review_date")) != "")
+						if !hasReversal {
+							missingReviewTrigger++
+						}
+					}
+				}
+
+				anchoredRe := regexp.MustCompile(`(?s)<!-- DECISION:\s*([A-Za-z0-9_-]+)\s*-->\s*(.*?)\s*<!-- /DECISION:\s*[A-Za-z0-9_-]+\s*-->`)
+				unanchoredRe := regexp.MustCompile(`(?ms)^---\s*\n(.*?)\n---`)
+
+				for _, chunk := range allDecisionChunks {
+					// 1. Anchored blocks: <!-- DECISION: ID --> ... <!-- /DECISION: ID -->
+					for _, m := range anchoredRe.FindAllSubmatch(chunk, -1) {
+						if fm, _, err := core.ParseFrontmatter(m[2]); err == nil && fm != nil {
+							if !fm.Has("id") && !fm.Has("decision_id") {
+								fm["id"] = string(m[1])
+							}
+							checkDecisionFM(fm)
+						}
+					}
+
+					// 2. Unanchored frontmatter blocks
+					for _, m := range unanchoredRe.FindAllSubmatch(chunk, -1) {
+						if fm, _, err := core.ParseFrontmatter(m[0]); err == nil && fm != nil {
+							checkDecisionFM(fm)
+						}
+					}
+
+					// 3. Document-level frontmatter (e.g. standalone ADR files)
+					if fm, _, err := core.ParseFrontmatter(chunk); err == nil && fm != nil {
+						checkDecisionFM(fm)
+					}
+				}
+
+				if hasDecisionsParsed {
+					if !allAccepted {
+						trackBIssues = append(trackBIssues, "One or more decisions are not yet accepted (status must be 'accepted')")
+					}
+					if missingReviewTrigger > 0 {
+						trackBIssues = append(trackBIssues, fmt.Sprintf("%d one-way door decision(s) lack required reversal triggers (review_trigger / reversal_triggers)", missingReviewTrigger))
+					}
+					if allAccepted && missingReviewTrigger == 0 {
+						trackBPassed++
+					}
+				} else {
+					trackBPassed++
+				}
 			} else {
-				trackBIssues = append(trackBIssues, "DECISIONS.md appears empty or trivial")
+				trackBIssues = append(trackBIssues, "DECISIONS.md or ADR files appear empty or trivial")
 			}
 		} else {
 			trackBIssues = append(trackBIssues, "Cannot check decisions — DECISIONS.md not found")

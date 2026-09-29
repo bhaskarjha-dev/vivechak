@@ -12,7 +12,7 @@ import (
 // ValidateInput holds the arguments for vivechak_validate.
 type ValidateInput struct {
 	ProjectRoot  string `json:"project_root,omitempty" jsonschema:"workspace root path"`
-	ArtifactType string `json:"artifact_type"           jsonschema:"what to validate: session | decision | plan | fad"`
+	ArtifactType string `json:"artifact_type"           jsonschema:"what to validate: session | decision | plan | fad | conflict"`
 	Content      string `json:"content"                  jsonschema:"content to validate (Markdown)"`
 }
 
@@ -55,14 +55,17 @@ func handleValidate(_ context.Context, _ *sdkmcp.CallToolRequest, in ValidateInp
 		validation = core.ValidateSession([]byte(in.Content))
 	case "decision":
 		validation = core.ValidateDecision([]byte(in.Content))
-	case "plan", "fad":
-		// Plans and FADs have different structures than sessions.
-		// Validate frontmatter presence and non-empty body without
-		// requiring session-specific fields like session_id.
+	case "conflict-resolution", "conflict":
+		validation = core.ValidateConflictResolution([]byte(in.Content))
+	case "plan":
+		validation = core.ValidatePlan([]byte(in.Content))
+	case "fad":
+		// FADs have different structures than individual sessions.
+		// Validate frontmatter presence and non-empty body.
 		validation = core.ValidateArtifact([]byte(in.Content))
 	default:
 		return ErrorResult(tool, fmt.Errorf("unknown artifact_type %q", artifactType),
-			"Use 'session', 'decision', 'plan', or 'fad'.")
+			"Use 'session', 'decision', 'plan', 'fad', or 'conflict'.")
 	}
 
 	var warnings []string

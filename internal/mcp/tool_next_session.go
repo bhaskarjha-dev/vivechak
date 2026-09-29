@@ -172,15 +172,23 @@ func handleNextSession(_ context.Context, _ *sdkmcp.CallToolRequest, in NextSess
 	ready := dag.NextSessions(completedIDs)
 
 	if len(ready) == 0 {
-		// All sessions complete
-		if len(completedIDs) == len(dag.Sessions) {
+		// Count completed sessions that belong to the DAG
+		completedCount := 0
+		for _, s := range dag.Sessions {
+			if completedIDs[s.ID] {
+				completedCount++
+			}
+		}
+
+		// All DAG sessions complete
+		if completedCount == len(dag.Sessions) {
 			env := Envelope{
 				Success: true,
 				Message: fmt.Sprintf("All %d sessions complete!", len(dag.Sessions)),
 				Data: map[string]any{
 					"workspace_root":     root,
 					"total_sessions":     len(dag.Sessions),
-					"completed_sessions": len(completedIDs),
+					"completed_sessions": completedCount,
 					"all_complete":       true,
 				},
 				NextStep: "All research sessions are complete. Run vivechak_run_gate " +
@@ -211,11 +219,11 @@ func handleNextSession(_ context.Context, _ *sdkmcp.CallToolRequest, in NextSess
 
 		env := Envelope{
 			Success: true,
-			Message: fmt.Sprintf("%d sessions remaining but all blocked by dependencies", len(dag.Sessions)-len(completedIDs)),
+			Message: fmt.Sprintf("%d sessions remaining but all blocked by dependencies", len(dag.Sessions)-completedCount),
 			Data: map[string]any{
 				"workspace_root":     root,
 				"total_sessions":     len(dag.Sessions),
-				"completed_sessions": len(completedIDs),
+				"completed_sessions": completedCount,
 				"blocked_sessions":   blockedInfo,
 			},
 			NextStep: "Some sessions are blocked by incomplete dependencies. " +

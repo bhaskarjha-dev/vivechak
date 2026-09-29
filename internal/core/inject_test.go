@@ -497,4 +497,50 @@ Key recommendation: use Kafka for event sourcing. A (docs)
 			t.Errorf("expected empty heading to be suppressed, got: %s", extracted)
 		}
 	})
+
+	t.Run("extracts Recommended Architecture and Shortlist headings without formal grades (F-04 and F-08)", func(t *testing.T) {
+		body := `# Landscape & Architecture
+## Recommended Architecture
+Adopt distributed event logging with NATS JetStream.
+
+### Shortlist of Candidates
+1. NATS JetStream
+2. Apache Kafka
+3. RabbitMQ
+`
+		extracted := extractFindings(body, "T1-05")
+		if !strings.Contains(extracted, "Adopt distributed event logging with NATS JetStream") {
+			t.Errorf("expected Recommended Architecture to be extracted, got: %s", extracted)
+		}
+		if !strings.Contains(extracted, "1. NATS JetStream") {
+			t.Errorf("expected shortlist candidate to be extracted, got: %s", extracted)
+		}
+	})
+
+	t.Run("falls back to raw body if only stray grade matched and no relevant headings found (F-04)", func(t *testing.T) {
+		body := `# Architectural Overview
+Historical benchmark achieved 10k ops [Grade B].
+
+System implementation requires distributed consensus with Raft and 3-node cluster.
+Storage engine will use LSM trees for write throughput.
+`
+		extracted := extractFindings(body, "T1-06")
+		// Must not starve the prompt of the rest of the text
+		if !strings.Contains(extracted, "System implementation requires distributed consensus") {
+			t.Errorf("expected raw body fallback when only minimal stray grade matched, got: %s", extracted)
+		}
+	})
+
+	t.Run("code block comments with # do not trigger rejected heading logic", func(t *testing.T) {
+		body := `## Recommended Architecture
+Adopt custom microservice layout.
+
+` + "```bash\n# rejected alternative: port 8080\nexport PORT=9090\n```\n" + `
+This continues the recommended section and must be extracted.
+`
+		extracted := extractFindings(body, "T1-07")
+		if !strings.Contains(extracted, "This continues the recommended section and must be extracted") {
+			t.Errorf("expected content after code block to be retained, got: %s", extracted)
+		}
+	})
 }

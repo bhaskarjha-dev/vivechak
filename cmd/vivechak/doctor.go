@@ -12,7 +12,7 @@ import (
 	"github.com/bhaskarjha-dev/vivechak/internal/core"
 )
 
-var decisionIDRe = regexp.MustCompile(`\bD-\d+\b`)
+var decisionRefRe = regexp.MustCompile(`(?i)\[(D-\d+)\]|\b(?:ADR|decision|informs|refers?\s+to)\s+(D-\d+)\b`)
 
 func runDoctorWithArgs(args []string, stdout, stderr io.Writer) int {
 	var explicit string
@@ -88,29 +88,28 @@ func checkWorkspace(workspace string) (bool, []string, []string) {
 		}
 	}
 
-	// Read decisions registry or ADRs for cross-checks
+	// Read decisions registry and/or standalone ADRs for cross-checks
 	var decisionsContent string
+	var adrContents []string
 	if data, err := os.ReadFile(filepath.Join(workspace, core.DecisionsFile)); err == nil {
-		decisionsContent = string(data)
-	} else {
-		var adrContents []string
-		if entries, err := os.ReadDir(filepath.Join(workspace, core.ResearchDir)); err == nil {
-			for _, e := range entries {
-				name := e.Name()
-				if !e.IsDir() && strings.HasSuffix(name, ".md") &&
-					!strings.HasSuffix(name, "-plan.md") &&
-					!strings.EqualFold(name, "RESEARCH-PIPELINE.md") &&
-					!strings.EqualFold(name, "FAD.md") &&
-					!strings.EqualFold(name, "DECISIONS.md") {
-					if data, err := os.ReadFile(filepath.Join(workspace, core.ResearchDir, name)); err == nil {
-						adrContents = append(adrContents, string(data))
-					}
+		adrContents = append(adrContents, string(data))
+	}
+	if entries, err := os.ReadDir(filepath.Join(workspace, core.ResearchDir)); err == nil {
+		for _, e := range entries {
+			name := e.Name()
+			if !e.IsDir() && strings.HasSuffix(name, ".md") &&
+				!strings.HasSuffix(name, "-plan.md") &&
+				!strings.EqualFold(name, "RESEARCH-PIPELINE.md") &&
+				!strings.EqualFold(name, "FAD.md") &&
+				!strings.EqualFold(name, "DECISIONS.md") {
+				if data, err := os.ReadFile(filepath.Join(workspace, core.ResearchDir, name)); err == nil {
+					adrContents = append(adrContents, string(data))
 				}
 			}
 		}
-		if len(adrContents) > 0 {
-			decisionsContent = strings.Join(adrContents, "\n")
-		}
+	}
+	if len(adrContents) > 0 {
+		decisionsContent = strings.Join(adrContents, "\n")
 	}
 
 	// 3. Frontmatter valid, 4. Orphaned sessions, 5. Stale cross-references, 6. No corruption
@@ -154,12 +153,31 @@ func checkWorkspace(workspace string) (bool, []string, []string) {
 				hasErrors = true
 			}
 
-			// Check stale decisions references
+			// Check stale decisions references from structured frontmatter and explicit references
 			if decisionsContent != "" {
-				matches := decisionIDRe.FindAllString(string(data), -1)
+				var refs []string
+				if fm != nil {
+					refs = append(refs, fm.GetStringSlice("informs_decisions")...)
+					refs = append(refs, fm.GetStringSlice("decisions")...)
+					if s := fm.GetString("decision"); s != "" {
+						refs = append(refs, s)
+					}
+					if s := fm.GetString("informs_decision"); s != "" {
+						refs = append(refs, s)
+					}
+				}
+				for _, match := range decisionRefRe.FindAllStringSubmatch(string(data), -1) {
+					for k := 1; k < len(match); k++ {
+						if match[k] != "" {
+							refs = append(refs, match[k])
+						}
+					}
+				}
+
 				seenMatches := make(map[string]bool)
-				for _, match := range matches {
-					if seenMatches[match] {
+				for _, match := range refs {
+					match = strings.TrimSpace(match)
+					if match == "" || seenMatches[match] {
 						continue
 					}
 					seenMatches[match] = true

@@ -154,17 +154,22 @@ func (d *DAG) NextSessions(completedIDs map[string]bool) []Session {
 
 // Patterns for parsing the pipeline format
 var (
-	// Matches session headers like: #### T1-01: Graph Persistence Landscape, ### Session T1-01: Spike, #### D-001-S1 — Spike
-	sessionHeaderRe = regexp.MustCompile(`^#{1,4}\s+(?:Session\s+)?([A-Za-z0-9]+(?:-[A-Za-z0-9]+)+):?\s*(.*)`)
+	// Matches session headers like:
+	// - #### T1-01: Graph Persistence Landscape
+	// - ### Session T1-01: Spike
+	// - ### Session S1: Spike
+	// - #### S1: Landscape
+	// - #### D-001-S1 — Spike
+	sessionHeaderRe = regexp.MustCompile(`^#{1,4}\s+(?:(?:Session\s+([A-Za-z0-9]+(?:[-_][A-Za-z0-9]+)*))|([A-Za-z0-9]+(?:-[A-Za-z0-9]+)+)|([A-Za-z]+\d+))\s*[:—\-]\s*(.*)`)
 
 	// Matches metadata table rows like: | **ID** | T1-01 |
 	metaFieldRe = regexp.MustCompile(`\|\s*\*\*([^*]+)\*\*\s*\|\s*(.+?)\s*\|`)
 
 	// Matches horizontal session table rows like: | D-015-S1 | Comparison | none | sessions/D-015-S1-cache-comparison.md |
-	sessionTableRowRe = regexp.MustCompile(`^\|\s*([A-Za-z0-9]+(?:-[A-Za-z0-9]+)+)\s*\|\s*([^|]+)\|\s*([^|]+)\|\s*([^|]+)\|`)
+	sessionTableRowRe = regexp.MustCompile(`^\|\s*([A-Za-z0-9]+(?:[-_][A-Za-z0-9]+)*)\s*\|\s*([^|]+)\|\s*([^|]+)\|\s*([^|]+)\|`)
 
 	// Matches words matching session ID pattern inside a brief header
-	briefIDRe = regexp.MustCompile(`[A-Za-z0-9]+(?:-[A-Za-z0-9]+)+`)
+	briefIDRe = regexp.MustCompile(`[A-Za-z0-9]+(?:[-_][A-Za-z0-9]+)*`)
 
 	// Matches the prompt code block
 	promptStartRe = regexp.MustCompile("^`{3,}prompt")
@@ -199,35 +204,7 @@ func ParsePipeline(data []byte) (*DAG, error) {
 		line := lines[i]
 		trimmed := strings.TrimSpace(line)
 
-		// Check for session header
-		if matches := sessionHeaderRe.FindStringSubmatch(trimmed); matches != nil {
-			id := strings.TrimSpace(matches[1])
-			title := strings.TrimSpace(strings.TrimPrefix(matches[2], "—"))
-			currentSession = getOrCreateSession(id)
-			if title != "" && currentSession.Title == "" {
-				currentSession.Title = title
-			}
-			continue
-		}
-
-		// Check for horizontal session table row (e.g. decision plans)
-		if strings.Contains(line, "|") && !strings.Contains(line, "**") && !strings.Contains(line, "---") {
-			if matches := sessionTableRowRe.FindStringSubmatch(trimmed); matches != nil {
-				idVal := strings.TrimSpace(matches[1])
-				if !strings.EqualFold(idVal, "session-id") && !strings.EqualFold(idVal, "id") {
-					currentSession = getOrCreateSession(idVal)
-					if len(currentSession.Dependencies) == 0 {
-						currentSession.Dependencies = parseDependencies(matches[3])
-					}
-					if currentSession.OutputFile == "" {
-						currentSession.OutputFile = strings.Trim(strings.TrimSpace(matches[4]), "`")
-					}
-					continue
-				}
-			}
-		}
-
-		// Collect prompt block
+		// Collect prompt block if inside prompt
 		if inPrompt {
 			numBackticks := 0
 			for j := 0; j < len(trimmed) && trimmed[j] == '`'; j++ {
@@ -296,6 +273,7 @@ func ParsePipeline(data []byte) (*DAG, error) {
 			continue
 		}
 
+		// Check for prompt block start
 		if promptStartRe.MatchString(trimmed) {
 			outerFenceLen = 0
 			for j := 0; j < len(trimmed) && trimmed[j] == '`'; j++ {
@@ -305,6 +283,44 @@ func ParsePipeline(data []byte) (*DAG, error) {
 			inInnerBlock = false
 			promptLines = nil
 			continue
+		}
+
+		// Check for session header
+		if matches := sessionHeaderRe.FindStringSubmatch(trimmed); matches != nil {
+			id := ""
+			for k := 1; k <= 3; k++ {
+				if matches[k] != "" {
+					id = strings.TrimSpace(matches[k])
+					break
+				}
+			}
+			title := strings.TrimSpace(strings.TrimPrefix(matches[4], "—"))
+			title = strings.TrimSpace(strings.TrimPrefix(title, "-"))
+			title = strings.TrimSpace(strings.TrimPrefix(title, ":"))
+			if id != "" {
+				currentSession = getOrCreateSession(id)
+				if title != "" && currentSession.Title == "" {
+					currentSession.Title = title
+				}
+				continue
+			}
+		}
+
+		// Check for horizontal session table row (e.g. decision plans)
+		if strings.Contains(line, "|") && !strings.Contains(line, "**") && !strings.Contains(line, "---") {
+			if matches := sessionTableRowRe.FindStringSubmatch(trimmed); matches != nil {
+				idVal := strings.TrimSpace(matches[1])
+				if !strings.EqualFold(idVal, "session-id") && !strings.EqualFold(idVal, "id") && !strings.EqualFold(idVal, "session") {
+					currentSession = getOrCreateSession(idVal)
+					if len(currentSession.Dependencies) == 0 {
+						currentSession.Dependencies = parseDependencies(matches[3])
+					}
+					if currentSession.OutputFile == "" {
+						currentSession.OutputFile = strings.Trim(strings.TrimSpace(matches[4]), "`")
+					}
+					continue
+				}
+			}
 		}
 
 		// Parse metadata table rows
@@ -414,17 +430,31 @@ func ParsePipeline(data []byte) (*DAG, error) {
 // Session IDs are used exactly as they appear in the pipeline.
 // No normalization is performed. IDs must be consistent between
 // the header, metadata table, and dependency lists.
-// Canonical format uses a hyphen (e.g., "T1-01", "SYN-01", "D-001-S1").
-// ValidateDAG rejects IDs that lack hyphens.
+// Canonical format uses alphanumeric tokens with optional hyphens or underscores
+// (e.g., "T1-01", "SYN-01", "D-001-S1", "S1").
 
 // parseDependencies parses a dependency list from the metadata table.
-// Handles formats like: "None (parallel)", "T1-01", "T1-01, T1-02", "T1-01 (soft)"
+// Handles formats like: "None (parallel)", "T1-01", "T1-01, T1-02", "T1-01 (soft)",
+// "[T1-01, T1-02]", "`T1-01` and `T1-02`", "T1-01 & T1-02".
 func parseDependencies(value string) []string {
 	value = strings.TrimSpace(value)
-	lower := strings.ToLower(value)
-	if lower == "none" || strings.HasPrefix(lower, "none (") || strings.HasPrefix(lower, "none(") || lower == "—" || lower == "-" || lower == "n/a" || lower == "" {
+
+	// Clean enclosing brackets, backticks, quotes
+	value = strings.ReplaceAll(value, "[", "")
+	value = strings.ReplaceAll(value, "]", "")
+	value = strings.ReplaceAll(value, "`", "")
+	value = strings.ReplaceAll(value, "\"", "")
+	value = strings.ReplaceAll(value, "'", "")
+
+	lower := strings.ToLower(strings.TrimSpace(value))
+	if lower == "none" || strings.HasPrefix(lower, "none (") || strings.HasPrefix(lower, "none(") ||
+		lower == "—" || lower == "-" || lower == "n/a" || lower == "" {
 		return nil
 	}
+
+	// Normalize conjunctions
+	value = strings.ReplaceAll(value, " and ", ", ")
+	value = strings.ReplaceAll(value, " & ", ", ")
 
 	parts := strings.Split(value, ",")
 	var deps []string
@@ -433,7 +463,7 @@ func parseDependencies(value string) []string {
 		if idx := strings.Index(p, "("); idx > 0 {
 			p = strings.TrimSpace(p[:idx])
 		}
-		if p != "" && !strings.EqualFold(p, "none") && !strings.EqualFold(p, "n/a") {
+		if p != "" && !strings.EqualFold(p, "none") && !strings.EqualFold(p, "n/a") && !strings.EqualFold(p, "and") {
 			deps = append(deps, p)
 		}
 	}

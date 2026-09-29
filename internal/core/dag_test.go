@@ -249,6 +249,11 @@ func TestParseDependencies(t *testing.T) {
 		{"T1-01 (soft), T1-02", []string{"T1-01", "T1-02"}},
 		{"T1-01, T1-02 (none-blocking)", []string{"T1-01", "T1-02"}},
 		{"T1-01, none", []string{"T1-01"}},
+		{"[T1-01, T1-02]", []string{"T1-01", "T1-02"}},
+		{"`T1-01` and `T1-02`", []string{"T1-01", "T1-02"}},
+		{"T1-01 & T1-02", []string{"T1-01", "T1-02"}},
+		{"[None]", nil},
+		{"`none`", nil},
 	}
 
 	for _, tc := range tests {
@@ -569,6 +574,56 @@ func TestValidateDAG_AlphanumericIDs(t *testing.T) {
 	}
 	if err := invalidDAG.ValidateDAG(); err == nil {
 		t.Error("expected error for ID with slash, got nil")
+	}
+}
+
+func TestParsePipeline_SingleTokenAndHeaders(t *testing.T) {
+	content := `# Research Pipeline
+
+### Session S1: Landscape
+| **ID** | S1 |
+| **Dependencies** | None |
+
+` + "````prompt" + `
+Execute landscape research
+` + "````" + `
+
+#### S2: Deep Dive
+| **ID** | S2 |
+| **Dependencies** | [S1] |
+
+` + "````prompt" + `
+Execute deep dive research
+` + "````" + `
+
+#### SYN: Synthesis
+| **ID** | SYN |
+| **Dependencies** | S1 and S2 |
+
+` + "````prompt" + `
+Synthesize all findings
+` + "````" + `
+`
+
+	dag, err := ParsePipeline([]byte(content))
+	if err != nil {
+		t.Fatalf("ParsePipeline error: %v", err)
+	}
+	if len(dag.Sessions) != 3 {
+		t.Fatalf("expected 3 sessions, got %d", len(dag.Sessions))
+	}
+	if dag.Sessions[0].ID != "S1" || dag.Sessions[0].Title != "Landscape" {
+		t.Errorf("unexpected session 0: %+v", dag.Sessions[0])
+	}
+	if dag.Sessions[1].ID != "S2" || len(dag.Sessions[1].Dependencies) != 1 || dag.Sessions[1].Dependencies[0] != "S1" {
+		t.Errorf("unexpected session 1: %+v", dag.Sessions[1])
+	}
+	if dag.Sessions[2].ID != "SYN" || len(dag.Sessions[2].Dependencies) != 2 || dag.Sessions[2].Dependencies[0] != "S1" || dag.Sessions[2].Dependencies[1] != "S2" {
+		t.Errorf("unexpected session 2: %+v", dag.Sessions[2])
+	}
+
+	if err := dag.ValidateDAG(); err != nil {
+		t.Errorf("expected valid DAG, got: %v", err)
 	}
 }
 

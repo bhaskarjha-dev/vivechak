@@ -111,6 +111,17 @@ func (r *ValidationResult) ErrorCount() int {
 	return count
 }
 
+// BlockingIssues returns all issues with Level >= L2Block.
+func (r *ValidationResult) BlockingIssues() []ValidationIssue {
+	var blocking []ValidationIssue
+	for _, issue := range r.Issues {
+		if issue.Level >= L2Block {
+			blocking = append(blocking, issue)
+		}
+	}
+	return blocking
+}
+
 // AddIssue appends a validation issue.
 func (r *ValidationResult) AddIssue(level ValidationLevel, code, message string) {
 	r.Issues = append(r.Issues, ValidationIssue{
@@ -173,6 +184,10 @@ func ValidateSession(data []byte) *ValidationResult {
 		if !has && field == "session_id" {
 			has = fm.Has("id")
 		}
+		// Accept 'synthesis_date' as alias for 'date'
+		if !has && field == "date" {
+			has = fm.Has("synthesis_date")
+		}
 		if !has {
 			hint := fmt.Sprintf("Add '%s: <value>' to the frontmatter block", field)
 			if field == "session_id" {
@@ -185,12 +200,16 @@ func ValidateSession(data []byte) *ValidationResult {
 	}
 
 	// L3: Check date format (YYYY-MM-DD)
-	if fm.Has("date") {
-		dateStr := fm.GetString("date")
+	dateKey := "date"
+	if !fm.Has("date") && fm.Has("synthesis_date") {
+		dateKey = "synthesis_date"
+	}
+	if fm.Has(dateKey) {
+		dateStr := fm.GetString(dateKey)
 		if matched, _ := regexp.MatchString(`^\d{4}-\d{2}-\d{2}$`, dateStr); !matched {
 			result.AddIssueWithHint(L3Warn, "W-INVALID-DATE-FORMAT",
-				"Date field is not in YYYY-MM-DD format",
-				"Use ISO 8601 format: date: 2026-09-29")
+				fmt.Sprintf("%s field is not in YYYY-MM-DD format", dateKey),
+				fmt.Sprintf("Use ISO 8601 format: %s: 2026-09-29", dateKey))
 		}
 	}
 
@@ -370,6 +389,53 @@ func ValidateArtifact(data []byte) *ValidationResult {
 		result.AddIssueWithHint(L3Warn, "W-NO-EVIDENCE-GRADES",
 			"No inline evidence grades (A-E) found",
 			"Add evidence grades inline, e.g., 'Grade B (docs-verified)'")
+	}
+
+	if result.HasBlocking() {
+		result.Status = "draft"
+	} else if result.WarningCount() > 0 {
+		result.Status = "valid-with-warnings"
+	}
+
+	return result
+}
+
+// ValidatePlan validates a research plan or pipeline DAG.
+// Unlike sessions and decisions, plans do not require YAML frontmatter or evidence grades.
+func ValidatePlan(data []byte) *ValidationResult {
+	result := &ValidationResult{Status: "valid"}
+
+	trimmed := bytes.TrimSpace(data)
+	if len(trimmed) == 0 {
+		result.AddIssue(L2Block, "V-EMPTY", "Plan content is empty")
+		result.Status = "invalid"
+		return result
+	}
+
+	// Try parsing as a pipeline DAG
+	dag, err := ParsePipeline(data)
+	if err == nil && len(dag.Sessions) > 0 {
+		// Validate DAG structure (cycles, dangling dependencies)
+		if valErr := dag.ValidateDAG(); valErr != nil {
+			result.AddIssueWithHint(L2Block, "V-INVALID-DAG",
+				fmt.Sprintf("Pipeline DAG validation failed: %v", valErr),
+				"Fix dependency cycles or dangling session references")
+		}
+		// Warn if any session lacks prompt instructions
+		for _, s := range dag.Sessions {
+			if strings.TrimSpace(s.Prompt) == "" {
+				result.AddIssueWithHint(L3Warn, "W-EMPTY-PROMPT",
+					fmt.Sprintf("Session %s has no prompt block", s.ID),
+					"Include an execution prompt block for each session")
+			}
+		}
+	} else {
+		// Decision-level, comparison, or generic plan without full DAG sessions
+		if len(trimmed) < 100 {
+			result.AddIssueWithHint(L3Warn, "W-SHORT-PLAN",
+				"Plan is very short (< 100 characters)",
+				"Ensure the plan includes clear research questions, scope, and objectives")
+		}
 	}
 
 	if result.HasBlocking() {

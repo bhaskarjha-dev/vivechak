@@ -244,16 +244,23 @@ func extractFindings(body string, sessionID string) string {
 	}
 	var pendingHeadings []headingEntry
 	substantiveBytes := 0
+	hasRelevantHeading := false
 
 	lines := strings.Split(body, "\n")
 	inRelevantSection := false
 	inRejectedSection := false
+	inCodeBlock := false
 
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
 
-		// Always check headings
-		if strings.HasPrefix(trimmed, "#") {
+		// Track code fence boundaries
+		if strings.HasPrefix(trimmed, "```") {
+			inCodeBlock = !inCodeBlock
+		}
+
+		// Always check headings (only outside code blocks)
+		if !inCodeBlock && strings.HasPrefix(trimmed, "#") {
 			lower := strings.ToLower(trimmed)
 			if strings.Contains(lower, "rejected") || strings.Contains(lower, "alternatives considered") {
 				inRejectedSection = true
@@ -262,13 +269,23 @@ func extractFindings(body string, sessionID string) string {
 				continue
 			}
 			inRejectedSection = false
-			inRelevantSection = strings.Contains(lower, "recommendation") ||
+			inRelevantSection = strings.Contains(lower, "recommend") ||
 				strings.Contains(lower, "finding") ||
 				strings.Contains(lower, "conclusion") ||
 				strings.Contains(lower, "decision") ||
 				strings.Contains(lower, "verdict") ||
 				strings.Contains(lower, "summary") ||
-				strings.Contains(lower, "result")
+				strings.Contains(lower, "result") ||
+				strings.Contains(lower, "shortlist") ||
+				strings.Contains(lower, "candidate") ||
+				strings.Contains(lower, "chosen") ||
+				strings.Contains(lower, "propos") ||
+				strings.Contains(lower, "takeaway") ||
+				strings.Contains(lower, "architecture")
+
+			if inRelevantSection {
+				hasRelevantHeading = true
+			}
 
 			level := 0
 			for level < len(trimmed) && trimmed[level] == '#' {
@@ -302,9 +319,10 @@ func extractFindings(body string, sessionID string) string {
 		}
 	}
 
-	// If no substantive content was extracted, fall back to raw body (up to 4000 chars)
+	// If no substantive content was extracted, or if no relevant headings were matched
+	// and only minimal stray text (< 150 bytes) was extracted, fall back to raw body (up to 4000 chars)
 	// so downstream prompts are not starved.
-	if substantiveBytes == 0 && len(body) > 0 {
+	if (substantiveBytes == 0 || (!hasRelevantHeading && substantiveBytes < 150)) && len(body) > 0 {
 		maxLen := 4000
 		if len(body) < maxLen {
 			maxLen = len(body)

@@ -844,6 +844,7 @@ decision_id: D-001
 title: Primary Datastore
 status: accepted
 door_type: one-way
+review_trigger: "Throughput exceeds 50k ops"
 date: 2026-09-27
 ---
 # Decision: Primary Datastore
@@ -1511,5 +1512,302 @@ Prompt one
 	}
 	if !strings.Contains(env.NextStep, "T1-01") {
 		t.Errorf("expected available sessions list in NextStep, got: %s", env.NextStep)
+	}
+}
+
+func TestValidateArtifact_PlanAndConflict(t *testing.T) {
+	ctx := context.Background()
+	cs := testServer(t)
+
+	// 1. Conflict resolution
+	conflict := `---
+id: CR-001
+decision_id: D-001
+title: Database Selection Conflict Resolution
+status: complete
+door_type: one-way
+---
+# Conflict Resolution: Database Selection
+
+## Conflict Summary
+Session T1-01 recommended PostgreSQL. Session T1-02 recommended ScyllaDB.
+
+## ACH Matrix Analysis
+| Hypothesis | Evidence 1 | Evidence 2 | Verdict |
+|---|---|---|---|
+| PostgreSQL | Consistent | Consistent | Strongly Supported |
+| ScyllaDB | Inconsistent | Consistent | Rejected |
+
+## Final Resolution
+Adopt PostgreSQL for primary ACID datastore. A (benchmarks)
+`
+	res, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_validate",
+		Arguments: map[string]any{
+			"artifact_type": "conflict-resolution",
+			"content":       conflict,
+		},
+	})
+	if err != nil {
+		t.Fatalf("validate conflict-resolution: %v", err)
+	}
+	env := parseEnvelope(t, res)
+	if !env.Success {
+		t.Fatalf("expected validate success: %s", env.Message)
+	}
+	data, _ := env.Data.(map[string]any)
+	if data["status"] != "valid" && data["status"] != "valid-with-warnings" {
+		t.Errorf("expected valid status, got %v", data["status"])
+	}
+
+	// 2. Plan artifact
+	plan := `# Research Pipeline
+### Session T1-01: Benchmark
+| **ID** | T1-01 |
+| **Dependencies** | None |
+` + "````prompt" + `
+Execute benchmark
+` + "````" + `
+`
+	resPlan, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_validate",
+		Arguments: map[string]any{
+			"artifact_type": "plan",
+			"content":       plan,
+		},
+	})
+	if err != nil {
+		t.Fatalf("validate plan: %v", err)
+	}
+	envPlan := parseEnvelope(t, resPlan)
+	if !envPlan.Success {
+		t.Fatalf("expected validate plan success: %s", envPlan.Message)
+	}
+	dataPlan, _ := envPlan.Data.(map[string]any)
+	if errCount, ok := dataPlan["error_count"].(float64); !ok || errCount != 0 {
+		t.Errorf("expected 0 errors on valid plan, got %v", dataPlan["error_count"])
+	}
+}
+
+func TestRunGate_Mechanics(t *testing.T) {
+	ctx := context.Background()
+	cs := testServer(t)
+	tmpDir := t.TempDir()
+
+	// 1. Initialize
+	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "vivechak_init",
+		Arguments: map[string]any{"project_root": tmpDir, "scope": "project"},
+	})
+
+	// 2. Save pipeline with 3 sessions (meeting recommended minimum for project scope)
+	pipe := `# Pipeline
+#### T1-01: Core Architecture
+| **ID** | T1-01 |
+| **Dependencies** | None |
+| **Output File** | sessions/T1-01.md |
+` + "```prompt" + `
+Brief 1
+` + "```" + `
+
+#### T1-02: Storage Layer
+| **ID** | T1-02 |
+| **Dependencies** | None |
+| **Output File** | sessions/T1-02.md |
+` + "```prompt" + `
+Brief 2
+` + "```" + `
+
+#### SYN-01: Synthesis
+| **ID** | SYN-01 |
+| **Dependencies** | T1-01, T1-02 |
+| **Output File** | research/FAD.md |
+` + "```prompt" + `
+Synthesis brief
+` + "```" + `
+`
+	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_save_plan",
+		Arguments: map[string]any{
+			"project_root": tmpDir,
+			"scope":        "project",
+			"content":      pipe,
+		},
+	})
+
+	// 3. Save only session T1-01
+	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_save_session",
+		Arguments: map[string]any{
+			"project_root": tmpDir,
+			"session_id":   "T1-01",
+			"content": `---
+session_id: T1-01
+title: Core Architecture
+date: 2026-09-29
+status: complete
+---
+# Architecture Findings
+Recommended SQLite in WAL mode for lightweight single-node performance. A (docs)
+`,
+		},
+	})
+
+	// 4. Run gate while DAG is incomplete (T1-02 and SYN-01 missing)
+	resGate1, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "vivechak_run_gate",
+		Arguments: map[string]any{"project_root": tmpDir, "verbose": true},
+	})
+	if err != nil {
+		t.Fatalf("gate call 1: %v", err)
+	}
+	envGate1 := parseEnvelope(t, resGate1)
+	gate1Data, _ := envGate1.Data.(map[string]any)
+	if gate1Data["gate_status"] == "PASS" {
+		t.Error("gate should fail when DAG sessions are incomplete")
+	}
+
+	// 5. Complete T1-02
+	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_save_session",
+		Arguments: map[string]any{
+			"project_root": tmpDir,
+			"session_id":   "T1-02",
+			"content": `---
+session_id: T1-02
+title: Storage Layer
+date: 2026-09-29
+status: complete
+---
+# Storage Findings
+Raw disk benchmarks demonstrate 15k IOPS sustained under load. A (benchmarks)
+`,
+		},
+	})
+
+	// 6. Complete SYN-01 and FAD with substantive body (> 100 chars and evidence grades)
+	fadContent := `---
+id: SYN-01
+title: Founding Architecture Document
+synthesis_date: 2026-09-29
+status: complete
+---
+# Founding Architecture Document
+
+## Executive Summary
+This document synthesizes findings across sessions T1-01 and T1-02 to establish the project's foundation.
+The architecture utilizes SQLite with WAL mode backed by high-IOPS storage. A (benchmarks)
+
+## Technology Decisions
+1. Datastore: SQLite in WAL mode. A (docs)
+2. Storage: NVMe direct-attached volume. B (benchmarks)
+`
+	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_save_session",
+		Arguments: map[string]any{
+			"project_root": tmpDir,
+			"session_id":   "SYN-01",
+			"content":      fadContent,
+		},
+	})
+
+	// 7. Record one-way door ADR without reversal trigger
+	untriggeredADR := `<!-- DECISION: D-001 -->
+---
+decision_id: D-001
+title: Database Selection
+status: accepted
+door_type: one-way
+---
+# Decision
+Use SQLite in WAL mode. A (docs)
+<!-- /DECISION: D-001 -->
+`
+	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_record_decision",
+		Arguments: map[string]any{
+			"project_root":  tmpDir,
+			"artifact_type": "decision",
+			"decision_id":   "D-001",
+			"content":       untriggeredADR,
+		},
+	})
+
+	// 8. Run gate with one-way door lacking reversal trigger
+	resGate2, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "vivechak_run_gate",
+		Arguments: map[string]any{"project_root": tmpDir, "verbose": true},
+	})
+	if err != nil {
+		t.Fatalf("gate call 2: %v", err)
+	}
+	envGate2 := parseEnvelope(t, resGate2)
+	gate2Data, _ := envGate2.Data.(map[string]any)
+	if gate2Data["gate_status"] == "PASS" {
+		t.Error("gate should fail when one-way door decision lacks reversal triggers")
+	}
+
+	// 9. Add reversal trigger to the one-way door
+	triggeredADR := `<!-- DECISION: D-001 -->
+---
+decision_id: D-001
+title: Database Selection
+status: accepted
+door_type: one-way
+review_trigger: "Throughput exceeds 50k ops"
+---
+# Decision
+Use SQLite in WAL mode. A (docs)
+<!-- /DECISION: D-001 -->
+`
+	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_record_decision",
+		Arguments: map[string]any{
+			"project_root":  tmpDir,
+			"artifact_type": "decision",
+			"decision_id":   "D-001",
+			"content":       triggeredADR,
+		},
+	})
+
+	// 10. Run gate -> MUST PASS!
+	resGate3, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "vivechak_run_gate",
+		Arguments: map[string]any{"project_root": tmpDir, "verbose": true},
+	})
+	if err != nil {
+		t.Fatalf("gate call 3: %v", err)
+	}
+	envGate3 := parseEnvelope(t, resGate3)
+	gate3Data, _ := envGate3.Data.(map[string]any)
+	if gate3Data["gate_status"] != "PASS" || gate3Data["gate_passed"] != true {
+		t.Fatalf("expected gate PASS after human signoff, got status=%v passed=%v (message=%s, warnings=%v)",
+			gate3Data["gate_status"], gate3Data["gate_passed"], envGate3.Message, envGate3.Warnings)
+	}
+}
+
+func TestInit_HomeDirGuard(t *testing.T) {
+	home, err := os.UserHomeDir()
+	if err != nil || home == "" {
+		t.Skip("user home directory not available")
+	}
+
+	t.Chdir(home)
+	cs := testServer(t)
+	ctx := context.Background()
+
+	res, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "vivechak_init",
+		Arguments: map[string]any{}, // project_root omitted
+	})
+	if err != nil {
+		t.Fatalf("unexpected call error: %v", err)
+	}
+	env := parseEnvelope(t, res)
+	if env.Success {
+		t.Error("expected error when initializing directly in home directory with omitted project_root")
+	}
+	if !strings.Contains(env.Message, "user home directory") {
+		t.Errorf("expected home directory error message, got: %s", env.Message)
 	}
 }

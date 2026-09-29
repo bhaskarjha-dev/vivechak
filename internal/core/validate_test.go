@@ -213,6 +213,13 @@ func TestCanonicalTemplates_ParseAndValidate(t *testing.T) {
 						t.Errorf("%s triggered W-MISSING-FRONTMATTER: %v", tmpl, iss)
 					}
 				}
+				// Verify ValidateSession accepts synthesis_date as alias for date (Fix F-03)
+				resSession := ValidateSession(data)
+				for _, iss := range resSession.Issues {
+					if iss.Code == "V-MISSING-FIELD" && iss.Field == "date" {
+						t.Errorf("ValidateSession rejected synthesis_date as alias for date: %v", iss)
+					}
+				}
 			case "COMPARISON-SESSION.template.md":
 				res := ValidateSession(data)
 				for _, iss := range res.Issues {
@@ -222,6 +229,63 @@ func TestCanonicalTemplates_ParseAndValidate(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestValidatePlan(t *testing.T) {
+	// Plan with valid DAG but no YAML frontmatter or evidence grades
+	plan := `# Research Pipeline: Test Pipeline
+
+### Session T1-01: Architecture
+| **ID** | T1-01 |
+| **Dependencies** | None |
+
+` + "````prompt" + `
+Execute architecture research
+` + "````" + `
+
+### Session SYN-01: Synthesis
+| **ID** | SYN-01 |
+| **Dependencies** | T1-01 |
+
+` + "````prompt" + `
+Synthesize findings
+` + "````" + `
+`
+	res := ValidatePlan([]byte(plan))
+	if res.HasBlocking() {
+		t.Errorf("expected valid plan, got blocking issues: %v", res.BlockingIssues())
+	}
+	for _, iss := range res.Issues {
+		if iss.Code == "W-MISSING-FRONTMATTER" || iss.Code == "W-NO-EVIDENCE-GRADES" {
+			t.Errorf("plan triggered false positive warning: %v", iss)
+		}
+	}
+
+	// Empty plan should block
+	resEmpty := ValidatePlan([]byte("   "))
+	if !resEmpty.HasBlocking() {
+		t.Error("expected blocking error for empty plan")
+	}
+
+	// Plan with DAG cycle should report invalid DAG
+	cyclicPlan := `# Research Pipeline
+### Session T1-01: First
+| **ID** | T1-01 |
+| **Dependencies** | T1-02 |
+` + "````prompt" + `
+Prompt
+` + "````" + `
+### Session T1-02: Second
+| **ID** | T1-02 |
+| **Dependencies** | T1-01 |
+` + "````prompt" + `
+Prompt
+` + "````" + `
+`
+	resCycle := ValidatePlan([]byte(cyclicPlan))
+	if !resCycle.HasBlocking() {
+		t.Error("expected blocking error for cyclic plan")
 	}
 }
 
