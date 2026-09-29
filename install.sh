@@ -79,7 +79,12 @@ else
     sudo mkdir -p "$INSTALL_DIR"
     sudo cp vivechak "${INSTALL_DIR}/vivechak"
     sudo chmod +x "${INSTALL_DIR}/vivechak"
-    sudo ln -sf "${INSTALL_DIR}/vivechak" "${INSTALL_DIR}/vck"
+    if [ -f vck ]; then
+      sudo cp vck "${INSTALL_DIR}/vck"
+      sudo chmod +x "${INSTALL_DIR}/vck"
+    else
+      sudo ln -sf "${INSTALL_DIR}/vivechak" "${INSTALL_DIR}/vck"
+    fi
     echo ""
     echo "✓ vivechak ${TAG} and shorthand 'vck' installed to ${INSTALL_DIR}"
     echo ""
@@ -100,7 +105,12 @@ fi
 
 cp vivechak "${TARGET}/vivechak"
 chmod +x "${TARGET}/vivechak"
-ln -sf "${TARGET}/vivechak" "${TARGET}/vck"
+if [ -f vck ]; then
+  cp vck "${TARGET}/vck"
+  chmod +x "${TARGET}/vck"
+else
+  ln -sf "${TARGET}/vivechak" "${TARGET}/vck"
+fi
 
 echo ""
 echo "✓ vivechak ${TAG} and shorthand 'vck' installed to ${TARGET}"

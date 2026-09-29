@@ -71,12 +71,55 @@ builds:
     env:
       - CGO_ENABLED=0
 
+  - id: vck-darwin-amd64
+    main: ./cmd/vivechak
+    binary: vck
+    goos: [darwin]
+    goarch: [amd64]
+    flags: [-trimpath]
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+    env:
+      - CGO_ENABLED=0
+
+  - id: vck-darwin-arm64
+    main: ./cmd/vivechak
+    binary: vck
+    goos: [darwin]
+    goarch: [arm64]
+    flags: [-trimpath]
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+    env:
+      - CGO_ENABLED=0
+
+  - id: vck-linux
+    main: ./cmd/vivechak
+    binary: vck
+    goos: [linux]
+    goarch: [amd64, arm64]
+    flags: [-trimpath]
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+    env:
+      - CGO_ENABLED=0
+
 universal_binaries:
   - id: vivechak-darwin-universal
     ids:
       - vivechak-darwin-amd64
       - vivechak-darwin-arm64
     name_template: vivechak
+    replace: true
+
+  - id: vck-darwin-universal
+    ids:
+      - vck-darwin-amd64
+      - vck-darwin-arm64
+    name_template: vck
     replace: true
 
 archives:
@@ -145,7 +188,11 @@ brews:
     license: MIT
     install: |
       bin.install "vivechak"
-      bin.install_symlink "vivechak" => "vck"
+      if File.exist?("vck")
+        bin.install "vck"
+      else
+        bin.install_symlink "vivechak" => "vck"
+      end
     test: |
       system "#{bin}/vivechak", "version"
       system "#{bin}/vck", "version"

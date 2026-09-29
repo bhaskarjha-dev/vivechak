@@ -249,18 +249,49 @@ func extractFindings(body string, sessionID string) string {
 	lines := strings.Split(body, "\n")
 	inRelevantSection := false
 	inRejectedSection := false
-	inCodeBlock := false
+	fenceLen := 0
 
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
 
 		// Track code fence boundaries
-		if strings.HasPrefix(trimmed, "```") {
-			inCodeBlock = !inCodeBlock
+		nTicks := countLeadingBackticks(trimmed)
+		if fenceLen == 0 {
+			if nTicks >= 3 {
+				fenceLen = nTicks
+				if inRelevantSection && !inRejectedSection {
+					for _, h := range pendingHeadings {
+						substantiveContent.WriteString(h.line + "\n")
+					}
+					pendingHeadings = nil
+					substantiveContent.WriteString(line + "\n")
+					substantiveBytes += len(trimmed)
+				}
+				continue
+			}
+		} else {
+			if nTicks >= fenceLen && strings.TrimSpace(trimmed[nTicks:]) == "" {
+				fenceLen = 0
+				if inRelevantSection && !inRejectedSection {
+					substantiveContent.WriteString(line + "\n")
+					substantiveBytes += len(trimmed)
+				}
+				continue
+			}
+			// Line is inside code block; preserve if in relevant section without parsing as headings
+			if inRelevantSection && !inRejectedSection && trimmed != "" {
+				for _, h := range pendingHeadings {
+					substantiveContent.WriteString(h.line + "\n")
+				}
+				pendingHeadings = nil
+				substantiveContent.WriteString(line + "\n")
+				substantiveBytes += len(trimmed)
+			}
+			continue
 		}
 
 		// Always check headings (only outside code blocks)
-		if !inCodeBlock && strings.HasPrefix(trimmed, "#") {
+		if strings.HasPrefix(trimmed, "#") {
 			lower := strings.ToLower(trimmed)
 			if strings.Contains(lower, "rejected") || strings.Contains(lower, "alternatives considered") {
 				inRejectedSection = true
@@ -281,7 +312,16 @@ func extractFindings(body string, sessionID string) string {
 				strings.Contains(lower, "chosen") ||
 				strings.Contains(lower, "propos") ||
 				strings.Contains(lower, "takeaway") ||
-				strings.Contains(lower, "architecture")
+				strings.Contains(lower, "architecture") ||
+				strings.Contains(lower, "matrix") ||
+				strings.Contains(lower, "evaluat") ||
+				strings.Contains(lower, "risk") ||
+				strings.Contains(lower, "concern") ||
+				strings.Contains(lower, "tradeoff") ||
+				strings.Contains(lower, "failure") ||
+				strings.Contains(lower, "premortem") ||
+				strings.Contains(lower, "sensitiv") ||
+				strings.Contains(lower, "criteri")
 
 			if inRelevantSection {
 				hasRelevantHeading = true
@@ -358,3 +398,13 @@ func injectIntoPrompt(prompt, slot, content string) string {
 	// Append upstream context if no slot found
 	return prompt + "\n\n## UPSTREAM RESEARCH CONTEXT\n\n" + content
 }
+
+// countLeadingBackticks returns the number of consecutive leading backticks.
+func countLeadingBackticks(s string) int {
+	count := 0
+	for count < len(s) && s[count] == '`' {
+		count++
+	}
+	return count
+}
+

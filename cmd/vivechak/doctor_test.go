@@ -250,3 +250,80 @@ Deploy on AWS D-100 tier servers with D-25 cable connectors. A (spec)
 	}
 }
 
+func TestCheckWorkspace_MultipleDecisionPlans_NoFalseOrphans(t *testing.T) {
+	tmpDir := t.TempDir()
+	_ = os.MkdirAll(filepath.Join(tmpDir, core.TemplatesDir), 0o755)
+	_ = os.MkdirAll(filepath.Join(tmpDir, core.SessionsDir), 0o755)
+	for _, tmpl := range core.TemplatesToCopy {
+		_ = os.WriteFile(filepath.Join(tmpDir, core.TemplatesDir, tmpl), []byte("# Template "+tmpl), 0o644)
+	}
+
+	// Create two decision plans
+	plan1 := "# Plan 1\n#### S1-01: First Decision Session\n"
+	plan2 := "# Plan 2\n#### S2-01: Second Decision Session\n"
+	_ = os.WriteFile(filepath.Join(tmpDir, core.ResearchDir, "D-001-plan.md"), []byte(plan1), 0o644)
+	_ = os.WriteFile(filepath.Join(tmpDir, core.ResearchDir, "D-002-plan.md"), []byte(plan2), 0o644)
+
+	// Create standalone ADRs
+	_ = os.WriteFile(filepath.Join(tmpDir, core.ResearchDir, "D-001-decision.md"), []byte("---\nid: D-001\nstatus: accepted\n---\n# D-001"), 0o644)
+	_ = os.WriteFile(filepath.Join(tmpDir, core.ResearchDir, "D-002-decision.md"), []byte("---\nid: D-002\nstatus: accepted\n---\n# D-002"), 0o644)
+
+	// Create sessions corresponding to each plan
+	s1 := "---\nsession_id: S1-01\ntitle: S1\nstatus: complete\ndate: 2026-09-29\n---\nRefers to D-001. A (doc)"
+	s2 := "---\nsession_id: S2-01\ntitle: S2\nstatus: complete\ndate: 2026-09-29\n---\nRefers to D-002. A (doc)"
+	_ = os.WriteFile(filepath.Join(tmpDir, core.SessionsDir, "S1-01.md"), []byte(s1), 0o644)
+	_ = os.WriteFile(filepath.Join(tmpDir, core.SessionsDir, "S2-01.md"), []byte(s2), 0o644)
+
+	hasErrors, _, errs := checkWorkspace(tmpDir)
+	if hasErrors {
+		t.Fatalf("expected healthy workspace with multiple decision plans, got errors: %v", errs)
+	}
+}
+
+func TestCheckWorkspace_AlphanumericDecisionRef(t *testing.T) {
+	tmpDir := t.TempDir()
+	_ = os.MkdirAll(filepath.Join(tmpDir, core.TemplatesDir), 0o755)
+	_ = os.MkdirAll(filepath.Join(tmpDir, core.SessionsDir), 0o755)
+	for _, tmpl := range core.TemplatesToCopy {
+		_ = os.WriteFile(filepath.Join(tmpDir, core.TemplatesDir, tmpl), []byte("# Template "+tmpl), 0o644)
+	}
+
+	_ = os.WriteFile(filepath.Join(tmpDir, core.PipelineFile), []byte("# Pipeline\n#### T1-01: Auth Session\n"), 0o644)
+
+	// Decision registry with alphanumeric IDs
+	decisions := `# Decisions
+<!-- DECISION: D-AUTH-01 -->
+---
+id: D-AUTH-01
+status: accepted
+---
+# D-AUTH-01
+
+<!-- DECISION: D-NEW -->
+---
+id: D-NEW
+status: accepted
+---
+# D-NEW
+`
+	_ = os.WriteFile(filepath.Join(tmpDir, core.DecisionsFile), []byte(decisions), 0o644)
+
+	// Session referencing D-AUTH-01 and D-NEW
+	sessionContent := `---
+session_id: T1-01
+title: Auth Session
+status: complete
+date: 2026-09-29
+---
+# Auth Findings
+Refers to [D-AUTH-01] and decision D-NEW. A (doc)
+`
+	_ = os.WriteFile(filepath.Join(tmpDir, core.SessionsDir, "T1-01.md"), []byte(sessionContent), 0o644)
+
+	hasErrors, _, errs := checkWorkspace(tmpDir)
+	if hasErrors {
+		t.Fatalf("expected healthy workspace for alphanumeric ADR refs, got errors: %v", errs)
+	}
+}
+
+

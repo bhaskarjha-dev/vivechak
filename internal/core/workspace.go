@@ -59,6 +59,14 @@ func ResolveWorkspace(explicit string) (string, error) {
 		if err != nil {
 			return "", fmt.Errorf("resolving explicit path %q: %w", explicit, err)
 		}
+		// If explicit path points directly to research directory, normalize to parent workspace root
+		if filepath.Base(abs) == ResearchDir {
+			if _, err := os.Stat(filepath.Join(abs, ResearchDir)); os.IsNotExist(err) {
+				if fi, err := os.Stat(abs); err == nil && fi.IsDir() {
+					abs = filepath.Dir(abs)
+				}
+			}
+		}
 		return abs, nil
 	}
 
@@ -155,9 +163,54 @@ func InspectWorkspace(root string) WorkspaceInfo {
 			hasMetadataScope = true
 		}
 	}
-	// Only infer project scope from pipeline if metadata didn't provide one
-	if !hasMetadataScope && info.HasPipeline {
-		info.Scope = ScopeProject
+	// If metadata did not provide a scope, infer scope from pipeline presence or manual workspace files
+	if !hasMetadataScope {
+		if info.HasPipeline {
+			info.Scope = ScopeProject
+		} else if entries, err := os.ReadDir(researchPath); err == nil {
+			hasDecisionPlan := false
+			hasComparisonPlan := false
+			for _, e := range entries {
+				name := e.Name()
+				if !e.IsDir() && strings.HasSuffix(name, ".md") {
+					if strings.HasSuffix(name, "-plan.md") {
+						hasDecisionPlan = true
+						info.HasPipeline = true
+					} else if strings.HasSuffix(name, "-comparison.md") {
+						hasComparisonPlan = true
+						info.HasPipeline = true
+					}
+				}
+			}
+			if hasDecisionPlan {
+				info.Scope = ScopeDecision
+			} else if hasComparisonPlan {
+				info.Scope = ScopeComparison
+			} else {
+				// Check sessions directory for session ID prefixes if still undetermined
+				if sEntries, err := os.ReadDir(filepath.Join(root, SessionsDir)); err == nil {
+					for _, se := range sEntries {
+						sName := se.Name()
+						if strings.HasPrefix(sName, "S1-") || strings.HasPrefix(sName, "D-") {
+							info.Scope = ScopeDecision
+							break
+						} else if strings.HasPrefix(sName, "C1-") || strings.HasPrefix(sName, "COMP-") {
+							info.Scope = ScopeComparison
+							break
+						}
+					}
+				}
+				if info.Scope == "" {
+					for _, e := range entries {
+						name := e.Name()
+						if !e.IsDir() && strings.HasSuffix(name, "-decision.md") {
+							info.Scope = ScopeDecision
+							break
+						}
+					}
+				}
+			}
+		}
 	}
 
 	// Check for decisions (DECISIONS.md or ADR files in research/)

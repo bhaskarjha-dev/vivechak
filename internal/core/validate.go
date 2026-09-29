@@ -84,9 +84,14 @@ func (r *ValidationResult) MaxLevel() ValidationLevel {
 	return max
 }
 
-// HasBlocking reports whether any L2+ issues were found.
+// HasBlocking reports whether any blocking (L2Block or L4Gate) issues were found.
 func (r *ValidationResult) HasBlocking() bool {
-	return r.MaxLevel() >= L2Block
+	for _, issue := range r.Issues {
+		if issue.Level == L2Block || issue.Level == L4Gate {
+			return true
+		}
+	}
+	return false
 }
 
 // WarningCount returns the number of L3 warnings.
@@ -111,11 +116,11 @@ func (r *ValidationResult) ErrorCount() int {
 	return count
 }
 
-// BlockingIssues returns all issues with Level >= L2Block.
+// BlockingIssues returns all issues with Level == L2Block or L4Gate.
 func (r *ValidationResult) BlockingIssues() []ValidationIssue {
 	var blocking []ValidationIssue
 	for _, issue := range r.Issues {
-		if issue.Level >= L2Block {
+		if issue.Level == L2Block || issue.Level == L4Gate {
 			blocking = append(blocking, issue)
 		}
 	}
@@ -154,6 +159,10 @@ func (r *ValidationResult) AddFieldIssueWithHint(level ValidationLevel, code, fi
 
 // evidenceGradePattern matches inline evidence grades like "A (source)", "[Grade A]", "(Grade B · ...)", "(A · corroborated · fresh | fetched)", "[E-01]", "E-001", etc.
 var evidenceGradePattern = regexp.MustCompile(`(?:\[?[Gg]rade\s+[A-E][^\]\)\n]*\]?|\b[A-E]\s*\([^)]+\)|\([Gg]rade\s+[A-E][^)]*\)|\([A-E]\s*[·|][^)]*\)|\[[A-E]\s*[·|][^\]]*\]|\[E-\d+\]|\bE-\d+\b)`)
+
+// recalledHighGradePattern matches Grade A or B claims that rely on recalled/parametric memory.
+// Per Principle P3 (Evidentiary Grounding), unverified recall must be capped at Grade D.
+var recalledHighGradePattern = regexp.MustCompile(`(?i)(?:\[(?:Grade\s+)?[AB]\s*[·|:,][^\]\n]*\b(?:recalled|memory)\b[^\]\n]*\]|\((?:Grade\s+)?[AB]\s*[·|:,][^)\n]*\b(?:recalled|memory)\b[^)\n]*\)|\b(?:Grade\s+)?[AB]\s*\([^)\n]*\b(?:recalled|memory)\b[^)\n]*\)|\b(?:Grade\s+)?[AB]\s*\[[^\]\n]*\b(?:recalled|memory)\b[^\]\n]*\]|\[(?:Grade\s+)[AB][^\]\n]*\b(?:recalled|memory)\b[^\]\n]*\])`)
 
 // ValidateSession checks a research session output against the validation ladder.
 // Returns issues at levels L1-L3 (L4 is project-wide, not per-session).
@@ -224,6 +233,13 @@ func ValidateSession(data []byte) *ValidationResult {
 		result.AddIssueWithHint(L3Warn, "W-NO-EVIDENCE-GRADES",
 			"No inline evidence grades found (expected A-E grades per P3)",
 			"Add evidence grades like 'A (official docs)' or 'B (peer-reviewed study)' to claims")
+	}
+
+	// L3: Recalled citations must be capped at Grade D (Principle P3)
+	if bodyStr != "" && recalledHighGradePattern.MatchString(bodyStr) {
+		result.AddIssueWithHint(L3Warn, "W-RECALLED-GRADE-CAP",
+			"Recalled knowledge must be capped at Grade D per Principle P3",
+			"Downgrade recalled claims to Grade D or corroborate them with live fetched/cached sources")
 	}
 
 	// L3: Check for status field
@@ -399,6 +415,75 @@ func ValidateArtifact(data []byte) *ValidationResult {
 
 	return result
 }
+
+// ValidateFAD validates a Founding Architecture Document (FAD).
+// It checks for FAD frontmatter (id/session_id, title, synthesis_date/date, status),
+// substantive body content (>= 100 chars), and inline evidence grades.
+func ValidateFAD(data []byte) *ValidationResult {
+	result := &ValidationResult{Status: "valid"}
+
+	if len(bytes.TrimSpace(data)) == 0 {
+		result.AddIssue(L2Block, "V-EMPTY", "FAD content is empty")
+		result.Status = "invalid"
+		return result
+	}
+
+	fm, body, err := ParseFrontmatter(data)
+	if err != nil || fm == nil {
+		result.AddIssueWithHint(L3Warn, "W-MISSING-FRONTMATTER",
+			"No YAML frontmatter found",
+			"Add a --- delimited YAML block at the top of the FAD")
+	} else {
+		// Check ID (id or session_id)
+		if !fm.Has("id") && !fm.Has("session_id") {
+			result.AddIssueWithHint(L3Warn, "W-MISSING-FIELD",
+				"Missing 'id' or 'session_id' in frontmatter",
+				"Add 'id: FAD-001' or 'session_id: FAD' to frontmatter")
+		}
+		// Check Title
+		if !fm.Has("title") || strings.TrimSpace(fm.GetString("title")) == "" {
+			result.AddIssueWithHint(L3Warn, "W-MISSING-FIELD",
+				"Missing 'title' in frontmatter",
+				"Add 'title: Founding Architecture Document' to frontmatter")
+		}
+		// Check Date (synthesis_date or date)
+		if !fm.Has("synthesis_date") && !fm.Has("date") {
+			result.AddIssueWithHint(L3Warn, "W-MISSING-FIELD",
+				"Missing 'synthesis_date' (or 'date') in frontmatter",
+				"Add 'synthesis_date: YYYY-MM-DD' to frontmatter")
+		}
+	}
+
+	// Check body length
+	if len(bytes.TrimSpace(body)) < 100 {
+		result.AddIssueWithHint(L3Warn, "W-SHORT-BODY",
+			"FAD body is very short (< 100 characters)",
+			"Ensure the FAD synthesizes all session findings into an architectural blueprint")
+	}
+
+	// Check for evidence grades
+	if !evidenceGradePattern.Match(body) {
+		result.AddIssueWithHint(L3Warn, "W-NO-EVIDENCE-GRADES",
+			"No inline evidence grades (A-E) found in FAD",
+			"Ground architectural claims with evidence grades, e.g., 'Grade A (verified)'")
+	}
+
+	// Check for recalled grade cap violations
+	if recalledHighGradePattern.Match(body) {
+		result.AddIssueWithHint(L3Warn, "W-RECALLED-GRADE-CAP",
+			"Recalled knowledge must be capped at Grade D per Principle P3",
+			"Downgrade recalled claims to Grade D or corroborate them with live fetched/cached sources")
+	}
+
+	if result.HasBlocking() {
+		result.Status = "draft"
+	} else if result.WarningCount() > 0 {
+		result.Status = "valid-with-warnings"
+	}
+
+	return result
+}
+
 
 // ValidatePlan validates a research plan or pipeline DAG.
 // Unlike sessions and decisions, plans do not require YAML frontmatter or evidence grades.

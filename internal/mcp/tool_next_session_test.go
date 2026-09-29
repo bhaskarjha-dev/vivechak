@@ -52,25 +52,37 @@ title: Founding Architecture Document
 		t.Fatalf("failed to write FAD: %v", err)
 	}
 
+	// 5. Session with slugged filename and NO frontmatter (Fix HIGH-02)
+	s4Content := `# Storage Layer Findings`
+	if err := os.WriteFile(filepath.Join(sessionsDir, "T1-03-storage-layer.md"), []byte(s4Content), 0o644); err != nil {
+		t.Fatalf("failed to write s4: %v", err)
+	}
+
+	// 6. Custom session with arbitrary DAG ID and slug
+	s5Content := `# Custom Step Findings`
+	if err := os.WriteFile(filepath.Join(sessionsDir, "CUSTOM-STEP-analysis.md"), []byte(s5Content), 0o644); err != nil {
+		t.Fatalf("failed to write s5: %v", err)
+	}
+
 	ws, err := store.OpenWorkspace(tmpDir)
 	if err != nil {
 		t.Fatalf("open workspace failed: %v", err)
 	}
 	defer ws.Close()
 
-	completed, err := scanCompletedSessions(ws)
+	completed, err := scanCompletedSessions(ws, "CUSTOM-STEP")
 	if err != nil {
 		t.Fatalf("scanCompletedSessions failed: %v", err)
 	}
 
-	expectedIDs := []string{"T1-01", "T1-02", "T2-01", "FAD"}
+	expectedIDs := []string{"T1-01", "T1-02", "T2-01", "FAD", "T1-03", "CUSTOM-STEP"}
 	for _, id := range expectedIDs {
 		if !completed[id] {
 			t.Errorf("expected session %q to be marked completed, got %v", id, completed)
 		}
 	}
 
-	// Verify T1-01 was NOT registered as "T1-01-database"
+	// Verify T1-01 was NOT registered as "T1-01-database" because frontmatter was authoritative
 	if completed["T1-01-database"] {
 		t.Errorf("T1-01-database should not be registered when frontmatter specified T1-01")
 	}

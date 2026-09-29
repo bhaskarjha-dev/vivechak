@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/bhaskarjha-dev/vivechak/internal/core"
@@ -142,7 +143,13 @@ func handleNextSession(_ context.Context, _ *sdkmcp.CallToolRequest, in NextSess
 
 	// Scan completed sessions
 	sessionsDir := filepath.Join(root, core.SessionsDir)
-	completedIDs, err := scanCompletedSessions(ws)
+	var knownIDs []string
+	if dag != nil {
+		for _, s := range dag.Sessions {
+			knownIDs = append(knownIDs, s.ID)
+		}
+	}
+	completedIDs, err := scanCompletedSessions(ws, knownIDs...)
 	if err != nil {
 		return ErrorResult(tool, err, "Check workspace directory permissions.")
 	}
@@ -323,9 +330,12 @@ func buildSessionResponse(tool string, session core.Session, prompt string, comp
 	return env.ToResult()
 }
 
+var sessionIDPrefixRe = regexp.MustCompile(`^(T\d+-\d+|S\d+-\d+|D-[A-Za-z0-9_-]+-S\d+|SYN-\d+|C\d+-\d+|COMP-\d+|FAD)(?:[-_].*)?$`)
+
 // scanCompletedSessions reads the sessions directory and FAD file using workspace confinement,
 // returning completed IDs. Authoritative IDs come from YAML frontmatter (session_id or id fields), falling back to filename stem.
-func scanCompletedSessions(ws *store.Workspace) (map[string]bool, error) {
+// If frontmatter lacks an ID, session ID prefixes from filename stems (e.g. T1-01 from T1-01-database.md) are recognized to prevent DAG deadlocks.
+func scanCompletedSessions(ws *store.Workspace, knownIDs ...string) (map[string]bool, error) {
 	completed := map[string]bool{}
 	entries, err := ws.ListDir(core.SessionsDir)
 	if err != nil {
@@ -346,9 +356,25 @@ func scanCompletedSessions(ws *store.Workspace) (map[string]bool, error) {
 					fm = parsed
 				}
 			}
+
+			hasExplicitFMID := fm != nil && (fm.GetString("session_id") != "" || fm.GetString("id") != "")
 			id := core.ExtractSessionID(e.Name(), fm)
 			if id != "" {
 				completed[id] = true
+			}
+
+			// If no explicit frontmatter session ID was present, also match session ID prefix
+			// to avoid deadlocking the DAG when files are saved with title slugs (e.g. T1-01-database.md)
+			if !hasExplicitFMID {
+				stem := strings.TrimSuffix(e.Name(), ".md")
+				for _, kid := range knownIDs {
+					if stem == kid || strings.HasPrefix(stem, kid+"-") || strings.HasPrefix(stem, kid+"_") {
+						completed[kid] = true
+					}
+				}
+				if sub := sessionIDPrefixRe.FindStringSubmatch(stem); len(sub) > 1 {
+					completed[sub[1]] = true
+				}
 			}
 		}
 	}

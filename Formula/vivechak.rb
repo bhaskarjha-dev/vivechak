@@ -26,7 +26,11 @@ class Vivechak < Formula
 
   def install
     bin.install "vivechak"
-    bin.install_symlink "vivechak" => "vck"
+    if File.exist?("vck")
+      bin.install "vck"
+    else
+      bin.install_symlink "vivechak" => "vck"
+    end
   end
 
   test do

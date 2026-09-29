@@ -70,7 +70,7 @@ This section applies only when improving the meta-framework — editing FRAMEWOR
 2. **Read [CONTRIBUTING.md](CONTRIBUTING.md)** — all changes must be traceable to evidence.
 3. **⚠️ Run the Change Propagation Map** (CONTRIBUTING.md § Change Propagation Map) before committing. FRAMEWORK.md is the specification; GENERATOR.md is the implementation. Changing the spec without updating the implementation means improvements exist in documentation but never affect generated pipelines. Every change to FRAMEWORK.md, GENERATOR.md, or templates/ MUST be checked against the propagation map.
 4. All changes must follow the 8 Core Principles (summarized below).
-5. The sealed `meta-research/` directory contains the empirical evidence base — 15 research artifacts validating every design decision.
+5. The sealed `docs/meta-research/` directory contains the empirical evidence base — 15 research artifacts validating every design decision.
 
 ### The 8 Core Principles
 

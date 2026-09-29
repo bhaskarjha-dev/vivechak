@@ -3,6 +3,7 @@ package core
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -220,6 +221,13 @@ func TestCanonicalTemplates_ParseAndValidate(t *testing.T) {
 						t.Errorf("ValidateSession rejected synthesis_date as alias for date: %v", iss)
 					}
 				}
+				// Verify ValidateFAD parses canonical template without frontmatter/date errors
+				resFAD := ValidateFAD(data)
+				for _, iss := range resFAD.Issues {
+					if iss.Code == "V-MISSING-FRONTMATTER" || (iss.Code == "W-MISSING-FIELD" && iss.Field == "date") {
+						t.Errorf("ValidateFAD error on canonical template %s: %v", tmpl, iss)
+					}
+				}
 			case "COMPARISON-SESSION.template.md":
 				res := ValidateSession(data)
 				for _, iss := range res.Issues {
@@ -288,4 +296,145 @@ Prompt
 		t.Error("expected blocking error for cyclic plan")
 	}
 }
+
+func TestValidateFAD(t *testing.T) {
+	validFAD := `---
+id: FAD-001
+title: Founding Architecture Document
+synthesis_date: 2026-09-29
+status: complete
+---
+# Founding Architecture Document
+
+## Executive Summary
+This document synthesizes findings across all research sessions to establish the technical foundation.
+The datastore uses PostgreSQL 16 with read-replicas. A (docs)
+
+## Key Architectural Decisions
+1. Storage: NVMe direct volumes. A (benchmarks)
+2. Network: Envoy mesh with mTLS. B (verified)
+`
+	resValid := ValidateFAD([]byte(validFAD))
+	if resValid.HasBlocking() {
+		t.Errorf("expected valid FAD, got blocking issues: %v", resValid.BlockingIssues())
+	}
+	if resValid.WarningCount() > 0 {
+		t.Errorf("expected 0 warnings for valid FAD, got: %v", resValid.Issues)
+	}
+
+	// Missing frontmatter
+	resNoFM := ValidateFAD([]byte("# Title without frontmatter\n" + strings.Repeat("body text ", 50)))
+	foundNoFM := false
+	for _, iss := range resNoFM.Issues {
+		if iss.Code == "W-MISSING-FRONTMATTER" {
+			foundNoFM = true
+			break
+		}
+	}
+	if !foundNoFM {
+		t.Error("expected W-MISSING-FRONTMATTER for FAD without frontmatter")
+	}
+
+	// Short body
+	resShort := ValidateFAD([]byte("---\nid: FAD\ntitle: FAD\ndate: 2026-09-29\n---\nShort body. A (doc)"))
+	foundShort := false
+	for _, iss := range resShort.Issues {
+		if iss.Code == "W-SHORT-BODY" {
+			foundShort = true
+			break
+		}
+	}
+	if !foundShort {
+		t.Error("expected W-SHORT-BODY for short FAD")
+	}
+
+	// Missing evidence grades
+	resNoGrades := ValidateFAD([]byte("---\nid: FAD\ntitle: FAD\ndate: 2026-09-29\n---\n" + strings.Repeat("Long substantive body without any evidence grades. ", 20)))
+	foundNoGrades := false
+	for _, iss := range resNoGrades.Issues {
+		if iss.Code == "W-NO-EVIDENCE-GRADES" {
+			foundNoGrades = true
+			break
+		}
+	}
+	if !foundNoGrades {
+		t.Error("expected W-NO-EVIDENCE-GRADES for FAD without grades")
+	}
+}
+
+func TestRecalledHighGradePattern(t *testing.T) {
+	positives := []string{
+		"A (recalled)",
+		"Grade A (recalled)",
+		"Grade B (parametric memory)",
+		"[Grade A · recalled]",
+		"(Grade B · recalled)",
+		"[B: recalled]",
+		"(A · memory)",
+		"Grade A [recalled]",
+		"PostgreSQL offers MVCC. [Grade A · recalled · unverified]",
+	}
+	for _, s := range positives {
+		if !recalledHighGradePattern.MatchString(s) {
+			t.Errorf("expected recalledHighGradePattern to match %q", s)
+		}
+	}
+
+	negatives := []string{
+		"Grade D (recalled)",
+		"Grade C (memory)",
+		"Grade A (verified)",
+		"B (benchmarks)",
+		"[A · official docs]",
+		"Grade A is accepted. We recalled the earlier meeting during synthesis.",
+	}
+	for _, s := range negatives {
+		if recalledHighGradePattern.MatchString(s) {
+			t.Errorf("expected recalledHighGradePattern NOT to match %q", s)
+		}
+	}
+}
+
+func TestValidateSession_RecalledGradeCap(t *testing.T) {
+	// Session with properly capped Grade D recalled citation
+	validRecalled := `---
+session_id: T1-01
+title: Capped Session
+date: 2026-09-29
+---
+Claim verified from docs: Grade A (official docs).
+Unverified claim from memory: Grade D (recalled).
+`
+	resValid := ValidateSession([]byte(validRecalled))
+	for _, iss := range resValid.Issues {
+		if iss.Code == "W-RECALLED-GRADE-CAP" {
+			t.Errorf("unexpected W-RECALLED-GRADE-CAP for Grade D recalled: %v", iss)
+		}
+	}
+
+	// Session with violation: Grade A recalled
+	invalidRecalled := `---
+session_id: T1-01
+title: Uncapped Session
+date: 2026-09-29
+---
+Claim: SQLite has WAL mode. A (recalled)
+`
+	resInvalid := ValidateSession([]byte(invalidRecalled))
+	found := false
+	for _, iss := range resInvalid.Issues {
+		if iss.Code == "W-RECALLED-GRADE-CAP" {
+			found = true
+			if iss.Level != L3Warn {
+				t.Errorf("expected level L3Warn, got %v", iss.Level)
+			}
+			break
+		}
+	}
+	if !found {
+		t.Error("expected W-RECALLED-GRADE-CAP when Grade A is recalled")
+	}
+}
+
+
 

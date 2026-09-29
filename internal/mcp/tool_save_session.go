@@ -68,8 +68,16 @@ func handleSaveSession(ctx context.Context, _ *sdkmcp.CallToolRequest, in SaveSe
 		return ErrorResult(tool, err, "Reduce content size or split into multiple artifacts.")
 	}
 
-	// Validate the session content
-	validation := core.ValidateSession([]byte(in.Content))
+	// FAD (Founding Architecture Document) writes to research/FAD.md
+	isSynthesis := in.SessionID == "FAD" || strings.HasPrefix(strings.ToUpper(in.SessionID), "SYN")
+
+	// Validate the session content (use ValidateFAD for FAD/synthesis sessions)
+	var validation *core.ValidationResult
+	if isSynthesis {
+		validation = core.ValidateFAD([]byte(in.Content))
+	} else {
+		validation = core.ValidateSession([]byte(in.Content))
+	}
 
 	// Determine filename
 	filename := in.SessionID + ".md"
@@ -86,8 +94,6 @@ func handleSaveSession(ctx context.Context, _ *sdkmcp.CallToolRequest, in SaveSe
 			"Check filesystem permissions.")
 	}
 
-	// FAD (Founding Architecture Document) writes to research/FAD.md
-	isSynthesis := in.SessionID == "FAD" || strings.HasPrefix(strings.ToUpper(in.SessionID), "SYN")
 	var relPath string
 	if isSynthesis {
 		relPath = core.FADFile

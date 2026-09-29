@@ -18,6 +18,7 @@ type RecordDecisionInput struct {
 	ProjectRoot  string `json:"project_root,omitempty"  jsonschema:"workspace root path"`
 	ArtifactType string `json:"artifact_type"            jsonschema:"type of artifact: decision | conflict-resolution"`
 	DecisionID   string `json:"decision_id"              jsonschema:"decision identifier (e.g. D-015)"`
+	Slug         string `json:"slug,omitempty"           jsonschema:"slug for decision filename (optional)"`
 	Content      string `json:"content"                   jsonschema:"decision record or conflict resolution content (Markdown with YAML frontmatter)"`
 }
 
@@ -89,20 +90,20 @@ func handleRecordDecision(ctx context.Context, _ *sdkmcp.CallToolRequest, in Rec
 		validation = core.ValidateDecision([]byte(in.Content))
 	}
 
-	// Determine filename
-	var filename string
-	switch artifactType {
-	case "decision":
-		filename = in.DecisionID + "-decision.md"
-	case "conflict-resolution":
-		filename = in.DecisionID + "-conflict-resolution.md"
-	}
-
 	ws, err := store.OpenWorkspace(root)
 	if err != nil {
 		return ErrorResult(tool, fmt.Errorf("opening workspace: %w", err), "Provide a valid workspace.")
 	}
 	defer ws.Close()
+
+	// Determine filename, harmonizing with existing ADR files in research/
+	var filename string
+	switch artifactType {
+	case "decision":
+		filename = resolveDecisionFilename(ws, in.DecisionID, in.Slug)
+	case "conflict-resolution":
+		filename = in.DecisionID + "-conflict-resolution.md"
+	}
 
 	// Save to research directory
 	relPath := filepath.Join(core.ResearchDir, filename)
@@ -190,7 +191,7 @@ func updateOrAppendDecision(existing []byte, decisionID string, content string) 
 	startIdx := strings.Index(str, startMarker)
 	if startIdx >= 0 {
 		endRel := strings.Index(str[startIdx:], endMarker)
-		if endRel >= 0 {
+		if endRel >= 0 && endRel > len(startMarker) {
 			endIdx := startIdx + endRel + len(endMarker)
 			newStr := str[:startIdx] + entry + str[endIdx:]
 			return []byte(newStr)
@@ -213,28 +214,75 @@ func updateOrAppendDecision(existing []byte, decisionID string, content string) 
 
 // findUnanchoredDecision locates an unanchored decision block (YAML frontmatter and optional markdown)
 // for the given decisionID within DECISIONS.md content.
+// It scans sequential frontmatter blocks to prevent greedy cross-entry deletion.
 func findUnanchoredDecision(content string, decisionID string) (int, int, bool) {
-	// Look for a YAML block containing "id: <decisionID>" or "decision_id: <decisionID>"
-	pattern := fmt.Sprintf(`(?m)^---\s*\n(?:[^\n]*\n)*?(?:id|decision_id):\s*["']?%s["']?\b(?:[^\n]*\n)*?---\s*`, regexp.QuoteMeta(decisionID))
-	re := regexp.MustCompile(pattern)
-	loc := re.FindStringIndex(content)
-	if loc == nil {
-		// Look for a Markdown header like "# D-001:" or "## D-001:"
-		headerPattern := fmt.Sprintf(`(?m)^#{1,4}\s+.*?\b%s\b.*?\n`, regexp.QuoteMeta(decisionID))
-		headerRe := regexp.MustCompile(headerPattern)
-		loc = headerRe.FindStringIndex(content)
-		if loc == nil {
-			return 0, 0, false
+	// 1. Look for a YAML frontmatter block for this decision.
+	// Find pairs of '---' delimiters where the enclosed block contains id / decision_id.
+	fmRegex := regexp.MustCompile(`(?ms)^---\s*\n(.*?)\n---\s*`)
+	matches := fmRegex.FindAllStringSubmatchIndex(content, -1)
+
+	idPattern := fmt.Sprintf(`(?m)^(?:id|decision_id):\s*["']?%s["']?\s*$`, regexp.QuoteMeta(decisionID))
+	idRe := regexp.MustCompile(idPattern)
+
+	for _, idxs := range matches {
+		yamlInside := content[idxs[2]:idxs[3]]
+		// Disregard if the inside contains a separate delimiter
+		if strings.Contains(yamlInside, "\n---") {
+			continue
+		}
+
+		if idRe.MatchString(yamlInside) {
+			startIdx := idxs[0]
+			rest := content[idxs[1]:]
+
+			// The entry extends until the next frontmatter block that starts a new decision,
+			// the next <!-- DECISION: anchor, or end of content.
+			// Internal markdown thematic breaks '---' inside the body do not terminate the entry.
+			endIdx := len(content)
+			boundaryRegex := regexp.MustCompile(`(?m)(?:^<!-- DECISION:|^---\s*\n(?:\s*[a-zA-Z_0-9]+:))`)
+			if loc := boundaryRegex.FindStringIndex(rest); loc != nil {
+				endIdx = idxs[1] + loc[0]
+			}
+			return startIdx, endIdx, true
 		}
 	}
 
+	// 2. Fallback: look for a Markdown header like "# D-001:" or "## D-001:"
+	headerPattern := fmt.Sprintf(`(?m)^#{1,4}\s+.*?\b%s\b.*?\n`, regexp.QuoteMeta(decisionID))
+	headerRe := regexp.MustCompile(headerPattern)
+	loc := headerRe.FindStringIndex(content)
+	if loc == nil {
+		return 0, 0, false
+	}
+
 	startIdx := loc[0]
-	// The entry extends until the next "---", next "<!-- DECISION:", or end of content
 	rest := content[loc[1]:]
-	nextBoundaryRe := regexp.MustCompile(`(?m)(?:^---\s*\n|^<!-- DECISION:)`)
-	if nextLoc := nextBoundaryRe.FindStringIndex(rest); nextLoc != nil {
-		endIdx := loc[1] + nextLoc[0]
-		return startIdx, endIdx, true
+	boundaryRegex := regexp.MustCompile(`(?m)(?:^<!-- DECISION:|^---\s*\n(?:\s*[a-zA-Z_0-9]+:)|^#{1,4}\s+.*?\b(?:D-\d+|D-[A-Za-z0-9_-]+)\b)`)
+	if nextLoc := boundaryRegex.FindStringIndex(rest); nextLoc != nil {
+		return startIdx, loc[1] + nextLoc[0], true
 	}
 	return startIdx, len(content), true
+}
+
+// resolveDecisionFilename determines the target filename for a decision artifact.
+// It prioritizes explicit slugs, then matches existing [ID]-*.md files in the research directory,
+// and falls back to [ID]-decision.md.
+func resolveDecisionFilename(ws *store.Workspace, decisionID string, slug string) string {
+	if slug != "" {
+		return fmt.Sprintf("%s-%s.md", decisionID, slug)
+	}
+	if ws != nil {
+		if entries, err := ws.ListDir(core.ResearchDir); err == nil {
+			for _, e := range entries {
+				name := e.Name()
+				if !e.IsDir() && strings.HasPrefix(name, decisionID+"-") &&
+					strings.HasSuffix(name, ".md") &&
+					!strings.HasSuffix(name, "-plan.md") &&
+					!strings.HasSuffix(name, "-conflict-resolution.md") {
+					return name
+				}
+			}
+		}
+	}
+	return decisionID + "-decision.md"
 }

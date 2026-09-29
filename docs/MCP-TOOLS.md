@@ -339,6 +339,8 @@ Defined in [`SavePlanInput`](../internal/mcp/tool_save_plan.go):
 - `workspace_root` (`string`): Path to workspace root.
 - `scope` (`string`): Research scope of the saved plan.
 - `saved_files` (`string[]`): Array of relative paths written (e.g., `["research/RESEARCH-PIPELINE.md", "research/DECISIONS.md"]`).
+- `validation` ([`ValidationResult`](../internal/core/validate.go)): Result of validating the plan content (e.g., DAG cycle checks, empty prompts).
+- `decisions_validation` ([`ValidationResult`](../internal/core/validate.go)): Optional result of validating `decisions_content` when provided.
 
 #### Example
 **Request:**
@@ -590,6 +592,7 @@ Defined in [`SaveSessionInput`](../internal/mcp/tool_save_session.go):
 
 #### Common Warnings
 - `[L3-WARN] W-NO-EVIDENCE-GRADES: No inline evidence grades found (expected A-E grades per P3) (fix: Add evidence grades like 'A (official docs)' or 'B (peer-reviewed study)' to claims)`
+- `[L3-WARN] W-RECALLED-GRADE-CAP: Recalled knowledge must be capped at Grade D per Principle P3 (fix: Downgrade recalled claims to Grade D or corroborate them with live fetched/cached sources)`
 - `[L2-BLOCK] V-MISSING-FIELD: Required frontmatter field "date" is missing (fix: Add 'date: <value>' to the frontmatter block)`
 - `[L2-BLOCK] V-MISSING-FRONTMATTER: Session output has no YAML frontmatter`
 - `[L2-BLOCK] V-INVALID-FRONTMATTER: YAML frontmatter is malformed: unclosed frontmatter block (fix: Ensure opening '---' has a matching closing '---' line)`
@@ -614,6 +617,7 @@ Defined in [`RecordDecisionInput`](../internal/mcp/tool_record_decision.go):
 | `project_root` | `string` | Optional | Workspace root path. |
 | `artifact_type` | `string` | **Required** | Type of artifact: `decision` \| `conflict-resolution`. |
 | `decision_id` | `string` | **Required** | Decision identifier (e.g., `D-001`, `D-015`). |
+| `slug` | `string` | Optional | Optional slug for filename (e.g. `primary-database` yields `D-001-primary-database-decision.md`). |
 | `content` | `string` | **Required** | Decision record or conflict resolution content (Markdown with YAML frontmatter). |
 
 #### Response (`data` field)

@@ -543,4 +543,57 @@ This continues the recommended section and must be extracted.
 			t.Errorf("expected content after code block to be retained, got: %s", extracted)
 		}
 	})
+
+	t.Run("extracts Evaluation Matrix, Risks, Concerns, Failure Modes, and Premortem [CRIT-03]", func(t *testing.T) {
+		body := `# Session Synthesis
+
+## Weighted Evaluation Matrix
+| Option | Score | Cost |
+| PostgreSQL | 9.2 | $20/mo |
+| CockroachDB | 7.8 | $150/mo |
+
+## Open Questions & Risks
+- Network latency between multi-region nodes.
+
+## Discovered Concerns
+- Storage cost explosion under high ingestion.
+
+## Failure Modes & Premortem Analysis
+- Failure mode: Connection pool starvation under sudden traffic spikes.
+`
+		extracted := extractFindings(body, "T1-08")
+		if !strings.Contains(extracted, "Weighted Evaluation Matrix") || !strings.Contains(extracted, "PostgreSQL | 9.2") {
+			t.Errorf("expected evaluation matrix to be extracted, got: %s", extracted)
+		}
+		if !strings.Contains(extracted, "Open Questions & Risks") || !strings.Contains(extracted, "Network latency") {
+			t.Errorf("expected risks to be extracted, got: %s", extracted)
+		}
+		if !strings.Contains(extracted, "Discovered Concerns") || !strings.Contains(extracted, "Storage cost explosion") {
+			t.Errorf("expected concerns to be extracted, got: %s", extracted)
+		}
+		if !strings.Contains(extracted, "Failure Modes & Premortem Analysis") || !strings.Contains(extracted, "Connection pool starvation") {
+			t.Errorf("expected failure modes/premortem to be extracted, got: %s", extracted)
+		}
+	})
+
+	t.Run("handles nested code fences without false heading parsing [MED-03]", func(t *testing.T) {
+		body := "## Recommended Architecture\n" +
+			"Here is a nested markdown document snippet:\n\n" +
+			"````markdown\n" +
+			"# Embedded Title Inside 4-tick Fence\n" +
+			"Some intro text\n" +
+			"```yaml\n# Inner YAML comment that looks like a heading\nkey: value\n```\n" +
+			"More text inside 4-tick fence\n" +
+			"````\n\n" +
+			"Outside text that must also be included in recommendation.\n"
+		extracted := extractFindings(body, "T1-09")
+		if !strings.Contains(extracted, "Outside text that must also be included") {
+			t.Errorf("expected outside text after nested fences to be retained, got: %s", extracted)
+		}
+		// The inner heading shouldn't corrupt the pending headings or break extraction
+		if !strings.Contains(extracted, "Embedded Title Inside 4-tick Fence") {
+			t.Errorf("expected embedded content to be retained inside code block, got: %s", extracted)
+		}
+	})
 }
+

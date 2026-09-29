@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/bhaskarjha-dev/vivechak/internal/core"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -1179,7 +1180,7 @@ Synthesize findings:
 [ALL_SESSION_FINDINGS]
 ` + "```" + `
 `
-	_, err = cs.CallTool(ctx, &mcp.CallToolParams{
+	saveRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_save_plan",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
@@ -1189,6 +1190,10 @@ Synthesize findings:
 	})
 	if err != nil {
 		t.Fatalf("save_plan: %v", err)
+	}
+	saveEnv := parseEnvelope(t, saveRes)
+	if !saveEnv.Success {
+		t.Fatalf("save_plan failed: %s", saveEnv.Message)
 	}
 
 	// 3. Save huge T1-01 session (>100KB)
@@ -1352,6 +1357,36 @@ Findings: Redis chosen for cluster stability. A (official documentation)
 	})
 	if err != nil {
 		t.Fatalf("save_session: %v", err)
+	}
+
+	// 4b. Record finalized decision as accepted
+	acceptedADR := `---
+id: D-015
+title: Cache Layer Selection
+status: accepted
+door_type: two-way
+date: 2026-09-29
+human_reviewed: true
+review_trigger: Traffic exceeds 50k QPS
+tags: [caching, database]
+---
+# Context
+We need a distributed cache. A (official docs)
+
+# Decision
+Redis chosen for cluster stability. A (official documentation)
+`
+	_, err = cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_record_decision",
+		Arguments: map[string]any{
+			"project_root":  tmpDir,
+			"artifact_type": "decision",
+			"decision_id":   "D-015",
+			"content":       acceptedADR,
+		},
+	})
+	if err != nil {
+		t.Fatalf("record_decision: %v", err)
 	}
 
 	// 5. Run gate - should pass for decision scope
@@ -1786,6 +1821,218 @@ Use SQLite in WAL mode. A (docs)
 	}
 }
 
+func TestRunGate_DecisionScope_ADRValidation(t *testing.T) {
+	ctx := context.Background()
+	cs := testServer(t)
+	tmpDir := t.TempDir()
+
+	// 1. Initialize decision scope
+	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "vivechak_init",
+		Arguments: map[string]any{"project_root": tmpDir, "scope": "decision"},
+	})
+
+	// 2. Save decision plan with 1 session
+	pipe := `# Decision Pipeline
+#### S1-01: Auth Strategy Comparison
+| **ID** | S1-01 |
+| **Dependencies** | None |
+| **Output File** | sessions/S1-01.md |
+` + "```prompt" + `
+Compare auth options.
+` + "```" + `
+`
+	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_save_plan",
+		Arguments: map[string]any{
+			"project_root": tmpDir,
+			"scope":        "decision",
+			"content":      pipe,
+		},
+	})
+
+	// 3. Save completed session
+	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_save_session",
+		Arguments: map[string]any{
+			"project_root": tmpDir,
+			"session_id":   "S1-01",
+			"content": `---
+session_id: S1-01
+title: Auth Strategy Comparison
+date: 2026-09-29
+status: complete
+---
+# Auth Findings
+Recommended OAuth2 with PKCE. A (rfc)`},
+	})
+
+	// 4. Record decision with status 'proposed' (not yet accepted)
+	proposedADR := `---
+id: D-001
+title: Auth Strategy
+status: proposed
+door_type: two-way
+---
+# D-001: Auth Strategy
+We propose OAuth2 with PKCE.`
+	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_record_decision",
+		Arguments: map[string]any{
+			"project_root":  tmpDir,
+			"artifact_type": "decision",
+			"decision_id":   "D-001",
+			"content":       proposedADR,
+		},
+	})
+
+	// 5. Gate MUST FAIL because status is proposed
+	res1, _ := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "vivechak_run_gate",
+		Arguments: map[string]any{"project_root": tmpDir, "verbose": true},
+	})
+	env1 := parseEnvelope(t, res1)
+	data1, _ := env1.Data.(map[string]any)
+	if data1["gate_status"] == "PASS" {
+		t.Error("gate should fail when decision status is proposed")
+	}
+
+	// 6. Record decision as one-way door without review trigger
+	untriggeredOneWay := `---
+id: D-001
+title: Auth Strategy
+status: accepted
+door_type: one-way
+---
+# D-001: Auth Strategy
+Accepted OAuth2 with PKCE.`
+	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_record_decision",
+		Arguments: map[string]any{
+			"project_root":  tmpDir,
+			"artifact_type": "decision",
+			"decision_id":   "D-001",
+			"content":       untriggeredOneWay,
+		},
+	})
+
+	// 7. Gate MUST FAIL because one-way door lacks review trigger
+	res2, _ := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "vivechak_run_gate",
+		Arguments: map[string]any{"project_root": tmpDir, "verbose": true},
+	})
+	env2 := parseEnvelope(t, res2)
+	data2, _ := env2.Data.(map[string]any)
+	if data2["gate_status"] == "PASS" {
+		t.Error("gate should fail when one-way door decision lacks review trigger")
+	}
+
+	// 8. Record decision as accepted with review trigger
+	validOneWay := `---
+id: D-001
+title: Auth Strategy
+status: accepted
+door_type: one-way
+review_trigger: 6 months or major breaking RFC change
+---
+# D-001: Auth Strategy
+Accepted OAuth2 with PKCE.`
+	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_record_decision",
+		Arguments: map[string]any{
+			"project_root":  tmpDir,
+			"artifact_type": "decision",
+			"decision_id":   "D-001",
+			"content":       validOneWay,
+		},
+	})
+
+	// 9. Gate MUST PASS
+	res3, _ := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "vivechak_run_gate",
+		Arguments: map[string]any{"project_root": tmpDir, "verbose": true},
+	})
+	env3 := parseEnvelope(t, res3)
+	data3, _ := env3.Data.(map[string]any)
+	if data3["gate_status"] != "PASS" || data3["gate_passed"] != true {
+		t.Errorf("gate should pass with valid accepted ADR, got status=%v (issues: %v)", data3["gate_status"], data3)
+	}
+}
+
+func TestSavePlan_Validation(t *testing.T) {
+	ctx := context.Background()
+	cs := testServer(t)
+	tmpDir := t.TempDir()
+
+	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "vivechak_init",
+		Arguments: map[string]any{"project_root": tmpDir, "scope": "project"},
+	})
+
+	// 1. Pipeline with dependency cycle (T1-01 -> T1-02 -> T1-01)
+	cyclePipeline := `# Pipeline
+#### T1-01: Session 1
+| **ID** | T1-01 |
+| **Dependencies** | T1-02 |
+` + "```prompt" + `
+Prompt 1
+` + "```" + `
+
+#### T1-02: Session 2
+| **ID** | T1-02 |
+| **Dependencies** | T1-01 |
+` + "```prompt" + `
+Prompt 2
+` + "```" + `
+`
+	res1, _ := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_save_plan",
+		Arguments: map[string]any{
+			"project_root": tmpDir,
+			"scope":        "project",
+			"content":      cyclePipeline,
+		},
+	})
+	env1 := parseEnvelope(t, res1)
+	if env1.Success {
+		t.Error("expected save_plan to fail on pipeline with dependency cycle")
+	}
+	if !strings.Contains(env1.Message, "cycle detected") && !strings.Contains(env1.Message, "validation failed") {
+		t.Errorf("expected cycle detection error message, got: %s", env1.Message)
+	}
+
+	// Verify file was NOT written
+	if _, err := os.Stat(filepath.Join(tmpDir, core.PipelineFile)); !os.IsNotExist(err) {
+		t.Errorf("pipeline file should not have been created for invalid DAG")
+	}
+
+	// 2. Valid pipeline
+	validPipeline := `# Pipeline
+#### T1-01: Session 1
+| **ID** | T1-01 |
+| **Dependencies** | None |
+` + "```prompt" + `
+Prompt 1
+` + "```" + `
+`
+	res2, _ := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_save_plan",
+		Arguments: map[string]any{
+			"project_root": tmpDir,
+			"scope":        "project",
+			"content":      validPipeline,
+		},
+	})
+	env2 := parseEnvelope(t, res2)
+	if !env2.Success {
+		t.Fatalf("expected valid pipeline to succeed, got: %s", env2.Message)
+	}
+	data2, _ := env2.Data.(map[string]any)
+	if data2["validation"] == nil {
+		t.Error("expected validation result in save_plan response data")
+	}
+}
+
 func TestInit_HomeDirGuard(t *testing.T) {
 	home, err := os.UserHomeDir()
 	if err != nil || home == "" {
@@ -1810,4 +2057,21 @@ func TestInit_HomeDirGuard(t *testing.T) {
 	if !strings.Contains(env.Message, "user home directory") {
 		t.Errorf("expected home directory error message, got: %s", env.Message)
 	}
+
+	// project_root: "." must also be blocked (MED-06)
+	resDot, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "vivechak_init",
+		Arguments: map[string]any{"project_root": "."},
+	})
+	if err != nil {
+		t.Fatalf("unexpected call error: %v", err)
+	}
+	envDot := parseEnvelope(t, resDot)
+	if envDot.Success {
+		t.Error("expected error when initializing directly in home directory with project_root='.'")
+	}
+	if !strings.Contains(envDot.Message, "user home directory") {
+		t.Errorf("expected home directory error message for project_root='.', got: %s", envDot.Message)
+	}
 }
+

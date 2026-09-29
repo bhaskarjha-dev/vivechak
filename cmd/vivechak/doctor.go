@@ -12,7 +12,7 @@ import (
 	"github.com/bhaskarjha-dev/vivechak/internal/core"
 )
 
-var decisionRefRe = regexp.MustCompile(`(?i)\[(D-\d+)\]|\b(?:ADR|decision|informs|refers?\s+to)\s+(D-\d+)\b`)
+var decisionRefRe = regexp.MustCompile(`(?i)\[(D-[A-Za-z0-9_-]+)\]|\b(?:ADR|decision|informs|refers?\s+to)\s+(D-[A-Za-z0-9_-]+)\b`)
 
 func runDoctorWithArgs(args []string, stdout, stderr io.Writer) int {
 	var explicit string
@@ -78,14 +78,28 @@ func checkWorkspace(workspace string) (bool, []string, []string) {
 		successes = append(successes, "✓ All templates present")
 	}
 
-	// Read pipeline or decision plan for session cross-checks
-	var pipelineContent string
+	// Read pipeline or decision plans for session cross-checks
+	var pipelineChunks []string
 	if data, err := os.ReadFile(filepath.Join(workspace, core.PipelineFile)); err == nil {
-		pipelineContent = string(data)
-	} else if matches, err := filepath.Glob(filepath.Join(workspace, core.ResearchDir, "*-plan.md")); err == nil && len(matches) > 0 {
-		if data, err := os.ReadFile(matches[0]); err == nil {
-			pipelineContent = string(data)
+		pipelineChunks = append(pipelineChunks, string(data))
+	}
+	if matches, err := filepath.Glob(filepath.Join(workspace, core.ResearchDir, "*-plan.md")); err == nil {
+		for _, m := range matches {
+			if data, err := os.ReadFile(m); err == nil {
+				pipelineChunks = append(pipelineChunks, string(data))
+			}
 		}
+	}
+	if matches, err := filepath.Glob(filepath.Join(workspace, core.ResearchDir, "*-comparison.md")); err == nil {
+		for _, m := range matches {
+			if data, err := os.ReadFile(m); err == nil {
+				pipelineChunks = append(pipelineChunks, string(data))
+			}
+		}
+	}
+	var pipelineContent string
+	if len(pipelineChunks) > 0 {
+		pipelineContent = strings.Join(pipelineChunks, "\n\n")
 	}
 
 	// Read decisions registry and/or standalone ADRs for cross-checks

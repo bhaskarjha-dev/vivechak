@@ -377,6 +377,71 @@ func TestMergeConfig(t *testing.T) {
 			t.Errorf("expected error about JSON object, got %v", err)
 		}
 	})
+
+	t.Run("jsonc with comments and trailing commas", func(t *testing.T) {
+		input := []byte(`{
+			// VS Code / Zed style settings comment
+			"context_servers": {
+				/* existing server */
+				"custom": {
+					"command": "node",
+					"args": ["server.js",],
+				},
+			},
+		}`)
+		out, err := mergeConfig(input, exePath, "context_servers")
+		if err != nil {
+			t.Fatalf("failed to merge JSONC config: %v", err)
+		}
+		var parsed map[string]any
+		if err := json.Unmarshal(out, &parsed); err != nil {
+			t.Fatalf("merged output is not valid JSON: %v", err)
+		}
+		servers := parsed["context_servers"].(map[string]any)
+		if servers["custom"] == nil {
+			t.Error("lost custom server from JSONC")
+		}
+		if servers["vivechak"] == nil {
+			t.Error("missing vivechak in merged JSONC")
+		}
+	})
+}
+
+func TestStripJSONComments(t *testing.T) {
+	raw := `{
+		// Line comment
+		"url": "https://example.com/test//not-a-comment",
+		"comment_in_str": "/* also not comment */",
+		"escaped_quote": "test \"with\" quotes",
+		/* Multi
+		   line
+		   comment */
+		"items": [
+			1,
+			2, // trailing comment
+		],
+		"enabled": true,
+	}`
+
+	cleaned := stripJSONComments([]byte(raw))
+	var val map[string]any
+	if err := json.Unmarshal(cleaned, &val); err != nil {
+		t.Fatalf("unmarshal cleaned json failed: %v\nCleaned content:\n%s", err, string(cleaned))
+	}
+
+	if val["url"] != "https://example.com/test//not-a-comment" {
+		t.Errorf("string with // was corrupted: %v", val["url"])
+	}
+	if val["comment_in_str"] != "/* also not comment */" {
+		t.Errorf("string with /* was corrupted: %v", val["comment_in_str"])
+	}
+	items := val["items"].([]any)
+	if len(items) != 2 {
+		t.Errorf("expected 2 items, got %d", len(items))
+	}
+	if val["enabled"] != true {
+		t.Errorf("expected enabled true, got %v", val["enabled"])
+	}
 }
 
 func TestWriteConfigFile(t *testing.T) {
@@ -504,6 +569,59 @@ func TestRunSetupWithArgs_DirectFileAndDryRun(t *testing.T) {
 	servers, ok := parsed["mcpServers"].(map[string]any)
 	if !ok || servers["vivechak"] == nil {
 		t.Errorf("expected vivechak entry under mcpServers, got: %v", parsed)
+	}
+}
+
+func TestRunSetupWithArgs_JSONC_PreservesUserConfig(t *testing.T) {
+	tempFile := filepath.Join(t.TempDir(), "zed-settings.json")
+	initialJSONC := `{
+		// User editor preferences
+		"theme": "Nord",
+		"tab_size": 4,
+		"context_servers": {
+			// Existing custom tool
+			"custom-tool": {
+				"command": "custom-binary",
+				"args": ["run",],
+			},
+		},
+	}`
+	if err := os.WriteFile(tempFile, []byte(initialJSONC), 0o644); err != nil {
+		t.Fatalf("failed to write initial JSONC: %v", err)
+	}
+
+	var stdout, stderr bytes.Buffer
+	code := runSetupWithArgs([]string{tempFile}, &stdout, &stderr)
+	if code != 0 {
+		t.Fatalf("setup failed with code %d (stderr: %s)", code, stderr.String())
+	}
+
+	// Verify no backup was created since config was valid JSONC
+	if _, err := os.Stat(tempFile + ".bak"); !os.IsNotExist(err) {
+		t.Errorf("unexpected backup file created for valid JSONC: %s.bak", tempFile)
+	}
+
+	data, err := os.ReadFile(tempFile)
+	if err != nil {
+		t.Fatalf("reading merged file: %v", err)
+	}
+	var parsed map[string]any
+	if err := json.Unmarshal(data, &parsed); err != nil {
+		t.Fatalf("merged file is not valid JSON: %v", err)
+	}
+
+	if parsed["theme"] != "Nord" {
+		t.Errorf("lost user theme: %v", parsed["theme"])
+	}
+	ctxServers, ok := parsed["context_servers"].(map[string]any)
+	if !ok {
+		t.Fatalf("context_servers missing or not a map: %v", parsed)
+	}
+	if ctxServers["custom-tool"] == nil {
+		t.Errorf("lost existing custom-tool from context_servers")
+	}
+	if ctxServers["vivechak"] == nil {
+		t.Errorf("missing vivechak in context_servers")
 	}
 }
 

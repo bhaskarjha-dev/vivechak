@@ -104,18 +104,37 @@ func handleSavePlan(ctx context.Context, _ *sdkmcp.CallToolRequest, in SavePlanI
 	var savedFiles []string
 	var warnings []string
 
+	// L1-L2 Mechanical validation of plan content
+	planValidation := core.ValidatePlan([]byte(in.Content))
+	if planValidation.HasBlocking() {
+		var firstErr string
+		var firstHint string
+		for _, issue := range planValidation.Issues {
+			if issue.Level == core.L2Block {
+				firstErr = issue.Message
+				firstHint = issue.FixHint
+				break
+			}
+		}
+		if firstHint == "" {
+			firstHint = "Fix dependency cycles, dangling session references, or missing plan content."
+		}
+		return ErrorResult(tool, fmt.Errorf("plan validation failed: %s", firstErr), firstHint)
+	}
+	for _, issue := range planValidation.Issues {
+		warnings = append(warnings, issue.String())
+	}
+
+	var decValidation *core.ValidationResult
+	if in.DecisionsContent != "" {
+		decValidation = core.ValidateDecision([]byte(in.DecisionsContent))
+		for _, issue := range decValidation.Issues {
+			warnings = append(warnings, issue.String())
+		}
+	}
+
 	switch scope {
 	case core.ScopeProject:
-		// Validate DAG structure and cycle detection
-		dag, dagErr := core.ParsePipeline([]byte(in.Content))
-		if dagErr != nil {
-			return ErrorResult(tool, fmt.Errorf("parsing pipeline DAG: %w", dagErr),
-				"Ensure RESEARCH-PIPELINE.md contains valid session definitions.")
-		}
-		if valErr := dag.ValidateDAG(); valErr != nil {
-			return ErrorResult(tool, fmt.Errorf("invalid pipeline DAG: %w", valErr),
-				"Fix dependency cycles or dangling session references in the pipeline.")
-		}
 
 		// Save RESEARCH-PIPELINE.md
 		relPath := core.PipelineFile
@@ -200,14 +219,20 @@ func handleSavePlan(ctx context.Context, _ *sdkmcp.CallToolRequest, in SavePlanI
 		savedFiles = append(savedFiles, relPath)
 	}
 
+	dataMap := map[string]any{
+		"workspace_root": root,
+		"scope":          scope,
+		"saved_files":    savedFiles,
+		"validation":     planValidation,
+	}
+	if decValidation != nil {
+		dataMap["decisions_validation"] = decValidation
+	}
+
 	env := Envelope{
 		Success: true,
 		Message: fmt.Sprintf("Saved %s plan (%d files) at %s", scope, len(savedFiles), root),
-		Data: map[string]any{
-			"workspace_root": root,
-			"scope":          scope,
-			"saved_files":    savedFiles,
-		},
+		Data:    dataMap,
 		Warnings: warnings,
 		NextStep: fmt.Sprintf("Run vivechak_next_session to get the first research session prompt. "+
 			"Execute it in a fresh AI session with web search, then save the output with vivechak_save_session."),

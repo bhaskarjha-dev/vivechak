@@ -122,10 +122,11 @@ func runMCPConfigWithArgs(args []string, stdout, stderr io.Writer) int {
 	var out []byte
 	b, err := os.ReadFile(configPath)
 	if err == nil {
-		// If existing file is valid JSON, check its existing key
+		// If existing file is valid JSON/JSONC, check its existing key
 		if len(bytes.TrimSpace(b)) > 0 {
 			var existing map[string]any
-			dec := json.NewDecoder(bytes.NewReader(b))
+			cleaned := stripJSONComments(b)
+			dec := json.NewDecoder(bytes.NewReader(cleaned))
 			if dec.Decode(&existing) == nil {
 				targetKey = determineServerKey(host, configPath, existing)
 			}
@@ -197,12 +198,113 @@ func determineServerKey(host, configPath string, existing map[string]any) string
 	return "mcpServers"
 }
 
+// stripJSONComments removes C-style single-line (//) and multi-line (/* */) comments
+// as well as trailing commas before closing braces/brackets, making JSONC valid standard JSON.
+// It preserves whitespace and newlines so character offsets and line structure are retained.
+func stripJSONComments(data []byte) []byte {
+	out := make([]byte, len(data))
+	copy(out, data)
+
+	inString := false
+	escaped := false
+	n := len(out)
+
+	for i := 0; i < n; i++ {
+		c := out[i]
+
+		if inString {
+			if escaped {
+				escaped = false
+			} else if c == '\\' {
+				escaped = true
+			} else if c == '"' {
+				inString = false
+			}
+			continue
+		}
+
+		if c == '"' {
+			inString = true
+			continue
+		}
+
+		// Line comment //
+		if c == '/' && i+1 < n && out[i+1] == '/' {
+			out[i] = ' '
+			out[i+1] = ' '
+			i += 2
+			for i < n && out[i] != '\n' && out[i] != '\r' {
+				out[i] = ' '
+				i++
+			}
+			i--
+			continue
+		}
+
+		// Block comment /* ... */
+		if c == '/' && i+1 < n && out[i+1] == '*' {
+			out[i] = ' '
+			out[i+1] = ' '
+			i += 2
+			for i < n {
+				if out[i] == '*' && i+1 < n && out[i+1] == '/' {
+					out[i] = ' '
+					out[i+1] = ' '
+					i++
+					break
+				}
+				if out[i] != '\n' && out[i] != '\r' {
+					out[i] = ' '
+				}
+				i++
+			}
+			continue
+		}
+	}
+
+	// Pass 2: Trailing commas before } or ]
+	inString = false
+	escaped = false
+	for i := 0; i < n; i++ {
+		c := out[i]
+
+		if inString {
+			if escaped {
+				escaped = false
+			} else if c == '\\' {
+				escaped = true
+			} else if c == '"' {
+				inString = false
+			}
+			continue
+		}
+
+		if c == '"' {
+			inString = true
+			continue
+		}
+
+		if c == ',' {
+			j := i + 1
+			for j < n && (out[j] == ' ' || out[j] == '\t' || out[j] == '\n' || out[j] == '\r') {
+				j++
+			}
+			if j < n && (out[j] == '}' || out[j] == ']') {
+				out[i] = ' '
+			}
+		}
+	}
+
+	return out
+}
+
 // mergeConfig merges the vivechak MCP server entry into existing config JSON,
 // preserving number fidelity with json.Number.
 func mergeConfig(existingBytes []byte, exePath string, preferredKey ...string) ([]byte, error) {
 	var existing map[string]any
 	if len(bytes.TrimSpace(existingBytes)) > 0 {
-		dec := json.NewDecoder(bytes.NewReader(existingBytes))
+		cleaned := stripJSONComments(existingBytes)
+		dec := json.NewDecoder(bytes.NewReader(cleaned))
 		dec.UseNumber()
 		if err := dec.Decode(&existing); err != nil {
 			return nil, fmt.Errorf("existing config is not valid JSON: %w", err)
@@ -532,7 +634,8 @@ func runSetupWithArgs(args []string, stdout, stderr io.Writer) int {
 	if err == nil {
 		if len(bytes.TrimSpace(b)) > 0 {
 			var existing map[string]any
-			dec := json.NewDecoder(bytes.NewReader(b))
+			cleaned := stripJSONComments(b)
+			dec := json.NewDecoder(bytes.NewReader(cleaned))
 			if dec.Decode(&existing) == nil {
 				targetKey = determineServerKey(target, configPath, existing)
 			}

@@ -244,29 +244,11 @@ func handleRunGate(_ context.Context, _ *sdkmcp.CallToolRequest, in RunGateInput
 		} else {
 			trackBIssues = append(trackBIssues, "No decision session found")
 		}
-		// Check B2: Decision record has substantive content
-		decisionSubstantive := false
-		if info.HasDecisions {
-			if decData, err := ws.ReadFile(core.DecisionsFile); err == nil && len(decData) > 100 {
-				decisionSubstantive = true
-			}
-		}
-		if !decisionSubstantive {
-			if entries, err := ws.ListDir(core.ResearchDir); err == nil {
-				for _, e := range entries {
-					if !e.IsDir() && strings.HasSuffix(e.Name(), ".md") && !strings.HasSuffix(e.Name(), "-plan.md") && !strings.HasPrefix(e.Name(), ".") {
-						if dData, err := ws.ReadFile(filepath.Join(core.ResearchDir, e.Name())); err == nil && len(dData) > 100 {
-							decisionSubstantive = true
-							break
-						}
-					}
-				}
-			}
-		}
-		if decisionSubstantive {
+		// Check B2: Decision record quality (accepted status, reversal triggers, content)
+		if ok, issues := verifyDecisionsMechanical(ws, info); ok {
 			trackBPassed++
 		} else {
-			trackBIssues = append(trackBIssues, "Decision record appears empty or trivial (< 100 chars)")
+			trackBIssues = append(trackBIssues, issues...)
 		}
 
 	default: // ScopeProject
@@ -285,7 +267,7 @@ func handleRunGate(_ context.Context, _ *sdkmcp.CallToolRequest, in RunGateInput
 		if _, err := ws.Stat(core.FADFile); err == nil {
 			fadData, err := ws.ReadFile(core.FADFile)
 			if err == nil {
-				fadValidation := core.ValidateArtifact(fadData)
+				fadValidation := core.ValidateFAD(fadData)
 				if fadValidation.WarningCount() == 0 {
 					trackBPassed++
 				} else {
@@ -301,106 +283,10 @@ func handleRunGate(_ context.Context, _ *sdkmcp.CallToolRequest, in RunGateInput
 		}
 
 		// Check B3: Decisions mechanical validation (ADR lock status, review triggers)
-		if info.HasDecisions {
-			var allDecisionChunks [][]byte
-			if decData, err := ws.ReadFile(core.DecisionsFile); err == nil && len(decData) > 0 {
-				allDecisionChunks = append(allDecisionChunks, decData)
-			}
-			if entries, err := ws.ListDir(core.ResearchDir); err == nil {
-				for _, e := range entries {
-					name := e.Name()
-					if !e.IsDir() && strings.HasSuffix(name, ".md") &&
-						!strings.HasSuffix(name, "-plan.md") &&
-						!strings.EqualFold(name, "RESEARCH-PIPELINE.md") &&
-						!strings.EqualFold(name, "FAD.md") &&
-						!strings.EqualFold(name, "DECISIONS.md") {
-						if dData, err := ws.ReadFile(filepath.Join(core.ResearchDir, name)); err == nil && len(dData) > 0 {
-							allDecisionChunks = append(allDecisionChunks, dData)
-						}
-					}
-				}
-			}
-
-			if len(allDecisionChunks) > 0 {
-				hasDecisionsParsed := false
-				allAccepted := true
-				missingReviewTrigger := 0
-				processedIDs := make(map[string]bool)
-
-				checkDecisionFM := func(fm core.Frontmatter) {
-					if fm == nil || (!fm.Has("id") && !fm.Has("decision_id")) {
-						return
-					}
-					id := fm.GetString("id")
-					if id == "" {
-						id = fm.GetString("decision_id")
-					}
-					if processedIDs[id] {
-						return
-					}
-					processedIDs[id] = true
-					hasDecisionsParsed = true
-
-					status := strings.ToLower(strings.TrimSpace(fm.GetString("status")))
-					if status != "accepted" && status != "superseded" && status != "deprecated" {
-						allAccepted = false
-					}
-					isOneWay := strings.EqualFold(fm.GetString("door_type"), "one-way")
-					if isOneWay {
-						hasReversal := (fm.Has("review_trigger") && strings.TrimSpace(fm.GetString("review_trigger")) != "") ||
-							(fm.Has("reversal_triggers") && len(fm.GetStringSlice("reversal_triggers")) > 0) ||
-							(fm.Has("review_date") && strings.TrimSpace(fm.GetString("review_date")) != "")
-						if !hasReversal {
-							missingReviewTrigger++
-						}
-					}
-				}
-
-				anchoredRe := regexp.MustCompile(`(?s)<!-- DECISION:\s*([A-Za-z0-9_-]+)\s*-->\s*(.*?)\s*<!-- /DECISION:\s*[A-Za-z0-9_-]+\s*-->`)
-				unanchoredRe := regexp.MustCompile(`(?ms)^---\s*\n(.*?)\n---`)
-
-				for _, chunk := range allDecisionChunks {
-					// 1. Anchored blocks: <!-- DECISION: ID --> ... <!-- /DECISION: ID -->
-					for _, m := range anchoredRe.FindAllSubmatch(chunk, -1) {
-						if fm, _, err := core.ParseFrontmatter(m[2]); err == nil && fm != nil {
-							if !fm.Has("id") && !fm.Has("decision_id") {
-								fm["id"] = string(m[1])
-							}
-							checkDecisionFM(fm)
-						}
-					}
-
-					// 2. Unanchored frontmatter blocks
-					for _, m := range unanchoredRe.FindAllSubmatch(chunk, -1) {
-						if fm, _, err := core.ParseFrontmatter(m[0]); err == nil && fm != nil {
-							checkDecisionFM(fm)
-						}
-					}
-
-					// 3. Document-level frontmatter (e.g. standalone ADR files)
-					if fm, _, err := core.ParseFrontmatter(chunk); err == nil && fm != nil {
-						checkDecisionFM(fm)
-					}
-				}
-
-				if hasDecisionsParsed {
-					if !allAccepted {
-						trackBIssues = append(trackBIssues, "One or more decisions are not yet accepted (status must be 'accepted')")
-					}
-					if missingReviewTrigger > 0 {
-						trackBIssues = append(trackBIssues, fmt.Sprintf("%d one-way door decision(s) lack required reversal triggers (review_trigger / reversal_triggers)", missingReviewTrigger))
-					}
-					if allAccepted && missingReviewTrigger == 0 {
-						trackBPassed++
-					}
-				} else {
-					trackBPassed++
-				}
-			} else {
-				trackBIssues = append(trackBIssues, "DECISIONS.md or ADR files appear empty or trivial")
-			}
+		if ok, issues := verifyDecisionsMechanical(ws, info); ok {
+			trackBPassed++
 		} else {
-			trackBIssues = append(trackBIssues, "Cannot check decisions — DECISIONS.md not found")
+			trackBIssues = append(trackBIssues, issues...)
 		}
 	}
 
@@ -480,3 +366,111 @@ func handleRunGate(_ context.Context, _ *sdkmcp.CallToolRequest, in RunGateInput
 	}
 	return env.ToResult()
 }
+
+// verifyDecisionsMechanical checks ADR files for mechanical correctness:
+// valid frontmatter, accepted status, and reversal triggers on one-way door decisions.
+func verifyDecisionsMechanical(ws *store.Workspace, info core.WorkspaceInfo) (bool, []string) {
+	if !info.HasDecisions {
+		return false, []string{"Cannot check decisions — DECISIONS.md not found"}
+	}
+
+	var allDecisionChunks [][]byte
+	if decData, err := ws.ReadFile(core.DecisionsFile); err == nil && len(decData) > 0 {
+		allDecisionChunks = append(allDecisionChunks, decData)
+	}
+	if entries, err := ws.ListDir(core.ResearchDir); err == nil {
+		for _, e := range entries {
+			name := e.Name()
+			if !e.IsDir() && strings.HasSuffix(name, ".md") &&
+				!strings.HasSuffix(name, "-plan.md") &&
+				!strings.EqualFold(name, "RESEARCH-PIPELINE.md") &&
+				!strings.EqualFold(name, "FAD.md") &&
+				!strings.EqualFold(name, "DECISIONS.md") {
+				if dData, err := ws.ReadFile(filepath.Join(core.ResearchDir, name)); err == nil && len(dData) > 0 {
+					allDecisionChunks = append(allDecisionChunks, dData)
+				}
+			}
+		}
+	}
+
+	if len(allDecisionChunks) == 0 {
+		return false, []string{"DECISIONS.md or ADR files appear empty or trivial"}
+	}
+
+	hasDecisionsParsed := false
+	allAccepted := true
+	missingReviewTrigger := 0
+	processedIDs := make(map[string]bool)
+
+	checkDecisionFM := func(fm core.Frontmatter) {
+		if fm == nil || (!fm.Has("id") && !fm.Has("decision_id")) {
+			return
+		}
+		id := fm.GetString("id")
+		if id == "" {
+			id = fm.GetString("decision_id")
+		}
+		if processedIDs[id] {
+			return
+		}
+		processedIDs[id] = true
+		hasDecisionsParsed = true
+
+		status := strings.ToLower(strings.TrimSpace(fm.GetString("status")))
+		if status != "accepted" && status != "superseded" && status != "deprecated" {
+			allAccepted = false
+		}
+		isOneWay := strings.EqualFold(fm.GetString("door_type"), "one-way")
+		if isOneWay {
+			hasReversal := (fm.Has("review_trigger") && strings.TrimSpace(fm.GetString("review_trigger")) != "") ||
+				(fm.Has("reversal_triggers") && len(fm.GetStringSlice("reversal_triggers")) > 0) ||
+				(fm.Has("review_date") && strings.TrimSpace(fm.GetString("review_date")) != "")
+			if !hasReversal {
+				missingReviewTrigger++
+			}
+		}
+	}
+
+	anchoredRe := regexp.MustCompile(`(?s)<!-- DECISION:\s*([A-Za-z0-9_-]+)\s*-->\s*(.*?)\s*<!-- /DECISION:\s*[A-Za-z0-9_-]+\s*-->`)
+	unanchoredRe := regexp.MustCompile(`(?ms)^---\s*\n(.*?)\n---`)
+
+	for _, chunk := range allDecisionChunks {
+		// 1. Anchored blocks: <!-- DECISION: ID --> ... <!-- /DECISION: ID -->
+		for _, m := range anchoredRe.FindAllSubmatch(chunk, -1) {
+			if fm, _, err := core.ParseFrontmatter(m[2]); err == nil && fm != nil {
+				if !fm.Has("id") && !fm.Has("decision_id") {
+					fm["id"] = string(m[1])
+				}
+				checkDecisionFM(fm)
+			}
+		}
+
+		// 2. Unanchored frontmatter blocks
+		for _, m := range unanchoredRe.FindAllSubmatch(chunk, -1) {
+			if fm, _, err := core.ParseFrontmatter(m[0]); err == nil && fm != nil {
+				checkDecisionFM(fm)
+			}
+		}
+
+		// 3. Document-level frontmatter (e.g. standalone ADR files)
+		if fm, _, err := core.ParseFrontmatter(chunk); err == nil && fm != nil {
+			checkDecisionFM(fm)
+		}
+	}
+
+	var issues []string
+	if !hasDecisionsParsed {
+		issues = append(issues, "DECISIONS.md or ADR files lack valid frontmatter metadata (id, status)")
+		return false, issues
+	}
+
+	if !allAccepted {
+		issues = append(issues, "One or more decisions are not yet accepted (status must be 'accepted')")
+	}
+	if missingReviewTrigger > 0 {
+		issues = append(issues, fmt.Sprintf("%d one-way door decision(s) lack required reversal triggers (review_trigger / reversal_triggers)", missingReviewTrigger))
+	}
+
+	return allAccepted && missingReviewTrigger == 0, issues
+}
+
