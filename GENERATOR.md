@@ -204,6 +204,10 @@ IMPORTANT: Do NOT include expert personas, hardcoded search queries,
 or minimum search counts in any prompt. Each prompt must be a complete,
 front-loaded, single-turn brief.
 
+**Context Injection Placeholders:**
+- For any downstream session that depends on upstream sessions, include the exact placeholder `[UPSTREAM_FINDINGS]` inside the prompt where upstream findings should be injected.
+- For the final grand synthesis session (`SYN-01`), include the exact placeholder `[ALL_SESSION_FINDINGS]` inside the prompt where all session findings should be aggregated.
+
 ## DELIVERABLE
 
 Generate **two** complete Markdown file artifacts:
@@ -238,6 +242,9 @@ Requirements:
 - Each session's research prompt must be inside a fenced code block
   (`prompt) to prevent Markdown header collision and to make it
   trivially copy-pasteable into a fresh AI session
+- Downstream session prompts depending on prior sessions must include
+  the `[UPSTREAM_FINDINGS]` placeholder; the final grand synthesis prompt
+  (`SYN-01`) must include the `[ALL_SESSION_FINDINGS]` placeholder
 - Sessions must be ordered by layer (Layer 0 -> Layer 1 -> Layer 2 -> Sink)
 - The Pipeline Overview section must include a "How to Execute" guide
   referencing: templates/DECISIONS.template.md, templates/CONFLICT-RESOLUTION.template.md,

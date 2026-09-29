@@ -152,20 +152,40 @@ func (d *DAG) NextSessions(completedIDs map[string]bool) []Session {
 // Patterns for parsing the pipeline format
 var (
 	// Matches session headers like: #### T1-01: Graph Persistence Landscape, ### Session T1-01: Spike, #### D-001-S1 — Spike
-	sessionHeaderRe = regexp.MustCompile(`^#{2,4}\s+(?:Session\s+)?([A-Za-z0-9]+(?:-[A-Za-z0-9]+)+):?\s*(.*)`)
+	sessionHeaderRe = regexp.MustCompile(`^#{1,4}\s+(?:Session\s+)?([A-Za-z0-9]+(?:-[A-Za-z0-9]+)+):?\s*(.*)`)
 
 	// Matches metadata table rows like: | **ID** | T1-01 |
 	metaFieldRe = regexp.MustCompile(`\|\s*\*\*([^*]+)\*\*\s*\|\s*(.+?)\s*\|`)
+
+	// Matches horizontal session table rows like: | D-015-S1 | Comparison | none | sessions/D-015-S1-cache-comparison.md |
+	sessionTableRowRe = regexp.MustCompile(`^\|\s*([A-Za-z0-9]+(?:-[A-Za-z0-9]+)+)\s*\|\s*([^|]+)\|\s*([^|]+)\|\s*([^|]+)\|`)
+
+	// Matches words matching session ID pattern inside a brief header
+	briefIDRe = regexp.MustCompile(`[A-Za-z0-9]+(?:-[A-Za-z0-9]+)+`)
 
 	// Matches the prompt code block
 	promptStartRe = regexp.MustCompile("^```prompt")
 	promptEndRe   = regexp.MustCompile("^```$")
 )
 
-// ParsePipeline parses a RESEARCH-PIPELINE.md file into a DAG structure.
+// ParsePipeline parses a RESEARCH-PIPELINE.md or decision plan file into a DAG structure.
 func ParsePipeline(data []byte) (*DAG, error) {
 	dag := &DAG{}
 	lines := strings.Split(string(data), "\n")
+
+	sessionsByID := make(map[string]*Session)
+	var sessionOrder []string
+
+	getOrCreateSession := func(id string) *Session {
+		id = strings.TrimSpace(id)
+		if s, ok := sessionsByID[id]; ok {
+			return s
+		}
+		s := &Session{ID: id}
+		sessionsByID[id] = s
+		sessionOrder = append(sessionOrder, id)
+		return s
+	}
 
 	var currentSession *Session
 	inPrompt := false
@@ -177,30 +197,69 @@ func ParsePipeline(data []byte) (*DAG, error) {
 
 		// Check for session header
 		if matches := sessionHeaderRe.FindStringSubmatch(trimmed); matches != nil {
-			// Save previous session if any
-			if currentSession != nil {
-				if inPrompt {
-					currentSession.Prompt = strings.Join(promptLines, "\n")
-					inPrompt = false
-					promptLines = nil
-				}
-				dag.Sessions = append(dag.Sessions, *currentSession)
-			}
-
-			currentSession = &Session{
-				ID:    strings.TrimSpace(matches[1]),
-				Title: strings.TrimSpace(strings.TrimPrefix(matches[2], "—")),
+			id := strings.TrimSpace(matches[1])
+			title := strings.TrimSpace(strings.TrimPrefix(matches[2], "—"))
+			currentSession = getOrCreateSession(id)
+			if title != "" && currentSession.Title == "" {
+				currentSession.Title = title
 			}
 			continue
+		}
+
+		// Check for horizontal session table row (e.g. decision plans)
+		if strings.Contains(line, "|") && !strings.Contains(line, "**") && !strings.Contains(line, "---") {
+			if matches := sessionTableRowRe.FindStringSubmatch(trimmed); matches != nil {
+				idVal := strings.TrimSpace(matches[1])
+				if !strings.EqualFold(idVal, "session-id") && !strings.EqualFold(idVal, "id") {
+					currentSession = getOrCreateSession(idVal)
+					if len(currentSession.Dependencies) == 0 {
+						currentSession.Dependencies = parseDependencies(matches[3])
+					}
+					if currentSession.OutputFile == "" {
+						currentSession.OutputFile = strings.Trim(strings.TrimSpace(matches[4]), "`")
+					}
+					continue
+				}
+			}
 		}
 
 		// Collect prompt block
 		if inPrompt {
 			if promptEndRe.MatchString(trimmed) {
-				if currentSession != nil {
-					currentSession.Prompt = strings.Join(promptLines, "\n")
-				}
 				inPrompt = false
+				promptContent := strings.Join(promptLines, "\n")
+				targetSession := currentSession
+
+				// Check if prompt header mentions a specific session ID
+				for _, pLine := range promptLines {
+					pTrim := strings.TrimSpace(pLine)
+					if pTrim == "" {
+						continue
+					}
+					if strings.HasPrefix(pTrim, "#") {
+						for _, match := range briefIDRe.FindAllString(pTrim, -1) {
+							if s, ok := sessionsByID[match]; ok {
+								targetSession = s
+								break
+							}
+						}
+					}
+					break
+				}
+
+				// If target has a prompt already, assign to next unprompted session
+				if targetSession == nil || targetSession.Prompt != "" {
+					for _, id := range sessionOrder {
+						if sessionsByID[id].Prompt == "" {
+							targetSession = sessionsByID[id]
+							break
+						}
+					}
+				}
+
+				if targetSession != nil {
+					targetSession.Prompt = promptContent
+				}
 				promptLines = nil
 			} else {
 				promptLines = append(promptLines, line)
@@ -215,26 +274,37 @@ func ParsePipeline(data []byte) (*DAG, error) {
 		}
 
 		// Parse metadata table rows
-		if currentSession != nil && strings.Contains(line, "**") && strings.Contains(line, "|") {
+		if strings.Contains(line, "**") && strings.Contains(line, "|") {
 			if matches := metaFieldRe.FindStringSubmatch(line); matches != nil {
 				field := strings.TrimSpace(matches[1])
 				value := strings.TrimSpace(matches[2])
 
 				switch strings.ToLower(field) {
-				case "id":
-					currentSession.ID = strings.TrimSpace(value)
+				case "id", "session id":
+					currentSession = getOrCreateSession(value)
 				case "layer":
-					fmt.Sscanf(value, "%d", &currentSession.Layer)
+					if currentSession != nil {
+						fmt.Sscanf(value, "%d", &currentSession.Layer)
+					}
 				case "door type":
-					currentSession.DoorType = value
+					if currentSession != nil && currentSession.DoorType == "" {
+						currentSession.DoorType = value
+					}
 				case "decision":
-					currentSession.DecisionRef = value
+					if currentSession != nil && currentSession.DecisionRef == "" {
+						currentSession.DecisionRef = value
+					}
 				case "dependencies":
-					currentSession.Dependencies = parseDependencies(value)
+					if currentSession != nil && len(currentSession.Dependencies) == 0 {
+						currentSession.Dependencies = parseDependencies(value)
+					}
 				case "output file":
-					currentSession.OutputFile = strings.Trim(value, "`")
+					if currentSession != nil && currentSession.OutputFile == "" {
+						currentSession.OutputFile = strings.Trim(value, "`")
+					}
 				}
 			}
+			continue
 		}
 
 		// Parse complexity score
@@ -259,12 +329,41 @@ func ParsePipeline(data []byte) (*DAG, error) {
 		}
 	}
 
-	// Save the last session
-	if currentSession != nil {
-		if inPrompt {
-			currentSession.Prompt = strings.Join(promptLines, "\n")
+	// Handle unclosed prompt block at EOF
+	if inPrompt && len(promptLines) > 0 {
+		promptContent := strings.Join(promptLines, "\n")
+		targetSession := currentSession
+		for _, pLine := range promptLines {
+			pTrim := strings.TrimSpace(pLine)
+			if pTrim == "" {
+				continue
+			}
+			if strings.HasPrefix(pTrim, "#") {
+				for _, match := range briefIDRe.FindAllString(pTrim, -1) {
+					if s, ok := sessionsByID[match]; ok {
+						targetSession = s
+						break
+					}
+				}
+			}
+			break
 		}
-		dag.Sessions = append(dag.Sessions, *currentSession)
+		if targetSession == nil || targetSession.Prompt != "" {
+			for _, id := range sessionOrder {
+				if sessionsByID[id].Prompt == "" {
+					targetSession = sessionsByID[id]
+					break
+				}
+			}
+		}
+		if targetSession != nil {
+			targetSession.Prompt = promptContent
+		}
+	}
+
+	// Assemble deduplicated sessions in order of appearance
+	for _, id := range sessionOrder {
+		dag.Sessions = append(dag.Sessions, *sessionsByID[id])
 	}
 
 	if len(dag.Sessions) == 0 {

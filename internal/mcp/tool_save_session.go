@@ -86,9 +86,10 @@ func handleSaveSession(ctx context.Context, _ *sdkmcp.CallToolRequest, in SaveSe
 			"Check filesystem permissions.")
 	}
 
-	// FAD (Founding Architecture Document) writes to research/FAD.md, not sessions/
+	// FAD (Founding Architecture Document) writes to research/FAD.md
+	isSynthesis := in.SessionID == "FAD" || strings.HasPrefix(strings.ToUpper(in.SessionID), "SYN")
 	var relPath string
-	if in.SessionID == "FAD" {
+	if isSynthesis {
 		relPath = core.FADFile
 	} else {
 		relPath = filepath.Join(core.SessionsDir, filename)
@@ -99,10 +100,27 @@ func handleSaveSession(ctx context.Context, _ *sdkmcp.CallToolRequest, in SaveSe
 	}
 	defer unlock()
 
+	// L1 Construct: auto-remedy missing status in frontmatter
+	contentToSave := []byte(in.Content)
+	if fm, body, err := core.ParseFrontmatter(contentToSave); err == nil && fm != nil {
+		if !fm.Has("status") {
+			fm.Set("status", "draft")
+			if composed, err := core.ComposeFrontmatter(fm, body); err == nil {
+				contentToSave = composed
+			}
+		}
+	}
+
 	// Save the file (even with warnings — L2 saves as draft)
-	if err := store.WriteFileAtomic(ws.Root(), relPath, []byte(in.Content), 0o644); err != nil {
+	if err := store.WriteFileAtomic(ws.Root(), relPath, contentToSave, 0o644); err != nil {
 		return ErrorResult(tool, fmt.Errorf("writing session %s: %w", filename, err),
 			"Check filesystem permissions.")
+	}
+
+	// For synthesis sessions saved with session ID (e.g. SYN-01), also save to sessions/ directory
+	if isSynthesis && in.SessionID != "FAD" {
+		sessPath := filepath.Join(core.SessionsDir, filename)
+		_ = store.WriteFileAtomic(ws.Root(), sessPath, contentToSave, 0o644)
 	}
 
 	status := validation.Status

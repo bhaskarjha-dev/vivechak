@@ -61,13 +61,46 @@ func handleNextSession(_ context.Context, _ *sdkmcp.CallToolRequest, in NextSess
 	}
 	defer ws.Close()
 
-	// Read pipeline file
+	info := core.InspectWorkspace(root)
+
+	// If workspace is comparison scope, there is no multi-session pipeline DAG
+	if info.Scope == core.ScopeComparison {
+		env := Envelope{
+			Success: true,
+			Message: "Comparison scope has a single research session without a multi-session DAG.",
+			Data: map[string]any{
+				"workspace_root": root,
+				"scope":          info.Scope,
+			},
+			NextStep: "Execute your comparison research prompt and save the output with vivechak_save_session using session_id='CMP-01'.",
+			Meta:     NewMeta(tool),
+		}
+		return env.ToResult()
+	}
+
+	// Read pipeline file (or decision plan file)
 	pipelineData, err := ws.ReadFile(core.PipelineFile)
 	if err != nil {
-		return ErrorResult(tool,
-			fmt.Errorf("no research pipeline found — run vivechak_save_plan first"),
-			"Run vivechak_prepare_generator to get the generator prompt, execute it, "+
-				"then save with vivechak_save_plan.")
+		if info.Scope == core.ScopeDecision {
+			// Look for decision plan file (*-plan.md) in research/
+			if entries, lErr := ws.ListDir(core.ResearchDir); lErr == nil {
+				for _, e := range entries {
+					if !e.IsDir() && strings.HasSuffix(e.Name(), "-plan.md") {
+						if data, rErr := ws.ReadFile(filepath.Join(core.ResearchDir, e.Name())); rErr == nil {
+							pipelineData = data
+							err = nil
+							break
+						}
+					}
+				}
+			}
+		}
+		if err != nil {
+			return ErrorResult(tool,
+				fmt.Errorf("no research pipeline found — run vivechak_save_plan first"),
+				"Run vivechak_prepare_generator to get the generator prompt, execute it, "+
+					"then save with vivechak_save_plan.")
+		}
 	}
 
 	// Parse pipeline into DAG
@@ -293,6 +326,8 @@ func scanCompletedSessions(ws *store.Workspace) (map[string]bool, error) {
 		if id != "" {
 			completed[id] = true
 		}
+		completed["FAD"] = true
+		completed["SYN-01"] = true
 	}
 
 	return completed, nil

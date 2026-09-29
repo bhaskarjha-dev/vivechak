@@ -356,3 +356,33 @@ func TestExtractSessionID(t *testing.T) {
 		}
 	})
 }
+
+func TestParseFrontmatter_HorizontalRule(t *testing.T) {
+	input := `----------------------------------------
+# Document Title
+
+This document starts with a horizontal rule.
+----------------------------------------
+`
+	fm, body, err := ParseFrontmatter([]byte(input))
+	if err != nil {
+		t.Fatalf("unexpected error on horizontal rule: %v", err)
+	}
+	if fm != nil {
+		t.Errorf("expected nil frontmatter for document starting with HR, got: %v", fm)
+	}
+	if !strings.Contains(string(body), "Document Title") {
+		t.Errorf("expected body to contain document title")
+	}
+}
+
+func TestFrontmatter_Set(t *testing.T) {
+	fm := Frontmatter{"session_id": "T1-01"}
+	fm.Set("status", "draft")
+	if fm.GetString("status") != "draft" {
+		t.Errorf("expected status 'draft', got %q", fm.GetString("status"))
+	}
+	var nilFm Frontmatter
+	nilFm.Set("status", "draft") // Should not panic
+}
+

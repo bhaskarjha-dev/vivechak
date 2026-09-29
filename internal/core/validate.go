@@ -141,8 +141,8 @@ func (r *ValidationResult) AddFieldIssueWithHint(level ValidationLevel, code, fi
 	})
 }
 
-// evidenceGradePattern matches inline evidence grades like "A (source)", "[Grade A]", "(Grade B · ...)", etc.
-var evidenceGradePattern = regexp.MustCompile(`(?:\[?[Gg]rade\s+[A-E][^\]\)\n]*\]?|\b[A-E]\s*\([^)]+\)|\([Gg]rade\s+[A-E][^)]*\))`)
+// evidenceGradePattern matches inline evidence grades like "A (source)", "[Grade A]", "(Grade B · ...)", "(A · corroborated · fresh | fetched)", etc.
+var evidenceGradePattern = regexp.MustCompile(`(?:\[?[Gg]rade\s+[A-E][^\]\)\n]*\]?|\b[A-E]\s*\([^)]+\)|\([Gg]rade\s+[A-E][^)]*\)|\([A-E]\s*[·|][^)]*\)|\[[A-E]\s*[·|][^\]]*\])`)
 
 // ValidateSession checks a research session output against the validation ladder.
 // Returns issues at levels L1-L3 (L4 is project-wide, not per-session).

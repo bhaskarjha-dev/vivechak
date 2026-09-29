@@ -21,6 +21,8 @@ func TestEvidenceGradePattern(t *testing.T) {
 		{"(grade B)", true},
 		{"Grade A", true},
 		{"Grade E", true},
+		{"(A · corroborated · fresh · direct | fetched)", true},
+		{"[A · official docs]", true},
 
 		// False positives that must NOT match (H-05)
 		{"this is a (note) about architecture", false},

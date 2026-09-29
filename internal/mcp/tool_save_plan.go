@@ -15,11 +15,12 @@ import (
 
 // SavePlanInput holds the arguments for vivechak_save_plan.
 type SavePlanInput struct {
-	ProjectRoot string `json:"project_root,omitempty" jsonschema:"workspace root path"`
-	Scope       string `json:"scope,omitempty"         jsonschema:"research scope: project | decision | comparison"`
-	Content     string `json:"content"                 jsonschema:"the generated plan content (Markdown)"`
-	DecisionID  string `json:"decision_id,omitempty"   jsonschema:"decision identifier for decision/comparison scope (e.g. D-015)"`
-	Slug        string `json:"slug,omitempty"           jsonschema:"URL-safe slug for the decision (e.g. database-selection)"`
+	ProjectRoot      string `json:"project_root,omitempty"       jsonschema:"workspace root path"`
+	Scope            string `json:"scope,omitempty"              jsonschema:"research scope: project | decision | comparison"`
+	Content          string `json:"content"                      jsonschema:"the generated plan content (Markdown)"`
+	DecisionsContent string `json:"decisions_content,omitempty" jsonschema:"the generated initial decision registry or ADR content"`
+	DecisionID       string `json:"decision_id,omitempty"        jsonschema:"decision identifier for decision/comparison scope (e.g. D-015)"`
+	Slug             string `json:"slug,omitempty"               jsonschema:"URL-safe slug for the decision (e.g. database-selection)"`
 }
 
 func registerSavePlan(server *sdkmcp.Server) {
@@ -62,6 +63,11 @@ func handleSavePlan(ctx context.Context, _ *sdkmcp.CallToolRequest, in SavePlanI
 				"Use scope 'project', 'decision', or 'comparison'.")
 		}
 		scope = s
+	} else if core.WorkspaceExists(root) {
+		info := core.InspectWorkspace(root)
+		if info.Scope != "" {
+			scope = info.Scope
+		}
 	}
 
 	// Validate content
@@ -125,9 +131,13 @@ func handleSavePlan(ctx context.Context, _ *sdkmcp.CallToolRequest, in SavePlanI
 		}
 		savedFiles = append(savedFiles, relPath)
 
-		// Ensure DECISIONS.md exists
+		// Save DECISIONS.md (either provided DecisionsContent or default empty table)
 		decPath := core.DecisionsFile
-		if _, err := ws.Stat(decPath); os.IsNotExist(err) {
+		if in.DecisionsContent != "" {
+			if err := store.WriteFileAtomic(ws.Root(), decPath, []byte(in.DecisionsContent), 0o644); err == nil {
+				savedFiles = append(savedFiles, decPath)
+			}
+		} else if _, err := ws.Stat(decPath); os.IsNotExist(err) {
 			initialDecisions := []byte("# Architectural Decision Log\n\n| Decision | Title | Door Type | Status | Date |\n|---|---|---|---|---|\n")
 			if err := store.WriteFileAtomic(ws.Root(), decPath, initialDecisions, 0o644); err == nil {
 				savedFiles = append(savedFiles, decPath)
@@ -139,11 +149,7 @@ func handleSavePlan(ctx context.Context, _ *sdkmcp.CallToolRequest, in SavePlanI
 			return ErrorResult(tool, fmt.Errorf("decision_id is required for decision scope"),
 				"Provide a decision_id like 'D-015'.")
 		}
-		slug := in.Slug
-		if slug == "" {
-			slug = "plan"
-		}
-		filename := fmt.Sprintf("%s-%s.md", in.DecisionID, slug)
+		filename := fmt.Sprintf("%s-plan.md", in.DecisionID)
 		relPath := filepath.Join(core.ResearchDir, filename)
 		unlock, err := store.LockFile(ctx, filepath.Join(root, relPath), 5*time.Second)
 		if err != nil {
@@ -157,12 +163,29 @@ func handleSavePlan(ctx context.Context, _ *sdkmcp.CallToolRequest, in SavePlanI
 		}
 		savedFiles = append(savedFiles, relPath)
 
+		if in.DecisionsContent != "" {
+			adrSlug := in.Slug
+			if adrSlug == "" {
+				adrSlug = "decision"
+			}
+			adrFilename := fmt.Sprintf("%s-%s.md", in.DecisionID, adrSlug)
+			adrRelPath := filepath.Join(core.ResearchDir, adrFilename)
+			if err := store.WriteFileAtomic(ws.Root(), adrRelPath, []byte(in.DecisionsContent), 0o644); err != nil {
+				return ErrorResult(tool, fmt.Errorf("writing proposed ADR %s: %w", adrFilename, err),
+					"Check filesystem permissions.")
+			}
+			savedFiles = append(savedFiles, adrRelPath)
+		}
+
 	case core.ScopeComparison:
 		if in.DecisionID == "" {
 			return ErrorResult(tool, fmt.Errorf("decision_id is required for comparison scope"),
 				"Provide a decision_id or comparison_id.")
 		}
 		filename := fmt.Sprintf("%s-comparison.md", in.DecisionID)
+		if in.Slug != "" {
+			filename = fmt.Sprintf("%s-cmp-%s.md", in.DecisionID, in.Slug)
+		}
 		relPath := filepath.Join(core.ResearchDir, filename)
 		unlock, err := store.LockFile(ctx, filepath.Join(root, relPath), 5*time.Second)
 		if err != nil {

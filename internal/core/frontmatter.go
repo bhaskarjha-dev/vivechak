@@ -63,6 +63,10 @@ func ParseFrontmatter(data []byte) (Frontmatter, []byte, error) {
 	// Find end of opening "---" line
 	openEnd := start + 3
 	for openEnd < len(d) && d[openEnd] != '\n' {
+		// If characters on the opening line after "---" are not whitespace/CR, it's not frontmatter (e.g. horizontal rule "------" or "--- Title ---")
+		if d[openEnd] != ' ' && d[openEnd] != '\t' && d[openEnd] != '\r' {
+			return nil, data, nil
+		}
 		openEnd++
 	}
 	if openEnd < len(d) {
@@ -188,4 +192,11 @@ func (fm Frontmatter) Has(key string) bool {
 	}
 	_, ok := fm[key]
 	return ok
+}
+
+// Set sets a key-value pair in frontmatter.
+func (fm Frontmatter) Set(key string, value any) {
+	if fm != nil {
+		fm[key] = value
+	}
 }

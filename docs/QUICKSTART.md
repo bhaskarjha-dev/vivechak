@@ -40,7 +40,7 @@ irm https://raw.githubusercontent.com/bhaskarjha-dev/vivechak/main/install.ps1 |
 *Or via package managers:*
 ```sh
 brew install bhaskarjha-dev/tap/vivechak      # Homebrew
-scoop bucket add vivechak https://github.com/bhaskarjha-dev/vivechak && scoop install vivechak # Scoop
+scoop bucket add vivechak https://github.com/bhaskarjha-dev/scoop-bucket && scoop install vivechak # Scoop
 go install github.com/bhaskarjha-dev/vivechak/cmd/vivechak@latest                              # Go 1.27+
 ```
 

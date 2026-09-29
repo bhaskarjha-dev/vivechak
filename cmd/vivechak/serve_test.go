@@ -362,7 +362,7 @@ Dry run test.
 		t.Fatalf("validate failed: %s", env.Message)
 	}
 
-	// 16. Save FAD & SYN-01
+	// 16. Save SYN-01 (dual-writes to research/FAD.md and research/sessions/SYN-01.md)
 	fadContent := `---
 session_id: SYN-01
 title: Founding Architecture Document
@@ -375,14 +375,13 @@ Ledger architecture. A (pipeline)
 ## Decisions
 Storage and consensus accepted. A (formal proof)
 `
-	cs.CallTool(ctx, &mcp.CallToolParams{
-		Name:      "vivechak_save_session",
-		Arguments: map[string]any{"project_root": workDir, "session_id": "FAD", "content": fadContent},
-	})
-	cs.CallTool(ctx, &mcp.CallToolParams{
+	res, err = cs.CallTool(ctx, &mcp.CallToolParams{
 		Name:      "vivechak_save_session",
 		Arguments: map[string]any{"project_root": workDir, "session_id": "SYN-01", "content": fadContent},
 	})
+	if err != nil {
+		t.Fatalf("save SYN-01 failed: %v", err)
+	}
 
 	// 17. Tool: vivechak_run_gate
 	res, err = cs.CallTool(ctx, &mcp.CallToolParams{

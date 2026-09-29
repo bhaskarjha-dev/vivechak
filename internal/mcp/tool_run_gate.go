@@ -3,6 +3,8 @@ package mcputil
 import (
 	"context"
 	"fmt"
+	"path/filepath"
+	"strings"
 
 	"github.com/bhaskarjha-dev/vivechak/internal/core"
 	"github.com/bhaskarjha-dev/vivechak/internal/store"
@@ -59,98 +61,210 @@ func handleRunGate(_ context.Context, _ *sdkmcp.CallToolRequest, in RunGateInput
 
 	info := core.InspectWorkspace(root)
 
-	// Track A: Structural completeness
+	// Structural completeness checks (Track A)
 	var trackAIssues []string
 	var trackAPassed int
 	trackATotal := 5
 
-	// Check 1: Pipeline exists
-	if info.HasPipeline {
-		trackAPassed++
-	} else {
-		trackAIssues = append(trackAIssues, "RESEARCH-PIPELINE.md not found")
-	}
-
-	// Check 2: At least 1 session completed
-	if info.SessionCount > 0 {
-		trackAPassed++
-	} else {
-		trackAIssues = append(trackAIssues, "No completed sessions found")
-	}
-
-	// Check 3: Templates present
-	if info.TemplateCount >= 5 {
-		trackAPassed++
-	} else {
-		trackAIssues = append(trackAIssues, fmt.Sprintf("Only %d/5 templates found", info.TemplateCount))
-	}
-
-	// Check 4: Decisions exist
-	if info.HasDecisions {
-		trackAPassed++
-	} else {
-		trackAIssues = append(trackAIssues, "DECISIONS.md not found")
-	}
-
-	// Check 5: FAD exists
-	hasFAD := false
-	if _, err := ws.Stat(core.FADFile); err == nil {
-		hasFAD = true
-		trackAPassed++
-	} else {
-		trackAIssues = append(trackAIssues, "FAD.md not found — synthesis not complete")
-	}
-
-	// Track B: Quality indicators (mechanical only)
-	var trackBIssues []string
-	var trackBPassed int
-	trackBTotal := 3
-
-	// Check B1: Session count meets minimum for scope
-	minSessions := 3 // project scope default
 	switch info.Scope {
-	case core.ScopeComparison:
-		minSessions = 1
 	case core.ScopeDecision:
-		minSessions = 1
-	}
-	if info.SessionCount >= minSessions {
-		trackBPassed++
-	} else {
-		trackBIssues = append(trackBIssues, fmt.Sprintf(
-			"Only %d sessions — minimum %d recommended for %s scope",
-			info.SessionCount, minSessions, info.Scope))
-	}
+		trackATotal = 3
+		// Check 1: At least 1 session completed
+		if info.SessionCount > 0 {
+			trackAPassed++
+		} else {
+			trackAIssues = append(trackAIssues, "No completed sessions found")
+		}
 
-	// Check B2: FAD has evidence grades if it exists
-	if hasFAD {
-		fadData, err := ws.ReadFile(core.FADFile)
-		if err == nil {
-			fadValidation := core.ValidateArtifact(fadData)
-			if fadValidation.WarningCount() == 0 {
-				trackBPassed++
-			} else {
-				for _, issue := range fadValidation.Issues {
-					if issue.Level == core.L3Warn {
-						trackBIssues = append(trackBIssues, issue.String())
+		// Check 2: Templates present
+		if info.TemplateCount >= 5 {
+			trackAPassed++
+		} else {
+			trackAIssues = append(trackAIssues, fmt.Sprintf("Only %d/5 templates found", info.TemplateCount))
+		}
+
+		// Check 3: Decision record exists
+		hasDecision := info.HasDecisions
+		if !hasDecision {
+			if entries, err := ws.ListDir(core.ResearchDir); err == nil {
+				for _, e := range entries {
+					if !e.IsDir() && strings.HasSuffix(e.Name(), ".md") && !strings.HasSuffix(e.Name(), "-plan.md") && !strings.HasPrefix(e.Name(), ".") {
+						hasDecision = true
+						break
 					}
 				}
 			}
 		}
-	} else {
-		trackBIssues = append(trackBIssues, "Cannot check FAD quality — FAD not yet created")
+		if hasDecision {
+			trackAPassed++
+		} else {
+			trackAIssues = append(trackAIssues, "No decision record found")
+		}
+
+	case core.ScopeComparison:
+		trackATotal = 2
+		// Check 1: At least 1 session completed
+		if info.SessionCount > 0 {
+			trackAPassed++
+		} else {
+			trackAIssues = append(trackAIssues, "No completed sessions found")
+		}
+
+		// Check 2: Templates present
+		if info.TemplateCount >= 5 {
+			trackAPassed++
+		} else {
+			trackAIssues = append(trackAIssues, fmt.Sprintf("Only %d/5 templates found", info.TemplateCount))
+		}
+
+	default: // ScopeProject
+		trackATotal = 5
+		// Check 1: Pipeline exists
+		if info.HasPipeline {
+			trackAPassed++
+		} else {
+			trackAIssues = append(trackAIssues, "RESEARCH-PIPELINE.md not found")
+		}
+
+		// Check 2: At least 1 session completed
+		if info.SessionCount > 0 {
+			trackAPassed++
+		} else {
+			trackAIssues = append(trackAIssues, "No completed sessions found")
+		}
+
+		// Check 3: Templates present
+		if info.TemplateCount >= 5 {
+			trackAPassed++
+		} else {
+			trackAIssues = append(trackAIssues, fmt.Sprintf("Only %d/5 templates found", info.TemplateCount))
+		}
+
+		// Check 4: Decisions exist
+		if info.HasDecisions {
+			trackAPassed++
+		} else {
+			trackAIssues = append(trackAIssues, "DECISIONS.md not found")
+		}
+
+		// Check 5: FAD exists
+		if _, err := ws.Stat(core.FADFile); err == nil {
+			trackAPassed++
+		} else {
+			trackAIssues = append(trackAIssues, "FAD.md not found — synthesis not complete")
+		}
 	}
 
-	// Check B3: Decisions file has content
-	if info.HasDecisions {
-		decData, err := ws.ReadFile(core.DecisionsFile)
-		if err == nil && len(decData) > 100 {
+	// Quality indicators (Track B)
+	var trackBIssues []string
+	var trackBPassed int
+	trackBTotal := 3
+
+	switch info.Scope {
+	case core.ScopeComparison:
+		trackBTotal = 2
+		// Check B1: Session count
+		if info.SessionCount >= 1 {
 			trackBPassed++
 		} else {
-			trackBIssues = append(trackBIssues, "DECISIONS.md appears empty or trivial")
+			trackBIssues = append(trackBIssues, "No comparison session found")
 		}
-	} else {
-		trackBIssues = append(trackBIssues, "Cannot check decisions — DECISIONS.md not found")
+		// Check B2: Evidence grades in session files
+		hasGrades := false
+		if entries, err := ws.ListDir(core.SessionsDir); err == nil {
+			for _, e := range entries {
+				if !e.IsDir() && strings.HasSuffix(e.Name(), ".md") {
+					if data, err := ws.ReadFile(filepath.Join(core.SessionsDir, e.Name())); err == nil {
+						v := core.ValidateSession(data)
+						if v.WarningCount() == 0 {
+							hasGrades = true
+							break
+						}
+					}
+				}
+			}
+		}
+		if hasGrades {
+			trackBPassed++
+		} else {
+			trackBIssues = append(trackBIssues, "No evidence grades found in comparison session")
+		}
+
+	case core.ScopeDecision:
+		trackBTotal = 2
+		// Check B1: Session count
+		if info.SessionCount >= 1 {
+			trackBPassed++
+		} else {
+			trackBIssues = append(trackBIssues, "No decision session found")
+		}
+		// Check B2: Decision record has substantive content
+		decisionSubstantive := false
+		if info.HasDecisions {
+			if decData, err := ws.ReadFile(core.DecisionsFile); err == nil && len(decData) > 100 {
+				decisionSubstantive = true
+			}
+		}
+		if !decisionSubstantive {
+			if entries, err := ws.ListDir(core.ResearchDir); err == nil {
+				for _, e := range entries {
+					if !e.IsDir() && strings.HasSuffix(e.Name(), ".md") && !strings.HasSuffix(e.Name(), "-plan.md") && !strings.HasPrefix(e.Name(), ".") {
+						if dData, err := ws.ReadFile(filepath.Join(core.ResearchDir, e.Name())); err == nil && len(dData) > 100 {
+							decisionSubstantive = true
+							break
+						}
+					}
+				}
+			}
+		}
+		if decisionSubstantive {
+			trackBPassed++
+		} else {
+			trackBIssues = append(trackBIssues, "Decision record appears empty or trivial (< 100 chars)")
+		}
+
+	default: // ScopeProject
+		trackBTotal = 3
+		// Check B1: Session count meets minimum for scope
+		minSessions := 3
+		if info.SessionCount >= minSessions {
+			trackBPassed++
+		} else {
+			trackBIssues = append(trackBIssues, fmt.Sprintf(
+				"Only %d sessions — minimum %d recommended for %s scope",
+				info.SessionCount, minSessions, info.Scope))
+		}
+
+		// Check B2: FAD has evidence grades if it exists
+		if _, err := ws.Stat(core.FADFile); err == nil {
+			fadData, err := ws.ReadFile(core.FADFile)
+			if err == nil {
+				fadValidation := core.ValidateArtifact(fadData)
+				if fadValidation.WarningCount() == 0 {
+					trackBPassed++
+				} else {
+					for _, issue := range fadValidation.Issues {
+						if issue.Level == core.L3Warn {
+							trackBIssues = append(trackBIssues, issue.String())
+						}
+					}
+				}
+			}
+		} else {
+			trackBIssues = append(trackBIssues, "Cannot check FAD quality — FAD not yet created")
+		}
+
+		// Check B3: Decisions file has content
+		if info.HasDecisions {
+			decData, err := ws.ReadFile(core.DecisionsFile)
+			if err == nil && len(decData) > 100 {
+				trackBPassed++
+			} else {
+				trackBIssues = append(trackBIssues, "DECISIONS.md appears empty or trivial")
+			}
+		} else {
+			trackBIssues = append(trackBIssues, "Cannot check decisions — DECISIONS.md not found")
+		}
 	}
 
 	// Overall gate result
@@ -169,10 +283,10 @@ func handleRunGate(_ context.Context, _ *sdkmcp.CallToolRequest, in RunGateInput
 
 	var warnings []string
 	for _, issue := range trackAIssues {
-		warnings = append(warnings, "GATE-A: "+issue)
+		warnings = append(warnings, "GATE-STRUCTURAL: "+issue)
 	}
 	for _, issue := range trackBIssues {
-		warnings = append(warnings, "GATE-B: "+issue)
+		warnings = append(warnings, "GATE-QUALITY: "+issue)
 	}
 
 	var nextStep string
@@ -182,12 +296,12 @@ func handleRunGate(_ context.Context, _ *sdkmcp.CallToolRequest, in RunGateInput
 			"Note: this gate checks structural completeness only — semantic quality " +
 			"(premortem substance, alternative genuineness) is YOUR responsibility."
 	case "WARN":
-		nextStep = "Track A (structural) passed but Track B (quality) has warnings. " +
+		nextStep = "Structural checks passed but quality indicators have warnings. " +
 			"Review the warnings above. You may proceed if the warnings are acceptable, " +
 			"or address them and re-run the gate."
 	case "FAIL":
 		nextStep = "Gate failed — structural issues must be addressed. " +
-			"Fix the Track A issues listed above and re-run vivechak_run_gate."
+			"Fix the issues listed above and re-run vivechak_run_gate."
 	}
 
 	trackAData := map[string]any{
@@ -207,11 +321,14 @@ func handleRunGate(_ context.Context, _ *sdkmcp.CallToolRequest, in RunGateInput
 	}
 
 	data := map[string]any{
-		"workspace_root": root,
-		"gate_status":    gateStatus,
-		"gate_passed":    gatePassed,
-		"track_a":        trackAData,
-		"track_b":        trackBData,
+		"workspace_root":    root,
+		"scope":             info.Scope,
+		"gate_status":       gateStatus,
+		"gate_passed":       gatePassed,
+		"structural_checks": trackAData,
+		"quality_checks":    trackBData,
+		"track_a":           trackAData, // backward compatibility
+		"track_b":           trackBData, // backward compatibility
 		"scope_note": "This gate performs MECHANICAL checks only. " +
 			"Semantic quality assessment is the host agent's responsibility.",
 	}

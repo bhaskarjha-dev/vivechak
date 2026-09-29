@@ -186,6 +186,9 @@ When injecting upstream session outputs as context for downstream sessions:
    - **Constrains:** The upstream decision must be respected (e.g., "Database: PostgreSQL 16 — this is a locked One-Way Door decision")
    - **Informs:** The upstream finding provides context but should not limit independent evaluation (e.g., "Prior research found latency under 50ms at current scale — verify independently")
 4. **Minimizing dependencies maximizes parallelism.** Most Layer 0 and many Layer 1 sessions can run concurrently. Reserve hard dependencies for genuine information prerequisites.
+5. **Context Injection Slots:** In automated orchestration (MCP server), prompt templates include explicit slots:
+   - `[UPSTREAM_FINDINGS]`: Injected into downstream session prompts with upstream decisions and evidence.
+   - `[ALL_SESSION_FINDINGS]`: Injected into the final grand synthesis prompt (`SYN-01`) aggregating all completed session findings.
 #### Adaptive Checkpoints
 - **Expansion:** If a session reveals unexpected Cynefin-Complex trade-offs, spawn a maximum of 2 child sub-sessions.
 - **Contraction:** If a planned session's core question has been authoritatively resolved upstream, close it immediately.

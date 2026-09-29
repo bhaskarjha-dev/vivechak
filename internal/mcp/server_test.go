@@ -807,19 +807,35 @@ Findings... B (doc)
 	})
 
 	// Step 5: Save SYN-01 output
+	// Step 5: Save SYN-01 output (dual-writes to research/FAD.md and research/sessions/SYN-01.md)
 	syn01Output := `---
 session_id: SYN-01
-title: Synthesis
+title: Founding Architecture Document
 date: 2026-09-27
 status: complete
 ---
-# Synthesis
-Combined findings. A (official documentation)
+# Founding Architecture Document
+
+## Architecture Overview
+
+PostgreSQL 16 selected as primary datastore. A (official documentation)
+
+## Evidence Summary
+
+- Database: PostgreSQL 16 with pgvector — B (benchmark comparison)
+- Auth: Clerk — B (comparison analysis)
+
+## Decisions
+
+All decisions recorded with review triggers. C (team review)
 `
-	result, _ = cs.CallTool(ctx, &mcp.CallToolParams{
+	result, err = cs.CallTool(ctx, &mcp.CallToolParams{
 		Name:      "vivechak_save_session",
 		Arguments: map[string]any{"project_root": tmpDir, "session_id": "SYN-01", "content": syn01Output},
 	})
+	if err != nil {
+		t.Fatalf("save_session SYN-01: %v", err)
+	}
 
 	// Step 5.5: Record a decision (required by gate Track A check 4)
 	decisionContent := `---
@@ -845,33 +861,6 @@ Use PostgreSQL 16. B (benchmark comparison)
 			"artifact_type": "decision",
 			"content":       decisionContent,
 		},
-	})
-
-	// Step 6: Save FAD (must contain evidence grades to pass gate Track B check 2)
-	fadOutput := `---
-session_id: FAD
-title: Founding Architecture Document
-date: 2026-09-27
-status: complete
----
-# Founding Architecture Document
-
-## Architecture Overview
-
-PostgreSQL 16 selected as primary datastore. A (official documentation)
-
-## Evidence Summary
-
-- Database: PostgreSQL 16 with pgvector — B (benchmark comparison)
-- Auth: Clerk — B (comparison analysis)
-
-## Decisions
-
-All decisions recorded with review triggers. C (team review)
-`
-	result, _ = cs.CallTool(ctx, &mcp.CallToolParams{
-		Name:      "vivechak_save_session",
-		Arguments: map[string]any{"project_root": tmpDir, "session_id": "FAD", "content": fadOutput},
 	})
 
 	// Step 6.5: Record a decision to create DECISIONS.md (needed for gate PASS)
@@ -1163,5 +1152,229 @@ status: complete
 	}
 	if !foundWarning {
 		t.Errorf("expected W-INJECTION-SIZE warning in env.Warnings, got: %v", env.Warnings)
+	}
+}
+
+func TestDecisionScope_EndToEnd(t *testing.T) {
+	ctx := context.Background()
+	cs := testServer(t)
+	tmpDir := t.TempDir()
+
+	// 1. Init with scope decision
+	res, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_init",
+		Arguments: map[string]any{
+			"project_root": tmpDir,
+			"scope":        "decision",
+		},
+	})
+	if err != nil {
+		t.Fatalf("init decision scope: %v", err)
+	}
+	env := parseEnvelope(t, res)
+	if !env.Success {
+		t.Fatalf("init failed: %s", env.Message)
+	}
+
+	// 2. Save Plan with DecisionsContent (ADR)
+	planContent := `# Research Plan: D-015 Cache Layer
+
+### D-015-S1: Cache Layer Comparison
+
+| Field | Value |
+|---|---|
+| **ID** | D-015-S1 |
+| **Output File** | ` + "`sessions/D-015-S1-cache-comparison.md`" + ` |
+
+` + "```prompt" + `
+# RESEARCH BRIEF: Cache Layer
+Compare Redis vs Dragonfly. A (benchmark)
+` + "```" + `
+`
+	adrContent := `---
+id: D-015
+title: Cache Layer Selection
+status: proposed
+door_type: two-way
+date: 2026-09-29
+human_reviewed: true
+review_trigger: Traffic exceeds 50k QPS
+tags: [caching, database]
+---
+# Context
+We need a distributed cache. A (official docs)
+
+# Decision
+Pending research.
+`
+	res, err = cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_save_plan",
+		Arguments: map[string]any{
+			"project_root":      tmpDir,
+			"scope":             "decision",
+			"decision_id":       "D-015",
+			"slug":              "cache-layer",
+			"content":           planContent,
+			"decisions_content": adrContent,
+		},
+	})
+	if err != nil {
+		t.Fatalf("save_plan: %v", err)
+	}
+	env = parseEnvelope(t, res)
+	if !env.Success {
+		t.Fatalf("save_plan failed: %s", env.Message)
+	}
+
+	// 3. Next session returns D-015-S1
+	res, err = cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_next_session",
+		Arguments: map[string]any{
+			"project_root": tmpDir,
+		},
+	})
+	if err != nil {
+		t.Fatalf("next_session: %v", err)
+	}
+	env = parseEnvelope(t, res)
+	if !env.Success {
+		t.Fatalf("next_session failed: %s", env.Message)
+	}
+	data, _ := env.Data.(map[string]any)
+	if data["session_id"] != "D-015-S1" {
+		t.Fatalf("expected session_id D-015-S1, got %v", data["session_id"])
+	}
+
+	// 4. Save session output
+	sessionContent := `---
+session_id: D-015-S1
+title: Cache Comparison
+status: complete
+date: 2026-09-29
+---
+# Cache Comparison
+Findings: Redis chosen for cluster stability. A (official documentation)
+`
+	res, err = cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_save_session",
+		Arguments: map[string]any{
+			"project_root": tmpDir,
+			"session_id":   "D-015-S1",
+			"content":      sessionContent,
+		},
+	})
+	if err != nil {
+		t.Fatalf("save_session: %v", err)
+	}
+
+	// 5. Run gate - should pass for decision scope
+	res, err = cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_run_gate",
+		Arguments: map[string]any{
+			"project_root": tmpDir,
+			"verbose":      true,
+		},
+	})
+	if err != nil {
+		t.Fatalf("run_gate: %v", err)
+	}
+	env = parseEnvelope(t, res)
+	gateData, _ := env.Data.(map[string]any)
+	if gateData["gate_status"] != "PASS" || gateData["gate_passed"] != true {
+		t.Fatalf("expected gate PASS, got status=%v passed=%v (message=%s)", gateData["gate_status"], gateData["gate_passed"], env.Message)
+	}
+}
+
+func TestComparisonScope_EndToEnd(t *testing.T) {
+	ctx := context.Background()
+	cs := testServer(t)
+	tmpDir := t.TempDir()
+
+	// 1. Init with scope comparison
+	res, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_init",
+		Arguments: map[string]any{
+			"project_root": tmpDir,
+			"scope":        "comparison",
+		},
+	})
+	if err != nil {
+		t.Fatalf("init comparison scope: %v", err)
+	}
+	env := parseEnvelope(t, res)
+	if !env.Success {
+		t.Fatalf("init failed: %s", env.Message)
+	}
+
+	// 2. Save comparison plan/prompt
+	comparisonPrompt := `# RESEARCH BRIEF: Queue Selection
+Compare Kafka vs RabbitMQ. A (benchmark)
+`
+	res, err = cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_save_plan",
+		Arguments: map[string]any{
+			"project_root": tmpDir,
+			"scope":        "comparison",
+			"decision_id":  "D-020",
+			"slug":         "queue-tech",
+			"content":      comparisonPrompt,
+		},
+	})
+	if err != nil {
+		t.Fatalf("save_plan comparison: %v", err)
+	}
+
+	// 3. Next session returns comparison prompt
+	res, err = cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_next_session",
+		Arguments: map[string]any{
+			"project_root": tmpDir,
+		},
+	})
+	if err != nil {
+		t.Fatalf("next_session: %v", err)
+	}
+	env = parseEnvelope(t, res)
+	if !env.Success {
+		t.Fatalf("next_session comparison failed: %s", env.Message)
+	}
+
+	// 4. Save session output for comparison
+	cmpOutput := `---
+session_id: D-020-cmp-queue-tech
+title: Queue Comparison
+status: complete
+date: 2026-09-29
+---
+# Queue Comparison Matrix
+Kafka chosen for stream retention. A (official docs)
+`
+	res, err = cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_save_session",
+		Arguments: map[string]any{
+			"project_root": tmpDir,
+			"session_id":   "D-020-cmp-queue-tech",
+			"content":      cmpOutput,
+		},
+	})
+	if err != nil {
+		t.Fatalf("save_session comparison: %v", err)
+	}
+
+	// 5. Run gate for comparison scope
+	res, err = cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_run_gate",
+		Arguments: map[string]any{
+			"project_root": tmpDir,
+			"verbose":      true,
+		},
+	})
+	if err != nil {
+		t.Fatalf("run_gate comparison: %v", err)
+	}
+	env = parseEnvelope(t, res)
+	gateData, _ := env.Data.(map[string]any)
+	if gateData["gate_status"] != "PASS" || gateData["gate_passed"] != true {
+		t.Fatalf("expected gate PASS, got status=%v passed=%v (message=%s)", gateData["gate_status"], gateData["gate_passed"], env.Message)
 	}
 }

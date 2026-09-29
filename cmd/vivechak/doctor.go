@@ -78,12 +78,35 @@ func checkWorkspace(workspace string) (bool, []string, []string) {
 		successes = append(successes, "✓ All templates present")
 	}
 
-	// Read pipeline and decisions for cross-checks
-	pipelineBytes, _ := os.ReadFile(filepath.Join(workspace, core.PipelineFile))
-	pipelineContent := string(pipelineBytes)
+	// Read pipeline or decision plan for session cross-checks
+	var pipelineContent string
+	if data, err := os.ReadFile(filepath.Join(workspace, core.PipelineFile)); err == nil {
+		pipelineContent = string(data)
+	} else if matches, err := filepath.Glob(filepath.Join(workspace, core.ResearchDir, "*-plan.md")); err == nil && len(matches) > 0 {
+		if data, err := os.ReadFile(matches[0]); err == nil {
+			pipelineContent = string(data)
+		}
+	}
 
-	decisionsBytes, _ := os.ReadFile(filepath.Join(workspace, core.DecisionsFile))
-	decisionsContent := string(decisionsBytes)
+	// Read decisions registry or ADRs for cross-checks
+	var decisionsContent string
+	if data, err := os.ReadFile(filepath.Join(workspace, core.DecisionsFile)); err == nil {
+		decisionsContent = string(data)
+	} else {
+		var adrContents []string
+		if entries, err := os.ReadDir(filepath.Join(workspace, core.ResearchDir)); err == nil {
+			for _, e := range entries {
+				if !e.IsDir() && strings.HasSuffix(e.Name(), ".md") && !strings.HasSuffix(e.Name(), "-plan.md") {
+					if data, err := os.ReadFile(filepath.Join(workspace, core.ResearchDir, e.Name())); err == nil {
+						adrContents = append(adrContents, string(data))
+					}
+				}
+			}
+		}
+		if len(adrContents) > 0 {
+			decisionsContent = strings.Join(adrContents, "\n")
+		}
+	}
 
 	// 3. Frontmatter valid, 4. Orphaned sessions, 5. Stale cross-references, 6. No corruption
 	sessionsDir := filepath.Join(workspace, core.SessionsDir)
@@ -120,19 +143,21 @@ func checkWorkspace(workspace string) (bool, []string, []string) {
 			// Check orphaned
 			id := core.ExtractSessionID(e.Name(), fm)
 
-			if id != "" && !strings.Contains(pipelineContent, id) {
+			if pipelineContent != "" && id != "" && !strings.Contains(pipelineContent, id) {
 				errs = append(errs, fmt.Sprintf("✗ Orphaned session (not in pipeline): %s", e.Name()))
 				orphaned++
 				hasErrors = true
 			}
 
 			// Check stale decisions references
-			matches := decisionIDRe.FindAllString(string(data), -1)
-			for _, match := range matches {
-				if !strings.Contains(decisionsContent, match) {
-					errs = append(errs, fmt.Sprintf("✗ Stale decision ref in %s: %s", e.Name(), match))
-					staleRefs++
-					hasErrors = true
+			if decisionsContent != "" {
+				matches := decisionIDRe.FindAllString(string(data), -1)
+				for _, match := range matches {
+					if !strings.Contains(decisionsContent, match) {
+						errs = append(errs, fmt.Sprintf("✗ Stale decision ref in %s: %s", e.Name(), match))
+						staleRefs++
+						hasErrors = true
+					}
 				}
 			}
 		}
@@ -140,11 +165,19 @@ func checkWorkspace(workspace string) (bool, []string, []string) {
 		if invalidFrontmatter == 0 {
 			successes = append(successes, "✓ All frontmatters valid")
 		}
-		if orphaned == 0 {
-			successes = append(successes, "✓ No orphaned sessions")
+		if pipelineContent != "" {
+			if orphaned == 0 {
+				successes = append(successes, "✓ No orphaned sessions")
+			}
+		} else {
+			successes = append(successes, "✓ Orphan check skipped (pipeline not applicable)")
 		}
-		if staleRefs == 0 {
-			successes = append(successes, "✓ No stale cross-references")
+		if decisionsContent != "" {
+			if staleRefs == 0 {
+				successes = append(successes, "✓ No stale cross-references")
+			}
+		} else {
+			successes = append(successes, "✓ Cross-reference check skipped (no decision registry)")
 		}
 		if corruptCount == 0 {
 			successes = append(successes, "✓ No corrupted files (valid UTF-8)")

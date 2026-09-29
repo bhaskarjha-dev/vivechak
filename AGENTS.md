@@ -156,7 +156,7 @@ vivechak/
 When modifying Go code in `cmd/` or `internal/`:
 
 1. **Package dependency direction:** `core/` has NO dependency on `mcp/`. `mcp/` depends on `core/`. `store/` is independent.
-2. **Embed sync:** `internal/embed/generators/` and `internal/embed/templates/` must stay in sync with root-level generators and templates. Verify manually before committing (a CI check is planned but not yet implemented).
+2. **Embed sync:** `internal/embed/generators/` and `internal/embed/templates/` must stay in sync with root-level generators and templates. Verified by `TestEmbeddedFilesMatchRoot` and enforced by CI (`.github/workflows/ci.yml`).
 3. **9 MCP tools:** `vivechak_init`, `vivechak_prepare_generator`, `vivechak_save_plan`, `vivechak_status`, `vivechak_next_session`, `vivechak_save_session`, `vivechak_record_decision`, `vivechak_validate`, `vivechak_run_gate`. Each tool is one file in `internal/mcp/tool_*.go`.
 4. **Guided Worker pattern:** Every tool response includes `next_step`. Hard refusals ONLY for impossible operations, never for "wrong order."
 5. **Testing:** `go test ./...` runs all tests. `internal/mcp/server_test.go` has wire-level integration tests.

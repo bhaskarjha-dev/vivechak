@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // WorkspaceLayout describes the directory structure of a Vivechak research workspace.
@@ -159,9 +160,17 @@ func InspectWorkspace(root string) WorkspaceInfo {
 		info.Scope = ScopeProject
 	}
 
-	// Check for decisions
+	// Check for decisions (DECISIONS.md or ADR files in research/)
 	if _, err := os.Stat(filepath.Join(root, DecisionsFile)); err == nil {
 		info.HasDecisions = true
+	} else if entries, err := os.ReadDir(researchPath); err == nil {
+		for _, e := range entries {
+			name := e.Name()
+			if !e.IsDir() && strings.HasSuffix(name, ".md") && !strings.HasSuffix(name, "-plan.md") && !strings.EqualFold(name, "RESEARCH-PIPELINE.md") && !strings.EqualFold(name, "FAD.md") && !strings.HasPrefix(name, ".") {
+				info.HasDecisions = true
+				break
+			}
+		}
 	}
 
 	// Count sessions

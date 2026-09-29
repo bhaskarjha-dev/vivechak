@@ -419,7 +419,7 @@ In [`internal/mcp/server_test.go`](../internal/mcp/server_test.go):
 ## 8. Build, Test & Run
 
 ### Prerequisites
-- **Go 1.24+** (Uses standard library `os.Root` path confinement; project specifies `go 1.27.0` in [`go.mod`](../go.mod#L3)).
+- **Go 1.27+** (Uses standard library `os.Root` path confinement; project specifies `go 1.27.0` in [`go.mod`](../go.mod#L3)).
 
 ### Compiling the Binary
 To build the server executable:

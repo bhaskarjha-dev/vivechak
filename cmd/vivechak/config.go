@@ -240,7 +240,7 @@ func mergeConfig(existingBytes []byte, exePath string, preferredKey ...string) (
 }
 
 // writeConfigFile atomically writes config content to configPath.
-func writeConfigFile(configPath string, out []byte) error {
+func writeConfigFile(configPath string, out []byte) (retErr error) {
 	dir := filepath.Dir(configPath)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return fmt.Errorf("failed to create directory %s: %w", dir, err)
@@ -251,15 +251,23 @@ func writeConfigFile(configPath string, out []byte) error {
 	if err != nil {
 		return fmt.Errorf("failed to open temp file: %w", err)
 	}
+	defer func() {
+		if retErr != nil {
+			_ = os.Remove(tmpFile)
+		}
+	}()
+
 	if _, err := f.Write(out); err != nil {
-		f.Close()
+		_ = f.Close()
 		return fmt.Errorf("failed to write temp file: %w", err)
 	}
 	if err := f.Sync(); err != nil {
-		f.Close()
+		_ = f.Close()
 		return fmt.Errorf("failed to sync temp file: %w", err)
 	}
-	f.Close()
+	if err := f.Close(); err != nil {
+		return fmt.Errorf("failed to close temp file: %w", err)
+	}
 
 	if err := os.Rename(tmpFile, configPath); err != nil {
 		return fmt.Errorf("failed to rename temp file: %w", err)

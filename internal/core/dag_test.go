@@ -1,6 +1,7 @@
 package core
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -418,5 +419,99 @@ Real session prompt
 	}
 	if dag.Sessions[0].Prompt != "Real session prompt" {
 		t.Errorf("expected prompt 'Real session prompt', got %q", dag.Sessions[0].Prompt)
+	}
+}
+
+func TestParsePipeline_HorizontalTablePlan(t *testing.T) {
+	plan := `# Research Plan: D-015 Cache Layer
+
+| Session ID | Role | Depends | Filename |
+|---|---|---|---|
+| D-015-S1 | Landscape | none | ` + "`sessions/D-015-S1-landscape.md`" + ` |
+| D-015-S2 | Comparison | D-015-S1 | ` + "`sessions/D-015-S2-comparison.md`" + ` |
+
+` + "```prompt" + `
+# RESEARCH BRIEF: D-015-S1 Landscape
+Map caching options.
+` + "```" + `
+
+` + "```prompt" + `
+# RESEARCH BRIEF: D-015-S2 Comparison
+Compare shortlisted options.
+` + "```" + `
+`
+	dag, err := ParsePipeline([]byte(plan))
+	if err != nil {
+		t.Fatalf("ParsePipeline horizontal table: %v", err)
+	}
+	if len(dag.Sessions) != 2 {
+		t.Fatalf("expected 2 sessions, got %d", len(dag.Sessions))
+	}
+	if dag.Sessions[0].ID != "D-015-S1" {
+		t.Errorf("expected D-015-S1, got %s", dag.Sessions[0].ID)
+	}
+	if dag.Sessions[0].OutputFile != "sessions/D-015-S1-landscape.md" {
+		t.Errorf("expected output file sessions/D-015-S1-landscape.md, got %s", dag.Sessions[0].OutputFile)
+	}
+	if dag.Sessions[1].ID != "D-015-S2" {
+		t.Errorf("expected D-015-S2, got %s", dag.Sessions[1].ID)
+	}
+	if len(dag.Sessions[1].Dependencies) != 1 || dag.Sessions[1].Dependencies[0] != "D-015-S1" {
+		t.Errorf("expected dependency D-015-S1, got %v", dag.Sessions[1].Dependencies)
+	}
+	if !strings.Contains(dag.Sessions[0].Prompt, "Map caching options.") {
+		t.Errorf("expected D-015-S1 prompt to contain 'Map caching options.', got %q", dag.Sessions[0].Prompt)
+	}
+	if !strings.Contains(dag.Sessions[1].Prompt, "Compare shortlisted options.") {
+		t.Errorf("expected D-015-S2 prompt to contain 'Compare shortlisted options.', got %q", dag.Sessions[1].Prompt)
+	}
+}
+
+func TestParsePipeline_OverviewTableAndHeaders(t *testing.T) {
+	plan := `# Research Plan: D-016 Messaging Architecture
+
+## Overview
+| Session ID | Role | Depends | Filename |
+|---|---|---|---|
+| D-016-S1 | Landscape | none | ` + "`sessions/D-016-S1-landscape.md`" + ` |
+| D-016-S2 | Comparison | D-016-S1 | ` + "`sessions/D-016-S2-comparison.md`" + ` |
+
+## Detailed Briefs
+
+### D-016-S1: Messaging Landscape
+` + "```prompt" + `
+# RESEARCH BRIEF: D-016-S1 Messaging Landscape
+Investigate pub/sub brokers.
+` + "```" + `
+
+### D-016-S2: NATS vs Kafka Comparison
+` + "```prompt" + `
+# RESEARCH BRIEF: D-016-S2 NATS vs Kafka Comparison
+Compare latency and durability.
+` + "```" + `
+`
+	dag, err := ParsePipeline([]byte(plan))
+	if err != nil {
+		t.Fatalf("ParsePipeline error: %v", err)
+	}
+	if len(dag.Sessions) != 2 {
+		t.Fatalf("expected exactly 2 deduplicated sessions, got %d", len(dag.Sessions))
+	}
+	s1 := dag.Sessions[0]
+	if s1.ID != "D-016-S1" || s1.Title != "Messaging Landscape" || s1.OutputFile != "sessions/D-016-S1-landscape.md" {
+		t.Errorf("unexpected s1 fields: %+v", s1)
+	}
+	if !strings.Contains(s1.Prompt, "Investigate pub/sub brokers.") {
+		t.Errorf("unexpected s1 prompt: %q", s1.Prompt)
+	}
+	s2 := dag.Sessions[1]
+	if s2.ID != "D-016-S2" || s2.Title != "NATS vs Kafka Comparison" || s2.OutputFile != "sessions/D-016-S2-comparison.md" {
+		t.Errorf("unexpected s2 fields: %+v", s2)
+	}
+	if len(s2.Dependencies) != 1 || s2.Dependencies[0] != "D-016-S1" {
+		t.Errorf("unexpected s2 dependencies: %v", s2.Dependencies)
+	}
+	if !strings.Contains(s2.Prompt, "Compare latency and durability.") {
+		t.Errorf("unexpected s2 prompt: %q", s2.Prompt)
 	}
 }

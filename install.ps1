@@ -64,12 +64,22 @@ try {
     New-Item -ItemType Directory -Path $InstallDir -Force | Out-Null
     Copy-Item (Join-Path $TmpDir 'vivechak.exe') -Destination (Join-Path $InstallDir 'vivechak.exe') -Force
 
-    # Add to PATH if not already there
-    $UserPath = [Environment]::GetEnvironmentVariable('PATH', 'User')
-    if ($UserPath -notlike "*$InstallDir*") {
-        [Environment]::SetEnvironmentVariable('PATH', "$InstallDir;$UserPath", 'User')
-        Write-Host "Added $InstallDir to user PATH" -ForegroundColor Yellow
-        Write-Host 'Note: restart your terminal for PATH changes to take effect' -ForegroundColor Yellow
+    # Add to PATH if not already there (preserving unexpanded variables like %USERPROFILE%)
+    $RegKey = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Environment', $true)
+    if ($RegKey) {
+        try {
+            $RawPath = $RegKey.GetValue('PATH', '', [Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames)
+            $PathParts = $RawPath -split ';' | Where-Object { $_ -ne '' }
+            if ($PathParts -notcontains $InstallDir) {
+                $NewPath = if ($RawPath) { "$InstallDir;$RawPath" } else { $InstallDir }
+                $Kind = try { $RegKey.GetValueKind('PATH') } catch { [Microsoft.Win32.RegistryValueKind]::ExpandString }
+                $RegKey.SetValue('PATH', $NewPath, $Kind)
+                Write-Host "Added $InstallDir to user PATH" -ForegroundColor Yellow
+                Write-Host 'Note: restart your terminal for PATH changes to take effect' -ForegroundColor Yellow
+            }
+        } finally {
+            $RegKey.Close()
+        }
     }
 
     # Also update current session
