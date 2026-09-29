@@ -132,6 +132,7 @@ vivechak/
 │   ├── HOST-SETUP.md               ← Universal MCP setup & desktop shortcuts
 │   ├── MCP-TOOLS.md                ← 9-tool reference with examples
 │   ├── ARCHITECTURE.md             ← Server internals for contributors
+│   ├── BRAND.md                    ← Brand identity, geometry & design tokens
 │   ├── assets/logo.svg             ← Minimalist Devanagari V-sieve logo mark
 │   └── meta-research/              ← Empirical evidence base
 │       ├── README.md               ← Provenance index
