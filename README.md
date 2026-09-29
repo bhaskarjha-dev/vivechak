@@ -35,9 +35,9 @@ irm https://raw.githubusercontent.com/bhaskarjha-dev/vivechak/main/install.ps1 |
 # Homebrew (macOS / Linux)
 brew install bhaskarjha-dev/tap/vivechak
 
-# Scoop (Windows)
-scoop bucket add vivechak https://github.com/bhaskarjha-dev/scoop-bucket
-scoop install vivechak
+# Windows (WinGet or Scoop)
+winget install bhaskarjha-dev.Vivechak
+# or: scoop bucket add vivechak https://github.com/bhaskarjha-dev/scoop-bucket && scoop install vivechak
 
 # Go (requires Go 1.27+)
 go install github.com/bhaskarjha-dev/vivechak/cmd/vivechak@latest
@@ -168,7 +168,7 @@ vivechak/
 
 ## Using with AI Agents
 
-Vivechak ships as a universal **MCP server** — install the binary, register it with your AI host or agent harness (`vivechak mcp-config`), and your AI agent gets 9 tools:
+Vivechak ships as a universal **MCP server** — install the binary, register it with your AI host or agent harness (`vck setup <host>`), and your AI agent gets 9 tools:
 
 | Tool | What It Does |
 |---|---|

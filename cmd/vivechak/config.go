@@ -28,7 +28,7 @@ func runMCPConfigWithArgs(args []string, stdout, stderr io.Writer) int {
 
 	for i := 0; i < len(args); i++ {
 		if args[i] == "--help" || args[i] == "-h" {
-			fmt.Fprintln(stdout, "Usage: vivechak mcp-config [--path <filepath>] [--preset <shortcut>] [--write]")
+			fmt.Fprintln(stdout, "Usage: vivechak mcp-config [--path <filepath>] [--preset <shortcut>] [--write]  (or: vck mcp-config)")
 			fmt.Fprintln(stdout, "")
 			fmt.Fprintln(stdout, "Outputs universal Model Context Protocol (MCP) JSON configuration for Vivechak.")
 			fmt.Fprintln(stdout, "Compatible with any MCP-compliant AI tool, agent harness, IDE, or runtime.")
@@ -43,10 +43,11 @@ func runMCPConfigWithArgs(args []string, stdout, stderr io.Writer) int {
 			fmt.Fprintf(stdout, "  %s\n", desktopShortcutsList)
 			fmt.Fprintln(stdout, "")
 			fmt.Fprintln(stdout, "Examples:")
-			fmt.Fprintln(stdout, "  vivechak mcp-config                                     # Universal MCP JSON to stdout")
-			fmt.Fprintln(stdout, "  vivechak mcp-config --path ~/.omp/agent/mcp.json --write # Write directly to any agent config")
-			fmt.Fprintln(stdout, "  vivechak mcp-config --preset cursor --write             # Desktop shortcut for Cursor")
-			fmt.Fprintln(stdout, "  vivechak mcp-config --preset agy --write                # Shortcut for Antigravity (IDE, 2.0, CLI)")
+			fmt.Fprintln(stdout, "  vck setup cursor                                        # Recommended: 1-second host setup")
+			fmt.Fprintln(stdout, "  vck mcp-config                                          # Universal MCP JSON to stdout")
+			fmt.Fprintln(stdout, "  vck mcp-config --path ~/.omp/agent/mcp.json --write     # Write directly to any agent config")
+			fmt.Fprintln(stdout, "  vck mcp-config --preset cursor --write                  # Desktop shortcut for Cursor")
+			fmt.Fprintln(stdout, "  vck mcp-config --preset agy --write                     # Shortcut for Antigravity (IDE, 2.0, CLI)")
 			return 0
 		} else if (args[i] == "--preset" || args[i] == "--client") && i+1 < len(args) {
 			host = args[i+1]

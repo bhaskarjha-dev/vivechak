@@ -26,7 +26,7 @@ func runDoctorWithArgs(args []string, stdout, stderr io.Writer) int {
 	var explicit string
 	if len(args) > 0 {
 		if args[0] == "--help" || args[0] == "-h" {
-			fmt.Fprintln(stdout, "Usage: vivechak doctor [workspace_path]")
+			fmt.Fprintln(stdout, "Usage: vivechak doctor [workspace_path]  (or: vck doctor [workspace_path])")
 			fmt.Fprintln(stdout, "")
 			fmt.Fprintln(stdout, "Check workspace integrity, templates, frontmatter validity, and cross-references.")
 			return 0

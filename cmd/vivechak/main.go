@@ -2,11 +2,12 @@
 //
 // Usage:
 //
-//	vivechak                    # Start MCP server on stdio (default)
-//	vivechak serve              # Explicit serve subcommand
-//	vivechak mcp-config         # Universal MCP config (or --path <path> / --preset <shortcut> --write)
-//	vivechak doctor             # Check workspace integrity
-//	vivechak version            # Print version
+//	vck setup <host|path>       # Set up Vivechak in an AI host or config file
+//	vck                         # Start MCP server on stdio (default)
+//	vck serve                   # Explicit serve subcommand
+//	vck doctor                  # Check workspace integrity
+//	vck mcp-config              # Universal MCP config (pipeable)
+//	vck version                 # Print version
 package main
 
 import (

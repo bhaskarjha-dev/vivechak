@@ -75,7 +75,7 @@ func TestExhaustive_AllFeatures_AllScenarios(t *testing.T) {
 
 	t.Run("CLI_MCP_Config_AllPresets", func(t *testing.T) {
 		presets := []string{
-			"claude-desktop", "vscode", "cursor", "windsurf", "zed", "antigravity", "agy", "kiro",
+			"claude-desktop", "claude", "vscode", "code", "cursor", "windsurf", "zed", "antigravity", "agy", "kiro",
 			"trae", "omp", "openhands", "droid", "cline", "roo", "devin",
 		}
 		for _, preset := range presets {
@@ -99,6 +99,39 @@ func TestExhaustive_AllFeatures_AllScenarios(t *testing.T) {
 		}
 		if _, err := os.Stat(cfgFile); os.IsNotExist(err) {
 			t.Fatalf("mcp-config did not write file to %s", cfgFile)
+		}
+	})
+
+	t.Run("CLI_Setup_And_Install", func(t *testing.T) {
+		// 1. Test setup --help
+		cmdHelp := exec.CommandContext(ctx, binPath, "setup", "--help")
+		outHelp, errHelp := cmdHelp.CombinedOutput()
+		if errHelp != nil {
+			t.Fatalf("setup --help failed: %v", errHelp)
+		}
+		if !strings.Contains(string(outHelp), "Usage: vivechak setup") {
+			t.Errorf("setup --help output unexpected: %s", string(outHelp))
+		}
+
+		// 2. Test setup dry-run
+		cmdDry := exec.CommandContext(ctx, binPath, "setup", "cursor", "--dry-run")
+		outDry, errDry := cmdDry.CombinedOutput()
+		if errDry != nil {
+			t.Fatalf("setup cursor --dry-run failed: %v", errDry)
+		}
+		if !strings.Contains(string(outDry), "[dry-run] Would write Vivechak configuration") {
+			t.Errorf("expected dry-run message, got: %s", string(outDry))
+		}
+
+		// 3. Test setup directly to file
+		targetFile := filepath.Join(t.TempDir(), "exhaustive-setup.json")
+		cmdFile := exec.CommandContext(ctx, binPath, "setup", targetFile)
+		outFile, errFile := cmdFile.CombinedOutput()
+		if errFile != nil {
+			t.Fatalf("setup targetFile failed: %v, out: %s", errFile, string(outFile))
+		}
+		if _, err := os.Stat(targetFile); err != nil {
+			t.Fatalf("target file was not created: %v", err)
 		}
 	})
 

@@ -39,9 +39,10 @@ irm https://raw.githubusercontent.com/bhaskarjha-dev/vivechak/main/install.ps1 |
 
 *Or via package managers:*
 ```sh
-brew install bhaskarjha-dev/tap/vivechak      # Homebrew
+brew install bhaskarjha-dev/tap/vivechak                                            # Homebrew
+winget install bhaskarjha-dev.Vivechak                                              # WinGet
 scoop bucket add vivechak https://github.com/bhaskarjha-dev/scoop-bucket && scoop install vivechak # Scoop
-go install github.com/bhaskarjha-dev/vivechak/cmd/vivechak@latest                              # Go 1.27+
+go install github.com/bhaskarjha-dev/vivechak/cmd/vivechak@latest                   # Go 1.27+
 ```
 
 ### 2. Configure Your AI Host

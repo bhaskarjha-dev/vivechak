@@ -15,10 +15,10 @@ Vivechak v0.1.0 marks the initial unified release combining the evidence-grounde
 |---|---|---|
 | **Multi-Scope Generators** | ✅ Ship-ready | `GENERATOR.md` (Project), `GENERATOR-DECISION.md` (Decision), `GENERATOR-COMPARISON.md` (Comparison) |
 | **Go MCP Server** | ✅ Shipped | 9 atomic tools implementing the Guided Worker pattern with 32/32 tests passing |
-| **CLI & Diagnostics** | ✅ Shipped | `vivechak mcp-config` (universal config + 14 desktop presets & agent harnesses) and `vivechak doctor` workspace integrity checker |
+| **CLI & Diagnostics** | ✅ Shipped | `vck` shorthand alias, `vck setup` (1-second host configuration + 14 presets), `vck mcp-config` (universal JSON config), and `vck doctor` workspace integrity checker |
 | **FRAMEWORK.md** | ✅ Consolidated | Complete standalone spec (principles + evidence grading + multi-scope methodology) |
 | **5 Templates** | ✅ Agent-ready | Decisions, Conflict Resolution, Comparison Session, FAD, Phase 0 Gate (`schema_version: "0.1.0"`) |
-| **Package Distribution** | ✅ Shipped | GoReleaser (6 platforms), Homebrew tap, Scoop bucket, WinGet manifest, shell installers |
+| **Package Distribution** | ✅ Shipped | GoReleaser (6 platforms), Homebrew tap, Scoop bucket, WinGet manifest, shell installers (`install.sh`, `install.ps1`) with `vck` alias |
 | **meta-research/** | ✅ Sealed | 14 locked ADRs (D-001–D-014), 27 research artifacts, empirical evidence base |
 
 ### Repository Evolution

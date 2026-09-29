@@ -427,7 +427,7 @@ For terminal agents with built-in MCP management commands, you can register Vive
 For clients or applications that configure MCP servers through an interactive settings interface (such as desktop AI apps or custom agent dashboards), add the server directly via their configuration panel:
 
 - **Name:** `vivechak`
-- **Command:** Absolute path to `vivechak` (run `vivechak mcp-config` to output the exact binary path)
+- **Command:** Absolute path to `vivechak` (run `vck mcp-config` to output the exact binary path)
 - **Arguments:** `serve`
 - **Transport:** `stdio`
 
@@ -448,7 +448,7 @@ On Windows, use escaped backslashes (`\\`) in configuration files:
 }
 ```
 
-The `vivechak mcp-config --write` command automatically detects and formats Windows paths correctly.
+The `vck setup` (and `vck mcp-config --write`) command automatically detects and formats Windows paths correctly.
 
 ---
 
@@ -459,12 +459,12 @@ Make sure the `command` field uses an **absolute path**. GUI applications on mac
 
 ### Verify Installation & Workspace
 ```sh
-vivechak version
-vivechak doctor /path/to/your/project
+vck version
+vck doctor /path/to/your/project
 ```
 
 ### Test MCP Connection Interactively
 Verify that the Vivechak MCP server responds over stdio using the official MCP Inspector:
 ```sh
-npx @modelcontextprotocol/inspector vivechak serve
+npx @modelcontextprotocol/inspector vck serve
 ```
