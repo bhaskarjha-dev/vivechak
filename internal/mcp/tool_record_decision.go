@@ -80,7 +80,13 @@ func handleRecordDecision(ctx context.Context, _ *sdkmcp.CallToolRequest, in Rec
 	}
 
 	// Validate content
-	validation := core.ValidateDecision([]byte(in.Content))
+	var validation *core.ValidationResult
+	switch artifactType {
+	case "conflict-resolution":
+		validation = core.ValidateConflictResolution([]byte(in.Content))
+	default:
+		validation = core.ValidateDecision([]byte(in.Content))
+	}
 
 	// Determine filename
 	var filename string
@@ -110,24 +116,28 @@ func handleRecordDecision(ctx context.Context, _ *sdkmcp.CallToolRequest, in Rec
 			"Check filesystem permissions.")
 	}
 
+	var warnings []string
+	for _, issue := range validation.Issues {
+		warnings = append(warnings, issue.String())
+	}
+
 	// Dual-write to DECISIONS.md registry for decision artifacts
 	if artifactType == "decision" {
 		decRelPath := core.DecisionsFile
 		decUnlock, decErr := store.LockFile(ctx, filepath.Join(root, decRelPath), 5*time.Second)
-		if decErr == nil {
+		if decErr != nil {
+			warnings = append(warnings, fmt.Sprintf("W-DECISIONS-LOCK: Could not acquire lock on %s: %v", decRelPath, decErr))
+		} else {
 			defer decUnlock()
 			var existing []byte
 			if data, err := ws.ReadFile(decRelPath); err == nil {
 				existing = data
 			}
 			newDecContent := updateOrAppendDecision(existing, in.DecisionID, in.Content)
-			_ = store.WriteFileAtomic(ws.Root(), decRelPath, newDecContent, 0o644)
+			if err := store.WriteFileAtomic(ws.Root(), decRelPath, newDecContent, 0o644); err != nil {
+				warnings = append(warnings, fmt.Sprintf("W-DECISIONS-WRITE: Failed to update %s: %v", decRelPath, err))
+			}
 		}
-	}
-
-	var warnings []string
-	for _, issue := range validation.Issues {
-		warnings = append(warnings, issue.String())
 	}
 
 	// Warn if content contains decision boundary markers that could confuse the registry

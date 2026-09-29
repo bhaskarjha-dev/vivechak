@@ -49,6 +49,12 @@ func (w *Workspace) Stat(relPath string) (os.FileInfo, error) {
 	return w.root.Stat(relPath)
 }
 
+// FileExists reports whether relPath exists and can be stated within the workspace root.
+func (w *Workspace) FileExists(relPath string) bool {
+	_, err := w.root.Stat(relPath)
+	return err == nil
+}
+
 // MkdirAll creates directories within the workspace, validating that the
 // path remains local (no traversal). Falls back to os.MkdirAll since
 // os.Root does not provide MkdirAll as of Go 1.27.

@@ -515,3 +515,60 @@ Compare latency and durability.
 		t.Errorf("unexpected s2 prompt: %q", s2.Prompt)
 	}
 }
+
+func TestParsePipeline_NestedCodeBlocks(t *testing.T) {
+	plan := `# Pipeline
+#### T1-01: Session With Code Fence
+| Field | Value |
+|---|---|
+| **ID** | T1-01 |
+
+` + "```prompt" + `
+# RESEARCH BRIEF: T1-01
+Output format required:
+` + "```yaml" + `
+id: T1-01
+status: complete
+` + "```" + `
+Conclusion: must not be truncated.
+` + "```" + `
+`
+	dag, err := ParsePipeline([]byte(plan))
+	if err != nil {
+		t.Fatalf("ParsePipeline error: %v", err)
+	}
+	if len(dag.Sessions) != 1 {
+		t.Fatalf("expected 1 session, got %d", len(dag.Sessions))
+	}
+	prompt := dag.Sessions[0].Prompt
+	if !strings.Contains(prompt, "Conclusion: must not be truncated.") {
+		t.Errorf("prompt was truncated by inner code fence: %q", prompt)
+	}
+	if !strings.Contains(prompt, "status: complete") {
+		t.Errorf("prompt missing inner code block: %q", prompt)
+	}
+}
+
+func TestValidateDAG_AlphanumericIDs(t *testing.T) {
+	// Valid alphanumeric IDs without hyphens
+	validDAG := DAG{
+		Sessions: []Session{
+			{ID: "T1", Dependencies: nil},
+			{ID: "SYN", Dependencies: []string{"T1"}},
+		},
+	}
+	if err := validDAG.ValidateDAG(); err != nil {
+		t.Errorf("expected valid DAG with alphanumeric IDs, got: %v", err)
+	}
+
+	// Invalid ID with slash
+	invalidDAG := DAG{
+		Sessions: []Session{
+			{ID: "invalid/id", Dependencies: nil},
+		},
+	}
+	if err := invalidDAG.ValidateDAG(); err == nil {
+		t.Error("expected error for ID with slash, got nil")
+	}
+}
+

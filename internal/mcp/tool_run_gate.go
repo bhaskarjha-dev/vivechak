@@ -329,13 +329,13 @@ func handleRunGate(_ context.Context, _ *sdkmcp.CallToolRequest, in RunGateInput
 		"quality_checks":    trackBData,
 		"track_a":           trackAData, // backward compatibility
 		"track_b":           trackBData, // backward compatibility
-		"scope_note": "This gate performs MECHANICAL checks only. " +
-			"Semantic quality assessment is the host agent's responsibility.",
+		"scope_note": "This gate performs automated MECHANICAL checks only (Structural Completeness and Quality Indicators). " +
+			"Track A/Track B semantic decisions and human sign-off per PHASE-0-GATE.template.md are the host architect's responsibility.",
 	}
 
 	env := Envelope{
 		Success:  true,
-		Message:  fmt.Sprintf("Phase 0 Gate: %s (Track A: %d/%d, Track B: %d/%d)", gateStatus, trackAPassed, trackATotal, trackBPassed, trackBTotal),
+		Message:  fmt.Sprintf("Phase 0 Gate: %s (Structural Completeness: %d/%d, Quality Indicators: %d/%d)", gateStatus, trackAPassed, trackATotal, trackBPassed, trackBTotal),
 		Data:     data,
 		Warnings: warnings,
 		NextStep: nextStep,

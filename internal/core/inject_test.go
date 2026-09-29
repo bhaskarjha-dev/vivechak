@@ -1,6 +1,7 @@
 package core
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -419,4 +420,81 @@ Shortlist: Redis, Dragonfly, KeyDB. A (official docs)
 	if !strings.Contains(injected.InjectedPrompt, "Redis, Dragonfly, KeyDB") {
 		t.Errorf("expected shortlist findings in prompt, got: %s", injected.InjectedPrompt)
 	}
+}
+
+func TestExtractFindings_Comprehensive(t *testing.T) {
+	t.Run("headings exceeding 200 bytes do not starve raw body fallback (Fix H-01)", func(t *testing.T) {
+		// Create a body with several lengthy headings that don't match relevant section keywords,
+		// and technical body content below that lacks formal evidence grades.
+		var sb strings.Builder
+		for i := 1; i <= 8; i++ {
+			sb.WriteString(fmt.Sprintf("## Architectural Constraint Analysis Chapter %d: Operational Considerations\n", i))
+		}
+		sb.WriteString("Core finding: PostgreSQL with pgvector scales to 1M embeddings at 12ms latency.\n")
+		sb.WriteString("Cluster deployment requires 3 nodes with 64GB RAM.\n")
+
+		body := sb.String()
+		extracted := extractFindings(body, "T1-01")
+
+		// Must contain the actual technical findings, not just empty headings
+		if !strings.Contains(extracted, "PostgreSQL with pgvector scales") {
+			t.Errorf("extractFindings starved downstream prompt of technical content: %s", extracted)
+		}
+		if !strings.Contains(extracted, "Cluster deployment requires") {
+			t.Errorf("extractFindings missing secondary technical content: %s", extracted)
+		}
+	})
+
+	t.Run("extracts numeric evidence citations [E-NNN] and E-NNN (Fix X-01)", func(t *testing.T) {
+		body := `# General Notes
+Some introductory text.
+Throughput exceeds 45,000 requests/sec under load [E-01].
+Secondary latency target satisfied by Redis cluster E-002.
+`
+		extracted := extractFindings(body, "T1-02")
+		if !strings.Contains(extracted, "[E-01]") {
+			t.Errorf("expected numeric citation [E-01] to be extracted, got: %s", extracted)
+		}
+		if !strings.Contains(extracted, "E-002") {
+			t.Errorf("expected numeric citation E-002 to be extracted, got: %s", extracted)
+		}
+	})
+
+	t.Run("excludes rejected alternatives sections", func(t *testing.T) {
+		body := `# Findings
+## Recommendations
+We recommend SQLite in WAL mode. A (official docs)
+
+## Rejected Alternatives & Tradeoffs
+We rejected RocksDB because Cgo compilation overhead is too high. A (benchmark)
+
+## Alternatives Considered
+DuckDB was ruled out due to concurrent write locking. B (docs)
+`
+		extracted := extractFindings(body, "T1-03")
+		if !strings.Contains(extracted, "SQLite in WAL mode") {
+			t.Errorf("expected SQLite recommendation to be present, got: %s", extracted)
+		}
+		if strings.Contains(extracted, "RocksDB because Cgo") {
+			t.Errorf("expected rejected alternative RocksDB to be excluded, got: %s", extracted)
+		}
+		if strings.Contains(extracted, "DuckDB was ruled out") {
+			t.Errorf("expected alternative considered DuckDB to be excluded, got: %s", extracted)
+		}
+	})
+
+	t.Run("buffers headings so only headings with substantive content appear", func(t *testing.T) {
+		body := `# Session Overview
+## Unused Section With No Findings
+## Section With Substantive Findings
+Key recommendation: use Kafka for event sourcing. A (docs)
+`
+		extracted := extractFindings(body, "T1-04")
+		if !strings.Contains(extracted, "Kafka for event sourcing") {
+			t.Errorf("expected Kafka recommendation, got: %s", extracted)
+		}
+		if strings.Contains(extracted, "Unused Section With No Findings") {
+			t.Errorf("expected empty heading to be suppressed, got: %s", extracted)
+		}
+	})
 }

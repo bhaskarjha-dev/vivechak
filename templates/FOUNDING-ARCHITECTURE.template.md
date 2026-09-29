@@ -1,24 +1,7 @@
+---
 # Founding Architecture Document Template — Vivechak v0.1.0
-### Map-Reduce Synthesis from Research Pipeline to Execution Blueprint
-
-> **Usage:** This template structures the final synthesis document that bridges
-> research findings into a concrete, buildable architecture specification.
->
-> **How to compile this document:**
-> 1. **Filter:** Gather all completed research sessions from `sessions/`
-> 2. **Group:** Cluster sessions by topic (e.g., data, auth, infra, protocols, tooling)
-> 3. **Map:** Extract the Key Findings and Recommendation from each session
-> 4. **Reduce:** Merge each topic cluster into a unified subsystem chapter below
-> 5. **Reconcile:** Resolve any cross-session contradictions (if Session A assumes REST but Session B assumes gRPC, pick one and document why)
-> 6. **Trace:** Annotate every section with the session IDs and decision IDs that informed it
-> 7. **Gate:** Run the Phase 0 Gate checklist before sealing
-
----
-
-## Project: `[Project Name]`
-
-```yaml
----
+# Map-Reduce Synthesis from Research Pipeline to Execution Blueprint
+# Usage: This template structures the final synthesis document (FAD) bridging research findings into an architecture specification.
 id: SYN-01
 title: "[Project Name] — Founding Architecture Document"
 synthesis_date: YYYY-MM-DD
@@ -28,9 +11,19 @@ decisions_locked: 0             # Replace with actual count
 open_questions: 0               # Replace with actual count
 schema_version: "0.1.0"
 ---
-```
 
----
+# [Project Name] — Founding Architecture Document (FAD)
+
+<!--
+How to compile this document:
+1. Filter: Gather all completed research sessions from sessions/
+2. Group: Cluster sessions by topic (e.g., data, auth, infra, protocols, tooling)
+3. Map: Extract the Key Findings and Recommendation from each session
+4. Reduce: Merge each topic cluster into a unified subsystem chapter below
+5. Reconcile: Resolve any cross-session contradictions
+6. Trace: Annotate every section with the session IDs and decision IDs that informed it
+7. Gate: Run the Phase 0 Gate checklist before sealing
+-->
 
 ## 1. Executive Summary
 

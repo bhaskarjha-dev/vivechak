@@ -58,11 +58,13 @@ func (d *DAG) SessionByID(id string) *Session {
 	return nil
 }
 
+var validSessionIDRe = regexp.MustCompile(`^[A-Za-z0-9]+(?:[-_][A-Za-z0-9]+)*$`)
+
 // ValidateDAG checks the pipeline graph for cycles, unknown dependencies, and duplicates.
 func (d *DAG) ValidateDAG() error {
 	ids := make(map[string]bool)
 	for _, s := range d.Sessions {
-		if s.ID == "" {
+		if strings.TrimSpace(s.ID) == "" {
 			return fmt.Errorf("session with empty ID found")
 		}
 		if ids[s.ID] {
@@ -71,10 +73,10 @@ func (d *DAG) ValidateDAG() error {
 		ids[s.ID] = true
 	}
 
-	// Reject non-canonical IDs (no hyphen) — these will fail filename-based matching
+	// Verify session IDs have valid identifier format
 	for _, s := range d.Sessions {
-		if !strings.Contains(s.ID, "-") {
-			return fmt.Errorf("session ID %q lacks a hyphen — use canonical form like 'T1-01' or 'SYN-01' for reliable filename matching", s.ID)
+		if !validSessionIDRe.MatchString(s.ID) {
+			return fmt.Errorf("session ID %q is invalid — use alphanumeric characters with optional hyphens or underscores (e.g. 'T1-01', 'SYN-01')", s.ID)
 		}
 	}
 
@@ -164,8 +166,8 @@ var (
 	briefIDRe = regexp.MustCompile(`[A-Za-z0-9]+(?:-[A-Za-z0-9]+)+`)
 
 	// Matches the prompt code block
-	promptStartRe = regexp.MustCompile("^```prompt")
-	promptEndRe   = regexp.MustCompile("^```$")
+	promptStartRe = regexp.MustCompile("^`{3,}prompt")
+	promptEndRe   = regexp.MustCompile("^`{3,}$")
 )
 
 // ParsePipeline parses a RESEARCH-PIPELINE.md or decision plan file into a DAG structure.
@@ -190,6 +192,8 @@ func ParsePipeline(data []byte) (*DAG, error) {
 	var currentSession *Session
 	inPrompt := false
 	var promptLines []string
+	outerFenceLen := 0
+	inInnerBlock := false
 
 	for i := 0; i < len(lines); i++ {
 		line := lines[i]
@@ -225,7 +229,32 @@ func ParsePipeline(data []byte) (*DAG, error) {
 
 		// Collect prompt block
 		if inPrompt {
-			if promptEndRe.MatchString(trimmed) {
+			numBackticks := 0
+			for j := 0; j < len(trimmed) && trimmed[j] == '`'; j++ {
+				numBackticks++
+			}
+
+			isClosingFence := false
+			if outerFenceLen >= 4 {
+				if numBackticks >= outerFenceLen && len(strings.TrimSpace(trimmed[numBackticks:])) == 0 {
+					isClosingFence = true
+				}
+			} else {
+				if numBackticks >= 3 {
+					afterTicks := strings.TrimSpace(trimmed[numBackticks:])
+					if afterTicks != "" {
+						inInnerBlock = true
+					} else {
+						if inInnerBlock {
+							inInnerBlock = false
+						} else {
+							isClosingFence = true
+						}
+					}
+				}
+			}
+
+			if isClosingFence {
 				inPrompt = false
 				promptContent := strings.Join(promptLines, "\n")
 				targetSession := currentSession
@@ -268,7 +297,12 @@ func ParsePipeline(data []byte) (*DAG, error) {
 		}
 
 		if promptStartRe.MatchString(trimmed) {
+			outerFenceLen = 0
+			for j := 0; j < len(trimmed) && trimmed[j] == '`'; j++ {
+				outerFenceLen++
+			}
 			inPrompt = true
+			inInnerBlock = false
 			promptLines = nil
 			continue
 		}

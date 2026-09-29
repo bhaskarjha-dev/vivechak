@@ -82,6 +82,20 @@ func handlePrepareGenerator(_ context.Context, _ *sdkmcp.CallToolRequest, in Pre
 	genPrompt := string(genBytes)
 	switch scope {
 	case core.ScopeProject:
+		// Extract inner prompt from ````markdown code fences if present
+		if startIdx := strings.Index(genPrompt, "````markdown"); startIdx >= 0 {
+			afterFence := startIdx + len("````markdown")
+			for afterFence < len(genPrompt) && genPrompt[afterFence] != '\n' {
+				afterFence++
+			}
+			if afterFence < len(genPrompt) {
+				afterFence++ // skip '\n'
+			}
+			if endIdx := strings.LastIndex(genPrompt[afterFence:], "````"); endIdx >= 0 {
+				genPrompt = strings.TrimSpace(genPrompt[afterFence : afterFence+endIdx])
+			}
+		}
+
 		placeholder := "[PASTE YOUR PROJECT DESCRIPTION HERE]"
 		if strings.Contains(genPrompt, placeholder) {
 			genPrompt = strings.Replace(genPrompt, placeholder, in.Context, 1)

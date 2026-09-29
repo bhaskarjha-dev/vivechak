@@ -68,7 +68,7 @@ done
 
 When releasing a new version, update ALL of the following references:
 
-- [ ] `VERSION` — bump the version number
+- [ ] `cmd/vivechak/main.go` — bump `var version = "..."`
 - [ ] `CHANGELOG.md` — add new release entry
 - [ ] `README.md` — header version, tree diagram version, roadmap table
 - [ ] `AGENTS.md` — header version

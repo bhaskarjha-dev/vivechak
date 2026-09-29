@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/bhaskarjha-dev/vivechak/internal/core"
@@ -89,10 +90,26 @@ func handleInit(_ context.Context, req *sdkmcp.CallToolRequest, in InitInput) (*
 
 	// Check if already initialized
 	if core.WorkspaceExists(absRoot) {
+		var restored []string
+		for _, tmpl := range core.TemplatesToCopy {
+			relPath := filepath.Join(core.TemplatesDir, tmpl)
+			if !ws.FileExists(relPath) {
+				if data, err := vembed.ReadTemplate(tmpl); err == nil {
+					_ = ws.MkdirAll(core.TemplatesDir, 0o755)
+					if err := store.WriteFileAtomic(ws.Root(), relPath, data, 0o644); err == nil {
+						restored = append(restored, tmpl)
+					}
+				}
+			}
+		}
 		info := core.InspectWorkspace(absRoot)
+		msg := fmt.Sprintf("Workspace already initialized at %s (%d templates, %d sessions)", absRoot, info.TemplateCount, info.SessionCount)
+		if len(restored) > 0 {
+			msg = fmt.Sprintf("Workspace repaired at %s: restored %d missing templates (%s)", absRoot, len(restored), strings.Join(restored, ", "))
+		}
 		env := Envelope{
 			Success: true,
-			Message: fmt.Sprintf("Workspace already initialized at %s (%d templates, %d sessions)", absRoot, info.TemplateCount, info.SessionCount),
+			Message: msg,
 			Data:    info,
 			NextStep: fmt.Sprintf("Workspace exists. Run vivechak_prepare_generator with scope '%s' to get the generator prompt, "+
 				"or vivechak_status to see current progress.", scope),

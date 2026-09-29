@@ -100,9 +100,15 @@ The agent requests the first actionable session.
 ```json
 {
   "success": true,
-  "session_id": "T1-01",
-  "prompt": "# RESEARCH BRIEF: T1-01 Primary Datastore Selection...\\n...",
-  "upstream_context": "None (Root node)"
+  "message": "Next actionable session: T1-01 (1 parallel ready)",
+  "data": {
+    "session_id": "T1-01",
+    "title": "Graph Persistence Landscape",
+    "prompt": "# RESEARCH BRIEF: T1-01 Primary Datastore Selection...\n...",
+    "prompt_char_count": 1420,
+    "prompt_approx_tokens": 355
+  },
+  "next_step": "Execute the prompt for session T1-01 in a fresh AI session with web search enabled. Save the result with vivechak_save_session."
 }
 ```
 
@@ -158,9 +164,15 @@ When the agent asks for the next session, Vivechak automatically injects the com
 ```json
 {
   "success": true,
-  "session_id": "T2-01",
-  "prompt": "# RESEARCH BRIEF: T2-01 PostgreSQL + AGE vs Neo4j...\\n...",
-  "upstream_context": "From T1-01: Primary datastore is PostgreSQL. Neo4j ruled out due to operational overhead. Evaluate Apache AGE extension specifically on Postgres."
+  "message": "Next actionable session: T2-01 (1 parallel ready)",
+  "data": {
+    "session_id": "T2-01",
+    "title": "PostgreSQL + AGE vs Neo4j",
+    "prompt": "# RESEARCH BRIEF: T2-01 PostgreSQL + AGE vs Neo4j...\n...\n## UPSTREAM RESEARCH CONTEXT\n\n## Findings from T1-01\nPostgreSQL 16 is selected...",
+    "prompt_char_count": 1850,
+    "prompt_approx_tokens": 462
+  },
+  "next_step": "Execute the prompt for session T2-01 in a fresh AI session with web search enabled. Save the result with vivechak_save_session."
 }
 ```
 

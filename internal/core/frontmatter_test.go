@@ -386,3 +386,141 @@ func TestFrontmatter_Set(t *testing.T) {
 	nilFm.Set("status", "draft") // Should not panic
 }
 
+func TestParseFrontmatter_Fenced(t *testing.T) {
+	// Test case 1: ```yaml with --- delimiters
+	input1 := "```yaml\n---\nid: D-001\ntitle: Fenced Decision\nstatus: accepted\n---\n```\n\n# Body content here"
+	fm1, body1, err1 := ParseFrontmatter([]byte(input1))
+	if err1 != nil {
+		t.Fatalf("unexpected error on fenced input 1: %v", err1)
+	}
+	if fm1 == nil {
+		t.Fatal("expected non-nil frontmatter on fenced input 1")
+	}
+	if fm1.GetString("id") != "D-001" || fm1.GetString("title") != "Fenced Decision" {
+		t.Errorf("unexpected frontmatter values: %v", fm1)
+	}
+	if !strings.Contains(string(body1), "# Body content here") {
+		t.Errorf("body missing expected content: %q", string(body1))
+	}
+
+	// Test case 2: pure ```yaml without --- delimiters
+	input2 := "```yaml\nid: D-002\ntitle: Pure YAML Fence\nstatus: draft\n```\n\n# Another body"
+	fm2, body2, err2 := ParseFrontmatter([]byte(input2))
+	if err2 != nil {
+		t.Fatalf("unexpected error on fenced input 2: %v", err2)
+	}
+	if fm2 == nil {
+		t.Fatal("expected non-nil frontmatter on fenced input 2")
+	}
+	if fm2.GetString("id") != "D-002" {
+		t.Errorf("unexpected id: %v", fm2.GetString("id"))
+	}
+	if !strings.Contains(string(body2), "# Another body") {
+		t.Errorf("body missing expected content: %q", string(body2))
+	}
+}
+
+func TestEnsureFrontmatterField(t *testing.T) {
+	t.Run("inserts field when missing in standard frontmatter", func(t *testing.T) {
+		input := `---
+# Important architectural comment
+id: T1-01
+title: Datastore Research
+---
+
+# Datastore Findings
+Content here.
+`
+		out := EnsureFrontmatterField([]byte(input), "status", "draft")
+		fm, body, err := ParseFrontmatter(out)
+		if err != nil {
+			t.Fatalf("unexpected error parsing result: %v", err)
+		}
+		if fm == nil {
+			t.Fatal("expected frontmatter")
+		}
+		if fm.GetString("status") != "draft" {
+			t.Errorf("expected status 'draft', got %q", fm.GetString("status"))
+		}
+		if fm.GetString("id") != "T1-01" {
+			t.Errorf("expected id 'T1-01', got %q", fm.GetString("id"))
+		}
+		outStr := string(out)
+		if !strings.Contains(outStr, "# Important architectural comment") {
+			t.Error("expected comments to be preserved")
+		}
+		if !strings.Contains(string(body), "Content here.") {
+			t.Error("expected body to be preserved")
+		}
+	})
+
+	t.Run("returns unchanged when field already exists", func(t *testing.T) {
+		input := `---
+id: T1-01
+status: complete
+---
+# Body
+`
+		out := EnsureFrontmatterField([]byte(input), "status", "draft")
+		if string(out) != input {
+			t.Errorf("expected input to remain unchanged, got:\n%s", string(out))
+		}
+	})
+
+	t.Run("handles CRLF line endings cleanly", func(t *testing.T) {
+		input := "---\r\nid: T1-01\r\ntitle: CRLF Doc\r\n---\r\n\r\n# Body\r\n"
+		out := EnsureFrontmatterField([]byte(input), "status", "draft")
+		outStr := string(out)
+		if !strings.Contains(outStr, "status: draft\r\n") {
+			t.Errorf("expected CRLF line ending for inserted field, got:\n%q", outStr)
+		}
+		fm, _, err := ParseFrontmatter(out)
+		if err != nil || fm == nil || fm.GetString("status") != "draft" {
+			t.Errorf("failed to parse frontmatter from CRLF output: %v", err)
+		}
+	})
+
+	t.Run("handles values and comments containing hyphens", func(t *testing.T) {
+		input := `---
+id: T1-01
+# Note: --- is a separator
+title: "Comparison --- Option A vs Option B"
+---
+
+# Body
+`
+		out := EnsureFrontmatterField([]byte(input), "status", "draft")
+		fm, _, err := ParseFrontmatter(out)
+		if err != nil || fm == nil {
+			t.Fatalf("failed to parse frontmatter: %v", err)
+		}
+		if fm.GetString("status") != "draft" {
+			t.Errorf("expected status 'draft', got %q", fm.GetString("status"))
+		}
+		outStr := string(out)
+		if !strings.Contains(outStr, "# Note: --- is a separator") {
+			t.Error("comment with hyphens corrupted")
+		}
+	})
+
+	t.Run("handles fenced yaml block", func(t *testing.T) {
+		input := "```yaml\n---\nid: T1-01\ntitle: Fenced\n---\n```\n\n# Body\n"
+		out := EnsureFrontmatterField([]byte(input), "status", "draft")
+		fm, _, err := ParseFrontmatter(out)
+		if err != nil || fm == nil {
+			t.Fatalf("failed to parse fenced frontmatter: %v", err)
+		}
+		if fm.GetString("status") != "draft" {
+			t.Errorf("expected status 'draft', got %q", fm.GetString("status"))
+		}
+	})
+
+	t.Run("returns unchanged when no frontmatter exists", func(t *testing.T) {
+		input := "# Just a document\nNo frontmatter here.\n"
+		out := EnsureFrontmatterField([]byte(input), "status", "draft")
+		if string(out) != input {
+			t.Errorf("expected output to equal input, got:\n%s", string(out))
+		}
+	})
+}
+

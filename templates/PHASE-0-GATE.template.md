@@ -1,3 +1,14 @@
+---
+document: "Phase 0 Exit Gate"
+project: "[Project Name]"
+date: "[YYYY-MM-DD]"
+owner: "[Name]"
+verdict: "[PENDING | PASS | FAIL]"
+track_a_result: "[PENDING | PASS | FAIL]"
+track_b_result: "[PENDING | PASS | FAIL]"
+schema_version: "0.1.0"
+---
+
 # Phase 0 Exit Gate Template — Vivechak v0.1.0
 ### Two-Track Pre-Codebase Gate Checklist
 

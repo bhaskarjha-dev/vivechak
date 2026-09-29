@@ -100,16 +100,8 @@ func handleSaveSession(ctx context.Context, _ *sdkmcp.CallToolRequest, in SaveSe
 	}
 	defer unlock()
 
-	// L1 Construct: auto-remedy missing status in frontmatter
-	contentToSave := []byte(in.Content)
-	if fm, body, err := core.ParseFrontmatter(contentToSave); err == nil && fm != nil {
-		if !fm.Has("status") {
-			fm.Set("status", "draft")
-			if composed, err := core.ComposeFrontmatter(fm, body); err == nil {
-				contentToSave = composed
-			}
-		}
-	}
+	// L1 Construct: auto-remedy missing status in frontmatter via in-place insertion
+	contentToSave := core.EnsureFrontmatterField([]byte(in.Content), "status", "draft")
 
 	// Save the file (even with warnings — L2 saves as draft)
 	if err := store.WriteFileAtomic(ws.Root(), relPath, contentToSave, 0o644); err != nil {

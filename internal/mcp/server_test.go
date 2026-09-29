@@ -914,6 +914,91 @@ Tied to Clerk.
 	}
 }
 
+func TestRecordDecision_ConflictResolution(t *testing.T) {
+	cs := testServer(t)
+	ctx := context.Background()
+	tmpDir := t.TempDir()
+
+	// 1. Initialize workspace
+	initRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "vivechak_init",
+		Arguments: map[string]any{"project_root": tmpDir, "scope": "project"},
+	})
+	if err != nil {
+		t.Fatalf("init call: %v", err)
+	}
+	initEnv := parseEnvelope(t, initRes)
+	if !initEnv.Success {
+		t.Fatalf("init failed: %s", initEnv.Message)
+	}
+
+	// 2. Call vivechak_record_decision with artifact_type = "conflict-resolution"
+	crContent := `---
+id: CHK-01
+decision_id: D-001
+title: Conflict Resolution for Storage Engine
+status: resolved
+door_type: one-way
+conflicting_sources:
+  - Session T1-01
+  - Session T1-02
+chosen_option: PostgreSQL
+resolution_method: ACH matrix
+date: 2026-09-29
+schema_version: "0.1.0"
+---
+
+# Conflict Resolution: CHK-01 — Storage Engine Divergence
+
+## 1. Conflict Summary
+T1-01 recommended PostgreSQL based on ACID compliance. T1-02 recommended MongoDB based on document flexibility.
+
+## 2. Analysis of Competing Hypotheses (ACH Matrix)
+Evaluated both options against data integrity, query latency, and operational complexity.
+PostgreSQL dominates on ACID transactions and relational joins.
+
+## 3. Resolution
+Adopt PostgreSQL with jsonb columns for flexible document attributes.
+`
+	res, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_record_decision",
+		Arguments: map[string]any{
+			"project_root":  tmpDir,
+			"decision_id":   "CHK-01",
+			"artifact_type": "conflict-resolution",
+			"content":       crContent,
+		},
+	})
+	if err != nil {
+		t.Fatalf("record_decision conflict-resolution: %v", err)
+	}
+	env := parseEnvelope(t, res)
+	if !env.Success {
+		t.Fatalf("expected success, got message: %s, warnings: %v", env.Message, env.Warnings)
+	}
+
+	data, ok := env.Data.(map[string]any)
+	if !ok {
+		t.Fatalf("expected Data map, got %T", env.Data)
+	}
+	if data["artifact_type"] != "conflict-resolution" {
+		t.Errorf("expected artifact_type 'conflict-resolution', got %v", data["artifact_type"])
+	}
+	if data["status"] != "valid" {
+		t.Errorf("expected status 'valid', got %v (warnings: %v)", data["status"], env.Warnings)
+	}
+
+	// Verify file was written to disk
+	filePath := filepath.Join(tmpDir, "research", "CHK-01-conflict-resolution.md")
+	contentBytes, err := os.ReadFile(filePath)
+	if err != nil {
+		t.Fatalf("expected file %s to exist on disk: %v", filePath, err)
+	}
+	if !strings.Contains(string(contentBytes), "ACH Matrix") {
+		t.Errorf("expected saved file to contain ACH Matrix")
+	}
+}
+
 func TestIDValidationRejectsTraversal(t *testing.T) {
 	cs := testServer(t)
 	ctx := context.Background()

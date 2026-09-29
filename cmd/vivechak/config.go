@@ -292,6 +292,9 @@ func writeConfigFile(configPath string, out []byte) (retErr error) {
 func resolveConfigPath(host, homeDir, appData, cwd, goos string) (string, error) {
 	switch host {
 	case "cursor":
+		if _, err := os.Stat(filepath.Join(cwd, ".cursor")); err == nil {
+			return filepath.Join(cwd, ".cursor", "mcp.json"), nil
+		}
 		if homeDir == "" {
 			return "", fmt.Errorf("could not determine home dir for cursor config")
 		}

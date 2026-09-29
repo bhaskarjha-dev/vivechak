@@ -15,7 +15,7 @@ Vivechak supports two execution models:
 
 ### Standardized Response Envelope
 
-Every Vivechak tool returns a unified JSON envelope defined by [`Envelope`](../internal/mcp/envelope.go#L24-L44). The envelope standardizes execution status, payloads, advisory warnings, and procedural next steps:
+Every Vivechak tool returns a unified JSON envelope defined by [`Envelope`](../internal/mcp/envelope.go). The envelope standardizes execution status, payloads, advisory warnings, and procedural next steps:
 
 ```json
 {
@@ -46,12 +46,12 @@ Every Vivechak tool returns a unified JSON envelope defined by [`Envelope`](../i
 | `meta.truncated` | `boolean` | Set to `true` if large payloads (e.g., prompts > 10,000 tokens) were truncated under default settings. |
 
 #### Dual-Channel Delivery
-Per [`Envelope.ToResult()`](../internal/mcp/envelope.go#L69-L82), the server delivers responses simultaneously via:
+Per [`Envelope.ToResult()`](../internal/mcp/envelope.go), the server delivers responses simultaneously via:
 1. **`StructuredContent`**: Native MCP structured JSON payload for clients supporting JSON object inspection.
 2. **`TextContent`**: Pretty-printed JSON string fallback in `Content` to prevent client parsing errors (e.g., Cursor drops structured-only responses; Gemini CLI rejects missing structured content).
 
 #### Tool Error Handling
-Per the MCP specification, runtime operational errors (such as missing required fields, invalid scopes, or uninitialized workspaces) are returned as tool execution results with `isError: true` via [`ErrorResult()`](../internal/mcp/envelope.go#L97-L107), preserving the envelope structure and providing remediation instructions in `next_step` instead of crashing the JSON-RPC connection.
+Per the MCP specification, runtime operational errors (such as missing required fields, invalid scopes, or uninitialized workspaces) are returned as tool execution results with `isError: true` via [`ErrorResult()`](../internal/mcp/envelope.go), preserving the envelope structure and providing remediation instructions in `next_step` instead of crashing the JSON-RPC connection.
 
 ---
 
@@ -74,7 +74,7 @@ This prevents AI agents from getting stuck, drifting into unapproved tasks, or l
 
 ### Workspace Resolution Chain
 
-Every tool that interacts with the filesystem resolves the workspace root directory using a 4-step hierarchy via [`ResolveWorkspace()`](../internal/core/workspace.go#L43-L88):
+Every tool that interacts with the filesystem resolves the workspace root directory using a 4-step hierarchy via [`ResolveWorkspace()`](../internal/core/workspace.go):
 
 1. **Explicit argument**: `project_root` parameter passed directly to the tool call.
 2. **Environment variable**: `VIVECHAK_PROJECT_ROOT` environment variable if set.
@@ -85,7 +85,7 @@ Every tool that interacts with the filesystem resolves the workspace root direct
 
 ## Tool Call Sequences by Scope Level
 
-Vivechak operates across three distinct research scope levels defined in [`Scope`](../internal/core/scope.go#L10-L22):
+Vivechak operates across three distinct research scope levels defined in [`Scope`](../internal/core/scope.go):
 
 ### 1. Project Scope (Full Research Pipeline &rarr; FAD)
 *Duration:* 4–30 sessions.  
@@ -194,7 +194,7 @@ Create a Vivechak research workspace in the target directory.
 Initializes a new Vivechak research workspace by creating the `research/`, `research/sessions/`, and `research/templates/` directories, then copies the 5 embedded markdown template assets ([`DECISIONS.template.md`](../templates/DECISIONS.template.md), [`CONFLICT-RESOLUTION.template.md`](../templates/CONFLICT-RESOLUTION.template.md), [`COMPARISON-SESSION.template.md`](../templates/COMPARISON-SESSION.template.md), [`FOUNDING-ARCHITECTURE.template.md`](../templates/FOUNDING-ARCHITECTURE.template.md), [`PHASE-0-GATE.template.md`](../templates/PHASE-0-GATE.template.md)). The tool is strictly idempotent: if called on an already initialized workspace, it reports the existing state without overwriting files.
 
 #### Input Parameters
-Defined in [`InitInput`](../internal/mcp/tool_init.go#L16-L19):
+Defined in [`InitInput`](../internal/mcp/tool_init.go):
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
@@ -208,7 +208,7 @@ When initializing a new workspace:
 - `templates_copied` (`string[]`): Names of the templates written to `research/templates/`.
 - `directories_created` (`string[]`): Directories created on disk.
 
-When called on an existing workspace, returns [`WorkspaceInfo`](../internal/core/workspace.go#L98-L119) (`root`, `initialized`, `has_pipeline`, `has_decisions`, `session_count`, `template_count`, `scope`).
+When called on an existing workspace, returns [`WorkspaceInfo`](../internal/core/workspace.go) (`root`, `initialized`, `has_pipeline`, `has_decisions`, `session_count`, `template_count`, `scope`).
 
 #### Example
 **Request:**
@@ -264,7 +264,7 @@ Return the appropriate generator prompt with context slots filled in, ready for 
 Loads the embedded generator template corresponding to the requested scope ([`GENERATOR.md`](../GENERATOR.md) for `project`, [`GENERATOR-DECISION.md`](../GENERATOR-DECISION.md) for `decision`, or [`GENERATOR-COMPARISON.md`](../GENERATOR-COMPARISON.md) for `comparison`) and injects the caller's context into the `[PASTE YOUR PROJECT DESCRIPTION HERE]` placeholder. It computes character and token count estimates and returns the fully assembled prompt ready for execution in an AI browser or search session. This tool is read-only and does not write to disk.
 
 #### Input Parameters
-Defined in [`PrepareGeneratorInput`](../internal/mcp/tool_prepare_generator.go#L14-L18):
+Defined in [`PrepareGeneratorInput`](../internal/mcp/tool_prepare_generator.go):
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
@@ -324,7 +324,7 @@ Validate and persist an agent-generated research plan.
 Persists the research pipeline or session plan generated by the AI model. For `project` scope, it saves the Directed Acyclic Graph (DAG) specification to `research/RESEARCH-PIPELINE.md` and writes `decisions_content` (or initializes the registry) to `research/DECISIONS.md`. For `decision` scope, it writes `research/[decision_id]-plan.md` and writes `decisions_content` to `research/[decision_id]-[slug].md` (the proposed ADR). For `comparison` scope, it writes `research/[decision_id]-comparison.md` (or `research/[decision_id]-cmp-[slug].md`). All writes use advisory file locking with a 5-second timeout and atomic temporary file renames to prevent partial corruption.
 
 #### Input Parameters
-Defined in [`SavePlanInput`](../internal/mcp/tool_save_plan.go#L16-L24):
+Defined in [`SavePlanInput`](../internal/mcp/tool_save_plan.go):
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
@@ -386,14 +386,14 @@ Scan workspace and report research progress.
 Inspects the current workspace filesystem to determine whether Vivechak is initialized, whether `RESEARCH-PIPELINE.md` and `DECISIONS.md` exist, the number of completed sessions in `research/sessions/`, the number of installed templates, and the active scope. If no workspace is located, it returns cleanly with `initialized: false` and guides the host agent to initialize one.
 
 #### Input Parameters
-Defined in [`StatusInput`](../internal/mcp/tool_status.go#L12-L14):
+Defined in [`StatusInput`](../internal/mcp/tool_status.go):
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
 | `project_root` | `string` | Optional | Workspace root path. |
 
 #### Response (`data` field)
-When initialized ([`WorkspaceInfo`](../internal/core/workspace.go#L98-L119)):
+When initialized ([`WorkspaceInfo`](../internal/core/workspace.go)):
 - `root` (`string`): Absolute path to the workspace root.
 - `initialized` (`boolean`): `true`.
 - `has_pipeline` (`boolean`): `true` if `research/RESEARCH-PIPELINE.md` exists.
@@ -452,7 +452,7 @@ Return the next actionable research session prompt with upstream findings inject
 Parses `research/RESEARCH-PIPELINE.md` into an in-memory DAG and scans `research/sessions/` for completed files. It identifies unblocked sessions whose upstream dependencies are satisfied, extracts findings from completed ancestor sessions, and injects those findings directly into the next session prompt's context slots. For synthesis sessions (`SYN-01`), it automatically aggregates findings across all completed sessions in the pipeline.
 
 #### Input Parameters
-Defined in [`NextSessionInput`](../internal/mcp/tool_next_session.go#L15-L19):
+Defined in [`NextSessionInput`](../internal/mcp/tool_next_session.go):
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
@@ -537,10 +537,10 @@ When sessions remain but are blocked by incomplete dependencies:
 Validate and persist a completed research session output.
 
 #### What It Does
-Validates the research session Markdown output against the 4-level validation ladder defined in [`ValidateSession()`](../internal/core/validate.go#L137-L194) and saves it to `research/sessions/<session_id>.md`. The tool checks YAML frontmatter syntax, required metadata fields (`session_id`, `title`, `date`), non-empty body, and inline evidence grades (`A-E`). If blocking issues (Level 2) are detected, the file is safely saved as a draft with status `draft`.
+Validates the research session Markdown output against the 4-level validation ladder defined in [`ValidateSession()`](../internal/core/validate.go) and saves it to `research/sessions/<session_id>.md`. The tool checks YAML frontmatter syntax, required metadata fields (`session_id`, `title`, `date`), non-empty body, and inline evidence grades (`A-E`). If blocking issues (Level 2) are detected, the file is safely saved as a draft with status `draft`.
 
 #### Input Parameters
-Defined in [`SaveSessionInput`](../internal/mcp/tool_save_session.go#L16-L20):
+Defined in [`SaveSessionInput`](../internal/mcp/tool_save_session.go):
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
@@ -554,7 +554,7 @@ Defined in [`SaveSessionInput`](../internal/mcp/tool_save_session.go#L16-L20):
 - `file_path` (`string`): Relative output file path (`research/sessions/<session_id>.md`).
 - `status` (`string`): Validation status: `valid`, `valid-with-warnings`, or `draft`.
 - `validation_passed` (`boolean`): Whether validation passed without blocking Level 2 issues (`true` if valid or valid-with-warnings, `false` if draft).
-- `validation` ([`ValidationResult`](../internal/core/validate.go#L67-L73)): Object containing `status` and `issues` array.
+- `validation` ([`ValidationResult`](../internal/core/validate.go)): Object containing `status` and `issues` array.
 
 #### Example
 **Request:**
@@ -607,7 +607,7 @@ Save an Architectural Decision Record (ADR) or conflict resolution.
 Validates and persists an ADR or Analysis of Competing Hypotheses (ACH) conflict resolution to `research/<decision_id>-decision.md` or `research/<decision_id>-conflict-resolution.md`. Evaluates required frontmatter (`decision_id`, `title`, `status`), verifies presence of `door_type` (`one-way` or `two-way`), and checks that the document body is substantive (>100 characters) with context, consequences, and evidence references.
 
 #### Input Parameters
-Defined in [`RecordDecisionInput`](../internal/mcp/tool_record_decision.go#L16-L21):
+Defined in [`RecordDecisionInput`](../internal/mcp/tool_record_decision.go):
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
@@ -622,7 +622,7 @@ Defined in [`RecordDecisionInput`](../internal/mcp/tool_record_decision.go#L16-L
 - `artifact_type` (`string`): `decision` or `conflict-resolution`.
 - `file_path` (`string`): Path to written document.
 - `status` (`string`): Validation status (`valid`, `valid-with-warnings`, or `draft`).
-- `validation` ([`ValidationResult`](../internal/core/validate.go#L67-L73)): Detailed validation issues list.
+- `validation` ([`ValidationResult`](../internal/core/validate.go)): Detailed validation issues list.
 
 #### Example
 **Request:**
@@ -675,7 +675,7 @@ Dry-run validation on any Vivechak artifact (session output, plan, decision reco
 Executes non-destructive dry-run validation against session reports, architectural decision records, research plans, or Founding Architecture Documents without modifying files on disk. Returns structural defects (L2 blocking), quality warnings (L3 advisory), and auto-construct recommendations (L1) with concrete hints on how to remediate each finding.
 
 #### Input Parameters
-Defined in [`ValidateInput`](../internal/mcp/tool_validate.go#L13-L17):
+Defined in [`ValidateInput`](../internal/mcp/tool_validate.go):
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
@@ -688,7 +688,7 @@ Defined in [`ValidateInput`](../internal/mcp/tool_validate.go#L13-L17):
 - `status` (`string`): Overall status (`valid`, `valid-with-warnings`, `draft`, or `invalid`).
 - `error_count` (`integer`): Count of blocking L2 errors.
 - `warning_count` (`integer`): Count of non-blocking L3 warnings.
-- `validation` ([`ValidationResult`](../internal/core/validate.go#L67-L73)): Detailed issues list containing `level`, `code`, `message`, `field`, and `fix_hint`.
+- `validation` ([`ValidationResult`](../internal/core/validate.go)): Detailed issues list containing `level`, `code`, `message`, `field`, and `fix_hint`.
 
 #### Example
 **Request:**
@@ -768,7 +768,7 @@ Executes the mechanical verification checks for the Phase 0 Exit Gate, tailored 
 > `vivechak_run_gate` performs **mechanical validation only**. Semantic quality assessment (e.g., whether premortems are substantive, whether alternatives were genuinely explored) is the responsibility of the host AI agent.
 
 #### Input Parameters
-Defined in [`RunGateInput`](../internal/mcp/tool_run_gate.go#L14-L18):
+Defined in [`RunGateInput`](../internal/mcp/tool_run_gate.go):
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
@@ -806,7 +806,7 @@ Defined in [`RunGateInput`](../internal/mcp/tool_run_gate.go#L14-L18):
 ```json
 {
   "success": true,
-  "message": "Phase 0 Gate: PASS (Track A: 5/5, Track B: 3/3)",
+  "message": "Phase 0 Gate: PASS (Structural Completeness: 5/5, Quality Indicators: 3/3)",
   "data": {
     "workspace_root": "d:/dev/pro/my-cloud-app",
     "scope": "project",
@@ -859,7 +859,7 @@ Defined in [`RunGateInput`](../internal/mcp/tool_run_gate.go#L14-L18):
 
 ## Validation Ladder & Warning Codes Reference
 
-Vivechak organizes all artifact validation into a 4-level validation ladder defined in [`ValidationLevel`](../internal/core/validate.go#L9-L22):
+Vivechak organizes all artifact validation into a 4-level validation ladder defined in [`ValidationLevel`](../internal/core/validate.go):
 
 | Level | Identifier | Behavior |
 |---|---|---|

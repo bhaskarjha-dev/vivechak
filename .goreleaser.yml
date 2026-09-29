@@ -59,6 +59,18 @@ builds:
     env:
       - CGO_ENABLED=0
 
+  - id: vck-windows
+    main: ./cmd/vivechak
+    binary: vck
+    goos: [windows]
+    goarch: [amd64, arm64]
+    flags: [-trimpath]
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+    env:
+      - CGO_ENABLED=0
+
 universal_binaries:
   - id: vivechak-darwin-universal
     ids:
@@ -151,4 +163,4 @@ scoops:
     license: MIT
     bin:
       - "vivechak.exe"
-      - ["vivechak.exe", "vck"]
+      - "vck.exe"

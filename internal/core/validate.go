@@ -141,8 +141,8 @@ func (r *ValidationResult) AddFieldIssueWithHint(level ValidationLevel, code, fi
 	})
 }
 
-// evidenceGradePattern matches inline evidence grades like "A (source)", "[Grade A]", "(Grade B · ...)", "(A · corroborated · fresh | fetched)", etc.
-var evidenceGradePattern = regexp.MustCompile(`(?:\[?[Gg]rade\s+[A-E][^\]\)\n]*\]?|\b[A-E]\s*\([^)]+\)|\([Gg]rade\s+[A-E][^)]*\)|\([A-E]\s*[·|][^)]*\)|\[[A-E]\s*[·|][^\]]*\])`)
+// evidenceGradePattern matches inline evidence grades like "A (source)", "[Grade A]", "(Grade B · ...)", "(A · corroborated · fresh | fetched)", "[E-01]", "E-001", etc.
+var evidenceGradePattern = regexp.MustCompile(`(?:\[?[Gg]rade\s+[A-E][^\]\)\n]*\]?|\b[A-E]\s*\([^)]+\)|\([Gg]rade\s+[A-E][^)]*\)|\([A-E]\s*[·|][^)]*\)|\[[A-E]\s*[·|][^\]]*\]|\[E-\d+\]|\bE-\d+\b)`)
 
 // ValidateSession checks a research session output against the validation ladder.
 // Returns issues at levels L1-L3 (L4 is project-wide, not per-session).
@@ -271,6 +271,63 @@ func ValidateDecision(data []byte) *ValidationResult {
 		result.AddIssueWithHint(L3Warn, "W-SHORT-DECISION",
 			"Decision body is very short — may lack sufficient context",
 			"Include Context, Decision, Consequences, and Evidence sections")
+	}
+
+	if result.HasBlocking() {
+		result.Status = "draft"
+	} else if result.WarningCount() > 0 {
+		result.Status = "valid-with-warnings"
+	}
+
+	return result
+}
+
+// ValidateConflictResolution checks a conflict resolution record (ACH matrix analysis).
+func ValidateConflictResolution(data []byte) *ValidationResult {
+	result := &ValidationResult{Status: "valid"}
+
+	fm, body, err := ParseFrontmatter(data)
+	if err != nil {
+		result.AddIssue(L2Block, "V-INVALID-FRONTMATTER", "YAML frontmatter is malformed: "+err.Error())
+		result.Status = "invalid"
+		return result
+	}
+
+	if fm == nil {
+		result.AddIssueWithHint(L2Block, "V-MISSING-FRONTMATTER",
+			"Conflict resolution record has no YAML frontmatter",
+			"Add frontmatter with at least: id (or conflict_id), decision_id, title, status, door_type")
+		result.Status = "draft"
+		return result
+	}
+
+	// Required fields: id (or conflict_id), decision_id, title, status
+	requiredFields := []string{"id", "decision_id", "title", "status"}
+	for _, field := range requiredFields {
+		has := fm.Has(field)
+		if !has && field == "id" {
+			has = fm.Has("conflict_id")
+		}
+		if !has {
+			result.AddFieldIssueWithHint(L2Block, "V-MISSING-FIELD", field,
+				fmt.Sprintf("Required field %q missing from conflict resolution", field),
+				fmt.Sprintf("Add '%s: <value>' to the frontmatter", field))
+		}
+	}
+
+	// L3: door_type should be present
+	if !fm.Has("door_type") {
+		result.AddIssueWithHint(L3Warn, "W-MISSING-DOOR-TYPE",
+			"Conflict resolution lacks door_type classification",
+			"Add 'door_type: one-way' or 'door_type: two-way'")
+	}
+
+	// L3: Body should not be trivially short
+	bodyStr := strings.TrimSpace(string(body))
+	if len(bodyStr) < 100 {
+		result.AddIssueWithHint(L3Warn, "W-SHORT-BODY",
+			"Conflict resolution body is very short — may lack sufficient context",
+			"Include Conflict Summary, ACH Matrix, and Resolution sections")
 	}
 
 	if result.HasBlocking() {

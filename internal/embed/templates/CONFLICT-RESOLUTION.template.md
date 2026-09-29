@@ -1,3 +1,18 @@
+---
+id: "[CHK-NN]"
+decision_id: "[D-NNN]"
+title: "[Decision Title]"
+status: "[resolved | open]"
+door_type: "[one-way | two-way]"
+conflicting_sources:
+  - "[Session/Model A]"
+  - "[Session/Model B]"
+chosen_option: "[Option X]"
+resolution_method: "[ACH matrix | Evidence grade superiority | Technical spike | Human architect judgment]"
+date: "[YYYY-MM-DD]"
+schema_version: "0.1.0"
+---
+
 # Conflict Resolution Template — Vivechak v0.1.0
 ### ACH-Style Falsification Matrix & Structured Divergence Resolution
 

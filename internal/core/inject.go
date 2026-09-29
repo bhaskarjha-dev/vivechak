@@ -230,28 +230,38 @@ func readSessionFile(sessionsDir string, sessionID string) (string, string, erro
 
 // extractFindings creates a compact context excerpt from a session body.
 // Focuses on headings, recommendations, and evidence-graded claims.
+// Buffers headings so they are only emitted if substantive content follows,
+// and ensures substantive body content is measured before skipping the raw body fallback.
 func extractFindings(body string, sessionID string) string {
 	if body == "" {
 		return ""
 	}
 
-	var excerpt strings.Builder
-	excerpt.WriteString(fmt.Sprintf("## Findings from %s\n\n", sessionID))
+	var substantiveContent strings.Builder
+	type headingEntry struct {
+		level int
+		line  string
+	}
+	var pendingHeadings []headingEntry
+	substantiveBytes := 0
 
 	lines := strings.Split(body, "\n")
 	inRelevantSection := false
+	inRejectedSection := false
 
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
 
-		// Always include headings, except rejected alternatives sections
+		// Always check headings
 		if strings.HasPrefix(trimmed, "#") {
 			lower := strings.ToLower(trimmed)
 			if strings.Contains(lower, "rejected") || strings.Contains(lower, "alternatives considered") {
+				inRejectedSection = true
 				inRelevantSection = false
+				pendingHeadings = nil
 				continue
 			}
-			excerpt.WriteString(line + "\n")
+			inRejectedSection = false
 			inRelevantSection = strings.Contains(lower, "recommendation") ||
 				strings.Contains(lower, "finding") ||
 				strings.Contains(lower, "conclusion") ||
@@ -259,37 +269,54 @@ func extractFindings(body string, sessionID string) string {
 				strings.Contains(lower, "verdict") ||
 				strings.Contains(lower, "summary") ||
 				strings.Contains(lower, "result")
+
+			level := 0
+			for level < len(trimmed) && trimmed[level] == '#' {
+				level++
+			}
+			for len(pendingHeadings) > 0 && pendingHeadings[len(pendingHeadings)-1].level >= level {
+				pendingHeadings = pendingHeadings[:len(pendingHeadings)-1]
+			}
+			pendingHeadings = append(pendingHeadings, headingEntry{level: level, line: line})
 			continue
 		}
 
-		// Include content from relevant sections
-		if inRelevantSection && trimmed != "" {
-			excerpt.WriteString(line + "\n")
+		if inRejectedSection {
+			continue
 		}
 
-		// Always include lines with evidence grades
-		if evidenceGradePattern.MatchString(trimmed) {
-			if !inRelevantSection {
-				excerpt.WriteString(line + "\n")
+		includeLine := false
+		if inRelevantSection && trimmed != "" {
+			includeLine = true
+		} else if evidenceGradePattern.MatchString(trimmed) {
+			includeLine = true
+		}
+
+		if includeLine {
+			for _, h := range pendingHeadings {
+				substantiveContent.WriteString(h.line + "\n")
 			}
+			pendingHeadings = nil
+			substantiveContent.WriteString(line + "\n")
+			substantiveBytes += len(trimmed)
 		}
 	}
 
-	result := excerpt.String()
-
-	// If the excerpt is too small, supplement with raw body (up to 4000 chars)
-	if len(result) < 200 && len(body) > 0 {
+	// If no substantive content was extracted, fall back to raw body (up to 4000 chars)
+	// so downstream prompts are not starved.
+	if substantiveBytes == 0 && len(body) > 0 {
 		maxLen := 4000
 		if len(body) < maxLen {
 			maxLen = len(body)
 		}
-		result = fmt.Sprintf("## Findings from %s\n\n%s", sessionID, body[:maxLen])
+		result := fmt.Sprintf("## Findings from %s\n\n%s", sessionID, body[:maxLen])
 		if len(body) > maxLen {
 			result += "\n\n... [truncated for context injection]"
 		}
+		return result
 	}
 
-	return result
+	return fmt.Sprintf("## Findings from %s\n\n%s", sessionID, substantiveContent.String())
 }
 
 // injectIntoPrompt replaces a slot placeholder with the given content.

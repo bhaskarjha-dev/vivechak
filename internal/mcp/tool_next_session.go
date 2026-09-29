@@ -65,13 +65,42 @@ func handleNextSession(_ context.Context, _ *sdkmcp.CallToolRequest, in NextSess
 
 	// If workspace is comparison scope, there is no multi-session pipeline DAG
 	if info.Scope == core.ScopeComparison {
+		var compFile string
+		var compContent []byte
+		if entries, lErr := ws.ListDir(core.ResearchDir); lErr == nil {
+			for _, e := range entries {
+				if !e.IsDir() && (strings.HasSuffix(e.Name(), "-comparison.md") || strings.Contains(e.Name(), "-cmp-")) {
+					compFile = filepath.Join(core.ResearchDir, e.Name())
+					if data, rErr := ws.ReadFile(compFile); rErr == nil {
+						compContent = data
+						break
+					}
+				}
+			}
+		}
+
+		promptStr := string(compContent)
+		dataMap := map[string]any{
+			"workspace_root":       root,
+			"scope":                info.Scope,
+			"session_id":           "CMP-01",
+			"prompt":               promptStr,
+			"prompt_char_count":    len(promptStr),
+			"prompt_approx_tokens": len(promptStr) / 4,
+		}
+		if compFile != "" {
+			dataMap["source_file"] = compFile
+		}
+
+		msg := "Comparison scope research prompt ready."
+		if promptStr == "" {
+			msg = "Comparison scope workspace initialized. No comparison plan found yet."
+		}
+
 		env := Envelope{
 			Success: true,
-			Message: "Comparison scope has a single research session without a multi-session DAG.",
-			Data: map[string]any{
-				"workspace_root": root,
-				"scope":          info.Scope,
-			},
+			Message: msg,
+			Data:    dataMap,
 			NextStep: "Execute your comparison research prompt and save the output with vivechak_save_session using session_id='CMP-01'.",
 			Meta:     NewMeta(tool),
 		}

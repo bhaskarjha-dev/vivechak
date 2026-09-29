@@ -12,7 +12,7 @@ import (
 	"github.com/bhaskarjha-dev/vivechak/internal/core"
 )
 
-var decisionIDRe = regexp.MustCompile(`D-\d+`)
+var decisionIDRe = regexp.MustCompile(`\bD-\d+\b`)
 
 func runDoctor() {
 	var args []string
@@ -104,8 +104,13 @@ func checkWorkspace(workspace string) (bool, []string, []string) {
 		var adrContents []string
 		if entries, err := os.ReadDir(filepath.Join(workspace, core.ResearchDir)); err == nil {
 			for _, e := range entries {
-				if !e.IsDir() && strings.HasSuffix(e.Name(), ".md") && !strings.HasSuffix(e.Name(), "-plan.md") {
-					if data, err := os.ReadFile(filepath.Join(workspace, core.ResearchDir, e.Name())); err == nil {
+				name := e.Name()
+				if !e.IsDir() && strings.HasSuffix(name, ".md") &&
+					!strings.HasSuffix(name, "-plan.md") &&
+					!strings.EqualFold(name, "RESEARCH-PIPELINE.md") &&
+					!strings.EqualFold(name, "FAD.md") &&
+					!strings.EqualFold(name, "DECISIONS.md") {
+					if data, err := os.ReadFile(filepath.Join(workspace, core.ResearchDir, name)); err == nil {
 						adrContents = append(adrContents, string(data))
 					}
 				}
@@ -160,7 +165,12 @@ func checkWorkspace(workspace string) (bool, []string, []string) {
 			// Check stale decisions references
 			if decisionsContent != "" {
 				matches := decisionIDRe.FindAllString(string(data), -1)
+				seenMatches := make(map[string]bool)
 				for _, match := range matches {
+					if seenMatches[match] {
+						continue
+					}
+					seenMatches[match] = true
 					if !strings.Contains(decisionsContent, match) {
 						errs = append(errs, fmt.Sprintf("✗ Stale decision ref in %s: %s", e.Name(), match))
 						staleRefs++
