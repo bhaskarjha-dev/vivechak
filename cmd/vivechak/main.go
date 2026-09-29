@@ -44,39 +44,70 @@ func main() {
 	}))
 	slog.SetDefault(logger)
 
+	os.Exit(runCLI(os.Args, os.Stdout, os.Stderr, logger))
+}
+
+func runCLI(args []string, stdout, stderr io.Writer, logger ...*slog.Logger) int {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	return runCLIWithContext(ctx, args, stdout, stderr, logger...)
+}
+
+func runCLIWithContext(ctx context.Context, args []string, stdout, stderr io.Writer, logger ...*slog.Logger) int {
 	// Parse subcommand
 	cmd := "serve"
-	if len(os.Args) > 1 {
-		cmd = os.Args[1]
+	if len(args) > 1 {
+		cmd = args[1]
 	}
 
 	switch cmd {
 	case "serve", "":
-		runServe(logger)
+		var l *slog.Logger
+		if len(logger) > 0 && logger[0] != nil {
+			l = logger[0]
+		} else {
+			l = slog.New(slog.NewTextHandler(stderr, &slog.HandlerOptions{Level: slog.LevelInfo}))
+		}
+		return runServeWithContext(ctx, l)
 	case "version", "--version", "-v":
-		fmt.Fprintf(os.Stdout, "vivechak %s\n", version)
+		fmt.Fprintf(stdout, "vivechak %s\n", version)
+		return 0
 	case "mcp-config":
-		runMCPConfig()
+		var subArgs []string
+		if len(args) > 2 {
+			subArgs = args[2:]
+		}
+		return runMCPConfigWithArgs(subArgs, stdout, stderr)
 	case "doctor":
-		runDoctor()
+		var subArgs []string
+		if len(args) > 2 {
+			subArgs = args[2:]
+		}
+		return runDoctorWithArgs(subArgs, stdout, stderr)
 	case "help", "--help", "-h":
-		printUsage(os.Stdout)
-		os.Exit(0)
+		printUsage(stdout)
+		return 0
 	default:
-		printUsage(os.Stderr)
-		os.Exit(1)
+		printUsage(stderr)
+		return 1
 	}
 }
 
-func runServe(logger *slog.Logger) {
+func runServe(logger *slog.Logger) int {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
+	return runServeWithContext(ctx, logger)
+}
+
+func runServeWithContext(ctx context.Context, logger *slog.Logger) int {
 	server := mcputil.NewServer(version, logger)
 
 	logger.Info("starting vivechak MCP server", "version", version)
 	if err := server.Run(ctx, &mcp.StdioTransport{}); err != nil && err != context.Canceled {
 		logger.Error("server exited with error", "err", err)
-		os.Exit(1)
+		return 1
 	}
+	return 0
 }

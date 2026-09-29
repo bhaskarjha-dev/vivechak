@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -14,38 +15,45 @@ import (
 var decisionIDRe = regexp.MustCompile(`D-\d+`)
 
 func runDoctor() {
-	var explicit string
+	var args []string
 	if len(os.Args) > 2 {
-		if os.Args[2] == "--help" || os.Args[2] == "-h" {
-			fmt.Fprintln(os.Stdout, "Usage: vivechak doctor [workspace_path]")
-			fmt.Fprintln(os.Stdout, "")
-			fmt.Fprintln(os.Stdout, "Check workspace integrity, templates, frontmatter validity, and cross-references.")
-			os.Exit(0)
+		args = os.Args[2:]
+	}
+	os.Exit(runDoctorWithArgs(args, os.Stdout, os.Stderr))
+}
+
+func runDoctorWithArgs(args []string, stdout, stderr io.Writer) int {
+	var explicit string
+	if len(args) > 0 {
+		if args[0] == "--help" || args[0] == "-h" {
+			fmt.Fprintln(stdout, "Usage: vivechak doctor [workspace_path]")
+			fmt.Fprintln(stdout, "")
+			fmt.Fprintln(stdout, "Check workspace integrity, templates, frontmatter validity, and cross-references.")
+			return 0
 		}
-		explicit = os.Args[2]
+		explicit = args[0]
 	}
 
 	workspace, err := core.ResolveWorkspace(explicit)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Workspace resolution failed: %v\n", err)
-		os.Exit(1)
+		fmt.Fprintf(stderr, "Workspace resolution failed: %v\n", err)
+		return 1
 	}
 
-	fmt.Fprintf(os.Stdout, "Checking workspace at %s\n", workspace)
+	fmt.Fprintf(stdout, "Checking workspace at %s\n", workspace)
 	hasErrors, successes, errs := checkWorkspace(workspace)
 	for _, s := range successes {
-		fmt.Fprintln(os.Stdout, s)
+		fmt.Fprintln(stdout, s)
 	}
 	for _, e := range errs {
-		fmt.Fprintln(os.Stderr, e)
+		fmt.Fprintln(stderr, e)
 	}
 
 	if hasErrors {
-		os.Exit(1)
-	} else {
-		fmt.Fprintln(os.Stdout, "Workspace is healthy.")
-		os.Exit(0)
+		return 1
 	}
+	fmt.Fprintln(stdout, "Workspace is healthy.")
+	return 0
 }
 
 // checkWorkspace performs integrity and consistency checks on the given workspace path.

@@ -293,7 +293,8 @@ func extractFindings(body string, sessionID string) string {
 }
 
 // injectIntoPrompt replaces a slot placeholder with the given content.
-// If the slot doesn't exist in the prompt, appends the content at the end.
+// If the primary slot doesn't exist, checks for decision generator placeholders (e.g. [PASTE S1 SHORTLIST]).
+// If no placeholder exists, appends the content at the end.
 func injectIntoPrompt(prompt, slot, content string) string {
 	if content == "" {
 		return prompt
@@ -301,6 +302,12 @@ func injectIntoPrompt(prompt, slot, content string) string {
 
 	if strings.Contains(prompt, slot) {
 		return strings.Replace(prompt, slot, content, 1)
+	}
+
+	// Support decision generator candidate shortlist placeholder
+	const decisionShortlistSlot = "[PASTE S1 SHORTLIST]"
+	if strings.Contains(prompt, decisionShortlistSlot) {
+		return strings.Replace(prompt, decisionShortlistSlot, content, 1)
 	}
 
 	// Append upstream context if no slot found

@@ -1378,3 +1378,52 @@ Kafka chosen for stream retention. A (official docs)
 		t.Fatalf("expected gate PASS, got status=%v passed=%v (message=%s)", gateData["gate_status"], gateData["gate_passed"], env.Message)
 	}
 }
+
+func TestNextSession_NotFound_SessionIDList(t *testing.T) {
+	ctx := context.Background()
+	cs := testServer(t)
+	tmpDir := t.TempDir()
+
+	// Init
+	cs.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "vivechak_init",
+		Arguments: map[string]any{"project_root": tmpDir, "scope": "project"},
+	})
+
+	pipeline := `# Pipeline
+#### T1-01: Session One
+| **ID** | T1-01 |
+| **Output File** | sessions/T1-01.md |
+` + "```prompt" + `
+Prompt one
+` + "```" + `
+`
+	// Save pipeline
+	cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_save_plan",
+		Arguments: map[string]any{
+			"project_root": tmpDir,
+			"scope":        "project",
+			"content":      pipeline,
+		},
+	})
+
+	// Request nonexistent session ID
+	res, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_next_session",
+		Arguments: map[string]any{
+			"project_root": tmpDir,
+			"session_id":   "NONEXISTENT-99",
+		},
+	})
+	if err != nil {
+		t.Fatalf("unexpected call error: %v", err)
+	}
+	env := parseEnvelope(t, res)
+	if env.Success {
+		t.Errorf("expected error for nonexistent session ID")
+	}
+	if !strings.Contains(env.NextStep, "T1-01") {
+		t.Errorf("expected available sessions list in NextStep, got: %s", env.NextStep)
+	}
+}

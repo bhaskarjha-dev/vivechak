@@ -384,3 +384,39 @@ func TestInjectContext_SizeWarning(t *testing.T) {
 		t.Errorf("expected warning to contain 'W-INJECTION-SIZE', got %q", injected.Warning)
 	}
 }
+
+func TestInjectContext_DecisionShortlistSlot(t *testing.T) {
+	tmpDir := t.TempDir()
+	sessionsDir := filepath.Join(tmpDir, "sessions")
+	os.MkdirAll(sessionsDir, 0o755)
+
+	s1Content := `---
+session_id: D-015-S1
+title: Landscape
+status: complete
+---
+# Landscape Findings
+Shortlist: Redis, Dragonfly, KeyDB. A (official docs)
+`
+	os.WriteFile(filepath.Join(sessionsDir, "D-015-S1.md"), []byte(s1Content), 0o644)
+
+	session := Session{
+		ID:           "D-015-S2",
+		Title:        "Comparison",
+		Dependencies: []string{"D-015-S1"},
+		Prompt:       "# Comparison\n\nOptions to compare: [PASTE S1 SHORTLIST]\n\nEvaluate latency.",
+	}
+
+	completed := map[string]bool{"D-015-S1": true}
+	injected, err := InjectContext(session, sessionsDir, completed)
+	if err != nil {
+		t.Fatalf("InjectContext: %v", err)
+	}
+
+	if strings.Contains(injected.InjectedPrompt, "[PASTE S1 SHORTLIST]") {
+		t.Errorf("expected [PASTE S1 SHORTLIST] to be replaced, got: %s", injected.InjectedPrompt)
+	}
+	if !strings.Contains(injected.InjectedPrompt, "Redis, Dragonfly, KeyDB") {
+		t.Errorf("expected shortlist findings in prompt, got: %s", injected.InjectedPrompt)
+	}
+}

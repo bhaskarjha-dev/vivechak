@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -11,32 +12,39 @@ import (
 )
 
 func runMCPConfig() {
+	var args []string
+	if len(os.Args) > 2 {
+		args = os.Args[2:]
+	}
+	os.Exit(runMCPConfigWithArgs(args, os.Stdout, os.Stderr))
+}
+
+func runMCPConfigWithArgs(args []string, stdout, stderr io.Writer) int {
 	var host string
 	var write bool
 	var customPath string
 
-	args := os.Args[2:]
 	for i := 0; i < len(args); i++ {
 		if args[i] == "--help" || args[i] == "-h" {
-			fmt.Fprintln(os.Stdout, "Usage: vivechak mcp-config [--path <filepath>] [--preset <shortcut>] [--write]")
-			fmt.Fprintln(os.Stdout, "")
-			fmt.Fprintln(os.Stdout, "Outputs universal Model Context Protocol (MCP) JSON configuration for Vivechak.")
-			fmt.Fprintln(os.Stdout, "Compatible with any MCP-compliant AI tool, agent harness, IDE, or runtime.")
-			fmt.Fprintln(os.Stdout, "")
-			fmt.Fprintln(os.Stdout, "Flags:")
-			fmt.Fprintln(os.Stdout, "  --write                 Write and merge configuration directly to target file")
-			fmt.Fprintln(os.Stdout, "  --path, --file <path>   Write to an arbitrary configuration file path (universal)")
-			fmt.Fprintln(os.Stdout, "  --preset <shortcut>     Optional desktop path shortcut (e.g. cursor, vscode, zed)")
-			fmt.Fprintln(os.Stdout, "  --client <shortcut>     Alias for --preset (backward compatible)")
-			fmt.Fprintln(os.Stdout, "")
-			fmt.Fprintln(os.Stdout, "Desktop Path Shortcuts:")
-			fmt.Fprintln(os.Stdout, "  cursor, vscode, claude-desktop, windsurf, antigravity, zed, kiro")
-			fmt.Fprintln(os.Stdout, "")
-			fmt.Fprintln(os.Stdout, "Examples:")
-			fmt.Fprintln(os.Stdout, "  vivechak mcp-config                                     # Universal MCP JSON to stdout")
-			fmt.Fprintln(os.Stdout, "  vivechak mcp-config --path ~/.omp/agent/mcp.json --write # Write directly to any agent config")
-			fmt.Fprintln(os.Stdout, "  vivechak mcp-config --preset cursor --write             # Desktop shortcut for Cursor")
-			os.Exit(0)
+			fmt.Fprintln(stdout, "Usage: vivechak mcp-config [--path <filepath>] [--preset <shortcut>] [--write]")
+			fmt.Fprintln(stdout, "")
+			fmt.Fprintln(stdout, "Outputs universal Model Context Protocol (MCP) JSON configuration for Vivechak.")
+			fmt.Fprintln(stdout, "Compatible with any MCP-compliant AI tool, agent harness, IDE, or runtime.")
+			fmt.Fprintln(stdout, "")
+			fmt.Fprintln(stdout, "Flags:")
+			fmt.Fprintln(stdout, "  --write                 Write and merge configuration directly to target file")
+			fmt.Fprintln(stdout, "  --path, --file <path>   Write to an arbitrary configuration file path (universal)")
+			fmt.Fprintln(stdout, "  --preset <shortcut>     Optional desktop path shortcut (e.g. cursor, vscode, zed)")
+			fmt.Fprintln(stdout, "  --client <shortcut>     Alias for --preset (backward compatible)")
+			fmt.Fprintln(stdout, "")
+			fmt.Fprintln(stdout, "Desktop Path Shortcuts:")
+			fmt.Fprintln(stdout, "  cursor, vscode, claude-desktop, windsurf, antigravity, zed, kiro")
+			fmt.Fprintln(stdout, "")
+			fmt.Fprintln(stdout, "Examples:")
+			fmt.Fprintln(stdout, "  vivechak mcp-config                                     # Universal MCP JSON to stdout")
+			fmt.Fprintln(stdout, "  vivechak mcp-config --path ~/.omp/agent/mcp.json --write # Write directly to any agent config")
+			fmt.Fprintln(stdout, "  vivechak mcp-config --preset cursor --write             # Desktop shortcut for Cursor")
+			return 0
 		} else if (args[i] == "--preset" || args[i] == "--client") && i+1 < len(args) {
 			host = args[i+1]
 			i++
@@ -50,18 +58,18 @@ func runMCPConfig() {
 
 	exePath, err := os.Executable()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to get executable path: %v\n", err)
-		os.Exit(1)
+		fmt.Fprintf(stderr, "failed to get executable path: %v\n", err)
+		return 1
 	}
 	exePath, err = filepath.Abs(exePath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to make path absolute: %v\n", err)
-		os.Exit(1)
+		fmt.Fprintf(stderr, "failed to make path absolute: %v\n", err)
+		return 1
 	}
 
 	if host != "" && !isSupportedPreset(host) {
-		fmt.Fprintf(os.Stderr, "Error: unknown desktop preset: %s (available shortcuts: cursor, vscode, claude-desktop, windsurf, antigravity, zed, kiro)\n", host)
-		os.Exit(1)
+		fmt.Fprintf(stderr, "Error: unknown desktop preset: %s (available shortcuts: cursor, vscode, claude-desktop, windsurf, antigravity, zed, kiro)\n", host)
+		return 1
 	}
 
 	serverKey := "mcpServers"
@@ -83,8 +91,8 @@ func runMCPConfig() {
 	// Without --write, print MCP config JSON compatible with the requested client or universal
 	if !write {
 		b, _ := json.MarshalIndent(configObj, "", "  ")
-		fmt.Fprintln(os.Stdout, string(b))
-		os.Exit(0)
+		fmt.Fprintln(stdout, string(b))
+		return 0
 	}
 
 	// With --write, determine destination config path
@@ -98,16 +106,16 @@ func runMCPConfig() {
 	} else if host != "" {
 		resolvedPath, err := resolveConfigPath(host, homeDir, appData, cwd, runtime.GOOS)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-			os.Exit(1)
+			fmt.Fprintf(stderr, "Error: %v\n", err)
+			return 1
 		}
 		configPath = resolvedPath
 	} else {
-		fmt.Fprintln(os.Stderr, "Error: --write requires a target file location.")
-		fmt.Fprintln(os.Stderr, "Usage: vivechak mcp-config --path <config_file_path> --write")
-		fmt.Fprintln(os.Stderr, "   or: vivechak mcp-config --preset <shortcut> --write")
-		fmt.Fprintln(os.Stderr, "Available desktop shortcuts: cursor, vscode, claude-desktop, windsurf, antigravity, zed, kiro")
-		os.Exit(1)
+		fmt.Fprintln(stderr, "Error: --write requires a target file location.")
+		fmt.Fprintln(stderr, "Usage: vivechak mcp-config --path <config_file_path> --write")
+		fmt.Fprintln(stderr, "   or: vivechak mcp-config --preset <shortcut> --write")
+		fmt.Fprintln(stderr, "Available desktop shortcuts: cursor, vscode, claude-desktop, windsurf, antigravity, zed, kiro")
+		return 1
 	}
 
 	// Determine serverKey based on host and target path
@@ -128,15 +136,15 @@ func runMCPConfig() {
 
 		merged, mergeErr := mergeConfig(b, exePath, targetKey)
 		if mergeErr != nil {
-			fmt.Fprintf(os.Stderr, "Warning: %v\n", mergeErr)
-			fmt.Fprintf(os.Stderr, "Creating backup at %s.bak and writing fresh config\n", configPath)
+			fmt.Fprintf(stderr, "Warning: %v\n", mergeErr)
+			fmt.Fprintf(stderr, "Creating backup at %s.bak and writing fresh config\n", configPath)
 			if backupErr := os.WriteFile(configPath+".bak", b, 0644); backupErr != nil {
-				fmt.Fprintf(os.Stderr, "Warning: could not create backup: %v\n", backupErr)
+				fmt.Fprintf(stderr, "Warning: could not create backup: %v\n", backupErr)
 			}
 			fresh, freshErr := mergeConfig(nil, exePath, targetKey)
 			if freshErr != nil {
-				fmt.Fprintf(os.Stderr, "failed to create fresh config: %v\n", freshErr)
-				os.Exit(1)
+				fmt.Fprintf(stderr, "failed to create fresh config: %v\n", freshErr)
+				return 1
 			}
 			out = fresh
 		} else {
@@ -145,18 +153,19 @@ func runMCPConfig() {
 	} else {
 		fresh, freshErr := mergeConfig(nil, exePath, targetKey)
 		if freshErr != nil {
-			fmt.Fprintf(os.Stderr, "failed to create fresh config: %v\n", freshErr)
-			os.Exit(1)
+			fmt.Fprintf(stderr, "failed to create fresh config: %v\n", freshErr)
+			return 1
 		}
 		out = fresh
 	}
 
 	if err := writeConfigFile(configPath, out); err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
-		os.Exit(1)
+		fmt.Fprintln(stderr, err.Error())
+		return 1
 	}
 
-	fmt.Fprintf(os.Stderr, "Successfully wrote config to %s\n", configPath)
+	fmt.Fprintf(stderr, "Successfully wrote config to %s\n", configPath)
+	return 0
 }
 
 // determineServerKey returns the appropriate top-level JSON key ("servers", "context_servers", or "mcpServers").
