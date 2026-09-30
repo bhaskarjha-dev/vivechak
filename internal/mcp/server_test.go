@@ -301,6 +301,17 @@ func TestPrepareGenerator_ScopeAutoDetect(t *testing.T) {
 	if data["scope"] != "decision" {
 		t.Errorf("expected scope 'decision' auto-detected from workspace, got %v", data["scope"])
 	}
+
+	prompt, _ := data["prompt"].(string)
+	if strings.Contains(prompt, "[the question, as you'd ask it]") {
+		t.Errorf("prompt still contains unreplaced DECISION placeholder")
+	}
+	if strings.Contains(prompt, "[what's being built; workload, team, constraints, what's already decided]") {
+		t.Errorf("prompt still contains unreplaced CONTEXT placeholder")
+	}
+	if !strings.Contains(prompt, "Choose between PostgreSQL and DynamoDB") {
+		t.Errorf("prompt does not contain injected context")
+	}
 }
 
 // TestSaveSessionValidation tests the validation ladder on session save.
@@ -958,7 +969,7 @@ T1-01 recommended PostgreSQL based on ACID compliance. T1-02 recommended MongoDB
 
 ## 2. Analysis of Competing Hypotheses (ACH Matrix)
 Evaluated both options against data integrity, query latency, and operational complexity.
-PostgreSQL dominates on ACID transactions and relational joins.
+PostgreSQL dominates on ACID transactions and relational joins. Grade A (official docs)
 
 ## 3. Resolution
 Adopt PostgreSQL with jsonb columns for flexible document attributes.
@@ -2074,4 +2085,172 @@ func TestInit_HomeDirGuard(t *testing.T) {
 		t.Errorf("expected home directory error message for project_root='.', got: %s", envDot.Message)
 	}
 }
+
+func TestStatus_TerminalSynthesisGuidance(t *testing.T) {
+	cs := testServer(t)
+	ctx := context.Background()
+	tmpDir := t.TempDir()
+
+	// Init workspace
+	_, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "vivechak_init",
+		Arguments: map[string]any{"project_root": tmpDir, "scope": "project"},
+	})
+	if err != nil {
+		t.Fatalf("init: %v", err)
+	}
+
+	// Create sessions and FAD.md
+	sessPath := filepath.Join(tmpDir, "research", "sessions", "T1-01.md")
+	_ = os.WriteFile(sessPath, []byte("# Session\nA (doc)"), 0o644)
+	fadPath := filepath.Join(tmpDir, "research", "FAD.md")
+	_ = os.WriteFile(fadPath, []byte("# FAD\nSynthesis complete."), 0o644)
+
+	// Call status
+	res, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "vivechak_status",
+		Arguments: map[string]any{"project_root": tmpDir},
+	})
+	if err != nil {
+		t.Fatalf("status call: %v", err)
+	}
+	env := parseEnvelope(t, res)
+	if !strings.Contains(env.NextStep, "vivechak_run_gate") {
+		t.Errorf("expected status next_step to direct to vivechak_run_gate, got: %s", env.NextStep)
+	}
+}
+
+func TestRunGate_EmptyDecisionsRegistryClarifiedMessage(t *testing.T) {
+	cs := testServer(t)
+	ctx := context.Background()
+	tmpDir := t.TempDir()
+
+	// Init workspace
+	_, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "vivechak_init",
+		Arguments: map[string]any{"project_root": tmpDir, "scope": "project"},
+	})
+	if err != nil {
+		t.Fatalf("init: %v", err)
+	}
+
+	// Create pipeline with empty decisions
+	_ = os.WriteFile(filepath.Join(tmpDir, "research", "RESEARCH-PIPELINE.md"), []byte("# Pipeline\n#### T1-01: Foundation\n"), 0o644)
+	_ = os.WriteFile(filepath.Join(tmpDir, "research", "DECISIONS.md"), []byte("# Architectural Decision Log\n\n| Decision | Title | Door Type | Status | Date |\n|---|---|---|---|---|\n"), 0o644)
+	_ = os.WriteFile(filepath.Join(tmpDir, "research", "sessions", "T1-01.md"), []byte("# Findings\nA (docs)"), 0o644)
+	_ = os.WriteFile(filepath.Join(tmpDir, "research", "FAD.md"), []byte("# FAD\nFindings... A (docs)"), 0o644)
+
+	res, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "vivechak_run_gate",
+		Arguments: map[string]any{"project_root": tmpDir, "verbose": true},
+	})
+	if err != nil {
+		t.Fatalf("run_gate: %v", err)
+	}
+	env := parseEnvelope(t, res)
+	foundClarified := false
+	for _, w := range env.Warnings {
+		if strings.Contains(w, "No architectural decisions recorded yet — record decisions using vivechak_record_decision before running the gate") {
+			foundClarified = true
+			break
+		}
+	}
+	if !foundClarified {
+		t.Errorf("expected clarified empty decisions warning, got warnings: %v", env.Warnings)
+	}
+}
+
+func TestRunGate_EnvelopeKeyParity(t *testing.T) {
+	cs := testServer(t)
+	ctx := context.Background()
+	tmpDir := t.TempDir()
+
+	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "vivechak_init",
+		Arguments: map[string]any{"project_root": tmpDir, "scope": "project"},
+	})
+
+	res, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "vivechak_run_gate",
+		Arguments: map[string]any{"project_root": tmpDir},
+	})
+	if err != nil {
+		t.Fatalf("run_gate: %v", err)
+	}
+	env := parseEnvelope(t, res)
+	data, ok := env.Data.(map[string]any)
+	if !ok {
+		t.Fatalf("expected data map, got: %T", env.Data)
+	}
+
+	requiredKeys := []string{
+		"structural_checks",
+		"quality_checks",
+		"structural_completeness",
+		"mechanical_quality",
+		"track_a",
+		"track_b",
+		"scope_note",
+	}
+	for _, key := range requiredKeys {
+		if data[key] == nil {
+			t.Errorf("expected gate data key %q to be present", key)
+		}
+	}
+}
+
+func TestRunGate_IgnoresConflictResolutionArtifacts(t *testing.T) {
+	cs := testServer(t)
+	ctx := context.Background()
+	tmpDir := t.TempDir()
+
+	// Init decision scope
+	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "vivechak_init",
+		Arguments: map[string]any{"project_root": tmpDir, "scope": "decision"},
+	})
+
+	// Add a valid session
+	_ = os.WriteFile(filepath.Join(tmpDir, "research", "sessions", "S1.md"), []byte("# S1\nA (doc)"), 0o644)
+
+	// Add an accepted ADR
+	adr := `---
+decision_id: D-001
+title: DB Selection
+status: accepted
+door_type: two-way
+---
+# Decision
+Use SQLite. A (doc)`
+	_ = os.WriteFile(filepath.Join(tmpDir, "research", "D-001-db.md"), []byte(adr), 0o644)
+
+	// Add a conflict resolution record in research/
+	cr := `---
+id: CHK-01
+decision_id: D-001
+title: Conflict Resolution
+status: resolved
+door_type: two-way
+conflicting_sources: [S1]
+---
+# Conflict Resolution
+Resolved in favor of SQLite. A (doc)`
+	_ = os.WriteFile(filepath.Join(tmpDir, "research", "CHK-01-conflict-resolution.md"), []byte(cr), 0o644)
+
+	res, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "vivechak_run_gate",
+		Arguments: map[string]any{"project_root": tmpDir, "verbose": true},
+	})
+	if err != nil {
+		t.Fatalf("run_gate: %v", err)
+	}
+	env := parseEnvelope(t, res)
+	// Must not complain that CHK-01 is missing decision_id or is an invalid ADR
+	for _, w := range env.Warnings {
+		if strings.Contains(w, "CHK-01") {
+			t.Errorf("unexpected gate warning for conflict resolution: %s", w)
+		}
+	}
+}
+
 

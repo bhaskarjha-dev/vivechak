@@ -344,16 +344,18 @@ func handleRunGate(_ context.Context, _ *sdkmcp.CallToolRequest, in RunGateInput
 	}
 
 	data := map[string]any{
-		"workspace_root":    root,
-		"scope":             info.Scope,
-		"gate_status":       gateStatus,
-		"gate_passed":       gatePassed,
-		"structural_checks": trackAData,
-		"quality_checks":    trackBData,
-		"track_a":           trackAData, // backward compatibility
-		"track_b":           trackBData, // backward compatibility
+		"workspace_root":          root,
+		"scope":                   info.Scope,
+		"gate_status":             gateStatus,
+		"gate_passed":             gatePassed,
+		"structural_checks":       trackAData,
+		"quality_checks":          trackBData,
+		"structural_completeness": trackAData,
+		"mechanical_quality":      trackBData,
+		"track_a":                 trackAData, // deprecated alias for structural_checks
+		"track_b":                 trackBData, // deprecated alias for quality_checks
 		"scope_note": "This gate performs automated MECHANICAL checks only (Structural Completeness and Quality Indicators). " +
-			"Track A/Track B semantic decisions and human sign-off per PHASE-0-GATE.template.md are the host architect's responsibility.",
+			"Track A (Two-Way Door fast track) and Track B (One-Way Door rigorous gate) semantic decisions and human sign-off per PHASE-0-GATE.template.md are the host architect's responsibility.",
 	}
 
 	env := Envelope{
@@ -383,6 +385,8 @@ func verifyDecisionsMechanical(ws *store.Workspace, info core.WorkspaceInfo) (bo
 			name := e.Name()
 			if !e.IsDir() && strings.HasSuffix(name, ".md") &&
 				!strings.HasSuffix(name, "-plan.md") &&
+				!strings.HasSuffix(name, "-comparison.md") &&
+				!strings.HasSuffix(name, "-conflict-resolution.md") &&
 				!strings.EqualFold(name, "RESEARCH-PIPELINE.md") &&
 				!strings.EqualFold(name, "FAD.md") &&
 				!strings.EqualFold(name, "DECISIONS.md") {
@@ -409,6 +413,9 @@ func verifyDecisionsMechanical(ws *store.Workspace, info core.WorkspaceInfo) (bo
 		id := fm.GetString("id")
 		if id == "" {
 			id = fm.GetString("decision_id")
+		}
+		if strings.HasPrefix(strings.ToUpper(id), "CHK-") || fm.Has("conflicting_sources") {
+			return // Skip conflict resolution records
 		}
 		if processedIDs[id] {
 			return
@@ -460,7 +467,7 @@ func verifyDecisionsMechanical(ws *store.Workspace, info core.WorkspaceInfo) (bo
 
 	var issues []string
 	if !hasDecisionsParsed {
-		issues = append(issues, "DECISIONS.md or ADR files lack valid frontmatter metadata (id, status)")
+		issues = append(issues, "No architectural decisions recorded yet — record decisions using vivechak_record_decision before running the gate")
 		return false, issues
 	}
 

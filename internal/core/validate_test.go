@@ -436,5 +436,115 @@ Claim: SQLite has WAL mode. A (recalled)
 	}
 }
 
+func TestValidateDecision_EvidentiaryGrounding(t *testing.T) {
+	// Missing evidence grades should produce W-NO-EVIDENCE-GRADES
+	noGrades := `---
+decision_id: D-001
+title: Decision Without Grades
+status: accepted
+door_type: one-way
+---
+# Context
+We need a datastore for high volume events.
+# Decision
+We will use Kafka.
+# Consequences
+High operational overhead.
+`
+	res := ValidateDecision([]byte(noGrades))
+	foundNoGrades := false
+	for _, iss := range res.Issues {
+		if iss.Code == "W-NO-EVIDENCE-GRADES" {
+			foundNoGrades = true
+			break
+		}
+	}
+	if !foundNoGrades {
+		t.Error("expected W-NO-EVIDENCE-GRADES for decision without inline grades")
+	}
+
+	// Recalled Grade A should produce W-RECALLED-GRADE-CAP
+	recalledA := `---
+decision_id: D-002
+title: Decision With Recalled Grade A
+status: accepted
+door_type: one-way
+---
+# Context
+We evaluated storage backends.
+# Decision
+PostgreSQL handles 100k writes/sec. A (recalled)
+# Consequences
+No issues anticipated.
+`
+	resRecalled := ValidateDecision([]byte(recalledA))
+	foundRecalledCap := false
+	for _, iss := range resRecalled.Issues {
+		if iss.Code == "W-RECALLED-GRADE-CAP" {
+			foundRecalledCap = true
+			break
+		}
+	}
+	if !foundRecalledCap {
+		t.Error("expected W-RECALLED-GRADE-CAP for decision with recalled Grade A")
+	}
+}
+
+func TestValidateConflictResolution_EvidentiaryGrounding(t *testing.T) {
+	// Missing evidence grades should produce W-NO-EVIDENCE-GRADES
+	noGrades := `---
+id: CR-001
+decision_id: D-001
+title: Conflict Resolution Without Grades
+status: resolved
+door_type: one-way
+---
+# Conflict Summary
+Model A recommended Redis while Model B recommended Memcached.
+# ACH Matrix
+We weighed latency and persistence.
+# Resolution
+We selected Redis.
+`
+	res := ValidateConflictResolution([]byte(noGrades))
+	foundNoGrades := false
+	for _, iss := range res.Issues {
+		if iss.Code == "W-NO-EVIDENCE-GRADES" {
+			foundNoGrades = true
+			break
+		}
+	}
+	if !foundNoGrades {
+		t.Error("expected W-NO-EVIDENCE-GRADES for conflict resolution without inline grades")
+	}
+
+	// Recalled Grade B should produce W-RECALLED-GRADE-CAP
+	recalledB := `---
+id: CR-002
+decision_id: D-002
+title: Conflict Resolution With Recalled Grade B
+status: resolved
+door_type: one-way
+---
+# Conflict Summary
+Disagreement on query latency.
+# ACH Matrix
+Benchmarked throughput: Redis is faster. B (recalled)
+# Resolution
+Resolved in favor of Redis.
+`
+	resRecalled := ValidateConflictResolution([]byte(recalledB))
+	foundRecalledCap := false
+	for _, iss := range resRecalled.Issues {
+		if iss.Code == "W-RECALLED-GRADE-CAP" {
+			foundRecalledCap = true
+			break
+		}
+	}
+	if !foundRecalledCap {
+		t.Error("expected W-RECALLED-GRADE-CAP for conflict resolution with recalled Grade B")
+	}
+}
+
 
 

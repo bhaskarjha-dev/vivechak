@@ -121,11 +121,21 @@ func handlePrepareGenerator(_ context.Context, _ *sdkmcp.CallToolRequest, in Pre
 					newBlock = strings.Replace(newBlock, "[today]", today, 1)
 					genPrompt = genPrompt[:afterStart] + newBlock + genPrompt[endIdx:]
 				} else {
-					// Otherwise, preserve schema keys and inject into CONTEXT slot, auto-filling DATE
+					// Otherwise, preserve schema keys and inject into DECISION and CONTEXT slots, auto-filling DATE
+					placeholderDecision := "DECISION: [the question, as you'd ask it]"
 					placeholderContextDecision := "CONTEXT: [what's being built; workload, team, constraints, what's already decided]"
 					placeholderContextComparison := "CONTEXT: [what's being built; workload, team, constraints, stage]"
 
 					newBlock := blockContent
+					if scope == core.ScopeDecision {
+						if strings.Contains(newBlock, placeholderDecision) {
+							newBlock = strings.Replace(newBlock, placeholderDecision, "DECISION: "+in.Context, 1)
+						} else if strings.Contains(newBlock, "DECISION:") {
+							re := regexp.MustCompile(`(?m)^DECISION:.*$`)
+							newBlock = re.ReplaceAllString(newBlock, "DECISION: "+in.Context)
+						}
+					}
+
 					if strings.Contains(newBlock, placeholderContextDecision) {
 						newBlock = strings.Replace(newBlock, placeholderContextDecision, "CONTEXT: "+in.Context, 1)
 					} else if strings.Contains(newBlock, placeholderContextComparison) {

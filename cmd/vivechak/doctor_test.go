@@ -326,4 +326,109 @@ Refers to [D-AUTH-01] and decision D-NEW. A (doc)
 	}
 }
 
+func TestCheckWorkspace_InFlightPlannedDecision(t *testing.T) {
+	tmpDir := t.TempDir()
+	_ = os.MkdirAll(filepath.Join(tmpDir, core.TemplatesDir), 0o755)
+	_ = os.MkdirAll(filepath.Join(tmpDir, core.SessionsDir), 0o755)
+	for _, tmpl := range core.TemplatesToCopy {
+		_ = os.WriteFile(filepath.Join(tmpDir, core.TemplatesDir, tmpl), []byte("# Template "+tmpl), 0o644)
+	}
+
+	// Pipeline declares planned decision D-001
+	pipeline := `# Research Pipeline
+#### T1-01: Database Selection
+This session informs D-001 (One-Way Door).
+`
+	_ = os.WriteFile(filepath.Join(tmpDir, core.PipelineFile), []byte(pipeline), 0o644)
+
+	// DECISIONS.md is still empty or initial registry (D-001 not locked yet)
+	decisions := `# Decisions
+`
+	_ = os.WriteFile(filepath.Join(tmpDir, core.DecisionsFile), []byte(decisions), 0o644)
+
+	// Session references D-001 as its target decision
+	sessionContent := `---
+session_id: T1-01
+title: Database Selection
+status: complete
+date: 2026-09-29
+informs_decisions: [D-001]
+---
+# Database Selection
+Recommends PostgreSQL. This informs D-001. A (doc)
+`
+	_ = os.WriteFile(filepath.Join(tmpDir, core.SessionsDir, "T1-01.md"), []byte(sessionContent), 0o644)
+
+	hasErrors, successes, errs := checkWorkspace(tmpDir)
+	if hasErrors {
+		t.Fatalf("expected in-flight planned decision not to cause error, got errors: %v", errs)
+	}
+	foundInFlight := false
+	for _, s := range successes {
+		if strings.Contains(s, "In-flight planned decision") && strings.Contains(s, "D-001") {
+			foundInFlight = true
+			break
+		}
+	}
+	if !foundInFlight {
+		t.Errorf("expected informational in-flight message in successes: %v", successes)
+	}
+}
+
+func TestCheckWorkspace_SluggedFilenameMatchingPipelinePrefix(t *testing.T) {
+	tmpDir := t.TempDir()
+	_ = os.MkdirAll(filepath.Join(tmpDir, core.TemplatesDir), 0o755)
+	_ = os.MkdirAll(filepath.Join(tmpDir, core.SessionsDir), 0o755)
+	for _, tmpl := range core.TemplatesToCopy {
+		_ = os.WriteFile(filepath.Join(tmpDir, core.TemplatesDir, tmpl), []byte("# Template "+tmpl), 0o644)
+	}
+
+	// Pipeline only lists T1-01
+	pipeline := `# Research Pipeline
+#### T1-01: Database Selection
+`
+	_ = os.WriteFile(filepath.Join(tmpDir, core.PipelineFile), []byte(pipeline), 0o644)
+	_ = os.WriteFile(filepath.Join(tmpDir, core.DecisionsFile), []byte("# Decisions\n"), 0o644)
+
+	// Session filename has slug, but no explicit frontmatter session_id
+	sessionContent := `# Database Selection Findings
+Findings... A (doc)
+`
+	_ = os.WriteFile(filepath.Join(tmpDir, core.SessionsDir, "T1-01-database-selection.md"), []byte(sessionContent), 0o644)
+
+	hasErrors, _, errs := checkWorkspace(tmpDir)
+	if hasErrors {
+		t.Fatalf("expected slugged filename matching T1-01 prefix not to be marked orphan, got errors: %v", errs)
+	}
+}
+
+func TestCheckWorkspace_SingleTokenAndCompoundSluggedFilenames(t *testing.T) {
+	tmpDir := t.TempDir()
+	_ = os.MkdirAll(filepath.Join(tmpDir, core.TemplatesDir), 0o755)
+	_ = os.MkdirAll(filepath.Join(tmpDir, core.SessionsDir), 0o755)
+	for _, tmpl := range core.TemplatesToCopy {
+		_ = os.WriteFile(filepath.Join(tmpDir, core.TemplatesDir, tmpl), []byte("# Template "+tmpl), 0o644)
+	}
+
+	// Pipeline contains S1 and D-001-S2
+	pipeline := `# Research Pipeline
+#### S1: Fast Spike
+#### D-001-S2: Deep Research
+`
+	_ = os.WriteFile(filepath.Join(tmpDir, core.PipelineFile), []byte(pipeline), 0o644)
+	_ = os.WriteFile(filepath.Join(tmpDir, core.DecisionsFile), []byte("# Decisions\n"), 0o644)
+
+	// Single token prefix: S1-spike.md
+	_ = os.WriteFile(filepath.Join(tmpDir, core.SessionsDir, "S1-spike.md"), []byte("# Content A (doc)"), 0o644)
+	// Compound prefix: D-001-S2-benchmark.md
+	_ = os.WriteFile(filepath.Join(tmpDir, core.SessionsDir, "D-001-S2-benchmark.md"), []byte("# Content A (doc)"), 0o644)
+
+	hasErrors, _, errs := checkWorkspace(tmpDir)
+	if hasErrors {
+		t.Fatalf("expected S1 and D-001-S2 slugged filenames not to be marked orphan, got errors: %v", errs)
+	}
+}
+
+
+
 

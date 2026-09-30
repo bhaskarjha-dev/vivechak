@@ -676,5 +676,31 @@ func TestFormatHostName(t *testing.T) {
 	}
 }
 
+func TestRunSetupWithArgs_CorruptConfigFailsFastWithoutOverwrite(t *testing.T) {
+	tempFile := filepath.Join(t.TempDir(), "corrupt_config.json")
+	corruptContent := `{"unclosed_json": `
+	if err := os.WriteFile(tempFile, []byte(corruptContent), 0o644); err != nil {
+		t.Fatalf("failed to write corrupt config: %v", err)
+	}
 
+	var stdout, stderr bytes.Buffer
+	code := runSetupWithArgs([]string{tempFile}, &stdout, &stderr)
+	if code != 1 {
+		t.Fatalf("expected exit code 1 for corrupt config, got %d", code)
+	}
+	if !strings.Contains(stderr.String(), "could not merge Vivechak into existing configuration") {
+		t.Errorf("expected merge failure error message in stderr, got: %s", stderr.String())
+	}
+	if !strings.Contains(stderr.String(), "will not overwrite this file") {
+		t.Errorf("expected protection message in stderr, got: %s", stderr.String())
+	}
 
+	// Verify the original file was NOT overwritten
+	after, err := os.ReadFile(tempFile)
+	if err != nil {
+		t.Fatalf("reading file after setup: %v", err)
+	}
+	if string(after) != corruptContent {
+		t.Errorf("corrupt file was overwritten! got: %s, want: %s", string(after), corruptContent)
+	}
+}

@@ -190,6 +190,49 @@ Updated Section 2 with rule`)
 			t.Errorf("lost D-002 due to internal horizontal rule, got: %s", s)
 		}
 	})
+
+	t.Run("preserve subsequent decision with comments after delimiter [CRIT-01]", func(t *testing.T) {
+		existing := []byte(`# Architectural Decisions
+
+---
+id: D-001
+title: Old First Decision
+status: proposed
+---
+
+# D-001: Old First Decision
+Body of D-001.
+
+---
+# Architectural Decision Record Template — Vivechak v0.1.0
+# Usage: Add one entry per decision to your project's DECISIONS.md registry file.
+id: D-002
+title: Second Decision With Comments
+status: proposed
+---
+
+# D-002: Second Decision With Comments
+Body of D-002.
+`)
+		res := updateOrAppendDecision(existing, "D-001", `---
+id: D-001
+title: New First Decision
+status: accepted
+---
+
+# D-001: New First Decision
+Updated Body of D-001.`)
+		s := string(res)
+		if strings.Contains(s, "Old First Decision") {
+			t.Errorf("expected old D-001 to be replaced, got: %s", s)
+		}
+		if !strings.Contains(s, "New First Decision") {
+			t.Errorf("missing updated D-001, got: %s", s)
+		}
+		if !strings.Contains(s, "D-002") || !strings.Contains(s, "Second Decision With Comments") || !strings.Contains(s, "Body of D-002.") {
+			t.Fatalf("CRIT-01 regression: wiped subsequent D-002 with comments! got:\n%s", s)
+		}
+	})
 }
 
 func TestResolveDecisionFilename(t *testing.T) {

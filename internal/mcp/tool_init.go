@@ -66,8 +66,8 @@ func handleInit(_ context.Context, req *sdkmcp.CallToolRequest, in InitInput) (*
 	// Guard against unguided initialization directly in user's root home directory (F-05, MED-06)
 	if home, err := os.UserHomeDir(); err == nil && home != "" {
 		if absHome, err := filepath.Abs(home); err == nil && filepath.Clean(absRoot) == filepath.Clean(absHome) {
-			return ErrorResult(tool, fmt.Errorf("refusing to initialize workspace directly in user home directory %q without explicit project_root", absRoot),
-				"Specify project_root explicitly to initialize a workspace inside a project directory.")
+			return ErrorResult(tool, fmt.Errorf("refusing to initialize workspace directly in user home directory %q", absRoot),
+				"Provide a dedicated project subdirectory path as project_root, not the root home directory.")
 		}
 	}
 

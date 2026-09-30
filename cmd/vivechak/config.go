@@ -642,20 +642,12 @@ func runSetupWithArgs(args []string, stdout, stderr io.Writer) int {
 		}
 		merged, mergeErr := mergeConfig(b, exePath, targetKey)
 		if mergeErr != nil {
-			fmt.Fprintf(stderr, "Warning: %v\n", mergeErr)
-			if !dryRun {
-				fmt.Fprintf(stderr, "Creating backup at %s.bak and writing fresh config\n", configPath)
-				_ = os.WriteFile(configPath+".bak", b, 0644)
-			}
-			fresh, freshErr := mergeConfig(nil, exePath, targetKey)
-			if freshErr != nil {
-				fmt.Fprintf(stderr, "failed to create fresh config: %v\n", freshErr)
-				return 1
-			}
-			out = fresh
-		} else {
-			out = merged
+			fmt.Fprintf(stderr, "Error: could not merge Vivechak into existing configuration at %s: %v\n", configPath, mergeErr)
+			fmt.Fprintf(stderr, "To protect your existing settings, Vivechak will not overwrite this file.\n")
+			fmt.Fprintf(stderr, "Please verify the configuration file syntax or configure manually using 'vck mcp-config'.\n")
+			return 1
 		}
+		out = merged
 	} else {
 		fresh, freshErr := mergeConfig(nil, exePath, targetKey)
 		if freshErr != nil {

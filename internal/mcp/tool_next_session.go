@@ -391,6 +391,7 @@ func scanCompletedSessions(ws *store.Workspace, knownIDs ...string) (map[string]
 		}
 		completed["FAD"] = true
 		completed["SYN-01"] = true
+		completed["SYN"] = true
 	}
 
 	return completed, nil

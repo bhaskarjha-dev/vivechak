@@ -224,7 +224,7 @@ func findUnanchoredDecision(content string, decisionID string) (int, int, bool) 
 	idPattern := fmt.Sprintf(`(?m)^(?:id|decision_id):\s*["']?%s["']?\s*$`, regexp.QuoteMeta(decisionID))
 	idRe := regexp.MustCompile(idPattern)
 
-	for _, idxs := range matches {
+	for i, idxs := range matches {
 		yamlInside := content[idxs[2]:idxs[3]]
 		// Disregard if the inside contains a separate delimiter
 		if strings.Contains(yamlInside, "\n---") {
@@ -233,16 +233,29 @@ func findUnanchoredDecision(content string, decisionID string) (int, int, bool) 
 
 		if idRe.MatchString(yamlInside) {
 			startIdx := idxs[0]
-			rest := content[idxs[1]:]
 
-			// The entry extends until the next frontmatter block that starts a new decision,
-			// the next <!-- DECISION: anchor, or end of content.
-			// Internal markdown thematic breaks '---' inside the body do not terminate the entry.
 			endIdx := len(content)
-			boundaryRegex := regexp.MustCompile(`(?m)(?:^<!-- DECISION:|^---\s*\n(?:\s*[a-zA-Z_0-9]+:))`)
-			if loc := boundaryRegex.FindStringIndex(rest); loc != nil {
-				endIdx = idxs[1] + loc[0]
+			if i+1 < len(matches) {
+				endIdx = matches[i+1][0]
 			}
+
+			// If an anchored decision appears before endIdx, that terminates this entry
+			if anchorLoc := strings.Index(content[idxs[1]:endIdx], "<!-- DECISION:"); anchorLoc != -1 {
+				endIdx = idxs[1] + anchorLoc
+			}
+
+			// If this is the last frontmatter block, check if a header for a DIFFERENT decision follows
+			if i == len(matches)-1 {
+				hdrRegex := regexp.MustCompile(`(?m)^#{1,4}\s+.*?\b(D-\d+|D-[A-Za-z0-9_-]+)\b`)
+				for _, hLoc := range hdrRegex.FindAllStringSubmatchIndex(content[idxs[1]:endIdx], -1) {
+					hdrID := content[idxs[1]+hLoc[2] : idxs[1]+hLoc[3]]
+					if !strings.EqualFold(hdrID, decisionID) {
+						endIdx = idxs[1] + hLoc[0]
+						break
+					}
+				}
+			}
+
 			return startIdx, endIdx, true
 		}
 	}
@@ -257,7 +270,7 @@ func findUnanchoredDecision(content string, decisionID string) (int, int, bool) 
 
 	startIdx := loc[0]
 	rest := content[loc[1]:]
-	boundaryRegex := regexp.MustCompile(`(?m)(?:^<!-- DECISION:|^---\s*\n(?:\s*[a-zA-Z_0-9]+:)|^#{1,4}\s+.*?\b(?:D-\d+|D-[A-Za-z0-9_-]+)\b)`)
+	boundaryRegex := regexp.MustCompile(`(?m)(?:^<!-- DECISION:|^---\s*\n|^#{1,4}\s+.*?\b(?:D-\d+|D-[A-Za-z0-9_-]+)\b)`)
 	if nextLoc := boundaryRegex.FindStringIndex(rest); nextLoc != nil {
 		return startIdx, loc[1] + nextLoc[0], true
 	}

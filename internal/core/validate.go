@@ -308,6 +308,20 @@ func ValidateDecision(data []byte) *ValidationResult {
 			"Include Context, Decision, Consequences, and Evidence sections")
 	}
 
+	// L3: Evidence grades should be present
+	if bodyStr != "" && !evidenceGradePattern.MatchString(bodyStr) {
+		result.AddIssueWithHint(L3Warn, "W-NO-EVIDENCE-GRADES",
+			"No inline evidence grades found (expected A-E grades per P3)",
+			"Add evidence grades like 'A (official docs)' or 'B (peer-reviewed study)' to claims")
+	}
+
+	// L3: Recalled citations must be capped at Grade D (Principle P3)
+	if bodyStr != "" && recalledHighGradePattern.MatchString(bodyStr) {
+		result.AddIssueWithHint(L3Warn, "W-RECALLED-GRADE-CAP",
+			"Recalled knowledge must be capped at Grade D per Principle P3",
+			"Downgrade recalled claims to Grade D or corroborate them with live fetched/cached sources")
+	}
+
 	if result.HasBlocking() {
 		result.Status = "draft"
 	} else if result.WarningCount() > 0 {
@@ -363,6 +377,20 @@ func ValidateConflictResolution(data []byte) *ValidationResult {
 		result.AddIssueWithHint(L3Warn, "W-SHORT-BODY",
 			"Conflict resolution body is very short — may lack sufficient context",
 			"Include Conflict Summary, ACH Matrix, and Resolution sections")
+	}
+
+	// L3: Evidence grades should be present
+	if bodyStr != "" && !evidenceGradePattern.MatchString(bodyStr) {
+		result.AddIssueWithHint(L3Warn, "W-NO-EVIDENCE-GRADES",
+			"No inline evidence grades found (expected A-E grades per P3)",
+			"Add evidence grades like 'A (official docs)' or 'B (peer-reviewed study)' to claims")
+	}
+
+	// L3: Recalled citations must be capped at Grade D (Principle P3)
+	if bodyStr != "" && recalledHighGradePattern.MatchString(bodyStr) {
+		result.AddIssueWithHint(L3Warn, "W-RECALLED-GRADE-CAP",
+			"Recalled knowledge must be capped at Grade D per Principle P3",
+			"Downgrade recalled claims to Grade D or corroborate them with live fetched/cached sources")
 	}
 
 	if result.HasBlocking() {

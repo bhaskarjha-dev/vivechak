@@ -828,6 +828,18 @@ Defined in [`RunGateInput`](../internal/mcp/tool_run_gate.go):
       "score": "3/3",
       "issues": []
     },
+    "structural_completeness": {
+      "label": "Structural Completeness",
+      "passed": true,
+      "score": "5/5",
+      "issues": []
+    },
+    "mechanical_quality": {
+      "label": "Quality Indicators (Mechanical)",
+      "passed": true,
+      "score": "3/3",
+      "issues": []
+    },
     "track_a": {
       "label": "Structural Completeness",
       "passed": true,
@@ -840,7 +852,7 @@ Defined in [`RunGateInput`](../internal/mcp/tool_run_gate.go):
       "score": "3/3",
       "issues": []
     },
-    "scope_note": "This gate performs MECHANICAL checks only. Semantic quality assessment is the host agent's responsibility."
+    "scope_note": "This gate performs automated MECHANICAL checks only (Structural Completeness and Quality Indicators). Track A (Two-Way Door fast track) and Track B (One-Way Door rigorous gate) semantic decisions and human sign-off per PHASE-0-GATE.template.md are the host architect's responsibility."
   },
   "warnings": [],
   "next_step": "Gate passed! The research phase is complete. You can now begin implementation. Note: this gate checks structural completeness only — semantic quality (premortem substance, alternative genuineness) is YOUR responsibility.",
@@ -881,9 +893,11 @@ Vivechak organizes all artifact validation into a 4-level validation ladder defi
 | `V-MISSING-FIELD` | L2 | `save_session`, `record_decision`, `validate` | A required field (`session_id`, `title`, `date`, `status`) is absent. |
 | `V-EMPTY-BODY` | L2 | `save_session`, `validate` | Markdown document body after frontmatter is empty. |
 | `V-MISSING-STATUS` | L1 | `save_session`, `validate` | No `status` field provided; server constructs `status: draft`. |
-| `W-NO-EVIDENCE-GRADES` | L3 | `save_session`, `validate`, `run_gate` | No inline evidence grades matching `[A-E] (...)` detected. Add citations. |
-| `W-MISSING-DOOR-TYPE` | L3 | `record_decision`, `validate` | ADR lacks `door_type` frontmatter. Specify `door_type: one-way` or `two-way`. |
+| `W-NO-EVIDENCE-GRADES` | L3 | `save_session`, `record_decision`, `validate`, `run_gate` | No inline evidence grades matching `[A-E] (...)` detected. Add citations. |
+| `W-RECALLED-GRADE-CAP` | L3 | `save_session`, `record_decision`, `validate`, `run_gate` | Recalled knowledge capped at Grade D per P3. Downgrade or corroborate with live/cached sources. |
+| `W-MISSING-DOOR-TYPE` | L3 | `record_decision`, `validate` | ADR or conflict resolution lacks `door_type` frontmatter. Specify `door_type: one-way` or `two-way`. |
 | `W-SHORT-DECISION` | L3 | `record_decision`, `validate` | ADR body length is less than 100 characters. Expand Context and Consequences. |
+| `W-SHORT-BODY` | L3 | `record_decision`, `validate` | Conflict resolution or artifact body length is less than 100 characters. |
 | `W-OUTPUT-SIZE` | L3 | `next_session` | Assembled prompt exceeds 10,000 tokens. Truncated unless `verbose: true`. |
 | `W-TEMPLATE-MISSING` | L3 | `init` | A template file could not be read from embedded binary assets. |
 | `GATE-A: <check>` | L4 | `run_gate` | Track A structural check failed (missing pipeline, FAD, templates, or decisions). |

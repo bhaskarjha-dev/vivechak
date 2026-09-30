@@ -53,7 +53,7 @@ func InjectContext(session Session, sessionsDir string, completedSessions map[st
 	}
 
 	// Determine if this is a synthesis session
-	isSynthesis := strings.HasPrefix(strings.ToUpper(session.ID), "SYN")
+	isSynthesis := strings.HasPrefix(strings.ToUpper(session.ID), "SYN") || strings.ToUpper(session.ID) == "FAD"
 
 	if isSynthesis {
 		// For synthesis: inject ALL completed session findings
@@ -119,7 +119,7 @@ func gatherAllFindings(sessionsDir string, completedSessions map[string]bool) (s
 
 		// Extract key findings (frontmatter body)
 		_, body, _ := ParseFrontmatter([]byte(content))
-		excerpt := extractFindings(string(body), id)
+		excerpt := extractFindings(string(body), id, true)
 		findings = append(findings, excerpt)
 		totalBytes += len(excerpt)
 	}
@@ -147,7 +147,7 @@ func gatherDependencyFindings(sessionsDir string, dependencies []string) (string
 		sessionIDs = append(sessionIDs, depID)
 
 		_, body, _ := ParseFrontmatter([]byte(content))
-		excerpt := extractFindings(string(body), depID)
+		excerpt := extractFindings(string(body), depID, false)
 		findings = append(findings, excerpt)
 		totalBytes += len(excerpt)
 	}
@@ -232,7 +232,10 @@ func readSessionFile(sessionsDir string, sessionID string) (string, string, erro
 // Focuses on headings, recommendations, and evidence-graded claims.
 // Buffers headings so they are only emitted if substantive content follows,
 // and ensures substantive body content is measured before skipping the raw body fallback.
-func extractFindings(body string, sessionID string) string {
+// When isSynthesis is true, rejected alternatives & tradeoffs are retained so FAD
+// synthesis (Section 5) has access to them (Principle P8). When false, they are excluded
+// to prevent context contamination in intermediate research prompts (Principle P6).
+func extractFindings(body string, sessionID string, isSynthesis bool) string {
 	if body == "" {
 		return ""
 	}
@@ -293,7 +296,7 @@ func extractFindings(body string, sessionID string) string {
 		// Always check headings (only outside code blocks)
 		if strings.HasPrefix(trimmed, "#") {
 			lower := strings.ToLower(trimmed)
-			if strings.Contains(lower, "rejected") || strings.Contains(lower, "alternatives considered") {
+			if !isSynthesis && (strings.Contains(lower, "rejected") || strings.Contains(lower, "alternatives considered")) {
 				inRejectedSection = true
 				inRelevantSection = false
 				pendingHeadings = nil
@@ -321,7 +324,8 @@ func extractFindings(body string, sessionID string) string {
 				strings.Contains(lower, "failure") ||
 				strings.Contains(lower, "premortem") ||
 				strings.Contains(lower, "sensitiv") ||
-				strings.Contains(lower, "criteri")
+				strings.Contains(lower, "criteri") ||
+				(isSynthesis && (strings.Contains(lower, "rejected") || strings.Contains(lower, "alternatives considered")))
 
 			if inRelevantSection {
 				hasRelevantHeading = true

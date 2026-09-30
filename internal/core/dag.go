@@ -396,20 +396,29 @@ func ParsePipeline(data []byte) (*DAG, error) {
 	if inPrompt && len(promptLines) > 0 {
 		promptContent := strings.Join(promptLines, "\n")
 		targetSession := currentSession
+		nonEmptyLines := 0
 		for _, pLine := range promptLines {
 			pTrim := strings.TrimSpace(pLine)
 			if pTrim == "" {
 				continue
 			}
+			nonEmptyLines++
 			if strings.HasPrefix(pTrim, "#") {
+				found := false
 				for _, match := range briefIDRe.FindAllString(pTrim, -1) {
 					if s, ok := sessionsByID[match]; ok {
 						targetSession = s
+						found = true
 						break
 					}
 				}
+				if found {
+					break
+				}
 			}
-			break
+			if nonEmptyLines >= 5 {
+				break
+			}
 		}
 		if targetSession == nil || targetSession.Prompt != "" {
 			for _, id := range sessionOrder {

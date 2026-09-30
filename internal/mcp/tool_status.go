@@ -3,6 +3,8 @@ package mcputil
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 
 	"github.com/bhaskarjha-dev/vivechak/internal/core"
 	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
@@ -65,8 +67,21 @@ func handleStatus(_ context.Context, _ *sdkmcp.CallToolRequest, in StatusInput) 
 	} else if info.SessionCount == 0 {
 		nextStep = "Run vivechak_next_session to get the first research session prompt."
 	} else {
-		nextStep = "Run vivechak_next_session for the next actionable session, or " +
-			"vivechak_record_decision to record decisions from completed sessions."
+		hasFAD := false
+		if _, err := os.Stat(filepath.Join(root, core.FADFile)); err == nil {
+			hasFAD = true
+		}
+
+		if hasFAD {
+			nextStep = "Research synthesis is complete (FAD.md exists). Run vivechak_run_gate to verify the Phase 0 exit gate before starting codebase construction."
+		} else if info.Scope == core.ScopeComparison && info.SessionCount >= 1 {
+			nextStep = "Comparison research session is complete. Run vivechak_run_gate to verify the exit gate."
+		} else if info.Scope == core.ScopeDecision && info.HasDecisions && info.SessionCount >= 1 {
+			nextStep = "Decision research and ADR are complete. Run vivechak_run_gate to verify the exit gate, or vivechak_next_session if more sessions remain."
+		} else {
+			nextStep = "Run vivechak_next_session for the next actionable session, or " +
+				"vivechak_record_decision to record decisions from completed sessions."
+		}
 	}
 
 	env := Envelope{

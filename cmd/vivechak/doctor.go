@@ -161,10 +161,25 @@ func checkWorkspace(workspace string) (bool, []string, []string) {
 			// Check orphaned
 			id := core.ExtractSessionID(e.Name(), fm)
 
-			if pipelineContent != "" && id != "" && !strings.Contains(pipelineContent, id) {
-				errs = append(errs, fmt.Sprintf("✗ Orphaned session (not in pipeline): %s", e.Name()))
-				orphaned++
-				hasErrors = true
+			if pipelineContent != "" && id != "" {
+				inPipeline := strings.Contains(pipelineContent, id)
+				if !inPipeline {
+					// Check progressively shorter hyphen-delimited prefixes for slugged filenames
+					// e.g. "D-001-S1-slug" -> "D-001-S1", "T1-01-database-selection" -> "T1-01", "S1-database" -> "S1"
+					parts := strings.Split(id, "-")
+					for k := len(parts) - 1; k >= 1; k-- {
+						prefix := strings.Join(parts[:k], "-")
+						if strings.Contains(pipelineContent, prefix) {
+							inPipeline = true
+							break
+						}
+					}
+				}
+				if !inPipeline {
+					errs = append(errs, fmt.Sprintf("✗ Orphaned session (not in pipeline): %s", e.Name()))
+					orphaned++
+					hasErrors = true
+				}
 			}
 
 			// Check stale decisions references from structured frontmatter and explicit references
@@ -196,9 +211,13 @@ func checkWorkspace(workspace string) (bool, []string, []string) {
 					}
 					seenMatches[match] = true
 					if !strings.Contains(decisionsContent, match) {
-						errs = append(errs, fmt.Sprintf("✗ Stale decision ref in %s: %s", e.Name(), match))
-						staleRefs++
-						hasErrors = true
+						if pipelineContent != "" && strings.Contains(pipelineContent, match) {
+							successes = append(successes, fmt.Sprintf("ℹ In-flight planned decision in %s: %s (declared in pipeline, awaiting ADR)", e.Name(), match))
+						} else {
+							errs = append(errs, fmt.Sprintf("✗ Stale decision ref in %s: %s", e.Name(), match))
+							staleRefs++
+							hasErrors = true
+						}
 					}
 				}
 			}

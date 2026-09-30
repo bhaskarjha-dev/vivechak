@@ -123,6 +123,52 @@ Use Clerk for auth. B (comparison)
 	}
 }
 
+func TestInjectContext_FADAlias(t *testing.T) {
+	tmpDir := t.TempDir()
+	sessionsDir := filepath.Join(tmpDir, "sessions")
+	_ = os.MkdirAll(sessionsDir, 0o755)
+
+	_ = os.WriteFile(filepath.Join(sessionsDir, "T1-01.md"), []byte(`---
+session_id: T1-01
+title: Datastore
+date: 2026-09-27
+---
+## Findings
+PostgreSQL recommended. A (benchmark)
+`), 0o644)
+
+	_ = os.WriteFile(filepath.Join(sessionsDir, "T1-02.md"), []byte(`---
+session_id: T1-02
+title: Auth
+date: 2026-09-27
+---
+## Findings
+Clerk recommended. B (docs)
+`), 0o644)
+
+	sessionFAD := Session{
+		ID:     "FAD",
+		Title:  "Founding Architecture Document",
+		Prompt: "# FAD Synthesis\n\n[ALL_SESSION_FINDINGS]",
+	}
+
+	completed := map[string]bool{"T1-01": true, "T1-02": true}
+	injected, err := InjectContext(sessionFAD, sessionsDir, completed)
+	if err != nil {
+		t.Fatalf("InjectContext with FAD session: %v", err)
+	}
+
+	if !strings.Contains(injected.InjectedPrompt, "PostgreSQL") {
+		t.Error("expected FAD prompt to contain T1-01 findings")
+	}
+	if !strings.Contains(injected.InjectedPrompt, "Clerk") {
+		t.Error("expected FAD prompt to contain T1-02 findings")
+	}
+	if len(injected.UpstreamSessions) != 2 {
+		t.Errorf("expected 2 upstream sessions, got %d", len(injected.UpstreamSessions))
+	}
+}
+
 func TestInjectContext_NoSlot(t *testing.T) {
 	tmpDir := t.TempDir()
 	sessionsDir := filepath.Join(tmpDir, "sessions")
@@ -434,7 +480,7 @@ func TestExtractFindings_Comprehensive(t *testing.T) {
 		sb.WriteString("Cluster deployment requires 3 nodes with 64GB RAM.\n")
 
 		body := sb.String()
-		extracted := extractFindings(body, "T1-01")
+		extracted := extractFindings(body, "T1-01", false)
 
 		// Must contain the actual technical findings, not just empty headings
 		if !strings.Contains(extracted, "PostgreSQL with pgvector scales") {
@@ -451,7 +497,7 @@ Some introductory text.
 Throughput exceeds 45,000 requests/sec under load [E-01].
 Secondary latency target satisfied by Redis cluster E-002.
 `
-		extracted := extractFindings(body, "T1-02")
+		extracted := extractFindings(body, "T1-02", false)
 		if !strings.Contains(extracted, "[E-01]") {
 			t.Errorf("expected numeric citation [E-01] to be extracted, got: %s", extracted)
 		}
@@ -460,7 +506,7 @@ Secondary latency target satisfied by Redis cluster E-002.
 		}
 	})
 
-	t.Run("excludes rejected alternatives sections", func(t *testing.T) {
+	t.Run("excludes rejected alternatives sections when not synthesis", func(t *testing.T) {
 		body := `# Findings
 ## Recommendations
 We recommend SQLite in WAL mode. A (official docs)
@@ -471,7 +517,7 @@ We rejected RocksDB because Cgo compilation overhead is too high. A (benchmark)
 ## Alternatives Considered
 DuckDB was ruled out due to concurrent write locking. B (docs)
 `
-		extracted := extractFindings(body, "T1-03")
+		extracted := extractFindings(body, "T1-03", false)
 		if !strings.Contains(extracted, "SQLite in WAL mode") {
 			t.Errorf("expected SQLite recommendation to be present, got: %s", extracted)
 		}
@@ -483,13 +529,36 @@ DuckDB was ruled out due to concurrent write locking. B (docs)
 		}
 	})
 
+	t.Run("preserves rejected alternatives and tradeoffs when isSynthesis is true", func(t *testing.T) {
+		body := `# Findings
+## Recommendations
+We recommend SQLite in WAL mode. A (official docs)
+
+## Rejected Alternatives & Tradeoffs
+We rejected RocksDB because Cgo compilation overhead is too high. A (benchmark)
+
+## Alternatives Considered
+DuckDB was ruled out due to concurrent write locking. B (docs)
+`
+		extracted := extractFindings(body, "T1-03", true)
+		if !strings.Contains(extracted, "SQLite in WAL mode") {
+			t.Errorf("expected SQLite recommendation to be present, got: %s", extracted)
+		}
+		if !strings.Contains(extracted, "RocksDB because Cgo") {
+			t.Errorf("expected rejected alternative RocksDB to be preserved in synthesis, got: %s", extracted)
+		}
+		if !strings.Contains(extracted, "DuckDB was ruled out") {
+			t.Errorf("expected alternative considered DuckDB to be preserved in synthesis, got: %s", extracted)
+		}
+	})
+
 	t.Run("buffers headings so only headings with substantive content appear", func(t *testing.T) {
 		body := `# Session Overview
 ## Unused Section With No Findings
 ## Section With Substantive Findings
 Key recommendation: use Kafka for event sourcing. A (docs)
 `
-		extracted := extractFindings(body, "T1-04")
+		extracted := extractFindings(body, "T1-04", false)
 		if !strings.Contains(extracted, "Kafka for event sourcing") {
 			t.Errorf("expected Kafka recommendation, got: %s", extracted)
 		}
@@ -508,7 +577,7 @@ Adopt distributed event logging with NATS JetStream.
 2. Apache Kafka
 3. RabbitMQ
 `
-		extracted := extractFindings(body, "T1-05")
+		extracted := extractFindings(body, "T1-05", false)
 		if !strings.Contains(extracted, "Adopt distributed event logging with NATS JetStream") {
 			t.Errorf("expected Recommended Architecture to be extracted, got: %s", extracted)
 		}
@@ -524,7 +593,7 @@ Historical benchmark achieved 10k ops [Grade B].
 System implementation requires distributed consensus with Raft and 3-node cluster.
 Storage engine will use LSM trees for write throughput.
 `
-		extracted := extractFindings(body, "T1-06")
+		extracted := extractFindings(body, "T1-06", false)
 		// Must not starve the prompt of the rest of the text
 		if !strings.Contains(extracted, "System implementation requires distributed consensus") {
 			t.Errorf("expected raw body fallback when only minimal stray grade matched, got: %s", extracted)
@@ -538,7 +607,7 @@ Adopt custom microservice layout.
 ` + "```bash\n# rejected alternative: port 8080\nexport PORT=9090\n```\n" + `
 This continues the recommended section and must be extracted.
 `
-		extracted := extractFindings(body, "T1-07")
+		extracted := extractFindings(body, "T1-07", false)
 		if !strings.Contains(extracted, "This continues the recommended section and must be extracted") {
 			t.Errorf("expected content after code block to be retained, got: %s", extracted)
 		}
@@ -561,7 +630,7 @@ This continues the recommended section and must be extracted.
 ## Failure Modes & Premortem Analysis
 - Failure mode: Connection pool starvation under sudden traffic spikes.
 `
-		extracted := extractFindings(body, "T1-08")
+		extracted := extractFindings(body, "T1-08", false)
 		if !strings.Contains(extracted, "Weighted Evaluation Matrix") || !strings.Contains(extracted, "PostgreSQL | 9.2") {
 			t.Errorf("expected evaluation matrix to be extracted, got: %s", extracted)
 		}
@@ -586,7 +655,7 @@ This continues the recommended section and must be extracted.
 			"More text inside 4-tick fence\n" +
 			"````\n\n" +
 			"Outside text that must also be included in recommendation.\n"
-		extracted := extractFindings(body, "T1-09")
+		extracted := extractFindings(body, "T1-09", false)
 		if !strings.Contains(extracted, "Outside text that must also be included") {
 			t.Errorf("expected outside text after nested fences to be retained, got: %s", extracted)
 		}
