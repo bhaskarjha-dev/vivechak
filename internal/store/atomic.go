@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"time"
 )
 
@@ -43,6 +44,16 @@ func WriteFileAtomic(root *os.Root, relPath string, data []byte, perm os.FileMod
 
 	// Atomic rename over the target path.
 	err = root.Rename(tmpPath, relPath)
+	if err != nil && runtime.GOOS == "windows" {
+		backoff := 50 * time.Millisecond
+		for attempt := 0; attempt < 3; attempt++ {
+			time.Sleep(backoff)
+			backoff *= 2
+			if err = root.Rename(tmpPath, relPath); err == nil {
+				break
+			}
+		}
+	}
 	if err != nil {
 		return err
 	}

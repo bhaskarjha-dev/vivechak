@@ -69,7 +69,7 @@ func handleSaveSession(ctx context.Context, _ *sdkmcp.CallToolRequest, in SaveSe
 	}
 
 	// FAD (Founding Architecture Document) writes to research/FAD.md
-	isSynthesis := in.SessionID == "FAD" || strings.HasPrefix(strings.ToUpper(in.SessionID), "SYN")
+	isSynthesis := core.IsSynthesisSession(in.SessionID)
 
 	// Validate the session content (use ValidateFAD for FAD/synthesis sessions)
 	var validation *core.ValidationResult
@@ -116,7 +116,7 @@ func handleSaveSession(ctx context.Context, _ *sdkmcp.CallToolRequest, in SaveSe
 	}
 
 	// For synthesis sessions saved with session ID (e.g. SYN-01), also save to sessions/ directory
-	if isSynthesis && in.SessionID != "FAD" {
+	if isSynthesis && !strings.EqualFold(in.SessionID, "FAD") {
 		sessPath := filepath.Join(core.SessionsDir, filename)
 		_ = store.WriteFileAtomic(ws.Root(), sessPath, contentToSave, 0o644)
 	}

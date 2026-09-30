@@ -228,19 +228,9 @@ func ValidateSession(data []byte) *ValidationResult {
 		result.AddIssue(L2Block, "V-EMPTY-BODY", "Session body is empty")
 	}
 
-	// L3: Evidence grades should be present
-	if bodyStr != "" && !evidenceGradePattern.MatchString(bodyStr) {
-		result.AddIssueWithHint(L3Warn, "W-NO-EVIDENCE-GRADES",
-			"No inline evidence grades found (expected A-E grades per P3)",
-			"Add evidence grades like 'A (official docs)' or 'B (peer-reviewed study)' to claims")
-	}
-
-	// L3: Recalled citations must be capped at Grade D (Principle P3)
-	if bodyStr != "" && recalledHighGradePattern.MatchString(bodyStr) {
-		result.AddIssueWithHint(L3Warn, "W-RECALLED-GRADE-CAP",
-			"Recalled knowledge must be capped at Grade D per Principle P3",
-			"Downgrade recalled claims to Grade D or corroborate them with live fetched/cached sources")
-	}
+	// L3: Evidence grades and recalled grade cap checks
+	checkEvidenceGrades(bodyStr, result)
+	checkRecalledGradeCap(bodyStr, result)
 
 	// L3: Check for status field
 	if !fm.Has("status") {
@@ -308,19 +298,9 @@ func ValidateDecision(data []byte) *ValidationResult {
 			"Include Context, Decision, Consequences, and Evidence sections")
 	}
 
-	// L3: Evidence grades should be present
-	if bodyStr != "" && !evidenceGradePattern.MatchString(bodyStr) {
-		result.AddIssueWithHint(L3Warn, "W-NO-EVIDENCE-GRADES",
-			"No inline evidence grades found (expected A-E grades per P3)",
-			"Add evidence grades like 'A (official docs)' or 'B (peer-reviewed study)' to claims")
-	}
-
-	// L3: Recalled citations must be capped at Grade D (Principle P3)
-	if bodyStr != "" && recalledHighGradePattern.MatchString(bodyStr) {
-		result.AddIssueWithHint(L3Warn, "W-RECALLED-GRADE-CAP",
-			"Recalled knowledge must be capped at Grade D per Principle P3",
-			"Downgrade recalled claims to Grade D or corroborate them with live fetched/cached sources")
-	}
+	// L3: Evidence grades and recalled grade cap checks
+	checkEvidenceGrades(bodyStr, result)
+	checkRecalledGradeCap(bodyStr, result)
 
 	if result.HasBlocking() {
 		result.Status = "draft"
@@ -379,19 +359,9 @@ func ValidateConflictResolution(data []byte) *ValidationResult {
 			"Include Conflict Summary, ACH Matrix, and Resolution sections")
 	}
 
-	// L3: Evidence grades should be present
-	if bodyStr != "" && !evidenceGradePattern.MatchString(bodyStr) {
-		result.AddIssueWithHint(L3Warn, "W-NO-EVIDENCE-GRADES",
-			"No inline evidence grades found (expected A-E grades per P3)",
-			"Add evidence grades like 'A (official docs)' or 'B (peer-reviewed study)' to claims")
-	}
-
-	// L3: Recalled citations must be capped at Grade D (Principle P3)
-	if bodyStr != "" && recalledHighGradePattern.MatchString(bodyStr) {
-		result.AddIssueWithHint(L3Warn, "W-RECALLED-GRADE-CAP",
-			"Recalled knowledge must be capped at Grade D per Principle P3",
-			"Downgrade recalled claims to Grade D or corroborate them with live fetched/cached sources")
-	}
+	// L3: Evidence grades and recalled grade cap checks
+	checkEvidenceGrades(bodyStr, result)
+	checkRecalledGradeCap(bodyStr, result)
 
 	if result.HasBlocking() {
 		result.Status = "draft"
@@ -422,18 +392,16 @@ func ValidateArtifact(data []byte) *ValidationResult {
 	}
 
 	// Check body length
-	if len(bytes.TrimSpace(body)) < 100 {
+	bodyStr := strings.TrimSpace(string(body))
+	if len(bodyStr) < 100 {
 		result.AddIssueWithHint(L3Warn, "W-SHORT-BODY",
 			"Body is very short (< 100 characters)",
 			"Ensure the artifact contains substantive content")
 	}
 
-	// Check for evidence grades
-	if !evidenceGradePattern.Match(body) {
-		result.AddIssueWithHint(L3Warn, "W-NO-EVIDENCE-GRADES",
-			"No inline evidence grades (A-E) found",
-			"Add evidence grades inline, e.g., 'Grade B (docs-verified)'")
-	}
+	// L3: Evidence grades and recalled grade cap checks
+	checkEvidenceGrades(bodyStr, result)
+	checkRecalledGradeCap(bodyStr, result)
 
 	if result.HasBlocking() {
 		result.Status = "draft"
@@ -483,25 +451,16 @@ func ValidateFAD(data []byte) *ValidationResult {
 	}
 
 	// Check body length
-	if len(bytes.TrimSpace(body)) < 100 {
+	bodyStr := strings.TrimSpace(string(body))
+	if len(bodyStr) < 100 {
 		result.AddIssueWithHint(L3Warn, "W-SHORT-BODY",
 			"FAD body is very short (< 100 characters)",
 			"Ensure the FAD synthesizes all session findings into an architectural blueprint")
 	}
 
-	// Check for evidence grades
-	if !evidenceGradePattern.Match(body) {
-		result.AddIssueWithHint(L3Warn, "W-NO-EVIDENCE-GRADES",
-			"No inline evidence grades (A-E) found in FAD",
-			"Ground architectural claims with evidence grades, e.g., 'Grade A (verified)'")
-	}
-
-	// Check for recalled grade cap violations
-	if recalledHighGradePattern.Match(body) {
-		result.AddIssueWithHint(L3Warn, "W-RECALLED-GRADE-CAP",
-			"Recalled knowledge must be capped at Grade D per Principle P3",
-			"Downgrade recalled claims to Grade D or corroborate them with live fetched/cached sources")
-	}
+	// L3: Evidence grades and recalled grade cap checks
+	checkEvidenceGrades(bodyStr, result)
+	checkRecalledGradeCap(bodyStr, result)
 
 	if result.HasBlocking() {
 		result.Status = "draft"
@@ -558,4 +517,22 @@ func ValidatePlan(data []byte) *ValidationResult {
 	}
 
 	return result
+}
+
+// checkEvidenceGrades verifies that inline evidence grades (A-E) are present in the body.
+func checkEvidenceGrades(bodyStr string, result *ValidationResult) {
+	if bodyStr != "" && !evidenceGradePattern.MatchString(bodyStr) {
+		result.AddIssueWithHint(L3Warn, "W-NO-EVIDENCE-GRADES",
+			"No inline evidence grades found (expected A-E grades per P3)",
+			"Add evidence grades like 'A (official docs)' or 'B (peer-reviewed study)' to claims")
+	}
+}
+
+// checkRecalledGradeCap verifies that recalled knowledge claims are capped at Grade D per Principle P3.
+func checkRecalledGradeCap(bodyStr string, result *ValidationResult) {
+	if bodyStr != "" && recalledHighGradePattern.MatchString(bodyStr) {
+		result.AddIssueWithHint(L3Warn, "W-RECALLED-GRADE-CAP",
+			"Recalled knowledge must be capped at Grade D per Principle P3",
+			"Downgrade recalled claims to Grade D or corroborate them with live fetched/cached sources")
+	}
 }

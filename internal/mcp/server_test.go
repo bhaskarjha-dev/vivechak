@@ -928,6 +928,58 @@ Tied to Clerk.
 	}
 }
 
+func TestSaveSession_FADCaseInsensitive(t *testing.T) {
+	cs := testServer(t)
+	ctx := context.Background()
+	tmpDir := t.TempDir()
+
+	// Init workspace
+	_, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "vivechak_init",
+		Arguments: map[string]any{"project_root": tmpDir, "scope": "project"},
+	})
+	if err != nil {
+		t.Fatalf("init: %v", err)
+	}
+
+	fadContent := `---
+id: FAD
+title: Founding Architecture Document
+synthesis_date: 2026-09-30
+status: complete
+---
+# Founding Architecture
+Synthesis of all research findings. Grade A (official documentation).
+` + strings.Repeat("Architectural blueprints and component definitions. ", 10)
+
+	// Save session with lowercase "fad"
+	res, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_save_session",
+		Arguments: map[string]any{
+			"project_root": tmpDir,
+			"session_id":   "fad",
+			"content":      fadContent,
+		},
+	})
+	if err != nil {
+		t.Fatalf("save_session fad: %v", err)
+	}
+	env := parseEnvelope(t, res)
+	if !env.Success {
+		t.Fatalf("expected success saving fad session: %s", env.Message)
+	}
+
+	// Verify research/FAD.md was written
+	if _, err := os.Stat(filepath.Join(tmpDir, "research", "FAD.md")); err != nil {
+		t.Errorf("expected research/FAD.md to exist: %v", err)
+	}
+
+	// Verify research/sessions/fad.md was NOT written because session_id is FAD (case-insensitive)
+	if _, err := os.Stat(filepath.Join(tmpDir, "research", "sessions", "fad.md")); !os.IsNotExist(err) {
+		t.Errorf("expected research/sessions/fad.md to NOT exist, but stat returned %v", err)
+	}
+}
+
 func TestRecordDecision_ConflictResolution(t *testing.T) {
 	cs := testServer(t)
 	ctx := context.Background()

@@ -263,6 +263,22 @@ func TestDetermineServerKey(t *testing.T) {
 	if k := determineServerKey("", filepath.Join("project", ".vscode", "mcp.json"), nil); k != "servers" {
 		t.Errorf("path heuristic .vscode key: got %s, want servers", k)
 	}
+
+	// Path heuristic for zed settings.json without host (Unix and Windows)
+	if k := determineServerKey("", filepath.Join("home", "user", ".config", "zed", "settings.json"), nil); k != "context_servers" {
+		t.Errorf("path heuristic zed Unix key: got %s, want context_servers", k)
+	}
+	if k := determineServerKey("", filepath.Join("AppData", "Roaming", "Zed", "settings.json"), nil); k != "context_servers" {
+		t.Errorf("path heuristic zed Windows key: got %s, want context_servers", k)
+	}
+
+	// Path containing 'zed' as substring (e.g. user jzed, or directory analyzed) should NOT trigger zed context_servers
+	if k := determineServerKey("", filepath.Join("home", "jzed", "project", "mcp.json"), nil); k != "mcpServers" {
+		t.Errorf("substring zed in username: got %s, want mcpServers", k)
+	}
+	if k := determineServerKey("", filepath.Join("workspace", "analyzed", "mcp.json"), nil); k != "mcpServers" {
+		t.Errorf("substring zed in directory: got %s, want mcpServers", k)
+	}
 }
 
 func TestMergeConfig(t *testing.T) {

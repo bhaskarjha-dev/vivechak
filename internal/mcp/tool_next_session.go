@@ -392,6 +392,11 @@ func scanCompletedSessions(ws *store.Workspace, knownIDs ...string) (map[string]
 		completed["FAD"] = true
 		completed["SYN-01"] = true
 		completed["SYN"] = true
+		for _, kid := range knownIDs {
+			if core.IsSynthesisSession(kid) {
+				completed[kid] = true
+			}
+		}
 	}
 
 	return completed, nil

@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 )
 
 const desktopShortcutsList = "cursor, vscode, claude-desktop (or claude), windsurf, antigravity (or agy), zed, kiro, trae, omp, openhands, droid, cline, roo, devin"
@@ -188,11 +189,14 @@ func determineServerKey(host, configPath string, existing map[string]any) string
 	}
 
 	clean := filepath.Clean(configPath)
-	if filepath.Base(filepath.Dir(clean)) == ".vscode" || filepath.Base(clean) == "mcp.json" && strings.Contains(clean, ".vscode") {
+	if filepath.Base(filepath.Dir(clean)) == ".vscode" || (filepath.Base(clean) == "mcp.json" && strings.Contains(clean, ".vscode")) {
 		return "servers"
 	}
-	if strings.Contains(strings.ToLower(clean), "zed") {
-		return "context_servers"
+	for d := filepath.Dir(clean); d != "" && d != "." && d != filepath.Dir(d); d = filepath.Dir(d) {
+		base := strings.ToLower(filepath.Base(d))
+		if base == "zed" || base == ".zed" {
+			return "context_servers"
+		}
 	}
 
 	return "mcpServers"
@@ -377,7 +381,18 @@ func writeConfigFile(configPath string, out []byte) (retErr error) {
 		return fmt.Errorf("failed to close temp file: %w", err)
 	}
 
-	if err := os.Rename(tmpFile, configPath); err != nil {
+	err = os.Rename(tmpFile, configPath)
+	if err != nil && runtime.GOOS == "windows" {
+		backoff := 50 * time.Millisecond
+		for attempt := 0; attempt < 3; attempt++ {
+			time.Sleep(backoff)
+			backoff *= 2
+			if err = os.Rename(tmpFile, configPath); err == nil {
+				break
+			}
+		}
+	}
+	if err != nil {
 		return fmt.Errorf("failed to rename temp file: %w", err)
 	}
 	return nil

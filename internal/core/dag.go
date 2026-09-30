@@ -59,6 +59,14 @@ func (d *DAG) SessionByID(id string) *Session {
 	return nil
 }
 
+// IsSynthesisSession reports whether id represents a synthesis or Founding Architecture Document
+// session (e.g. "FAD", "SYN", "SYN-01", "SYN-02").
+func IsSynthesisSession(id string) bool {
+	upper := strings.ToUpper(strings.TrimSpace(id))
+	return upper == "FAD" || strings.HasPrefix(upper, "SYN")
+}
+
+
 var validSessionIDRe = regexp.MustCompile(`^[A-Za-z0-9]+(?:[-_][A-Za-z0-9]+)*$`)
 
 // ValidateDAG checks the pipeline graph for cycles, unknown dependencies, and duplicates.

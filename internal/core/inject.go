@@ -53,7 +53,7 @@ func InjectContext(session Session, sessionsDir string, completedSessions map[st
 	}
 
 	// Determine if this is a synthesis session
-	isSynthesis := strings.HasPrefix(strings.ToUpper(session.ID), "SYN") || strings.ToUpper(session.ID) == "FAD"
+	isSynthesis := IsSynthesisSession(session.ID)
 
 	if isSynthesis {
 		// For synthesis: inject ALL completed session findings

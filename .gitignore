@@ -39,6 +39,7 @@ coverage*
 # Temporary working directories
 temp/
 tmp/
+scratch/
 
 # Lock files left by advisory locking
 *.lock

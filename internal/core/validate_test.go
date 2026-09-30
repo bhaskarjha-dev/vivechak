@@ -546,5 +546,47 @@ Resolved in favor of Redis.
 	}
 }
 
+func TestValidateFAD_RecalledGradeCap(t *testing.T) {
+	fadContent := `---
+id: FAD
+title: Founding Architecture Document
+synthesis_date: 2026-09-30
+status: complete
+---
+# Architecture Blueprint
+Primary database is CockroachDB for multi-region replication. Grade A (parametric memory).
+` + strings.Repeat("Extensive architectural details and component boundaries. ", 10)
 
+	res := ValidateFAD([]byte(fadContent))
+	found := false
+	for _, iss := range res.Issues {
+		if iss.Code == "W-RECALLED-GRADE-CAP" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("expected W-RECALLED-GRADE-CAP for FAD with recalled Grade A")
+	}
+}
 
+func TestValidateArtifact_RecalledGradeCap(t *testing.T) {
+	artContent := `---
+title: Research Synthesis
+---
+# Findings
+Selected tool is PostgreSQL. Grade B (recalled from memory).
+` + strings.Repeat("Additional details on data storage and retention policy. ", 10)
+
+	res := ValidateArtifact([]byte(artContent))
+	found := false
+	for _, iss := range res.Issues {
+		if iss.Code == "W-RECALLED-GRADE-CAP" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("expected W-RECALLED-GRADE-CAP for generic artifact with recalled Grade B")
+	}
+}

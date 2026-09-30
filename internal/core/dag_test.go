@@ -709,5 +709,38 @@ Investigate auth options at EOF.`
 	}
 }
 
+func TestIsSynthesisSession(t *testing.T) {
+	tests := []struct {
+		id   string
+		want bool
+	}{
+		{"FAD", true},
+		{"fad", true},
+		{"SYN", true},
+		{"syn", true},
+		{"SYN-01", true},
+		{"syn-01", true},
+		{"SYN-02", true},
+		{"SYNTHESIS", true},
+		{"T1-01", false},
+		{"S1-01", false},
+		{"D-001", false},
+		{"COMP-01", false},
+		{"", false},
+		{"   ", false},
+		{"  SYN-01  ", true},
+		{"  FAD  ", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.id, func(t *testing.T) {
+			got := IsSynthesisSession(tt.id)
+			if got != tt.want {
+				t.Errorf("IsSynthesisSession(%q) = %v; want %v", tt.id, got, tt.want)
+			}
+		})
+	}
+}
+
 
 

@@ -149,7 +149,7 @@ func handleRunGate(_ context.Context, _ *sdkmcp.CallToolRequest, in RunGateInput
 								}
 							}
 						}
-						if !found && (s.ID == "SYN-01" || s.ID == "SYN" || s.ID == "FAD") {
+						if !found && core.IsSynthesisSession(s.ID) {
 							if _, err := ws.Stat(core.FADFile); err == nil {
 								found = true
 							}

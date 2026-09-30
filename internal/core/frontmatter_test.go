@@ -522,6 +522,40 @@ title: "Comparison --- Option A vs Option B"
 			t.Errorf("expected output to equal input, got:\n%s", string(out))
 		}
 	})
+
+	t.Run("handles leading HTML comment before frontmatter", func(t *testing.T) {
+		input := `<!-- DECISION: D-001 -->
+---
+id: D-001
+title: Primary Datastore
+door_type: one-way
+---
+
+# Body Content
+Decision details here.
+`
+		out := EnsureFrontmatterField([]byte(input), "status", "draft")
+		fm, body, err := ParseFrontmatter(out)
+		if err != nil {
+			t.Fatalf("unexpected error parsing result: %v", err)
+		}
+		if fm == nil {
+			t.Fatal("expected frontmatter")
+		}
+		if fm.GetString("status") != "draft" {
+			t.Errorf("expected status 'draft', got %q", fm.GetString("status"))
+		}
+		if fm.GetString("id") != "D-001" {
+			t.Errorf("expected id 'D-001', got %q", fm.GetString("id"))
+		}
+		outStr := string(out)
+		if !strings.HasPrefix(outStr, "<!-- DECISION: D-001 -->") {
+			t.Error("expected leading HTML comment to be preserved at start of file")
+		}
+		if !strings.Contains(string(body), "Decision details here.") {
+			t.Error("expected body to be preserved")
+		}
+	})
 }
 
 func TestParseFrontmatter_LeadingHTMLComment(t *testing.T) {
@@ -554,3 +588,54 @@ Decision details here.
 		t.Errorf("expected body to contain decision details, got: %s", string(body))
 	}
 }
+
+func TestParseFrontmatter_MultipleAndUnclosedComments(t *testing.T) {
+	t.Run("handles multiple consecutive leading HTML comments", func(t *testing.T) {
+		input := `<!-- Comment 1: Context -->
+<!-- Comment 2: DECISION: D-002 -->
+---
+id: D-002
+title: Message Broker
+status: accepted
+---
+# Body
+Kafka selected.
+`
+		fm, body, err := ParseFrontmatter([]byte(input))
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if fm == nil || fm.GetString("id") != "D-002" {
+			t.Errorf("expected D-002, got %v", fm)
+		}
+		if !strings.Contains(string(body), "Kafka selected.") {
+			t.Errorf("expected body to be preserved: %s", string(body))
+		}
+
+		// Also test EnsureFrontmatterField with multiple comments
+		out := EnsureFrontmatterField([]byte(input), "owner", "core-team")
+		fmOut, _, err := ParseFrontmatter(out)
+		if err != nil || fmOut == nil || fmOut.GetString("owner") != "core-team" {
+			t.Errorf("failed EnsureFrontmatterField with multiple comments: %v", err)
+		}
+		if !strings.HasPrefix(string(out), "<!-- Comment 1: Context -->") {
+			t.Errorf("expected original comments preserved: %s", string(out))
+		}
+	})
+
+	t.Run("handles unclosed HTML comment gracefully", func(t *testing.T) {
+		input := `<!-- unclosed comment without closing delimiter
+---
+id: D-003
+title: Test
+---
+# Body
+`
+		// Should not panic or infinite loop; fails gracefully as no valid frontmatter
+		fm, _, _ := ParseFrontmatter([]byte(input))
+		if fm != nil {
+			t.Errorf("expected nil frontmatter for unclosed comment, got %v", fm)
+		}
+	})
+}
+

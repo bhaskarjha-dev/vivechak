@@ -50,20 +50,7 @@ func ParseFrontmatter(data []byte) (Frontmatter, []byte, error) {
 	}
 
 	// Skip leading whitespace and HTML comments (e.g. <!-- DECISION: D-001 -->)
-	start := 0
-	for {
-		for start < len(d) && (d[start] == ' ' || d[start] == '\t' || d[start] == '\r' || d[start] == '\n') {
-			start++
-		}
-		if bytes.HasPrefix(d[start:], []byte("<!--")) {
-			endComment := bytes.Index(d[start:], []byte("-->"))
-			if endComment != -1 {
-				start += endComment + 3
-				continue
-			}
-		}
-		break
-	}
+	start := skipLeadingWhitespaceAndComments(d)
 
 	trimmed := d[start:]
 	hasOuterFence := false
@@ -319,11 +306,8 @@ func EnsureFrontmatterField(data []byte, key, value string) []byte {
 		bomLen = 3
 	}
 
-	// Skip leading whitespace
-	start := 0
-	for start < len(d) && (d[start] == ' ' || d[start] == '\t' || d[start] == '\r' || d[start] == '\n') {
-		start++
-	}
+	// Skip leading whitespace and HTML comments (e.g. <!-- DECISION: D-001 -->)
+	start := skipLeadingWhitespaceAndComments(d)
 
 	trimmed := d[start:]
 
@@ -445,3 +429,23 @@ func EnsureFrontmatterField(data []byte, key, value string) []byte {
 	res.Write(data[insertPos:])
 	return res.Bytes()
 }
+
+// skipLeadingWhitespaceAndComments skips leading whitespace and HTML comments (e.g. <!-- DECISION: D-001 -->).
+func skipLeadingWhitespaceAndComments(d []byte) int {
+	start := 0
+	for {
+		for start < len(d) && (d[start] == ' ' || d[start] == '\t' || d[start] == '\r' || d[start] == '\n') {
+			start++
+		}
+		if bytes.HasPrefix(d[start:], []byte("<!--")) {
+			endComment := bytes.Index(d[start:], []byte("-->"))
+			if endComment != -1 {
+				start += endComment + 3
+				continue
+			}
+		}
+		break
+	}
+	return start
+}
+
