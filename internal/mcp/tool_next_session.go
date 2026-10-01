@@ -102,7 +102,8 @@ func handleNextSession(_ context.Context, _ *sdkmcp.CallToolRequest, in NextSess
 			Success: true,
 			Message: msg,
 			Data:    dataMap,
-			NextStep: "Execute your comparison research prompt and save the output with vivechak_save_session using session_id='CMP-01'.",
+			NextStep: "Execute your comparison research prompt. Ground claims with current, " +
+			"verifiable evidence. Save the output with vivechak_save_session using session_id='CMP-01'.",
 			Meta:     NewMeta(tool),
 		}
 		return env.ToResult()
@@ -308,14 +309,63 @@ func buildSessionResponse(tool string, session core.Session, prompt string, comp
 		data["other_ready_sessions"] = otherReady
 	}
 
+	// Add blocked sessions with their blockers for orchestrator awareness
+	if dag != nil {
+		var blocked []map[string]any
+		for _, s := range dag.Sessions {
+			if completedIDs[s.ID] || s.ID == session.ID {
+				continue
+			}
+			// Check if this session is blocked (not in ready list)
+			isReady := false
+			for _, r := range otherReady {
+				if r == s.ID {
+					isReady = true
+					break
+				}
+			}
+			if !isReady {
+				var missingDeps []string
+				for _, dep := range s.Dependencies {
+					if !completedIDs[dep] {
+						missingDeps = append(missingDeps, dep)
+					}
+				}
+				if len(missingDeps) > 0 {
+					blocked = append(blocked, map[string]any{
+						"session_id": s.ID,
+						"blocked_by": missingDeps,
+					})
+				}
+			}
+		}
+		if len(blocked) > 0 {
+			data["blocked_sessions"] = blocked
+		}
+	}
+
 	var nextStep string
 	if completedIDs[session.ID] {
 		nextStep = fmt.Sprintf("Session %s is already completed. Run vivechak_next_session without session_id for the next actionable session.", session.ID)
 	} else {
-		nextStep = fmt.Sprintf("Execute the prompt for session %s in a fresh AI session with web search enabled. "+
-			"Save the output with vivechak_save_session using session_id='%s'.", session.ID, session.ID)
+		if core.IsSynthesisSession(session.ID) {
+			nextStep = fmt.Sprintf(
+				"Synthesize findings from all completed sessions into session %s. "+
+					"Every recommendation must trace to session evidence. Conflicts between "+
+					"sessions must be surfaced, not silently averaged. "+
+					"Save with vivechak_save_session using session_id='%s'.",
+				session.ID, session.ID)
+		} else {
+			nextStep = fmt.Sprintf(
+				"Execute the prompt for session %s. Ground every significant claim "+
+					"with current, verifiable evidence — an architect should be able to "+
+					"make the decision based solely on your findings. "+
+					"Save with vivechak_save_session using session_id='%s'.",
+				session.ID, session.ID)
+		}
 		if len(otherReady) > 0 {
-			nextStep += fmt.Sprintf(" Also ready: %s (these can run in parallel).", strings.Join(otherReady, ", "))
+			nextStep += fmt.Sprintf(" %d more sessions available in parallel: %s.",
+				len(otherReady), strings.Join(otherReady, ", "))
 		}
 	}
 

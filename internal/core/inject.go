@@ -14,6 +14,9 @@ const (
 	// UpstreamFindingsSlot is the placeholder for injected findings.
 	UpstreamFindingsSlot = "[UPSTREAM_FINDINGS]"
 
+	// KnownContextSlot is the placeholder for the KNOWN block in 8-block prompts.
+	KnownContextSlot = "[KNOWN_CONTEXT]"
+
 	// AllFindingsSlot is the placeholder for ALL session findings (used in SYN-01).
 	AllFindingsSlot = "[ALL_SESSION_FINDINGS]"
 
@@ -382,15 +385,25 @@ func extractFindings(body string, sessionID string, isSynthesis bool) string {
 }
 
 // injectIntoPrompt replaces a slot placeholder with the given content.
-// If the primary slot doesn't exist, checks for decision generator placeholders (e.g. [PASTE S1 SHORTLIST]).
-// If no placeholder exists, appends the content at the end.
+// If the primary slot doesn't exist, checks for KNOWN_CONTEXT, decision generator
+// placeholders (e.g. [PASTE S1 SHORTLIST]), and falls back to appending.
 func injectIntoPrompt(prompt, slot, content string) string {
 	if content == "" {
 		return prompt
 	}
 
 	if strings.Contains(prompt, slot) {
-		return strings.Replace(prompt, slot, content, 1)
+		result := strings.Replace(prompt, slot, content, 1)
+		// Also fill KNOWN_CONTEXT if present
+		if strings.Contains(result, KnownContextSlot) {
+			result = strings.Replace(result, KnownContextSlot, content, 1)
+		}
+		return result
+	}
+
+	// Try KNOWN_CONTEXT slot
+	if strings.Contains(prompt, KnownContextSlot) {
+		return strings.Replace(prompt, KnownContextSlot, content, 1)
 	}
 
 	// Support decision generator candidate shortlist placeholder

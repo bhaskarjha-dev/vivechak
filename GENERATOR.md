@@ -150,35 +150,81 @@ For each architectural decision this session informs, note:
 - Note: The full decision record lives in DECISIONS.md, not here
 
 **Part C — Research Prompt (copy-paste ready):**
-Write the complete research prompt using the 5-block structure:
+Write the complete research prompt using the 8-block structure:
 
-**BRIEF:** What to investigate, which decision it informs, who the audience
-is (a Principal Architect needing production-grade tradeoffs, not summaries).
-Include project-specific context from the vision.
+**DECISION:** What architectural decision this session feeds, stated as a
+neutral question. Include: the decision ID (D-NNN), the door type (one-way
+or two-way), and what evidence would change the recommendation. This
+anchors every session to its purpose.
 
-**SCOPE:** Today's date as temporal anchor. In-scope / out-of-scope boundaries.
-Source priorities: prefer official docs, RFCs, source code, peer-reviewed
-benchmarks over blog posts and SEO content.
+**BRIEF:** What to investigate, typed by question kind (lookup, causal, or
+evaluative). Who the audience is (a Principal Architect needing
+production-grade tradeoffs, not summaries). Include project-specific
+context from the vision.
 
-**APPROACH:** Directional, not prescriptive. Tell the AI to start with broad
-landscape queries, then dynamically investigate specific tradeoffs, failure
-modes, and benchmarks. Tell it to surface disagreements rather than smooth
-them, and actively seek disconfirming evidence. Do NOT prescribe specific
-search queries or set minimum search counts.
+**SCOPE:** Today's date as temporal anchor. In-scope / out-of-scope
+boundaries. Source strategy BY CLAIM TYPE — e.g., performance claims need
+reproducible benchmarks, API stability claims need changelogs, adoption
+claims need download/usage data. Prefer official docs, RFCs, source code,
+peer-reviewed benchmarks over blog posts and SEO content.
 
-Add this instruction to each prompt's APPROACH block: "If your research
-reveals critical concerns, dependencies, risks, or opportunities not
-listed in the coverage checklist, investigate and include them. The
-stated scope defines the minimum — not the maximum — of what this
-session should cover. Justify any scope expansion with evidence."
+**KNOWN:** For sessions that depend on upstream sessions, include the
+`[KNOWN_CONTEXT]` placeholder here. Tag upstream claims as `INHERITED` —
+they are starting assumptions to stress-test, not settled facts. For
+sessions with no upstream dependencies, state the key assumptions the
+session starts with and note they are unverified.
 
-**DELIVERABLE:** Coverage checklist of what the output must address.
-Include: recommendation, options evaluation (for comparison sessions: add a
-weighted scoring matrix with project-derived criteria, 1–5 scores with
-evidence references, and sensitivity check), deep analysis of top contenders,
-inline evidence grades, open risks with reversal triggers, and a
-"Discovered Concerns" section if research reveals material concerns
-beyond the stated scope (omit if nothing emerged).
+**CALIBRATION:** Include this block verbatim in every research session prompt:
+```
+1. Treat your memory as a hypothesis to test. Note initial beliefs;
+   report what evidence confirmed, updated, or contradicted.
+2. A significant claim is most valuable when grounded with a verifiable
+   source. "Not found after searching X, Y, Z" is a valid, valued result.
+3. An unsupported claim presented as fact costs more than an honest gap.
+4. Before finishing: state the strongest objections an expert would raise
+   and what evidence you found for or against each.
+5. Distinguish what you found from what you recalled. Mark recalled claims
+   honestly — they are starting points, not conclusions.
+```
+
+**APPROACH:** Directional, not prescriptive. Provide the research moves
+vocabulary — the model picks which moves fit each question:
+- DEEPEN: trace a claim to its primary source
+- WIDEN: search with different vocabulary or source types
+- CORROBORATE: find independent support for a load-bearing claim
+- FALSIFY: actively search for evidence against your leading answer
+- PIVOT: reframe the question when results suggest the framing is wrong
+
+If you've only found confirming evidence, try FALSIFY before concluding.
+Effort ceiling: spend effort proportional to the decision's reversibility.
+
+Include this iterative guidance: "Research is iterative. After your initial
+findings: Are there load-bearing claims with only one source? Seek a
+second. Did you find contradictions you haven't resolved? Investigate.
+Do your findings raise obvious follow-up questions? Pursue them.
+Have you only found confirming evidence? Try to find disconfirming evidence.
+When your evidence is sufficient to answer 'what would change this
+recommendation?' — stop. Honest incompleteness with an attempt log
+is more valuable than false completeness."
+
+Add this instruction: "If your research reveals critical concerns,
+dependencies, risks, or opportunities beyond the stated scope,
+investigate and include them. The stated scope defines the minimum —
+not the maximum — of what this session should cover. Justify any scope
+expansion with evidence."
+
+Do NOT prescribe specific search queries or set minimum search counts.
+
+**DONE:** State 3-5 completion criteria that define when this session
+is DONE. Frame each as "This session is complete when [X] is answered with
+[evidence type]." These are quality goals, not method prescriptions — the
+model decides HOW to meet them. Include criteria for: the primary question
+answered with evidence, trade-offs grounded with verifiable data, at least
+one failure mode per major option documented, and the ability to state what
+would change the recommendation. For comparison sessions, also require a
+weighted evaluation matrix with project-derived criteria, evidence
+references per score, and a sensitivity check. Add a "Discovered Concerns"
+criterion if research reveals material concerns beyond stated scope.
 
 <!-- CORE:BEGIN — shared methodology kernel (must stay identical across GENERATOR.md, GENERATOR-DECISION.md, GENERATOR-COMPARISON.md) -->
 For evidence grading, every factual claim should carry:
@@ -194,9 +240,20 @@ For evidence grading, every factual claim should carry:
 (id, title, date, status, topic, tags, informs_decisions, confidence).
 **Filename:** `[Session-ID]-[slug].md` (use the output filename from the
 session metadata table).
-Body sections: Research Question → Key Findings (3–7 bullets) →
-Recommendation (isolated from rejected options) → Alternatives Considered
-→ Detailed Findings → Open Questions & Risks → Sources & Evidence Ledger.
+Body sections: Prior (pre-research beliefs) → Research Question →
+Key Findings (3–7 bullets) → Recommendation (isolated from rejected
+options) → Alternatives Considered → Detailed Findings →
+Open Questions & Risks → Delta (what research changed) →
+Sources & Evidence Ledger.
+
+The Prior section should contain 3-5 checkable propositions:
+"I believe [X] because [reasoning]."
+
+The Delta section is a table:
+| Prior Belief | Status | Evidence | Impact |
+|---|---|---|---|
+| [X] | Confirmed/Updated/Contradicted | [source] | [high/med/low] |
+
 These sections define required coverage areas, not rigid paragraph
 templates. Within each section, let the AI organize content naturally.
 
@@ -205,7 +262,7 @@ or minimum search counts in any prompt. Each prompt must be a complete,
 front-loaded, single-turn brief.
 
 **Context Injection Placeholders:**
-- For any downstream session that depends on upstream sessions, include the exact placeholder `[UPSTREAM_FINDINGS]` inside the prompt where upstream findings should be injected.
+- For any downstream session that depends on upstream sessions, include the exact placeholder `[UPSTREAM_FINDINGS]` inside the prompt where upstream findings should be injected. Also include `[KNOWN_CONTEXT]` in the KNOWN block for structured upstream context.
 - For the final grand synthesis session (`SYN-01`), include the exact placeholder `[ALL_SESSION_FINDINGS]` inside the prompt where all session findings should be aggregated.
 
 ## DELIVERABLE
@@ -230,7 +287,7 @@ A unified research pipeline document with this structure:
   ### T1-01: [Title]
     Session Metadata table       <- ID, layer, door type, decision, dependencies, output filename
     Decision context             <- Which D-NNN this session informs (read-only reference)
-    Research Prompt              <- Complete 5-block prompt in a `prompt code fence
+    Research Prompt              <- Complete 8-block prompt in a `prompt code fence
   ### T1-02: [Title]             <- Same structure repeats for each session
     ...
   ### SYN-01: Grand Synthesis    <- Final synthesis session

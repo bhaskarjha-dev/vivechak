@@ -71,25 +71,34 @@ func handleValidate(_ context.Context, _ *sdkmcp.CallToolRequest, in ValidateInp
 		warnings = append(warnings, issue.String())
 	}
 
+	// Gather advisory quality observations
+	observations := core.ObserveSessionQuality([]byte(in.Content))
+
 	var nextStep string
 	if validation.HasBlocking() {
-		nextStep = "Fix the blocking issues listed above and re-validate, or save as draft."
+		nextStep = "Review the structural issues above. Address any that affect correctness, then save."
 	} else if validation.WarningCount() > 0 {
-		nextStep = fmt.Sprintf("Content is valid with %d warnings. You can save it using the appropriate save tool.", validation.WarningCount())
+		nextStep = fmt.Sprintf("Content is structurally valid with %d observations. "+
+			"Review the suggestions if you want to strengthen the output, then save.", validation.WarningCount())
 	} else {
 		nextStep = "Content is valid. Save it using vivechak_save_session, vivechak_save_plan, or vivechak_record_decision."
 	}
 
+	responseData := map[string]any{
+		"artifact_type": artifactType,
+		"status":        validation.Status,
+		"validation":    validation,
+		"error_count":   validation.ErrorCount(),
+		"warning_count": validation.WarningCount(),
+	}
+	if len(observations) > 0 {
+		responseData["observations"] = observations
+	}
+
 	env := Envelope{
-		Success: true,
-		Message: fmt.Sprintf("Validation complete: %s (%d issues)", validation.Status, len(validation.Issues)),
-		Data: map[string]any{
-			"artifact_type": artifactType,
-			"status":        validation.Status,
-			"validation":    validation,
-			"error_count":   validation.ErrorCount(),
-			"warning_count": validation.WarningCount(),
-		},
+		Success:  true,
+		Message:  fmt.Sprintf("Validation complete: %s (%d issues)", validation.Status, len(validation.Issues)),
+		Data:     responseData,
 		Warnings: warnings,
 		NextStep: nextStep,
 		Meta:     NewMeta(tool),

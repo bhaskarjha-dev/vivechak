@@ -27,9 +27,9 @@ func registerInit(server *sdkmcp.Server) {
 			Name:  "vivechak_init",
 			Title: "Initialize Vivechak Workspace",
 			Description: "Create a Vivechak research workspace in the target directory. " +
-				"Creates research/ directory structure and copies all 5 templates. " +
-				"Accepts scope parameter to adjust layout: 'project' (full pipeline), " +
-				"'decision' (single decision), or 'comparison' (bounded comparison). " +
+				"Creates research/ directory structure and copies scope-appropriate templates. " +
+				"Accepts scope parameter to adjust layout: 'project' (full pipeline, all 5 templates), " +
+				"'decision' (single decision, 2 templates), or 'comparison' (bounded comparison, 1 template). " +
 				"Safe to call on an already-initialized workspace — reports existing state without overwriting.",
 			Annotations: &sdkmcp.ToolAnnotations{
 				ReadOnlyHint:    false,
@@ -99,7 +99,7 @@ func handleInit(_ context.Context, req *sdkmcp.CallToolRequest, in InitInput) (*
 	// Check if already initialized
 	if core.WorkspaceExists(absRoot) {
 		var restored []string
-		for _, tmpl := range core.TemplatesToCopy {
+		for _, tmpl := range core.TemplatesForScope(scope) {
 			relPath := filepath.Join(core.TemplatesDir, tmpl)
 			if !ws.FileExists(relPath) {
 				if data, err := vembed.ReadTemplate(tmpl); err == nil {
@@ -142,7 +142,7 @@ func handleInit(_ context.Context, req *sdkmcp.CallToolRequest, in InitInput) (*
 	// Copy templates from embedded assets
 	var copied []string
 	var warnings []string
-	for _, tmpl := range core.TemplatesToCopy {
+	for _, tmpl := range core.TemplatesForScope(scope) {
 		data, err := vembed.ReadTemplate(tmpl)
 		if err != nil {
 			warnings = append(warnings, fmt.Sprintf("W-TEMPLATE-MISSING: %s not found in embedded assets", tmpl))
@@ -178,7 +178,7 @@ func handleInit(_ context.Context, req *sdkmcp.CallToolRequest, in InitInput) (*
 		},
 		Warnings: warnings,
 		NextStep: fmt.Sprintf("Run vivechak_prepare_generator with your %s description to get the generator prompt. "+
-			"Execute that prompt in a session with web search enabled.", scope),
+			"Execute that prompt to generate your research pipeline.", scope),
 		Meta: NewMeta(tool),
 	}
 	return env.ToResult()

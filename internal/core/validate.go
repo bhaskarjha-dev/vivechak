@@ -536,3 +536,78 @@ func checkRecalledGradeCap(bodyStr string, result *ValidationResult) {
 			"Downgrade recalled claims to Grade D or corroborate them with live fetched/cached sources")
 	}
 }
+
+// QualityObservation is an advisory finding from content analysis.
+type QualityObservation struct {
+	Category string `json:"category"` // structure, evidence, coherence, freshness
+	Message  string `json:"message"`
+	Severity string `json:"severity"` // info, suggestion, consideration
+}
+
+// staleDatePattern matches year references that may be outdated (pre-2024).
+var staleDatePattern = regexp.MustCompile(`\b20(?:1[0-9]|2[0-3])\b`)
+
+// ObserveSessionQuality performs advisory content analysis and returns observations.
+// These are informational suggestions, not validation errors. They help the author
+// strengthen their output but never block saving.
+func ObserveSessionQuality(content []byte) []QualityObservation {
+	var observations []QualityObservation
+	bodyStr := string(content)
+
+	// Count inline evidence grade markers
+	gradeMatches := evidenceGradePattern.FindAllString(bodyStr, -1)
+	gradeCount := len(gradeMatches)
+	if gradeCount == 0 {
+		observations = append(observations, QualityObservation{
+			Category: "evidence",
+			Message:  "No inline evidence grades found. Consider adding grades (A-E) to significant claims.",
+			Severity: "suggestion",
+		})
+	} else if gradeCount < 3 {
+		observations = append(observations, QualityObservation{
+			Category: "evidence",
+			Message:  fmt.Sprintf("Found %d evidence grade(s). Key findings typically benefit from more graded claims.", gradeCount),
+			Severity: "info",
+		})
+	}
+
+	// Check for Prior/Delta sections
+	hasPrior := strings.Contains(bodyStr, "## Prior") || strings.Contains(bodyStr, "## Prior (")
+	hasDelta := strings.Contains(bodyStr, "## Delta") || strings.Contains(bodyStr, "## Delta (")
+	if !hasPrior {
+		observations = append(observations, QualityObservation{
+			Category: "structure",
+			Message:  "No Prior section found. Consider stating pre-research beliefs to make the Delta visible.",
+			Severity: "suggestion",
+		})
+	}
+	if !hasDelta {
+		observations = append(observations, QualityObservation{
+			Category: "structure",
+			Message:  "No Delta section found. Consider adding a table showing what research confirmed, updated, or contradicted.",
+			Severity: "suggestion",
+		})
+	}
+
+	// Check for stale date references
+	staleMatches := staleDatePattern.FindAllString(bodyStr, -1)
+	if len(staleMatches) > 0 {
+		// Deduplicate
+		seen := make(map[string]bool)
+		var unique []string
+		for _, m := range staleMatches {
+			if !seen[m] {
+				seen[m] = true
+				unique = append(unique, m)
+			}
+		}
+		observations = append(observations, QualityObservation{
+			Category: "freshness",
+			Message:  fmt.Sprintf("Found references to potentially stale dates: %s. Verify these are still current.", strings.Join(unique, ", ")),
+			Severity: "consideration",
+		})
+	}
+
+	return observations
+}
+

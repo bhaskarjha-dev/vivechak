@@ -78,10 +78,11 @@ func handleRunGate(_ context.Context, _ *sdkmcp.CallToolRequest, in RunGateInput
 		}
 
 		// Check 2: Templates present
-		if info.TemplateCount >= 5 {
+		expectedTemplates := len(core.TemplatesForScope(core.ScopeDecision))
+		if info.TemplateCount >= expectedTemplates {
 			trackAPassed++
 		} else {
-			trackAIssues = append(trackAIssues, fmt.Sprintf("Only %d/5 templates found", info.TemplateCount))
+			trackAIssues = append(trackAIssues, fmt.Sprintf("Only %d/%d templates found", info.TemplateCount, expectedTemplates))
 		}
 
 		// Check 3: Decision record exists
@@ -112,10 +113,11 @@ func handleRunGate(_ context.Context, _ *sdkmcp.CallToolRequest, in RunGateInput
 		}
 
 		// Check 2: Templates present
-		if info.TemplateCount >= 5 {
+		expectedTemplates := len(core.TemplatesForScope(core.ScopeComparison))
+		if info.TemplateCount >= expectedTemplates {
 			trackAPassed++
 		} else {
-			trackAIssues = append(trackAIssues, fmt.Sprintf("Only %d/5 templates found", info.TemplateCount))
+			trackAIssues = append(trackAIssues, fmt.Sprintf("Only %d/%d templates found", info.TemplateCount, expectedTemplates))
 		}
 
 	default: // ScopeProject
@@ -180,10 +182,11 @@ func handleRunGate(_ context.Context, _ *sdkmcp.CallToolRequest, in RunGateInput
 		}
 
 		// Check 3: Templates present
-		if info.TemplateCount >= 5 {
+		expectedTemplates := len(core.TemplatesForScope(core.ScopeProject))
+		if info.TemplateCount >= expectedTemplates {
 			trackAPassed++
 		} else {
-			trackAIssues = append(trackAIssues, fmt.Sprintf("Only %d/5 templates found", info.TemplateCount))
+			trackAIssues = append(trackAIssues, fmt.Sprintf("Only %d/%d templates found", info.TemplateCount, expectedTemplates))
 		}
 
 		// Check 4: Decisions exist

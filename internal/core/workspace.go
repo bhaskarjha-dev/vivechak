@@ -43,6 +43,23 @@ var TemplatesToCopy = []string{
 	"PHASE-0-GATE.template.md",
 }
 
+// TemplatesForScope returns the template files appropriate for the given scope.
+func TemplatesForScope(scope Scope) []string {
+	switch scope {
+	case ScopeDecision:
+		return []string{
+			"DECISIONS.template.md",
+			"CONFLICT-RESOLUTION.template.md",
+		}
+	case ScopeComparison:
+		return []string{
+			"COMPARISON-SESSION.template.md",
+		}
+	default: // ScopeProject
+		return TemplatesToCopy // all 5
+	}
+}
+
 // ResolveWorkspace implements the 4-step workspace resolution chain
 // per FINAL-PLAN.md:
 //
