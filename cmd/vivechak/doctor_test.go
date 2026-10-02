@@ -84,6 +84,48 @@ Refers to D-001. A (doc)
 	}
 }
 
+func TestCheckWorkspace_ScopeAwareTemplates_Decision(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	_ = os.MkdirAll(filepath.Join(tmpDir, core.TemplatesDir), 0o755)
+	_ = os.MkdirAll(filepath.Join(tmpDir, core.SessionsDir), 0o755)
+
+	// Write metadata for decision scope
+	metaJSON := `{"scope":"decision","created_at":"2026-10-02"}`
+	_ = os.WriteFile(filepath.Join(tmpDir, core.MetadataFile), []byte(metaJSON), 0o644)
+
+	// Decision scope only requires 2 templates
+	for _, tmpl := range core.TemplatesForScope(core.ScopeDecision) {
+		_ = os.WriteFile(filepath.Join(tmpDir, core.TemplatesDir, tmpl), []byte("# Template "+tmpl), 0o644)
+	}
+
+	hasErrors, _, errs := checkWorkspace(tmpDir)
+	if hasErrors {
+		t.Fatalf("expected decision workspace to be healthy with only 2 templates, got errors: %v", errs)
+	}
+}
+
+func TestCheckWorkspace_ScopeAwareTemplates_Comparison(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	_ = os.MkdirAll(filepath.Join(tmpDir, core.TemplatesDir), 0o755)
+	_ = os.MkdirAll(filepath.Join(tmpDir, core.SessionsDir), 0o755)
+
+	// Write metadata for comparison scope
+	metaJSON := `{"scope":"comparison","created_at":"2026-10-02"}`
+	_ = os.WriteFile(filepath.Join(tmpDir, core.MetadataFile), []byte(metaJSON), 0o644)
+
+	// Comparison scope only requires 1 template
+	for _, tmpl := range core.TemplatesForScope(core.ScopeComparison) {
+		_ = os.WriteFile(filepath.Join(tmpDir, core.TemplatesDir, tmpl), []byte("# Template "+tmpl), 0o644)
+	}
+
+	hasErrors, _, errs := checkWorkspace(tmpDir)
+	if hasErrors {
+		t.Fatalf("expected comparison workspace to be healthy with only 1 template, got errors: %v", errs)
+	}
+}
+
 func TestCheckWorkspace_OrphanSession(t *testing.T) {
 	tmpDir := t.TempDir()
 

@@ -65,8 +65,10 @@ func checkWorkspace(workspace string) (bool, []string, []string) {
 
 	// 2. Templates complete
 	templatesDir := filepath.Join(workspace, core.TemplatesDir)
+	info := core.InspectWorkspace(workspace)
+	expectedTemplates := core.TemplatesForScope(info.Scope)
 	var missingTemplates []string
-	for _, tpl := range core.TemplatesToCopy {
+	for _, tpl := range expectedTemplates {
 		if _, err := os.Stat(filepath.Join(templatesDir, tpl)); err != nil {
 			missingTemplates = append(missingTemplates, tpl)
 		}
