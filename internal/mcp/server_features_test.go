@@ -94,9 +94,9 @@ func TestInit_ComparisonScopeCopiesOnly1Template(t *testing.T) {
 	}
 }
 
-// TestInit_ProjectScopeCopiesAll5Templates verifies vivechak_init with
-// project scope copies all 5 templates.
-func TestInit_ProjectScopeCopiesAll5Templates(t *testing.T) {
+// TestInit_ProjectScopeCopiesAll6Templates verifies vivechak_init with
+// project scope copies all 6 templates.
+func TestInit_ProjectScopeCopiesAll6Templates(t *testing.T) {
 	cs := testServer(t)
 	ctx := context.Background()
 	tmpDir := t.TempDir()
@@ -396,10 +396,17 @@ func TestNextSession_ParallelSessionCount(t *testing.T) {
 		Arguments: map[string]any{"project_root": tmpDir},
 	})
 	env := parseEnvelope(t, result)
+	// Should mention number of parallel sessions with ⚡ prefix
+	if !strings.HasPrefix(env.NextStep, "⚡ 3 sessions ready in parallel") {
+		t.Errorf("expected '⚡ 3 sessions ready in parallel' prefix in next_step, got: %s", env.NextStep)
+	}
 
-	// Should mention number of parallel sessions
-	if !strings.Contains(env.NextStep, "2 more sessions available in parallel") {
-		t.Errorf("expected '2 more sessions available in parallel' in next_step, got: %s", env.NextStep)
+	dataMap, ok := env.Data.(map[string]any)
+	if !ok {
+		t.Fatalf("expected data map, got: %T", env.Data)
+	}
+	if hint, ok := dataMap["parallelism_hint"].(string); !ok || !strings.Contains(hint, "PARALLEL EXECUTION AVAILABLE: 3 independent sessions") {
+		t.Errorf("expected parallelism_hint in data, got: %v", dataMap["parallelism_hint"])
 	}
 }
 

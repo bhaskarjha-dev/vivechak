@@ -87,6 +87,15 @@ func TestRealComprehensive_AllScopes_AllModifications(t *testing.T) {
 			t.Errorf("expected .gitignore with *.lock, got err=%v content=%s", err, string(giData))
 		}
 
+		// Verify 6 templates copied, including SESSION.template.md
+		tmplCopied, ok := envInit.Data["templates_copied"].([]any)
+		if !ok || len(tmplCopied) != 6 {
+			t.Fatalf("expected 6 templates copied, got: %v", envInit.Data["templates_copied"])
+		}
+		if _, err := os.Stat(filepath.Join(projectDir, core.TemplatesDir, "SESSION.template.md")); err != nil {
+			t.Errorf("SESSION.template.md does not exist in templates/: %v", err)
+		}
+
 		// 2. vivechak_prepare_generator
 		envPrep := callAndParse("vivechak_prepare_generator", map[string]any{
 			"project_root": projectDir,
@@ -140,6 +149,26 @@ Research bank sync options.
 SimpleFIN vs Plaid.
 ## DELIVERABLE
 Concrete recommendation with Grade A evidence.
+` + "```" + `
+
+---
+
+#### R-01b: Auth Strategy — Master Key Derivation
+
+| Field | Value |
+|---|---|
+| **ID** | R-01b |
+| **Layer** | 0 |
+| **Door Type** | Two-Way |
+| **Dependencies** | None (parallel) |
+| **Output File** | ` + "`sessions/R-01b.md`" + ` |
+
+` + "```prompt" + `
+# RESEARCH BRIEF: R-01b Auth Strategy
+## BRIEF
+Argon2id vs PBKDF2 for key derivation.
+## DELIVERABLE
+Key derivation recommendation with Grade A evidence.
 ` + "```" + `
 
 ---
@@ -233,12 +262,40 @@ Founding architecture document.
 			t.Errorf("expected 0 session count, got: %v", envStatus.Data["session_count"])
 		}
 
-		// 5. vivechak_next_session: get R-01 prompt
+		// 5. vivechak_next_session: get R-01 prompt, verify parallelism_hint for multiple Layer 0 sessions
 		envNextR1 := callAndParse("vivechak_next_session", map[string]any{
 			"project_root": projectDir,
 		})
 		if !envNextR1.Success || envNextR1.Data["session_id"] != "R-01" {
 			t.Fatalf("expected next session R-01, got: %v", envNextR1.Data)
+		}
+		parallelHint, hasHint := envNextR1.Data["parallelism_hint"].(string)
+		if !hasHint || !strings.Contains(parallelHint, "PARALLEL EXECUTION AVAILABLE: 2 independent sessions") {
+			t.Errorf("expected parallelism_hint in data map, got: %v", envNextR1.Data["parallelism_hint"])
+		}
+		if !strings.HasPrefix(envNextR1.NextStep, "⚡ 2 sessions ready in parallel") {
+			t.Errorf("expected NextStep to start with parallel hint, got: %s", envNextR1.NextStep)
+		}
+
+		// Save R-01b session
+		r01bContent := `---
+session_id: R-01b
+title: Auth Strategy
+date: 2026-10-01
+status: complete
+tags: [auth, argon2, security]
+---
+# Auth Strategy
+## Recommendation
+Adopt Argon2id for master key derivation. Grade A (OWASP 2024 guidance)
+`
+		envSaveR1b := callAndParse("vivechak_save_session", map[string]any{
+			"project_root": projectDir,
+			"session_id":   "R-01b",
+			"content":      r01bContent,
+		})
+		if !envSaveR1b.Success {
+			t.Fatalf("save R-01b failed: %s", envSaveR1b.Message)
 		}
 
 		// 6. vivechak_save_session for R-01: include Delta with contradicted belief (testing P8 confirmation bias check)
@@ -426,7 +483,32 @@ Requires strict serialization of write transactions.
 			t.Fatalf("DECISIONS.md markers not in deterministic sorted order: idxD1=%d, idxD2=%d", idxD1, idxD2)
 		}
 
-		// 9. vivechak_amend_session: amend R-02 with a post-hoc note
+		// 9. vivechak_amend_session: amend R-01 which has completed downstream sessions (R-02, R-03)
+		// Verifies W-STALE-DOWNSTREAM warning and potentially_stale_sessions in data envelope
+		envAmendR1 := callAndParse("vivechak_amend_session", map[string]any{
+			"project_root": projectDir,
+			"session_id":   "R-01",
+			"amendment":    "POST-HOC UPDATE: SimpleFIN now offers direct webhook push.",
+		})
+		if !envAmendR1.Success {
+			t.Fatalf("amend R-01 failed: %s", envAmendR1.Message)
+		}
+		foundStale := false
+		for _, w := range envAmendR1.Warnings {
+			if strings.Contains(w, "W-STALE-DOWNSTREAM") && strings.Contains(w, "R-02") && strings.Contains(w, "R-03") {
+				foundStale = true
+				break
+			}
+		}
+		if !foundStale {
+			t.Errorf("expected W-STALE-DOWNSTREAM warning mentioning R-02 and R-03, got: %v", envAmendR1.Warnings)
+		}
+		staleSessions, ok := envAmendR1.Data["potentially_stale_sessions"].([]any)
+		if !ok || len(staleSessions) < 2 {
+			t.Errorf("expected potentially_stale_sessions to contain R-02 and R-03, got: %v", envAmendR1.Data["potentially_stale_sessions"])
+		}
+
+		// Also amend R-02 with a post-hoc note for context injection testing
 		envAmendR2 := callAndParse("vivechak_amend_session", map[string]any{
 			"project_root": projectDir,
 			"session_id":   "R-02",
@@ -497,6 +579,20 @@ Components communicate through in-memory Go channels with strict data isolation.
 			t.Fatalf("save SYN-01 failed: %s", envSaveSyn.Message)
 		}
 
+		// Verify root_copy returned in data and mirrored to project root
+		if envSaveSyn.Data["root_copy"] != "FOUNDING-ARCHITECTURE.md" {
+			t.Errorf("expected root_copy 'FOUNDING-ARCHITECTURE.md', got: %v", envSaveSyn.Data["root_copy"])
+		}
+		rootFADPath := filepath.Join(projectDir, "FOUNDING-ARCHITECTURE.md")
+		rootFADBytes, err := os.ReadFile(rootFADPath)
+		if err != nil {
+			t.Fatalf("expected FOUNDING-ARCHITECTURE.md at project root: %v", err)
+		}
+		fadDiskBytes, _ := os.ReadFile(filepath.Join(projectDir, core.FADFile))
+		if string(rootFADBytes) != string(fadDiskBytes) {
+			t.Errorf("root FOUNDING-ARCHITECTURE.md does not match research/FAD.md")
+		}
+
 		// Verify research/FAD.md exists
 		if _, err := os.Stat(filepath.Join(projectDir, core.FADFile)); err != nil {
 			t.Fatalf("research/FAD.md does not exist: %v", err)
@@ -560,10 +656,11 @@ Components communicate through in-memory Go channels with strict data isolation.
 		restoredD002 := strings.Replace(tamperedD002, "status: proposed", "status: accepted", 1)
 		_ = os.WriteFile(d002Path, []byte(restoredD002), 0o644)
 
-		// 14. Plant non-ADR markdown files in research/ to test whitelist scanning
+		// 14. Plant non-ADR markdown files in research/ to test whitelist scanning and core.IsSpecialResearchFile
 		_ = os.WriteFile(filepath.Join(projectDir, core.ResearchDir, "NOTES.md"), []byte("# Notes\nRandom notes with status: sealed"), 0o644)
 		_ = os.WriteFile(filepath.Join(projectDir, core.ResearchDir, "D-001-plan.md"), []byte("# Plan\nNot an ADR"), 0o644)
 		_ = os.WriteFile(filepath.Join(projectDir, core.ResearchDir, "D-001-conflict-resolution.md"), []byte("# Conflict\nNot an ADR"), 0o644)
+		_ = os.WriteFile(filepath.Join(projectDir, core.ResearchDir, "FOUNDING-ARCHITECTURE.md"), []byte("# Copy\nNot an ADR"), 0o644)
 
 		// 15. Workspace validation: verify exact 2 decisions reported (no double counting)
 		envValWs := callAndParse("vivechak_validate", map[string]any{
@@ -582,7 +679,7 @@ Components communicate through in-memory Go channels with strict data isolation.
 			t.Errorf("expected 0 decision errors, got %d", errorDecCount)
 		}
 
-		// 16. vivechak_run_gate: verify gate PASSES!
+		// 16. vivechak_run_gate: verify gate PASSES and auto-persists research/PHASE-0-GATE.md
 		envGatePass := callAndParse("vivechak_run_gate", map[string]any{
 			"project_root": projectDir,
 			"verbose":      true,
@@ -590,6 +687,23 @@ Components communicate through in-memory Go channels with strict data isolation.
 		if envGatePass.Data["gate_passed"] != true || envGatePass.Data["gate_status"] != "PASS" {
 			t.Fatalf("expected gate PASS, got status=%v passed=%v warnings=%v",
 				envGatePass.Data["gate_status"], envGatePass.Data["gate_passed"], envGatePass.Warnings)
+		}
+		if envGatePass.Data["gate_artifact"] != "research/PHASE-0-GATE.md" {
+			t.Errorf("expected gate_artifact 'research/PHASE-0-GATE.md', got: %v", envGatePass.Data["gate_artifact"])
+		}
+		gateData, err := os.ReadFile(filepath.Join(projectDir, core.GateFile))
+		if err != nil {
+			t.Fatalf("expected research/PHASE-0-GATE.md to exist: %v", err)
+		}
+		gateStr := string(gateData)
+		if !strings.Contains(gateStr, `verdict: "PASS"`) || !strings.Contains(gateStr, `track_a_result: "PASS"`) {
+			t.Errorf("gate artifact missing expected frontmatter: %s", gateStr)
+		}
+		if !strings.Contains(gateStr, "| D-001 |") || !strings.Contains(gateStr, "| D-002 |") {
+			t.Errorf("gate artifact missing decision routing table rows: %s", gateStr)
+		}
+		if !strings.Contains(gateStr, "- [x] Decision logged in ADR") {
+			t.Errorf("gate artifact missing checked checkboxes: %s", gateStr)
 		}
 
 		// 17. Run CLI doctor on the project directory
@@ -600,6 +714,9 @@ Components communicate through in-memory Go channels with strict data isolation.
 		}
 		if !strings.Contains(string(docOut), "✓ Workspace exists") {
 			t.Errorf("doctor output missing expected check: %s", string(docOut))
+		}
+		if !strings.Contains(string(docOut), "Workspace is healthy") {
+			t.Errorf("doctor output should report healthy workspace: %s", string(docOut))
 		}
 	})
 
@@ -813,7 +930,7 @@ NATS at-most-once delivery requires JetStream for durability. Grade A (docs)
 			"scope":        "project",
 		})
 
-		// 2. Generate 10 completed session files, each with 5KB findings (50KB total > 30KB budget)
+		// 2. Generate 10 completed session files, each with 5KB findings (50KB total > 20KB budget)
 		sessionsDir := filepath.Join(stressDir, core.SessionsDir)
 		var sessionHeaders strings.Builder
 		for i := 1; i <= 10; i++ {
@@ -839,9 +956,12 @@ tags: [tag%d, benchmark]
 ## Recommendation
 Adopt Technology %d. Grade A (benchmark)
 
+## Alternatives Considered
+%s
+
 ## Findings
 %s
-`, id, i, i, i, i, findingBlock)
+`, id, i, i, i, i, findingBlock, findingBlock)
 
 			_ = os.WriteFile(filepath.Join(sessionsDir, id+".md"), []byte(content), 0o644)
 		}
@@ -880,10 +1000,47 @@ Adopt Technology %d. Grade A (benchmark)
 			}
 		}
 
-		// 5. Verify trimming notices exist due to 50KB > 30KB budget
+		// 5. Verify trimming notices exist due to 50KB > 20KB budget
 		trimmedNotices := strings.Count(prompt, "trimmed for synthesis context budget")
 		if trimmedNotices == 0 {
-			t.Errorf("expected trimming notices when 50KB findings injected into 30KB budget")
+			t.Errorf("expected trimming notices when 50KB findings injected into 20KB budget")
+		}
+	})
+
+	// =========================================================================
+	// SCENARIO 5: CLI SUBCOMMANDS & INTEGRITY DIAGNOSTICS
+	// =========================================================================
+	t.Run("CLISubcommands_And_Diagnostics", func(t *testing.T) {
+		// 1. version
+		verCmd := exec.CommandContext(ctx, binPath, "version")
+		verOut, err := verCmd.CombinedOutput()
+		if err != nil || !strings.Contains(string(verOut), "vivechak") {
+			t.Fatalf("version failed: %v, out: %s", err, string(verOut))
+		}
+
+		// 2. mcp-config
+		cfgCmd := exec.CommandContext(ctx, binPath, "mcp-config")
+		cfgOut, err := cfgCmd.CombinedOutput()
+		if err != nil || !strings.Contains(string(cfgOut), "mcpServers") {
+			t.Fatalf("mcp-config failed: %v, out: %s", err, string(cfgOut))
+		}
+
+		// 3. setup --help
+		setupCmd := exec.CommandContext(ctx, binPath, "setup", "--help")
+		setupOut, err := setupCmd.CombinedOutput()
+		if err != nil || !strings.Contains(string(setupOut), "Available Presets") {
+			t.Fatalf("setup --help failed: %v, out: %s", err, string(setupOut))
+		}
+
+		// 4. doctor on uninitialized workspace
+		emptyDir := t.TempDir()
+		docEmptyCmd := exec.CommandContext(ctx, binPath, "doctor", emptyDir)
+		docEmptyOut, docErr := docEmptyCmd.CombinedOutput()
+		if docErr == nil {
+			t.Fatalf("doctor should fail on uninitialized workspace, got: %s", string(docEmptyOut))
+		}
+		if !strings.Contains(string(docEmptyOut), "does not exist") {
+			t.Errorf("doctor missing expected error: %s", string(docEmptyOut))
 		}
 	})
 }

@@ -79,7 +79,7 @@ When releasing a new version, update ALL of the following references:
 - [ ] `AGENTS.md` — header version
 - [ ] `GENERATOR.md` — title version, Design Notes version
 - [ ] `FRAMEWORK.md` — header version (if applicable)
-- [ ] `templates/` — header version in all 5 templates, `schema_version` in templates if schema changed
+- [ ] `templates/` — header version in all 6 templates, `schema_version` in templates if schema changed
 - [ ] `internal/embed/` — verify 1:1 embed sync with root generators and templates
 - [ ] Package manifests — `Formula/vivechak.rb`, `scoop/vivechak.json`, `winget/bhaskarjha-dev.Vivechak.yaml`
 
@@ -136,7 +136,7 @@ These elements exist in MORE THAN ONE file and MUST stay synchronized:
 | 5-block prompt anatomy | FRAMEWORK.md §4 | GENERATOR.md Step 4 |
 | Evidence grading tiers (A-E) | FRAMEWORK.md §5.1 | GENERATOR.md Step 4 (inlined in every prompt), GENERATOR-DECISION.md, GENERATOR-COMPARISON.md — marked by `CORE:BEGIN/END` blocks |
 | ADR YAML schema (18 fields) | templates/DECISIONS.template.md (canonical) | GENERATOR.md DELIVERABLE §2 (full schema inlined), GENERATOR-DECISION.md, FRAMEWORK.md §5.7 (example) |
-| Template filenames (5 templates) | templates/ directory | GENERATOR.md "How to Execute", README.md Step 2, AGENTS.md §2 |
+| Template filenames (6 templates) | templates/ directory | GENERATOR.md "How to Execute", README.md Step 2, AGENTS.md §2 |
 | Multi-scope routing (R/N/B/X) | FRAMEWORK.md §9.3 | GENERATOR-DECISION.md (operational implementation) |
 | Methodology invariants (I1-I9) | FRAMEWORK.md §9.2 | `CORE:BEGIN/END` blocks in all three generators |
 

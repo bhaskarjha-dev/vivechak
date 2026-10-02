@@ -93,7 +93,7 @@ func InjectContext(session Session, sessionsDir string, completedSessions map[st
 	return result, nil
 }
 
-const synthesisContextBudget = 30 * 1024 // 30KB ~7500 tokens
+const synthesisContextBudget = 20 * 1024 // 20KB ~5000 tokens
 
 // SessionTechRow represents a row in the synthesized technology matrix.
 type SessionTechRow struct {
@@ -466,6 +466,8 @@ func extractFindings(body string, sessionID string, isSynthesis bool) string {
 	inRelevantSection := false
 	inRejectedSection := false
 	inConcernSection := false
+	inRecPara := false
+	recParaHasText := false
 	fenceLen := 0
 
 	// isConcernHeading checks if a lowercase heading indicates a concern/risk section
@@ -473,7 +475,8 @@ func extractFindings(body string, sessionID string, isSynthesis bool) string {
 		return strings.Contains(lower, "concern") ||
 			strings.Contains(lower, "risk") ||
 			strings.Contains(lower, "failure") ||
-			strings.Contains(lower, "premortem")
+			strings.Contains(lower, "premortem") ||
+			strings.Contains(lower, "open question")
 	}
 
 	for _, line := range lines {
@@ -537,37 +540,54 @@ func extractFindings(body string, sessionID string, isSynthesis bool) string {
 			if isConcernHeading(lower) {
 				inConcernSection = true
 				inRelevantSection = false
+				inRecPara = false
 				pendingHeadings = nil
 				// Don't add concern heading to pending — we emit concerns separately
 				continue
 			}
 
 			inConcernSection = false
-			inRelevantSection = strings.Contains(lower, "recommend") ||
-				strings.Contains(lower, "finding") ||
-				strings.Contains(lower, "conclusion") ||
-				strings.Contains(lower, "decision") ||
-				strings.Contains(lower, "verdict") ||
-				strings.Contains(lower, "summary") ||
-				strings.Contains(lower, "result") ||
-				strings.Contains(lower, "shortlist") ||
-				strings.Contains(lower, "candidate") ||
-				strings.Contains(lower, "chosen") ||
-				strings.Contains(lower, "propos") ||
-				strings.Contains(lower, "takeaway") ||
-				strings.Contains(lower, "architecture") ||
-				strings.Contains(lower, "matrix") ||
-				strings.Contains(lower, "evaluat") ||
-				strings.Contains(lower, "tradeoff") ||
-				strings.Contains(lower, "sensitiv") ||
-				strings.Contains(lower, "criteri") ||
-				strings.Contains(lower, "amend") ||
-				strings.Contains(lower, "post-hoc") ||
-				strings.Contains(lower, "update") ||
-				strings.Contains(lower, "correction") ||
-				strings.Contains(lower, "retract") ||
-				(isSynthesis && (strings.Contains(lower, "rejected") || strings.Contains(lower, "alternatives considered")))
-
+			if isSynthesis {
+				inRelevantSection = strings.Contains(lower, "recommend") ||
+					strings.Contains(lower, "delta") ||
+					strings.Contains(lower, "alternative") ||
+					strings.Contains(lower, "rejected") ||
+					strings.Contains(lower, "amend") ||
+					strings.Contains(lower, "post-hoc") ||
+					strings.Contains(lower, "update") ||
+					strings.Contains(lower, "correction") ||
+					strings.Contains(lower, "retract")
+				if strings.Contains(lower, "recommend") {
+					inRecPara = true
+					recParaHasText = false
+				} else {
+					inRecPara = false
+				}
+			} else {
+				inRelevantSection = strings.Contains(lower, "recommend") ||
+					strings.Contains(lower, "finding") ||
+					strings.Contains(lower, "conclusion") ||
+					strings.Contains(lower, "decision") ||
+					strings.Contains(lower, "verdict") ||
+					strings.Contains(lower, "summary") ||
+					strings.Contains(lower, "result") ||
+					strings.Contains(lower, "shortlist") ||
+					strings.Contains(lower, "candidate") ||
+					strings.Contains(lower, "chosen") ||
+					strings.Contains(lower, "propos") ||
+					strings.Contains(lower, "takeaway") ||
+					strings.Contains(lower, "architecture") ||
+					strings.Contains(lower, "matrix") ||
+					strings.Contains(lower, "evaluat") ||
+					strings.Contains(lower, "tradeoff") ||
+					strings.Contains(lower, "sensitiv") ||
+					strings.Contains(lower, "criteri") ||
+					strings.Contains(lower, "amend") ||
+					strings.Contains(lower, "post-hoc") ||
+					strings.Contains(lower, "update") ||
+					strings.Contains(lower, "correction") ||
+					strings.Contains(lower, "retract")
+			}
 
 			if inRelevantSection {
 				hasRelevantHeading = true
@@ -588,6 +608,20 @@ func extractFindings(body string, sessionID string, isSynthesis bool) string {
 			continue
 		}
 
+		// In synthesis mode, limit recommendation to the first paragraph
+		if isSynthesis && inRecPara {
+			if trimmed == "" {
+				if recParaHasText {
+					inRelevantSection = false
+					inRecPara = false
+					continue
+				}
+				continue
+			} else {
+				recParaHasText = true
+			}
+		}
+
 		// Concern section content — track separately
 		if inConcernSection && trimmed != "" {
 			if strings.HasPrefix(trimmed, "- ") || strings.HasPrefix(trimmed, "* ") {
@@ -601,7 +635,7 @@ func extractFindings(body string, sessionID string, isSynthesis bool) string {
 		includeLine := false
 		if inRelevantSection && trimmed != "" {
 			includeLine = true
-		} else if evidenceGradePattern.MatchString(trimmed) {
+		} else if !isSynthesis && evidenceGradePattern.MatchString(trimmed) {
 			includeLine = true
 		}
 

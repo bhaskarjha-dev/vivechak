@@ -191,7 +191,7 @@ flowchart TD
 Create a Vivechak research workspace in the target directory.
 
 #### What It Does
-Initializes a new Vivechak research workspace by creating the `research/`, `research/sessions/`, and `research/templates/` directories, then copies the 5 embedded markdown template assets ([`DECISIONS.template.md`](../templates/DECISIONS.template.md), [`CONFLICT-RESOLUTION.template.md`](../templates/CONFLICT-RESOLUTION.template.md), [`COMPARISON-SESSION.template.md`](../templates/COMPARISON-SESSION.template.md), [`FOUNDING-ARCHITECTURE.template.md`](../templates/FOUNDING-ARCHITECTURE.template.md), [`PHASE-0-GATE.template.md`](../templates/PHASE-0-GATE.template.md)). The tool is strictly idempotent: if called on an already initialized workspace, it reports the existing state without overwriting files.
+Initializes a new Vivechak research workspace by creating the `research/`, `research/sessions/`, and `research/templates/` directories, then copies the 6 embedded markdown template assets ([`DECISIONS.template.md`](../templates/DECISIONS.template.md), [`CONFLICT-RESOLUTION.template.md`](../templates/CONFLICT-RESOLUTION.template.md), [`COMPARISON-SESSION.template.md`](../templates/COMPARISON-SESSION.template.md), [`FOUNDING-ARCHITECTURE.template.md`](../templates/FOUNDING-ARCHITECTURE.template.md), [`PHASE-0-GATE.template.md`](../templates/PHASE-0-GATE.template.md), [`SESSION.template.md`](../templates/SESSION.template.md)). The tool is strictly idempotent: if called on an already initialized workspace, it reports the existing state without overwriting files.
 
 #### Input Parameters
 Defined in [`InitInput`](../internal/mcp/tool_init.go):
@@ -223,7 +223,7 @@ When called on an existing workspace, returns [`WorkspaceInfo`](../internal/core
 ```json
 {
   "success": true,
-  "message": "Initialized project workspace at d:/dev/pro/my-cloud-app (5 templates copied)",
+  "message": "Initialized project workspace at d:/dev/pro/my-cloud-app (6 templates copied)",
   "data": {
     "workspace_root": "d:/dev/pro/my-cloud-app",
     "scope": "project",
@@ -232,7 +232,8 @@ When called on an existing workspace, returns [`WorkspaceInfo`](../internal/core
       "CONFLICT-RESOLUTION.template.md",
       "COMPARISON-SESSION.template.md",
       "FOUNDING-ARCHITECTURE.template.md",
-      "PHASE-0-GATE.template.md"
+      "PHASE-0-GATE.template.md",
+      "SESSION.template.md"
     ],
     "directories_created": [
       "research",
@@ -420,14 +421,14 @@ When uninitialized:
 ```json
 {
   "success": true,
-  "message": "Workspace at d:/dev/pro/my-cloud-app: 2 sessions, 5 templates",
+  "message": "Workspace at d:/dev/pro/my-cloud-app: 2 sessions, 6 templates",
   "data": {
     "root": "d:/dev/pro/my-cloud-app",
     "initialized": true,
     "has_pipeline": true,
     "has_decisions": true,
     "session_count": 2,
-    "template_count": 5,
+    "template_count": 6,
     "scope": "project"
   },
   "next_step": "Run vivechak_next_session for the next actionable session, or vivechak_record_decision to record decisions from completed sessions.",
@@ -478,6 +479,7 @@ When an actionable session is ready:
 - `prompt_char_count` (`integer`): Character count.
 - `prompt_approx_tokens` (`integer`): Estimated token count.
 - `other_ready_sessions` (`string[]`, optional): Other unblocked sessions that can execute in parallel.
+- `parallelism_hint` (`string`, optional): Advisory notification when multiple unblocked sessions are ready to run concurrently.
 
 When all sessions are finished:
 - `all_complete` (`boolean`): `true`.
@@ -554,6 +556,7 @@ Defined in [`SaveSessionInput`](../internal/mcp/tool_save_session.go):
 - `workspace_root` (`string`): Workspace path.
 - `session_id` (`string`): Session ID.
 - `file_path` (`string`): Relative output file path (`research/sessions/<session_id>.md`).
+- `root_copy` (`string`, optional): For synthesis sessions, relative path of the human-facing copy mirrored to the project root (`FOUNDING-ARCHITECTURE.md`).
 - `status` (`string`): Validation status: `valid`, `valid-with-warnings`, or `draft`.
 - `validation_passed` (`boolean`): Whether validation passed without blocking Level 2 issues (`true` if valid or valid-with-warnings, `false` if draft).
 - `validation` ([`ValidationResult`](../internal/core/validate.go)): Object containing `status` and `issues` array.
@@ -695,6 +698,7 @@ Defined in [`AmendSessionInput`](../internal/mcp/tool_amend_session.go):
 - `file_path` (`string`): Relative output file path.
 - `amendment_timestamp` (`string`): RFC3339 timestamp of the amendment.
 - `amending_session_id` (`string`, optional): Source session attribution.
+- `potentially_stale_sessions` (`string[]`, optional): List of completed downstream sessions in the DAG that may depend on the amended findings.
 
 ---
 
@@ -791,7 +795,7 @@ Execute the Phase 0 exit gate check (Track A + Track B).
 #### What It Does
 Executes the mechanical verification checks for the Phase 0 Exit Gate, tailored to the workspace scope:
 - **Project Scope:**
-  - **Structural Completeness (5 checks):** Confirms presence of `RESEARCH-PIPELINE.md`, all DAG sessions completed, all 5 core template files, `DECISIONS.md`, and `research/FAD.md`.
+  - **Structural Completeness (5 checks):** Confirms presence of `RESEARCH-PIPELINE.md`, all DAG sessions completed, all 6 template files, `DECISIONS.md`, and `research/FAD.md`.
   - **Quality Indicators (3 checks):** Confirms at least 3 completed sessions for pipeline significance, verifies that `FAD.md` contains valid evidence grades, and mechanically validates ADRs (all decisions accepted, and all one-way doors define explicit reversal triggers).
 - **Decision Scope:**
   - **Structural Completeness (3 checks):** Confirms at least 1 completed session, template directory present, and decision record/ADR exists (`[ID]-[slug].md` or `DECISIONS.md`).
@@ -827,6 +831,7 @@ Defined in [`RunGateInput`](../internal/mcp/tool_run_gate.go):
   - `score` (`string`): Fraction passed (e.g., `"3/3"`).
   - `issues` (`string[]`, when `verbose=true`): List of quality warnings.
 - `track_a` / `track_b` (`object`): Backward-compatible aliases for `structural_checks` and `quality_checks`.
+- `gate_artifact` (`string`, optional): Relative path to the rendered and auto-persisted gate checklist artifact (`research/PHASE-0-GATE.md`).
 - `scope_note` (`string`): Reminder that semantic quality assessment rests with the host agent.
 
 #### Example
@@ -898,7 +903,7 @@ Defined in [`RunGateInput`](../internal/mcp/tool_run_gate.go):
 #### Common Warnings
 - `GATE-A: RESEARCH-PIPELINE.md not found`
 - `GATE-A: FAD.md not found — synthesis not complete`
-- `GATE-A: Only 3/5 templates found`
+- `GATE-A: Only 3/6 templates found`
 - `GATE-B: Only 1 sessions — minimum 3 recommended for a meaningful pipeline`
 - `GATE-B: DECISIONS.md appears empty or trivial`
 - `GATE-B: [L3-WARN] W-NO-EVIDENCE-GRADES: No inline evidence grades found`
@@ -931,6 +936,7 @@ Vivechak organizes all artifact validation into a 4-level validation ladder defi
 | `W-SHORT-DECISION` | L3 | `record_decision`, `validate` | ADR body length is less than 100 characters. Expand Context and Consequences. |
 | `W-SHORT-BODY` | L3 | `record_decision`, `validate` | Conflict resolution or artifact body length is less than 100 characters. |
 | `W-OUTPUT-SIZE` | L3 | `next_session` | Assembled prompt exceeds 10,000 tokens. Truncated unless `verbose: true`. |
+| `W-STALE-DOWNSTREAM` | L3 | `amend_session` | Amended session has completed downstream dependents; findings may be based on stale assumptions. |
 | `W-TEMPLATE-MISSING` | L3 | `init` | A template file could not be read from embedded binary assets. |
 | `GATE-A: <check>` | L4 | `run_gate` | Track A structural check failed (missing pipeline, FAD, templates, or decisions). |
 | `GATE-B: <check>` | L4 | `run_gate` | Track B mechanical quality check failed (<3 sessions, un-graded FAD, or empty decisions). |

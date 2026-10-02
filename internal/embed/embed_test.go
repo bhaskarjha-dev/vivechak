@@ -38,6 +38,7 @@ func TestEmbedIntegrity_Templates(t *testing.T) {
 		"DECISIONS.template.md",
 		"FOUNDING-ARCHITECTURE.template.md",
 		"PHASE-0-GATE.template.md",
+		"SESSION.template.md",
 	}
 
 	names, err := ListTemplates()

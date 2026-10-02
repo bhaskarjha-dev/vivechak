@@ -24,7 +24,7 @@ The agent begins by initializing the workspace for a full project and providing 
 ```json
 {
   "success": true,
-  "message": "Initialized project scope in ./katha/research. 5 templates copied.",
+  "message": "Initialized project scope in ./katha/research. 6 templates copied.",
   "next_step": "Use vivechak_prepare_generator to inject your project vision."
 }
 ```

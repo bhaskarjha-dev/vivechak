@@ -116,12 +116,7 @@ func checkWorkspace(workspace string) (bool, []string, []string) {
 			if e.IsDir() || !strings.HasSuffix(name, ".md") {
 				continue
 			}
-			if strings.HasSuffix(name, "-plan.md") ||
-				strings.HasSuffix(name, "-comparison.md") ||
-				strings.HasSuffix(name, "-conflict-resolution.md") ||
-				strings.EqualFold(name, "DECISIONS.md") ||
-				strings.EqualFold(name, "FAD.md") ||
-				strings.EqualFold(name, "RESEARCH-PIPELINE.md") {
+			if core.IsSpecialResearchFile(name) {
 				continue
 			}
 			isCandidate := strings.HasPrefix(strings.ToUpper(name), "D-")

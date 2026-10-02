@@ -18,6 +18,7 @@ func TestTemplatesForScope(t *testing.T) {
 				"COMPARISON-SESSION.template.md",
 				"FOUNDING-ARCHITECTURE.template.md",
 				"PHASE-0-GATE.template.md",
+				"SESSION.template.md",
 			},
 		},
 		{
@@ -96,5 +97,47 @@ func TestTemplatesForScope_InvalidDefaultsToProject(t *testing.T) {
 	expected := TemplatesToCopy
 	if len(result) != len(expected) {
 		t.Fatalf("invalid scope should default to project (%d templates), got %d", len(expected), len(result))
+	}
+}
+
+// TestIsSpecialResearchFile verifies detection of reserved non-ADR research files.
+func TestIsSpecialResearchFile(t *testing.T) {
+	specialFiles := []string{
+		"DECISIONS.md",
+		"decisions.md",
+		"FAD.md",
+		"fad.md",
+		"FOUNDING-ARCHITECTURE.md",
+		"founding-architecture.md",
+		"PHASE-0-GATE.md",
+		"phase-0-gate.md",
+		"RESEARCH-PIPELINE.md",
+		"research-pipeline.md",
+		"D-001-plan.md",
+		"my-project-plan.md",
+		"D-002-comparison.md",
+		"database-comparison.md",
+		"D-001-conflict-resolution.md",
+	}
+
+	for _, name := range specialFiles {
+		if !IsSpecialResearchFile(name) {
+			t.Errorf("IsSpecialResearchFile(%q) = false, want true", name)
+		}
+	}
+
+	adrFiles := []string{
+		"D-001.md",
+		"D-001-database-selection.md",
+		"d-002-cache-layer.md",
+		"custom-adr.md",
+		"NOTES.md",
+		"README.md",
+	}
+
+	for _, name := range adrFiles {
+		if IsSpecialResearchFile(name) {
+			t.Errorf("IsSpecialResearchFile(%q) = true, want false", name)
+		}
 	}
 }

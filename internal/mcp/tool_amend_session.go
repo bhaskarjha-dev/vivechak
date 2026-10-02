@@ -155,10 +155,40 @@ func handleAmendSession(ctx context.Context, _ *sdkmcp.CallToolRequest, in Amend
 		dataMap["amending_session_id"] = in.AmendingSessionID
 	}
 
+	// Check for completed downstream sessions that may now be stale
+	var warnings []string
+	if pipelineData, err := ws.ReadFile(core.PipelineFile); err == nil {
+		if dag, err := core.ParsePipeline(pipelineData); err == nil && dag != nil {
+			dependents := dag.TransitiveDependents(in.SessionID)
+			if len(dependents) > 0 {
+				var knownIDs []string
+				for _, s := range dag.Sessions {
+					knownIDs = append(knownIDs, s.ID)
+				}
+				if completedIDs, err := scanCompletedSessions(ws, knownIDs...); err == nil {
+					var staleDependents []string
+					for _, depID := range dependents {
+						if completedIDs[depID] {
+							staleDependents = append(staleDependents, depID)
+						}
+					}
+					if len(staleDependents) > 0 {
+						dataMap["potentially_stale_sessions"] = staleDependents
+						warnings = append(warnings, fmt.Sprintf(
+							"W-STALE-DOWNSTREAM: %d downstream session(s) were completed before this amendment: %s. "+
+								"Review whether their conclusions still hold given the amended findings.",
+							len(staleDependents), strings.Join(staleDependents, ", ")))
+					}
+				}
+			}
+		}
+	}
+
 	env := Envelope{
-		Success: true,
-		Message: fmt.Sprintf("Amendment appended to session %s (%s)", in.SessionID, displayName),
-		Data:    dataMap,
+		Success:  true,
+		Message:  fmt.Sprintf("Amendment appended to session %s (%s)", in.SessionID, displayName),
+		Data:     dataMap,
+		Warnings: warnings,
 		NextStep: "Continue with vivechak_next_session for the next research session, " +
 			"or vivechak_status to review progress.",
 		Meta: NewMeta(tool),

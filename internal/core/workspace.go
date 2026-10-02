@@ -23,6 +23,8 @@ const (
 	DecisionsFile = "research/DECISIONS.md"
 	// FADFile is the Founding Architecture Document (terminal synthesis).
 	FADFile = "research/FAD.md"
+	// GateFile is the Phase 0 Exit Gate record.
+	GateFile = "research/PHASE-0-GATE.md"
 	// MetadataFile stores workspace metadata (scope, init timestamp).
 	MetadataFile = "research/.vivechak.json"
 )
@@ -41,6 +43,7 @@ var TemplatesToCopy = []string{
 	"COMPARISON-SESSION.template.md",
 	"FOUNDING-ARCHITECTURE.template.md",
 	"PHASE-0-GATE.template.md",
+	"SESSION.template.md",
 }
 
 // TemplatesForScope returns the template files appropriate for the given scope.
@@ -56,8 +59,25 @@ func TemplatesForScope(scope Scope) []string {
 			"COMPARISON-SESSION.template.md",
 		}
 	default: // ScopeProject
-		return TemplatesToCopy // all 5
+		return TemplatesToCopy // all 6
 	}
+}
+
+// IsSpecialResearchFile returns true if name is a reserved pipeline or non-ADR artifact
+// in research/ (e.g. DECISIONS.md, FAD.md, FOUNDING-ARCHITECTURE.md, PHASE-0-GATE.md,
+// RESEARCH-PIPELINE.md, *-plan.md, *-comparison.md, *-conflict-resolution.md).
+func IsSpecialResearchFile(name string) bool {
+	if strings.HasSuffix(name, "-plan.md") ||
+		strings.HasSuffix(name, "-comparison.md") ||
+		strings.HasSuffix(name, "-conflict-resolution.md") ||
+		strings.EqualFold(name, "DECISIONS.md") ||
+		strings.EqualFold(name, "FAD.md") ||
+		strings.EqualFold(name, "FOUNDING-ARCHITECTURE.md") ||
+		strings.EqualFold(name, "PHASE-0-GATE.md") ||
+		strings.EqualFold(name, "RESEARCH-PIPELINE.md") {
+		return true
+	}
+	return false
 }
 
 // ResolveWorkspace implements the 4-step workspace resolution chain
@@ -236,11 +256,9 @@ func InspectWorkspace(root string) WorkspaceInfo {
 	} else if entries, err := os.ReadDir(researchPath); err == nil {
 		for _, e := range entries {
 			name := e.Name()
-			if !e.IsDir() && strings.HasSuffix(name, ".md") && (strings.HasPrefix(strings.ToUpper(name), "D-") || strings.EqualFold(name, "DECISIONS.md")) {
-				if !strings.HasSuffix(name, "-plan.md") && !strings.HasSuffix(name, "-conflict-resolution.md") && !strings.HasSuffix(name, "-comparison.md") {
-					info.HasDecisions = true
-					break
-				}
+			if !e.IsDir() && strings.HasSuffix(name, ".md") && !IsSpecialResearchFile(name) && strings.HasPrefix(strings.ToUpper(name), "D-") {
+				info.HasDecisions = true
+				break
 			}
 		}
 	}

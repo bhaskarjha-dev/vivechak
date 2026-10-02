@@ -123,12 +123,13 @@ my-project/
     ├── RESEARCH-PIPELINE.md         ← Generated file from Step 3
     ├── DECISIONS.md                 ← Generated file from Step 3
     ├── sessions/                    ← Create this empty directory for session notes
-    └── templates/                   ← Copy these 5 templates from vivechak/templates/
+    └── templates/                   ← Copy these 6 templates from vivechak/templates/
         ├── COMPARISON-SESSION.template.md
         ├── CONFLICT-RESOLUTION.template.md
         ├── DECISIONS.template.md
         ├── FOUNDING-ARCHITECTURE.template.md
-        └── PHASE-0-GATE.template.md
+        ├── PHASE-0-GATE.template.md
+        └── SESSION.template.md
 ```
 
 #### Why Copy Templates Locally?

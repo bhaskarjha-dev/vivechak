@@ -92,7 +92,7 @@ Open [GENERATOR.md](GENERATOR.md), paste your project description into the gener
 > **Extracting from web chat:** If your AI platform outputs inline text rather than downloadable files, look for the two clear document boundaries in the output. `RESEARCH-PIPELINE.md` starts with the pipeline header and ends after the last session prompt. `DECISIONS.md` starts with the decision registry header. Copy each section into its own file. The generator prompt instructs the AI to produce clearly separated, complete documents.
 
 ### Step 2: Set Up Your Project Workspace
-Create your project's `research/` directory, paste in the generated files, and **copy the 5 templates** from this repository:
+Create your project's `research/` directory, paste in the generated files, and **copy the 6 templates** from this repository:
 
 ```
 my-project/
@@ -105,7 +105,8 @@ my-project/
         ├── CONFLICT-RESOLUTION.template.md
         ├── COMPARISON-SESSION.template.md
         ├── FOUNDING-ARCHITECTURE.template.md
-        └── PHASE-0-GATE.template.md
+        ├── PHASE-0-GATE.template.md
+        └── SESSION.template.md
 ```
 
 Your project is now **100% self-contained**. You never need to return to this meta-repo.

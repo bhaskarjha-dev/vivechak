@@ -3,6 +3,7 @@ package core
 import (
 	"fmt"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -158,6 +159,39 @@ func (d *DAG) NextSessions(completedIDs map[string]bool) []Session {
 		}
 	}
 	return ready
+}
+
+// TransitiveDependents returns all session IDs that transitively depend on the given ID.
+func (d *DAG) TransitiveDependents(id string) []string {
+	if d == nil {
+		return nil
+	}
+	// Build reverse adjacency map
+	reverseDeps := make(map[string][]string)
+	for _, s := range d.Sessions {
+		for _, dep := range s.Dependencies {
+			reverseDeps[dep] = append(reverseDeps[dep], s.ID)
+		}
+	}
+	// BFS from id
+	visited := map[string]bool{}
+	queue := []string{id}
+	for len(queue) > 0 {
+		current := queue[0]
+		queue = queue[1:]
+		for _, downstream := range reverseDeps[current] {
+			if !visited[downstream] {
+				visited[downstream] = true
+				queue = append(queue, downstream)
+			}
+		}
+	}
+	var result []string
+	for k := range visited {
+		result = append(result, k)
+	}
+	sort.Strings(result)
+	return result
 }
 
 // Patterns for parsing the pipeline format

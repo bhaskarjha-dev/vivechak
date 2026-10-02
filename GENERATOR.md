@@ -277,7 +277,7 @@ front-loaded, single-turn brief.
 
 **Context Injection Placeholders:**
 - For any downstream session that depends on upstream sessions, include the exact placeholder `[UPSTREAM_FINDINGS]` inside the prompt where upstream findings should be injected. Also include `[KNOWN_CONTEXT]` in the KNOWN block for structured upstream context.
-- For the final grand synthesis session (`SYN-01`), include the exact placeholder `[ALL_SESSION_FINDINGS]` inside the prompt where all session findings should be aggregated.
+- For the final grand synthesis session (`SYN-01`), include the exact placeholder `[ALL_SESSION_FINDINGS]` inside the prompt where all session findings should be aggregated. Note that saving with `vivechak_save_session` (session_id='SYN-01') automatically writes the output to `research/FAD.md` as the canonical Founding Architecture Document and mirrors a human-facing copy to `FOUNDING-ARCHITECTURE.md` at the project root. Do NOT manually create additional copies. The template `FOUNDING-ARCHITECTURE.template.md` defines the structure — the canonical internal file is always `research/FAD.md`.
 
 ## DELIVERABLE
 
@@ -411,7 +411,7 @@ my-project/
 ```
 
 ### 2. Copy the operational templates
-Copy the 5 templates from this repository into your project's `research/templates/` directory:
+Copy the 6 templates from this repository into your project's `research/templates/` directory:
 
 ```
 templates/DECISIONS.template.md
@@ -419,6 +419,7 @@ templates/CONFLICT-RESOLUTION.template.md
 templates/COMPARISON-SESSION.template.md
 templates/FOUNDING-ARCHITECTURE.template.md
 templates/PHASE-0-GATE.template.md
+templates/SESSION.template.md
 ```
 
 **Why:** These templates are the contracts for recording decisions, resolving conflicts, structuring comparisons, compiling the final architecture, and running the exit gate. With them in your workspace, any AI agent (Antigravity, Claude Code, Cursor) can autonomously execute the full research workflow without referencing the meta-repo.
@@ -439,7 +440,7 @@ With templates in your workspace, you can delegate research steps directly to an
 > *Read `research/sessions/T2-01-datastore-selection.md`. Formulate the verdict for D-001 following `research/templates/DECISIONS.template.md` and record it in `research/DECISIONS.md`.*
 
 **Compile the FAD:**
-> *Read all finalized sessions in `research/sessions/` and all locked decisions. Synthesize them into `FAD.md` following `research/templates/FOUNDING-ARCHITECTURE.template.md`.*
+> *Read all finalized sessions in `research/sessions/` and all locked decisions. Synthesize them following `research/templates/FOUNDING-ARCHITECTURE.template.md`. Save using `vivechak_save_session` with `session_id='SYN-01'`. The tool automatically saves the output to `research/FAD.md` as the canonical Founding Architecture Document and mirrors a human-facing copy to `FOUNDING-ARCHITECTURE.md` at the project root. Do NOT manually create additional copies.*
 
 **Run the gate:**
 > *Audit `FAD.md` and all decisions against `research/templates/PHASE-0-GATE.template.md`. Conduct the premortem for all One-Way Doors and emit `PHASE-0-GATE.md`.*

@@ -114,6 +114,15 @@ func TestRealMassive_E2E_AllFeatures(t *testing.T) {
 		t.Errorf("expected .gitignore to contain *.lock, got:\n%s", string(giData))
 	}
 
+	// Verify 6 templates copied on init, including SESSION.template.md
+	tmpls, ok := envInit.Data["templates_copied"].([]any)
+	if !ok || len(tmpls) != 6 {
+		t.Fatalf("expected 6 templates copied on init, got: %v", envInit.Data["templates_copied"])
+	}
+	if _, err := os.Stat(filepath.Join(projectDir, core.TemplatesDir, "SESSION.template.md")); err != nil {
+		t.Errorf("expected SESSION.template.md to exist in templates/: %v", err)
+	}
+
 	// 4.2 vivechak_prepare_generator
 	resPrep, err := cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_prepare_generator",
@@ -426,6 +435,40 @@ We recommend Raft with pipelined quorum over TLS. Grade A (formal TLA+ spec)
 		},
 	})
 
+	// 4.11b Verify Downstream Stale Detection:
+	// Amend S-01 now that S-02 (which depends on S-01) is completed.
+	// This MUST trigger W-STALE-DOWNSTREAM warning and populate potentially_stale_sessions with S-02.
+	resAmend2, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_amend_session",
+		Arguments: map[string]any{
+			"project_root":        projectDir,
+			"session_id":          "S-01",
+			"amending_session_id": "SEC-01",
+			"amendment":           "Security advisory: RocksDB encryption-at-rest requires OpenSSL 3.0+ engine.",
+		},
+	})
+	if err != nil {
+		t.Fatalf("amend S-01 after S-02 failed: %v", err)
+	}
+	envAmend2 := parseTestEnvelope(t, resAmend2)
+	if !envAmend2.Success {
+		t.Fatalf("amend S-01 unsuccessful: %s", envAmend2.Message)
+	}
+	staleList, ok := envAmend2.Data["potentially_stale_sessions"].([]any)
+	if !ok || len(staleList) != 1 || staleList[0] != "S-02" {
+		t.Errorf("expected potentially_stale_sessions to contain ['S-02'], got: %v", envAmend2.Data["potentially_stale_sessions"])
+	}
+	hasStaleWarning := false
+	for _, w := range envAmend2.Warnings {
+		if strings.Contains(w, "W-STALE-DOWNSTREAM") {
+			hasStaleWarning = true
+			break
+		}
+	}
+	if !hasStaleWarning {
+		t.Errorf("expected W-STALE-DOWNSTREAM warning in amend response, got: %v", envAmend2.Warnings)
+	}
+
 	// 4.12 Synthesis Session SYN-01: Exemption from truncation & Delta Aggregation
 	resSyn, err := cs.CallTool(ctx, &mcp.CallToolParams{
 		Name:      "vivechak_next_session",
@@ -456,7 +499,7 @@ We recommend Raft with pipelined quorum over TLS. Grade A (formal TLA+ spec)
 		t.Errorf("expected NextStep synthesis quality guidance, got: %s", envSyn.NextStep)
 	}
 
-	// 4.13 Save Synthesis FAD
+	// 4.13 Save Synthesis FAD: Single-Source Persistence & Root Copy
 	fadContent := `---
 session_id: FAD
 title: Founding Architecture Document
@@ -482,7 +525,7 @@ Level-based compaction tuned to avoid stalls. Monitored continuously. Grade B (o
 - LMDB rejected due to write concurrency bottleneck. Grade A (benchmark)
 - Paxos rejected due to implementation complexity. Grade B (RFC analysis)
 `
-	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
+	resSaveFAD, err := cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_save_session",
 		Arguments: map[string]any{
 			"project_root": projectDir,
@@ -490,10 +533,39 @@ Level-based compaction tuned to avoid stalls. Monitored continuously. Grade B (o
 			"content":      fadContent,
 		},
 	})
+	if err != nil {
+		t.Fatalf("save synthesis session failed: %v", err)
+	}
+	envSaveFAD := parseTestEnvelope(t, resSaveFAD)
+	if !envSaveFAD.Success {
+		t.Fatalf("save synthesis session unsuccessful: %s", envSaveFAD.Message)
+	}
 
-	// Copy FAD to research/FAD.md for standard gate verification
+	// Verify single-source persistence: research/FAD.md exists directly
 	fadTarget := filepath.Join(projectDir, core.FADFile)
-	_ = os.WriteFile(fadTarget, []byte(fadContent), 0o644)
+	fadOnDisk, err := os.ReadFile(fadTarget)
+	if err != nil {
+		t.Fatalf("research/FAD.md must exist automatically: %v", err)
+	}
+	if !strings.Contains(string(fadOnDisk), "Founding Architecture Document") {
+		t.Errorf("research/FAD.md content mismatch")
+	}
+
+	// Verify root copy FOUNDING-ARCHITECTURE.md exists and is byte-identical
+	rootFADPath := filepath.Join(projectDir, "FOUNDING-ARCHITECTURE.md")
+	rootFADOnDisk, err := os.ReadFile(rootFADPath)
+	if err != nil {
+		t.Fatalf("FOUNDING-ARCHITECTURE.md at root must exist automatically: %v", err)
+	}
+	if string(rootFADOnDisk) != string(fadOnDisk) {
+		t.Errorf("root FOUNDING-ARCHITECTURE.md differs from research/FAD.md")
+	}
+
+	// Verify NO duplicate session file created in research/sessions/
+	dupSessionPath := filepath.Join(projectDir, core.SessionsDir, "SYN-01.md")
+	if _, err := os.Stat(dupSessionPath); !os.IsNotExist(err) {
+		t.Errorf("duplicate session file research/sessions/SYN-01.md should NOT exist")
+	}
 
 	// 4.14 Workspace-Level Validation
 	resWsVal, err := cs.CallTool(ctx, &mcp.CallToolParams{
@@ -534,6 +606,16 @@ Level-based compaction tuned to avoid stalls. Monitored continuously. Grade B (o
 	if envGate.Data["gate_status"] != "PASS" || envGate.Data["gate_passed"] != true {
 		t.Fatalf("expected gate PASS, got status=%v passed=%v warnings=%v message=%s",
 			envGate.Data["gate_status"], envGate.Data["gate_passed"], envGate.Warnings, envGate.Message)
+	}
+
+	// Verify auto-persisted gate artifact research/PHASE-0-GATE.md exists
+	gateArtifactPath := filepath.Join(projectDir, core.ResearchDir, "PHASE-0-GATE.md")
+	gateDisk, err := os.ReadFile(gateArtifactPath)
+	if err != nil {
+		t.Fatalf("research/PHASE-0-GATE.md should be auto-persisted: %v", err)
+	}
+	if !strings.Contains(string(gateDisk), "# Phase 0 Exit Gate") || !strings.Contains(string(gateDisk), "verdict: \"PASS\"") {
+		t.Errorf("expected gate artifact to contain exit gate header and PASS verdict, got:\n%s", string(gateDisk))
 	}
 
 	// 5. Test CLI Doctor on the completed workspace

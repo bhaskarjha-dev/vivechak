@@ -324,6 +324,10 @@ func buildSessionResponse(tool string, session core.Session, prompt string, comp
 
 	if len(otherReady) > 0 {
 		data["other_ready_sessions"] = otherReady
+		data["parallelism_hint"] = fmt.Sprintf(
+			"PARALLEL EXECUTION AVAILABLE: %d independent sessions can run simultaneously. "+
+				"If your runtime supports subagents, execute %s in parallel for %dx faster completion.",
+			len(otherReady)+1, strings.Join(append([]string{session.ID}, otherReady...), ", "), len(otherReady)+1)
 	}
 
 	// Add blocked sessions with their blockers for orchestrator awareness
@@ -383,8 +387,10 @@ func buildSessionResponse(tool string, session core.Session, prompt string, comp
 				session.ID, session.ID)
 		}
 		if len(otherReady) > 0 {
-			nextStep += fmt.Sprintf(" %d more sessions available in parallel: %s.",
-				len(otherReady), strings.Join(otherReady, ", "))
+			parallelPrefix := fmt.Sprintf(
+				"⚡ %d sessions ready in parallel (%s). ",
+				len(otherReady)+1, strings.Join(append([]string{session.ID}, otherReady...), ", "))
+			nextStep = parallelPrefix + nextStep
 		}
 	}
 

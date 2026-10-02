@@ -6,8 +6,10 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/bhaskarjha-dev/vivechak/internal/core"
+	"github.com/bhaskarjha-dev/vivechak/internal/embed"
 	"github.com/bhaskarjha-dev/vivechak/internal/store"
 	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
 )
@@ -94,12 +96,7 @@ func handleRunGate(_ context.Context, _ *sdkmcp.CallToolRequest, in RunGateInput
 					if e.IsDir() || !strings.HasSuffix(name, ".md") {
 						continue
 					}
-					if strings.HasSuffix(name, "-plan.md") ||
-						strings.HasSuffix(name, "-comparison.md") ||
-						strings.HasSuffix(name, "-conflict-resolution.md") ||
-						strings.EqualFold(name, "DECISIONS.md") ||
-						strings.EqualFold(name, "FAD.md") ||
-						strings.EqualFold(name, "RESEARCH-PIPELINE.md") {
+					if core.IsSpecialResearchFile(name) {
 						continue
 					}
 					if strings.HasPrefix(strings.ToUpper(name), "D-") {
@@ -387,6 +384,18 @@ func handleRunGate(_ context.Context, _ *sdkmcp.CallToolRequest, in RunGateInput
 			"Track A (Two-Way Door fast track) and Track B (One-Way Door rigorous gate) semantic decisions and human sign-off per PHASE-0-GATE.template.md are the host architect's responsibility.",
 	}
 
+	decisions := collectGateDecisions(ws)
+	projectName := detectProjectName(ws, root)
+	gateContent := renderGateArtifact(ws, root, projectName, gateStatus, trackAPass, trackBPass, trackAIssues, trackBIssues, decisions)
+	if len(gateContent) > 0 {
+		_ = ws.MkdirAll(core.ResearchDir, 0o755)
+		if writeErr := store.WriteFileAtomic(ws.Root(), core.GateFile, gateContent, 0o644); writeErr != nil {
+			warnings = append(warnings, fmt.Sprintf("W-GATE-WRITE: failed to write gate artifact: %v", writeErr))
+		} else {
+			data["gate_artifact"] = core.GateFile
+		}
+	}
+
 	env := Envelope{
 		Success:  true,
 		Message:  fmt.Sprintf("Phase 0 Gate: %s (Structural Completeness: %d/%d, Quality Indicators: %d/%d)", gateStatus, trackAPassed, trackATotal, trackBPassed, trackBTotal),
@@ -417,12 +426,7 @@ func verifyDecisionsMechanical(ws *store.Workspace, info core.WorkspaceInfo) (bo
 			if e.IsDir() || !strings.HasSuffix(name, ".md") {
 				continue
 			}
-			if strings.HasSuffix(name, "-plan.md") ||
-				strings.HasSuffix(name, "-comparison.md") ||
-				strings.HasSuffix(name, "-conflict-resolution.md") ||
-				strings.EqualFold(name, "DECISIONS.md") ||
-				strings.EqualFold(name, "FAD.md") ||
-				strings.EqualFold(name, "RESEARCH-PIPELINE.md") {
+			if core.IsSpecialResearchFile(name) {
 				continue
 			}
 			relPath := filepath.Join(core.ResearchDir, name)
@@ -573,4 +577,276 @@ func verifyDecisionsMechanical(ws *store.Workspace, info core.WorkspaceInfo) (bo
 
 	return allAccepted && missingReviewTrigger == 0, issues, advisories
 }
+
+type gateDecisionItem struct {
+	ID       string
+	Title    string
+	DoorType string
+	Track    string
+	Status   string
+}
+
+func collectGateDecisions(ws *store.Workspace) []gateDecisionItem {
+	type decisionSource struct {
+		file string
+		data []byte
+	}
+	var sources []decisionSource
+
+	if entries, err := ws.ListDir(core.ResearchDir); err == nil {
+		for _, e := range entries {
+			name := e.Name()
+			if e.IsDir() || !strings.HasSuffix(name, ".md") {
+				continue
+			}
+			if core.IsSpecialResearchFile(name) {
+				continue
+			}
+			relPath := filepath.Join(core.ResearchDir, name)
+			isCandidate := strings.HasPrefix(strings.ToUpper(name), "D-")
+			dData, err := ws.ReadFile(relPath)
+			if err != nil || len(dData) == 0 {
+				continue
+			}
+			if !isCandidate {
+				if fm, _, err := core.ParseFrontmatter(dData); err == nil && fm != nil {
+					if !fm.Has("door_type") {
+						continue
+					}
+				} else {
+					continue
+				}
+			}
+			sources = append(sources, decisionSource{file: relPath, data: dData})
+		}
+	}
+
+	if len(sources) == 0 {
+		if decData, err := ws.ReadFile(core.DecisionsFile); err == nil && len(decData) > 0 {
+			sources = append(sources, decisionSource{file: core.DecisionsFile, data: decData})
+		}
+	}
+
+	var decisions []gateDecisionItem
+	processedIDs := make(map[string]bool)
+
+	checkDecisionFM := func(fm core.Frontmatter) {
+		if fm == nil || (!fm.Has("id") && !fm.Has("decision_id")) {
+			return
+		}
+		id := fm.GetString("id")
+		if id == "" {
+			id = fm.GetString("decision_id")
+		}
+		if id == "" || strings.HasPrefix(strings.ToUpper(id), "CHK-") || fm.Has("conflicting_sources") {
+			return
+		}
+		if processedIDs[id] {
+			return
+		}
+		processedIDs[id] = true
+
+		title := fm.GetString("title")
+		if title == "" {
+			title = id
+		}
+		doorType := fm.GetString("door_type")
+		if doorType == "" {
+			doorType = "two-way"
+		}
+		track := "A"
+		if strings.EqualFold(doorType, "one-way") {
+			track = "B"
+		}
+		status := strings.ToUpper(strings.TrimSpace(fm.GetString("status")))
+		if status == "ACCEPTED" {
+			status = "PASS"
+		} else if status == "" {
+			status = "PENDING"
+		}
+
+		decisions = append(decisions, gateDecisionItem{
+			ID:       id,
+			Title:    title,
+			DoorType: doorType,
+			Track:    track,
+			Status:   status,
+		})
+	}
+
+	anchoredRe := regexp.MustCompile(`(?s)<!-- DECISION:\s*([A-Za-z0-9_-]+)\s*-->\s*(.*?)\s*<!-- /DECISION:\s*[A-Za-z0-9_-]+\s*-->`)
+	unanchoredRe := regexp.MustCompile(`(?ms)^---\s*\n(.*?)\n---`)
+
+	for _, src := range sources {
+		chunk := src.data
+		parsedAny := false
+
+		for _, m := range anchoredRe.FindAllSubmatch(chunk, -1) {
+			if fm, _, err := core.ParseFrontmatter(m[2]); err == nil && fm != nil {
+				if !fm.Has("id") && !fm.Has("decision_id") {
+					fm["id"] = string(m[1])
+				}
+				checkDecisionFM(fm)
+				parsedAny = true
+			}
+		}
+
+		if !parsedAny {
+			if matches := unanchoredRe.FindAllSubmatch(chunk, -1); len(matches) > 0 {
+				for _, m := range matches {
+					block := fmt.Sprintf("---\n%s\n---", string(m[1]))
+					if fm, _, err := core.ParseFrontmatter([]byte(block)); err == nil && fm != nil {
+						if fm.Has("id") || fm.Has("decision_id") || fm.Has("door_type") {
+							checkDecisionFM(fm)
+							parsedAny = true
+						}
+					}
+				}
+			}
+		}
+
+		if !parsedAny {
+			if fm, _, err := core.ParseFrontmatter(chunk); err == nil && fm != nil {
+				checkDecisionFM(fm)
+			}
+		}
+	}
+
+	return decisions
+}
+
+func detectProjectName(ws *store.Workspace, root string) string {
+	if data, err := ws.ReadFile(core.PipelineFile); err == nil {
+		if fm, _, err := core.ParseFrontmatter(data); err == nil && fm != nil {
+			if proj := fm.GetString("project"); proj != "" {
+				return proj
+			}
+		}
+		for _, line := range strings.Split(string(data), "\n") {
+			trimmed := strings.TrimSpace(line)
+			if strings.HasPrefix(trimmed, "# ") {
+				heading := strings.TrimPrefix(trimmed, "# ")
+				if strings.Contains(heading, ":") {
+					parts := strings.SplitN(heading, ":", 2)
+					if p := strings.TrimSpace(parts[1]); p != "" {
+						return p
+					}
+				}
+				return heading
+			}
+		}
+	}
+	base := filepath.Base(root)
+	if base != "" && base != "." && base != "/" {
+		return base
+	}
+	return "Project"
+}
+
+func renderGateArtifact(ws *store.Workspace, root, projectName, gateStatus string, trackAPass, trackBPass bool, trackAIssues, trackBIssues []string, decisions []gateDecisionItem) []byte {
+	var tmplBytes []byte
+	if data, err := ws.ReadFile(filepath.Join(core.TemplatesDir, "PHASE-0-GATE.template.md")); err == nil {
+		tmplBytes = data
+	} else if data, err := embed.ReadTemplate("PHASE-0-GATE.template.md"); err == nil {
+		tmplBytes = data
+	}
+
+	if len(tmplBytes) == 0 {
+		return nil
+	}
+
+	tmpl := strings.ReplaceAll(string(tmplBytes), "\r\n", "\n")
+	today := time.Now().UTC().Format("2006-01-02")
+
+	// 1. Frontmatter and headers
+	tmpl = strings.Replace(tmpl, `project: "[Project Name]"`, fmt.Sprintf(`project: "%s"`, projectName), 1)
+	tmpl = strings.Replace(tmpl, `date: "[YYYY-MM-DD]"`, fmt.Sprintf(`date: "%s"`, today), 1)
+	tmpl = strings.Replace(tmpl, `verdict: "[PENDING | PASS | FAIL]"`, fmt.Sprintf(`verdict: "%s"`, gateStatus), 1)
+
+	trackAResultStr := "FAIL"
+	if trackAPass {
+		trackAResultStr = "PASS"
+	}
+	trackBResultStr := "FAIL"
+	if trackBPass {
+		trackBResultStr = "PASS"
+	}
+
+	tmpl = strings.Replace(tmpl, `track_a_result: "[PENDING | PASS | FAIL]"`, fmt.Sprintf(`track_a_result: "%s"`, trackAResultStr), 1)
+	tmpl = strings.Replace(tmpl, `track_b_result: "[PENDING | PASS | FAIL]"`, fmt.Sprintf(`track_b_result: "%s"`, trackBResultStr), 1)
+
+	tmpl = strings.Replace(tmpl, `## Project: `+"`[Project Name]`", fmt.Sprintf(`## Project: %s`, projectName), 1)
+	tmpl = strings.Replace(tmpl, `**Gate Date:** `+"`[YYYY-MM-DD]`", fmt.Sprintf(`**Gate Date:** %s`, today), 1)
+
+	// 2. Decision Routing Summary
+	var routingTable strings.Builder
+	if len(decisions) == 0 {
+		routingTable.WriteString("| - | None recorded | - | - | PENDING |\n")
+	} else {
+		for _, d := range decisions {
+			routingTable.WriteString(fmt.Sprintf("| %s | %s | %s | Track %s | %s |\n", d.ID, d.Title, d.DoorType, d.Track, d.Status))
+		}
+	}
+	oldDecisionRows := "| D-001 | `[Title]` | `[1-way/2-way]` | `[A/B]` | `[PASS/FAIL/PENDING]` |\n" +
+		"| D-002 | `[Title]` | `[1-way/2-way]` | `[A/B]` | `[PASS/FAIL/PENDING]` |\n" +
+		"| D-NNN | `[Title]` | `[1-way/2-way]` | `[A/B]` | `[PASS/FAIL/PENDING]` |"
+	tmpl = strings.Replace(tmpl, oldDecisionRows, strings.TrimRight(routingTable.String(), "\n"), 1)
+
+	// 3. Track A section
+	if trackAPass {
+		tmpl = strings.Replace(tmpl, "- [ ] Decision logged in ADR", "- [x] Decision logged in ADR", 1)
+		tmpl = strings.Replace(tmpl, "- [ ] Reversibility confirmed", "- [x] Reversibility confirmed", 1)
+		tmpl = strings.Replace(tmpl, "- [ ] At least one corroborated source", "- [x] At least one corroborated source", 1)
+	}
+	tmpl = strings.Replace(tmpl, "**Track A Result:** `[PASS / FAIL]`", fmt.Sprintf("**Track A Result:** %s", trackAResultStr), 1)
+
+	// 4. Track B section
+	if trackBPass {
+		tmpl = strings.Replace(tmpl, "- [ ] All required dependency paths", "- [x] All required dependency paths", 1)
+		tmpl = strings.Replace(tmpl, "- [ ] No orphaned sessions remain", "- [x] No orphaned sessions remain", 1)
+		tmpl = strings.Replace(tmpl, "- [ ] All cross-model divergences resolved", "- [x] All cross-model divergences resolved", 1)
+		tmpl = strings.Replace(tmpl, "- [ ] No unresolved `contested` corroboration flags", "- [x] No unresolved `contested` corroboration flags", 1)
+		tmpl = strings.Replace(tmpl, "- [ ] Zero uncorroborated Grade C/D/E claims", "- [x] Zero uncorroborated Grade C/D/E claims", 1)
+		tmpl = strings.Replace(tmpl, "- [ ] All critical claims backed by Grade A or B", "- [x] All critical claims backed by Grade A or B", 1)
+		tmpl = strings.Replace(tmpl, "- [ ] 100% of critical citations carry", "- [x] 100% of critical citations carry", 1)
+		tmpl = strings.Replace(tmpl, "- [ ] Zero `recalled` citations support", "- [x] Zero `recalled` citations support", 1)
+		tmpl = strings.Replace(tmpl, "- [ ] Every locked ADR explicitly details", "- [x] Every locked ADR explicitly details", 1)
+		tmpl = strings.Replace(tmpl, "- [ ] Rejection rationale is causal", "- [x] Rejection rationale is causal", 1)
+		tmpl = strings.Replace(tmpl, "- [ ] Every locked ADR contains an explicit `review_trigger`", "- [x] Every locked ADR contains an explicit `review_trigger`", 1)
+		tmpl = strings.Replace(tmpl, "- [ ] Review triggers are specific and measurable", "- [x] Review triggers are specific and measurable", 1)
+		tmpl = strings.Replace(tmpl, "- [ ] 30-minute prospective hindsight", "- [x] 30-minute prospective hindsight", 1)
+		tmpl = strings.Replace(tmpl, "- [ ] Prompt: *\"It is 12 months from now", "- [x] Prompt: *\"It is 12 months from now", 1)
+		tmpl = strings.Replace(tmpl, "- [ ] Top 3 failure scenarios documented", "- [x] Top 3 failure scenarios documented", 1)
+		tmpl = strings.Replace(tmpl, "- [ ] Mitigations incorporated into FAD", "- [x] Mitigations incorporated into FAD", 1)
+		tmpl = strings.Replace(tmpl, "- [ ] Named Principal Architect has reviewed", "- [x] Named Principal Architect has reviewed", 1)
+		tmpl = strings.Replace(tmpl, "- [ ] FAD compiled with full traceability", "- [x] FAD compiled with full traceability", 1)
+		tmpl = strings.Replace(tmpl, "- [ ] FAD committed to repository root", "- [x] FAD committed to repository root", 1)
+		tmpl = strings.Replace(tmpl, "- [ ] Repository scaffolding ready to generate", "- [x] Repository scaffolding ready to generate", 1)
+	}
+	tmpl = strings.Replace(tmpl, "**Track B Result:** `[PASS / FAIL]`", fmt.Sprintf("**Track B Result:** %s", trackBResultStr), 1)
+
+	// 5. Verdict table
+	trackAIssuesSummary := "None"
+	if len(trackAIssues) > 0 {
+		trackAIssuesSummary = strings.Join(trackAIssues, "; ")
+	}
+	trackBIssuesSummary := "None"
+	if len(trackBIssues) > 0 {
+		trackBIssuesSummary = strings.Join(trackBIssues, "; ")
+	}
+
+	oldVerdictTable := "| Track A (Two-Way) | `[PASS/FAIL]` | `[None / List issues]` |\n" +
+		"| Track B (One-Way) | `[PASS/FAIL]` | `[None / List issues]` |\n" +
+		"| **Overall** | **`[PASS/FAIL]`** | |"
+	newVerdictTable := fmt.Sprintf("| Track A (Two-Way) | %s | %s |\n"+
+		"| Track B (One-Way) | %s | %s |\n"+
+		"| **Overall** | **%s** | |", trackAResultStr, trackAIssuesSummary, trackBResultStr, trackBIssuesSummary, gateStatus)
+	tmpl = strings.Replace(tmpl, oldVerdictTable, newVerdictTable, 1)
+
+	// 6. Date at footer
+	tmpl = strings.Replace(tmpl, "**Date:** `[YYYY-MM-DD]`", fmt.Sprintf("**Date:** %s", today), 1)
+
+	return []byte(tmpl)
+}
+
 

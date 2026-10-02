@@ -134,17 +134,30 @@ func handleSaveSession(ctx context.Context, _ *sdkmcp.CallToolRequest, in SaveSe
 			"vivechak_record_decision to record decisions from this session's findings."
 	}
 
+	dataMap := map[string]any{
+		"workspace_root":    root,
+		"session_id":        in.SessionID,
+		"file_path":         relPath,
+		"status":            status,
+		"validation_passed": errorCount == 0,
+		"validation":        validation,
+	}
+
+	if isSynthesis {
+		// Also copy to project root for human consumption
+		rootFAD := "FOUNDING-ARCHITECTURE.md"
+		if cpErr := store.WriteFileAtomic(ws.Root(), rootFAD, contentToSave, 0o644); cpErr != nil {
+			warnings = append(warnings, fmt.Sprintf(
+				"W-FAD-COPY: could not copy FAD to project root: %v", cpErr))
+		} else {
+			dataMap["root_copy"] = rootFAD
+		}
+	}
+
 	env := Envelope{
 		Success: true,
 		Message: fmt.Sprintf("Session %s saved as %s (%d warnings, %d errors)", in.SessionID, status, warningCount, errorCount),
-		Data: map[string]any{
-			"workspace_root":    root,
-			"session_id":        in.SessionID,
-			"file_path":         relPath,
-			"status":            status,
-			"validation_passed": errorCount == 0,
-			"validation":        validation,
-		},
+		Data:    dataMap,
 		Warnings: warnings,
 		NextStep: nextStep,
 		Meta:     NewMeta(tool),

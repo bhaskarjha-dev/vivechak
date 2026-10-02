@@ -152,6 +152,22 @@ func handleRecordDecision(ctx context.Context, _ *sdkmcp.CallToolRequest, in Rec
 
 	// Save to research directory
 	relPath := filepath.Join(core.ResearchDir, filename)
+
+	// Acquire decisions registry lock for ADR decisions to serialize write + registry compilation
+	var decUnlock func() error
+	if artifactType == "decision" {
+		var lockErr error
+		decUnlock, lockErr = store.LockFile(ctx, filepath.Join(root, core.DecisionsFile), 10*time.Second)
+		if lockErr != nil {
+			return ErrorResult(tool, fmt.Errorf("could not acquire decisions registry lock: %w", lockErr), "Another process is recording decisions. Try again.")
+		}
+		defer func() {
+			if decUnlock != nil {
+				_ = decUnlock()
+			}
+		}()
+	}
+
 	unlock, err := store.LockFile(ctx, filepath.Join(root, relPath), 5*time.Second)
 	if err != nil {
 		return ErrorResult(tool, fmt.Errorf("could not acquire lock: %w", err), "Another process may be writing. Try again.")
@@ -230,18 +246,21 @@ func compileDecisionsRegistry(ctx context.Context, ws *store.Workspace, root str
 		if e.IsDir() || !strings.HasSuffix(name, ".md") {
 			continue
 		}
-		if strings.HasSuffix(name, "-plan.md") ||
-			strings.HasSuffix(name, "-comparison.md") ||
-			strings.HasSuffix(name, "-conflict-resolution.md") ||
-			strings.EqualFold(name, "DECISIONS.md") ||
-			strings.EqualFold(name, "FAD.md") ||
-			strings.EqualFold(name, "RESEARCH-PIPELINE.md") {
+		if core.IsSpecialResearchFile(name) {
 			continue
 		}
 		// Whitelist: D-* files or files with door_type in frontmatter
 		isCandidate := strings.HasPrefix(strings.ToUpper(name), "D-")
-		data, err := ws.ReadFile(filepath.Join(core.ResearchDir, name))
-		if err != nil || len(data) == 0 {
+		var data []byte
+		var readErr error
+		for attempt := 0; attempt < 5; attempt++ {
+			data, readErr = ws.ReadFile(filepath.Join(core.ResearchDir, name))
+			if readErr == nil && len(data) > 0 {
+				break
+			}
+			time.Sleep(10 * time.Millisecond)
+		}
+		if readErr != nil || len(data) == 0 {
 			continue
 		}
 		fm, _, err := core.ParseFrontmatter(data)
@@ -281,12 +300,6 @@ func compileDecisionsRegistry(ctx context.Context, ws *store.Workspace, root str
 	}
 
 	decRelPath := core.DecisionsFile
-	decUnlock, decErr := store.LockFile(ctx, filepath.Join(root, decRelPath), 5*time.Second)
-	if decErr != nil {
-		return fmt.Errorf("acquiring lock on %s: %w", decRelPath, decErr)
-	}
-	defer func() { _ = decUnlock() }()
-
 	return store.WriteFileAtomic(ws.Root(), decRelPath, []byte(b.String()), 0o644)
 }
 
@@ -494,9 +507,7 @@ func resolveDecisionFilename(ws *store.Workspace, decisionID string, slug string
 				name := e.Name()
 				if !e.IsDir() && strings.HasPrefix(name, decisionID+"-") &&
 					strings.HasSuffix(name, ".md") &&
-					!strings.HasSuffix(name, "-plan.md") &&
-					!strings.HasSuffix(name, "-conflict-resolution.md") &&
-					!strings.HasSuffix(name, "-comparison.md") {
+					!core.IsSpecialResearchFile(name) {
 					return name
 				}
 			}

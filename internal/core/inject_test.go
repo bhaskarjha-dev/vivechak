@@ -728,6 +728,25 @@ func TestBudgetFindings(t *testing.T) {
 			}
 		}
 	})
+
+	t.Run("synthesis default 20KB budget trims appropriately", func(t *testing.T) {
+		findings := make([]string, 5)
+		sessionIDs := make([]string, 5)
+		for i := 0; i < 5; i++ {
+			findings[i] = strings.Repeat("e", 8*1024) // 40KB total > 20KB
+			sessionIDs[i] = fmt.Sprintf("S-%02d", i+1)
+		}
+		budgeted := budgetFindings(findings, sessionIDs, synthesisContextBudget)
+		perSession := synthesisContextBudget / 5 // 4096 bytes
+		for i, f := range budgeted {
+			if !strings.HasPrefix(f, strings.Repeat("e", perSession)) {
+				t.Errorf("session %d does not start with expected prefix", i)
+			}
+			if !strings.Contains(f, "trimmed for synthesis context budget") {
+				t.Errorf("session %d missing trimming notice under 20KB budget", i)
+			}
+		}
+	})
 }
 
 func TestInjectContext_TechnologyMatrix(t *testing.T) {
@@ -826,6 +845,110 @@ func TestExtractFindings_Amendments(t *testing.T) {
 		t.Fatalf("expected amendment body content to be extracted, got:\n%s", extracted)
 	}
 }
+
+func TestExtractFindings_SynthesisTighter(t *testing.T) {
+	// Construct a 10KB session with full sections
+	var longDetailed strings.Builder
+	for i := 0; i < 40; i++ {
+		longDetailed.WriteString(fmt.Sprintf("- Detailed benchmark result %d: latency was %d ms with standard deviation 0.%d. Grade A (direct benchmark)\n", i, 10+i, i))
+	}
+	var longSources strings.Builder
+	for i := 0; i < 30; i++ {
+		longSources.WriteString(fmt.Sprintf("| %d | https://docs.example.com/api/%d | Grade A | fresh | fetched | claim %d |\n", i, i, i))
+	}
+
+	body := fmt.Sprintf(`# Database Selection
+
+## Prior
+1. I believe PostgreSQL is too heavy because of memory footprint.
+2. I believe SQLite cannot handle concurrent writes.
+
+## Research Question
+Which embedded database satisfies our high concurrency requirements?
+
+## Key Findings
+- Finding 1: SQLite handles up to 10k QPS in WAL mode with single writer. Grade A (docs)
+- Finding 2: Pebble requires CGo on Windows which breaks cross-compilation. Grade B (benchmark)
+%s
+
+## Recommendation
+SQLite in WAL mode is recommended as the embedded database for our desktop agent. Grade A (official docs)
+
+Here is a second paragraph of recommendation elaboration that should be omitted in synthesis mode to save tokens.
+And a third paragraph with further justifications and secondary commentary.
+
+## Alternatives Considered
+| Option | Verdict | Key Tradeoff |
+|---|---|---|
+| SQLite WAL | Recommended | Zero-dependency, rock solid |
+| BadgerDB | Rejected | Pure Go but higher SSD wear |
+
+## Open Questions & Risks
+- Concurrency contention during heavy sync operations
+- Maximum database file size on Windows FAT32 partitions
+
+## Delta
+| Prior Belief | Status | Evidence | Impact |
+|---|---|---|---|
+| SQLite cannot handle concurrent writes | Contradicted | WAL mode supports concurrent readers + 1 writer | High |
+
+## Sources & Evidence Ledger
+| # | Source | Grade | Modifiers | Verification | Used For |
+|---|---|---|---|---|---|
+%s
+`, longDetailed.String(), longSources.String())
+
+	if len(body) < 5000 {
+		t.Fatalf("expected test body to be substantial, got %d bytes", len(body))
+	}
+
+	// 1. Synthesis mode: extractFindings should be tight (< 2KB)
+	tight := extractFindings(body, "T1-01", true)
+	if len(tight) > 2048 {
+		t.Errorf("expected synthesis extraction < 2048 bytes, got %d bytes:\n%s", len(tight), tight)
+	}
+
+	// Must contain recommendation first paragraph
+	if !strings.Contains(tight, "SQLite in WAL mode is recommended as the embedded database") {
+		t.Errorf("synthesis extraction missing recommendation first paragraph")
+	}
+	// Must NOT contain recommendation second or third paragraph
+	if strings.Contains(tight, "second paragraph of recommendation elaboration") {
+		t.Errorf("synthesis extraction should omit subsequent recommendation paragraphs")
+	}
+	// Must contain alternatives table
+	if !strings.Contains(tight, "SQLite WAL") || !strings.Contains(tight, "BadgerDB") {
+		t.Errorf("synthesis extraction missing alternatives table")
+	}
+	// Must contain risks/concerns
+	if !strings.Contains(tight, "Concurrency contention during heavy sync operations") {
+		t.Errorf("synthesis extraction missing open questions/risks")
+	}
+	// Must contain delta
+	if !strings.Contains(tight, "WAL mode supports concurrent readers") {
+		t.Errorf("synthesis extraction missing delta table")
+	}
+	// Must NOT contain detailed findings or sources ledger
+	if strings.Contains(tight, "Detailed benchmark result 10") {
+		t.Errorf("synthesis extraction should omit detailed findings")
+	}
+	if strings.Contains(tight, "https://docs.example.com/api/10") {
+		t.Errorf("synthesis extraction should omit sources ledger")
+	}
+	if strings.Contains(tight, "I believe PostgreSQL is too heavy") {
+		t.Errorf("synthesis extraction should omit prior section")
+	}
+
+	// 2. Non-synthesis mode: should include full extraction (backward compatibility)
+	full := extractFindings(body, "T1-01", false)
+	if !strings.Contains(full, "Detailed benchmark result 10") {
+		t.Errorf("non-synthesis extraction should preserve detailed findings")
+	}
+	if !strings.Contains(full, "second paragraph of recommendation elaboration") {
+		t.Errorf("non-synthesis extraction should include full recommendation")
+	}
+}
+
 
 
 

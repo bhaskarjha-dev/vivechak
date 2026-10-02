@@ -5,15 +5,18 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"sync/atomic"
 	"time"
 )
+
+var tmpFileCounter atomic.Uint64
 
 func WriteFileAtomic(root *os.Root, relPath string, data []byte, perm os.FileMode) error {
 	dir := filepath.Dir(relPath)
 	if dir == "." {
 		dir = ""
 	}
-	tmpName := fmt.Sprintf(".tmp_%d_%d", time.Now().UnixNano(), os.Getpid())
+	tmpName := fmt.Sprintf(".tmp_%d_%d_%d", time.Now().UnixNano(), os.Getpid(), tmpFileCounter.Add(1))
 	tmpPath := filepath.Join(dir, tmpName)
 
 	f, err := root.OpenFile(tmpPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, perm)

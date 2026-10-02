@@ -785,6 +785,71 @@ func TestParseDependencies_Comprehensive(t *testing.T) {
 	}
 }
 
+func TestDAG_TransitiveDependents(t *testing.T) {
+	// Linear DAG: T0-01 -> T1-01 -> SYN-01
+	dag := &DAG{
+		Sessions: []Session{
+			{ID: "T0-01", Dependencies: nil},
+			{ID: "T1-01", Dependencies: []string{"T0-01"}},
+			{ID: "SYN-01", Dependencies: []string{"T1-01"}},
+			{ID: "T0-02", Dependencies: nil}, // Independent
+		},
+	}
+
+	// Dependents of T0-01 should be T1-01 and SYN-01
+	deps01 := dag.TransitiveDependents("T0-01")
+	expected01 := []string{"SYN-01", "T1-01"}
+	if len(deps01) != len(expected01) || deps01[0] != expected01[0] || deps01[1] != expected01[1] {
+		t.Errorf("TransitiveDependents(T0-01) = %v; want %v", deps01, expected01)
+	}
+
+	// Dependents of T1-01 should be only SYN-01
+	deps11 := dag.TransitiveDependents("T1-01")
+	expected11 := []string{"SYN-01"}
+	if len(deps11) != len(expected11) || deps11[0] != expected11[0] {
+		t.Errorf("TransitiveDependents(T1-01) = %v; want %v", deps11, expected11)
+	}
+
+	// Dependents of leaf SYN-01 should be empty
+	depsSyn := dag.TransitiveDependents("SYN-01")
+	if len(depsSyn) != 0 {
+		t.Errorf("TransitiveDependents(SYN-01) = %v; want empty", depsSyn)
+	}
+
+	// Dependents of independent session T0-02 should be empty
+	deps02 := dag.TransitiveDependents("T0-02")
+	if len(deps02) != 0 {
+		t.Errorf("TransitiveDependents(T0-02) = %v; want empty", deps02)
+	}
+
+	// Nil DAG should return nil
+	var nilDAG *DAG
+	if nilDAG.TransitiveDependents("T0-01") != nil {
+		t.Errorf("nil DAG should return nil")
+	}
+
+	// Diamond DAG: A -> B, C -> D
+	diamond := &DAG{
+		Sessions: []Session{
+			{ID: "A"},
+			{ID: "B", Dependencies: []string{"A"}},
+			{ID: "C", Dependencies: []string{"A"}},
+			{ID: "D", Dependencies: []string{"B", "C"}},
+		},
+	}
+	depsA := diamond.TransitiveDependents("A")
+	expectedA := []string{"B", "C", "D"}
+	if len(depsA) != len(expectedA) {
+		t.Fatalf("TransitiveDependents(A) len = %d; want %d (%v)", len(depsA), len(expectedA), depsA)
+	}
+	for i := range depsA {
+		if depsA[i] != expectedA[i] {
+			t.Errorf("TransitiveDependents(A)[%d] = %q; want %q", i, depsA[i], expectedA[i])
+		}
+	}
+}
+
+
 
 
 

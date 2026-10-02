@@ -28,7 +28,7 @@ func registerInit(server *sdkmcp.Server) {
 			Title: "Initialize Vivechak Workspace",
 			Description: "Create a Vivechak research workspace in the target directory. " +
 				"Creates research/ directory structure and copies scope-appropriate templates. " +
-				"Accepts scope parameter to adjust layout: 'project' (full pipeline, all 5 templates), " +
+				"Accepts scope parameter to adjust layout: 'project' (full pipeline, all 6 templates), " +
 				"'decision' (single decision, 2 templates), or 'comparison' (bounded comparison, 1 template). " +
 				"Safe to call on an already-initialized workspace — reports existing state without overwriting.",
 			Annotations: &sdkmcp.ToolAnnotations{

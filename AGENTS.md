@@ -27,12 +27,13 @@ This is the common case — an agent is asked to generate and/or execute a resea
 ### Set Up the Project Workspace
 
 5. Save both generated files to the project's `research/` directory.
-6. Copy the **5 templates** from `templates/` into `research/templates/`:
+6. Copy the **6 templates** from `templates/` into `research/templates/`:
    - `DECISIONS.template.md` — for recording architectural decisions
    - `CONFLICT-RESOLUTION.template.md` — for resolving conflicting findings
    - `COMPARISON-SESSION.template.md` — for structuring option comparisons
    - `FOUNDING-ARCHITECTURE.template.md` — for compiling the final FAD
    - `PHASE-0-GATE.template.md` — for the pre-coding exit gate
+   - `SESSION.template.md` — for standardized research session outputs
 
 ```
 project/
@@ -45,7 +46,8 @@ project/
         ├── CONFLICT-RESOLUTION.template.md
         ├── COMPARISON-SESSION.template.md
         ├── FOUNDING-ARCHITECTURE.template.md
-        └── PHASE-0-GATE.template.md
+        ├── PHASE-0-GATE.template.md
+        └── SESSION.template.md
 ```
 
 **The project workspace is now 100% self-contained.** No further reference to this repository is needed.
@@ -116,12 +118,13 @@ vivechak/
 │   ├── store/                      ← Atomic I/O, locking, os.Root confinement
 │   └── embed/                      ← go:embed generators + templates
 │
-├── templates/                      ← 5 operational contracts (copy to projects)
+├── templates/                      ← 6 operational contracts (copy to projects)
 │   ├── DECISIONS.template.md       ← YAML frontmatter ADR format
 │   ├── CONFLICT-RESOLUTION.template.md ← ACH-style conflict resolution
 │   ├── COMPARISON-SESSION.template.md  ← WEP comparison output format
 │   ├── FOUNDING-ARCHITECTURE.template.md ← Map-Reduce synthesis to FAD
-│   └── PHASE-0-GATE.template.md    ← Two-track pre-codebase exit gate
+│   ├── PHASE-0-GATE.template.md    ← Two-track pre-codebase exit gate
+│   └── SESSION.template.md         ← Standard research session output format
 │
 ├── examples/                       ← Concrete adoption walkthroughs
 │   └── SAMPLE-PIPELINE.md          ← End-to-end MCP workflow sample (Katha project)

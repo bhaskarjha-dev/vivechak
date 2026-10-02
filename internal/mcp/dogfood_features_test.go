@@ -350,6 +350,105 @@ Core architecture findings here. Grade A (empirical benchmark)
 	if !strings.Contains(string(fadDiskData), "Added rate limiting layer before ingress") {
 		t.Errorf("expected amendment in FAD.md, got:\n%s", string(fadDiskData))
 	}
+
+	// 5. Test amending upstream session with completed downstream session emits W-STALE-DOWNSTREAM
+	pipelinePlan := `# Research Pipeline
+## Execution DAG
+### Session T0-01: Foundation
+| Field | Value |
+|---|---|
+| **ID** | T0-01 |
+| **Dependencies** | None |
+| **Output File** | sessions/T0-01.md |
+
+` + "```prompt" + `
+Investigate foundation.
+` + "```" + `
+
+### Session T1-01: Deep Dive
+| Field | Value |
+|---|---|
+| **ID** | T1-01 |
+| **Dependencies** | [T0-01] |
+| **Output File** | sessions/T1-01.md |
+
+` + "```prompt" + `
+Investigate deep dive.
+` + "```" + `
+`
+	_ = os.WriteFile(filepath.Join(tmpDir, core.PipelineFile), []byte(pipelinePlan), 0o644)
+
+	// Save T0-01 and T1-01 as completed sessions
+	_ = os.WriteFile(filepath.Join(tmpDir, core.SessionsDir, "T0-01.md"), []byte(`---
+id: T0-01
+status: complete
+---
+# T0-01 Foundation
+`), 0o644)
+	_ = os.WriteFile(filepath.Join(tmpDir, core.SessionsDir, "T1-01.md"), []byte(`---
+id: T1-01
+status: complete
+---
+# T1-01 Deep Dive
+`), 0o644)
+
+	resStale, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_amend_session",
+		Arguments: map[string]any{
+			"project_root": tmpDir,
+			"session_id":   "T0-01",
+			"amendment":    "Found flaw in foundation assumptions.",
+		},
+	})
+	if err != nil {
+		t.Fatalf("amend_session failed: %v", err)
+	}
+	envStale := parseEnvelope(t, resStale)
+	if !envStale.Success {
+		t.Fatalf("amend_session failed: %s", envStale.Message)
+	}
+	staleFound := false
+	for _, w := range envStale.Warnings {
+		if strings.Contains(w, "W-STALE-DOWNSTREAM") && strings.Contains(w, "T1-01") {
+			staleFound = true
+			break
+		}
+	}
+	if !staleFound {
+		t.Errorf("expected W-STALE-DOWNSTREAM warning mentioning T1-01, got: %v", envStale.Warnings)
+	}
+	dataStale, ok := envStale.Data.(map[string]any)
+	if !ok {
+		t.Fatalf("expected data map, got: %T", envStale.Data)
+	}
+	staleList, ok := dataStale["potentially_stale_sessions"].([]any)
+	if !ok || len(staleList) == 0 || staleList[0] != "T1-01" {
+		t.Errorf("expected potentially_stale_sessions to contain T1-01, got: %v", dataStale["potentially_stale_sessions"])
+	}
+
+	// 6. Test amending upstream session when downstream session is NOT completed (no warning)
+	_ = os.Remove(filepath.Join(tmpDir, core.SessionsDir, "T1-01.md"))
+	resNotStale, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_amend_session",
+		Arguments: map[string]any{
+			"project_root": tmpDir,
+			"session_id":   "T0-01",
+			"amendment":    "Another amendment while T1-01 is still pending.",
+		},
+	})
+	if err != nil {
+		t.Fatalf("amend_session failed: %v", err)
+	}
+	envNotStale := parseEnvelope(t, resNotStale)
+	for _, w := range envNotStale.Warnings {
+		if strings.Contains(w, "W-STALE-DOWNSTREAM") {
+			t.Errorf("unexpected W-STALE-DOWNSTREAM warning when downstream session is not completed: %v", w)
+		}
+	}
+	dataNotStale, ok := envNotStale.Data.(map[string]any)
+	if ok && dataNotStale["potentially_stale_sessions"] != nil {
+		t.Errorf("expected potentially_stale_sessions to be nil, got: %v", dataNotStale["potentially_stale_sessions"])
+	}
 }
 
 // TestNextSession_LayerTransitionReplan verifies layer transition replan advisory prompt
@@ -984,4 +1083,256 @@ Manageable consequences for %s.
 		t.Errorf("expected 0 decision errors, got %d", errorCount)
 	}
 }
+
+// TestRunGate_AutoPersistGateArtifact verifies research/PHASE-0-GATE.md auto-persistence on run_gate
+func TestRunGate_AutoPersistGateArtifact(t *testing.T) {
+	cs := testServer(t)
+	ctx := context.Background()
+	tmpDir := t.TempDir()
+
+	// 1. Initialize decision scope workspace
+	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "vivechak_init",
+		Arguments: map[string]any{"project_root": tmpDir, "scope": "decision"},
+	})
+
+	// 2. Run gate on fresh workspace (gate fails due to missing sessions/decisions)
+	resFail, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "vivechak_run_gate",
+		Arguments: map[string]any{"project_root": tmpDir},
+	})
+	if err != nil {
+		t.Fatalf("run_gate failed: %v", err)
+	}
+	envFail := parseEnvelope(t, resFail)
+	failData := envFail.Data.(map[string]any)
+	if failData["gate_artifact"] != core.GateFile {
+		t.Errorf("expected gate_artifact to be %q, got: %v", core.GateFile, failData["gate_artifact"])
+	}
+
+	gatePath := filepath.Join(tmpDir, core.GateFile)
+	failBytes, err := os.ReadFile(gatePath)
+	if err != nil {
+		t.Fatalf("expected %s to be created on gate failure: %v", core.GateFile, err)
+	}
+	failContent := string(failBytes)
+	if !strings.Contains(failContent, `verdict: "FAIL"`) {
+		t.Errorf("expected verdict: FAIL in frontmatter of failed gate, got:\n%s", failContent)
+	}
+	if !strings.Contains(failContent, "**Overall** | **FAIL**") {
+		t.Errorf("expected **Overall** | **FAIL** in verdict table of failed gate")
+	}
+
+	// 3. Save completed decision session
+	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_save_session",
+		Arguments: map[string]any{
+			"project_root": tmpDir,
+			"session_id":   "S1-01",
+			"content": `---
+session_id: S1-01
+title: Auth Strategy Comparison
+date: 2026-10-01
+status: complete
+tags: [auth]
+---
+# Auth Strategy Comparison
+## Recommendation
+Adopt OAuth2 with PKCE. Grade A (RFC 7636)
+## Key Findings
+- OAuth2 with PKCE is standard for SPAs and native apps. Grade A (RFC 7636)
+`,
+		},
+	})
+
+	// 4. Record accepted decision with review trigger
+	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_record_decision",
+		Arguments: map[string]any{
+			"project_root": tmpDir,
+			"decision_id":  "D-001",
+			"content": `---
+id: D-001
+title: Auth Strategy
+status: accepted
+door_type: one-way
+review_trigger: 6 months or major breaking RFC change
+human_reviewed: true
+---
+# D-001: Auth Strategy
+## Context
+We need a secure authentication architecture for the platform.
+## Decision
+We select OAuth2 with PKCE. Grade A (RFC 7636)
+## Consequences
+Provides robust security with zero client secret exposure.
+`,
+		},
+	})
+
+	// 5. Run gate again — should PASS
+	resPass, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "vivechak_run_gate",
+		Arguments: map[string]any{"project_root": tmpDir, "verbose": true},
+	})
+	if err != nil {
+		t.Fatalf("run_gate pass failed: %v", err)
+	}
+	envPass := parseEnvelope(t, resPass)
+	passData := envPass.Data.(map[string]any)
+	if passData["gate_status"] != "PASS" || passData["gate_passed"] != true {
+		t.Fatalf("expected gate PASS, got status=%v passed=%v (warnings: %v)", passData["gate_status"], passData["gate_passed"], envPass.Warnings)
+	}
+	if passData["gate_artifact"] != core.GateFile {
+		t.Errorf("expected gate_artifact to be %q, got: %v", core.GateFile, passData["gate_artifact"])
+	}
+
+	passBytes, err := os.ReadFile(gatePath)
+	if err != nil {
+		t.Fatalf("expected %s to exist on gate pass: %v", core.GateFile, err)
+	}
+	passContent := string(passBytes)
+	if !strings.Contains(passContent, `verdict: "PASS"`) {
+		t.Errorf("expected verdict: PASS in frontmatter of passed gate, got:\n%s", passContent)
+	}
+	if !strings.Contains(passContent, `track_b_result: "PASS"`) {
+		t.Errorf("expected track_b_result: PASS in passed gate, got:\n%s", passContent)
+	}
+	if !strings.Contains(passContent, "**Overall** | **PASS**") {
+		t.Errorf("expected **Overall** | **PASS** in verdict table of passed gate")
+	}
+	if !strings.Contains(passContent, "| D-001 | Auth Strategy | one-way | Track B | PASS |") {
+		t.Errorf("expected D-001 in Decision Routing Summary table, got:\n%s", passContent)
+	}
+}
+
+// TestSaveSession_FADRootCopy verifies Task 5: save SYN-01 writes research/FAD.md and mirrors to FOUNDING-ARCHITECTURE.md
+func TestSaveSession_FADRootCopy(t *testing.T) {
+	cs := testServer(t)
+	ctx := context.Background()
+	tmpDir := t.TempDir()
+
+	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "vivechak_init",
+		Arguments: map[string]any{"project_root": tmpDir, "scope": "project"},
+	})
+
+	fadContent := `---
+title: Founding Architecture Document
+date: 2026-10-01
+status: complete
+---
+# Founding Architecture Document
+## Section 1: Executive Summary
+Adopt Solution X. Grade A (official docs)
+`
+
+	res, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_save_session",
+		Arguments: map[string]any{
+			"project_root": tmpDir,
+			"session_id":   "SYN-01",
+			"content":      fadContent,
+		},
+	})
+	if err != nil {
+		t.Fatalf("save_session SYN-01 failed: %v", err)
+	}
+	env := parseEnvelope(t, res)
+	if !env.Success {
+		t.Fatalf("save_session SYN-01 unsuccessful: %s", env.Message)
+	}
+	dataMap, ok := env.Data.(map[string]any)
+	if !ok {
+		t.Fatalf("expected data map, got: %T", env.Data)
+	}
+	if dataMap["root_copy"] != "FOUNDING-ARCHITECTURE.md" {
+		t.Errorf("expected root_copy to be 'FOUNDING-ARCHITECTURE.md', got: %v", dataMap["root_copy"])
+	}
+
+	// 1. research/FAD.md exists
+	internalFADPath := filepath.Join(tmpDir, core.FADFile)
+	internalBytes, err := os.ReadFile(internalFADPath)
+	if err != nil {
+		t.Fatalf("expected %s to exist: %v", core.FADFile, err)
+	}
+
+	// 2. FOUNDING-ARCHITECTURE.md exists at project root
+	rootFADPath := filepath.Join(tmpDir, "FOUNDING-ARCHITECTURE.md")
+	rootBytes, err := os.ReadFile(rootFADPath)
+	if err != nil {
+		t.Fatalf("expected FOUNDING-ARCHITECTURE.md at root to exist: %v", err)
+	}
+
+	// 3. Both contents are identical
+	if string(internalBytes) != string(rootBytes) {
+		t.Errorf("internal FAD and root FAD content mismatch:\nInternal:\n%s\nRoot:\n%s", string(internalBytes), string(rootBytes))
+	}
+
+	// 4. sessions/SYN-01.md does NOT exist
+	unwantedPath := filepath.Join(tmpDir, core.SessionsDir, "SYN-01.md")
+	if _, err := os.Stat(unwantedPath); err == nil {
+		t.Errorf("sessions/SYN-01.md should NOT exist (dual-write was removed)")
+	}
+}
+
+// TestNextSession_SingleReadySession_NoParallelHint verifies that a single ready session has no parallelism_hint
+func TestNextSession_SingleReadySession_NoParallelHint(t *testing.T) {
+	cs := testServer(t)
+	ctx := context.Background()
+	tmpDir := t.TempDir()
+
+	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "vivechak_init",
+		Arguments: map[string]any{"project_root": tmpDir, "scope": "project"},
+	})
+
+	singlePipeline := `# Pipeline
+## Execution DAG
+### Session T0-01: Only One Ready
+| Field | Value |
+|---|---|
+| **ID** | T0-01 |
+| **Dependencies** | None |
+| **Output File** | sessions/T0-01.md |
+
+` + "```prompt" + `
+Investigate single session.
+` + "```" + `
+
+### Session T1-01: Blocked
+| Field | Value |
+|---|---|
+| **ID** | T1-01 |
+| **Dependencies** | [T0-01] |
+| **Output File** | sessions/T1-01.md |
+
+` + "```prompt" + `
+Investigate blocked session.
+` + "```" + `
+`
+	_ = os.WriteFile(filepath.Join(tmpDir, core.PipelineFile), []byte(singlePipeline), 0o644)
+
+	res, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "vivechak_next_session",
+		Arguments: map[string]any{"project_root": tmpDir},
+	})
+	if err != nil {
+		t.Fatalf("next_session failed: %v", err)
+	}
+	env := parseEnvelope(t, res)
+	dataMap, ok := env.Data.(map[string]any)
+	if !ok {
+		t.Fatalf("expected data map, got: %T", env.Data)
+	}
+	if dataMap["parallelism_hint"] != nil {
+		t.Errorf("expected no parallelism_hint for single ready session, got: %v", dataMap["parallelism_hint"])
+	}
+	if strings.Contains(env.NextStep, "⚡") {
+		t.Errorf("expected no ⚡ prefix when only 1 session is ready, got: %s", env.NextStep)
+	}
+}
+
+
+
 

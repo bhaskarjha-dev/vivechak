@@ -590,3 +590,28 @@ Selected tool is PostgreSQL. Grade B (recalled from memory).
 		t.Error("expected W-RECALLED-GRADE-CAP for generic artifact with recalled Grade B")
 	}
 }
+
+func TestValidateSession_TemplateFile(t *testing.T) {
+	tmplPath := filepath.Join("..", "..", "templates", "SESSION.template.md")
+	data, err := os.ReadFile(tmplPath)
+	if err != nil {
+		t.Fatalf("failed to read SESSION.template.md: %v", err)
+	}
+
+	filled := string(data)
+	filled = strings.Replace(filled, `"[SESSION-ID]"`, `"T1-01"`, -1)
+	filled = strings.Replace(filled, `"[Session Title]"`, `"Database Selection"`, -1)
+	filled = strings.Replace(filled, `"[YYYY-MM-DD]"`, `"2026-10-01"`, -1)
+	filled = strings.Replace(filled, `"[topic-slug]"`, `"database-selection"`, -1)
+	filled = strings.Replace(filled, `"[high|medium|low]"`, `"high"`, -1)
+	filled = strings.Replace(filled, `"[A-E]"`, `"A"`, -1)
+	filled = strings.Replace(filled, `"[modifiers]"`, `"corroborated · fresh"`, -1)
+	filled = strings.Replace(filled, `"[verification]"`, `"fetched"`, -1)
+	filled = strings.Replace(filled, `status: draft`, `status: complete`, -1)
+
+	res := ValidateSession([]byte(filled))
+	if res.ErrorCount() > 0 {
+		t.Errorf("filled SESSION.template.md produced validation errors (%d): %v", res.ErrorCount(), res.Issues)
+	}
+}
+
