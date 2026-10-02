@@ -395,9 +395,7 @@ func injectIntoPrompt(prompt, slot, content string) string {
 	if strings.Contains(prompt, slot) {
 		result := strings.Replace(prompt, slot, content, 1)
 		// Also fill KNOWN_CONTEXT if present
-		if strings.Contains(result, KnownContextSlot) {
-			result = strings.Replace(result, KnownContextSlot, content, 1)
-		}
+		result = strings.Replace(result, KnownContextSlot, content, 1)
 		return result
 	}
 
