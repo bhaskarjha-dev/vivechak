@@ -282,3 +282,103 @@ func TestResolveDecisionFilename(t *testing.T) {
 	}
 }
 
+func TestCompileDecisionsRegistry(t *testing.T) {
+	tmpDir := t.TempDir()
+	researchDir := filepath.Join(tmpDir, core.ResearchDir)
+	if err := os.MkdirAll(researchDir, 0o755); err != nil {
+		t.Fatalf("failed to create research dir: %v", err)
+	}
+
+	ws, err := store.OpenWorkspace(tmpDir)
+	if err != nil {
+		t.Fatalf("failed to open workspace: %v", err)
+	}
+	defer ws.Close()
+
+	// Write 3 ADR files out of order
+	d002Content := `---
+id: D-002
+title: Auth Strategy
+status: accepted
+door_type: two-way
+---
+# D-002
+Use Clerk for auth.
+`
+	d001Content := `---
+id: D-001
+title: Datastore Selection
+status: accepted
+door_type: one-way
+review_trigger: "throughput > 50k"
+---
+# D-001
+Use PostgreSQL.
+`
+	d003Content := `---
+id: D-003
+title: Hosting Architecture
+status: accepted
+door_type: two-way
+---
+# D-003
+Deploy on Fly.io.
+`
+	// Also write non-ADR files that should be ignored
+	planContent := `---
+id: D-001-plan
+title: Decision Plan
+---
+# Plan
+`
+	notesContent := "# Notes\nSome notes.\n"
+
+	_ = os.WriteFile(filepath.Join(researchDir, "D-002-auth.md"), []byte(d002Content), 0o644)
+	_ = os.WriteFile(filepath.Join(researchDir, "D-001-datastore.md"), []byte(d001Content), 0o644)
+	_ = os.WriteFile(filepath.Join(researchDir, "D-003-hosting.md"), []byte(d003Content), 0o644)
+	_ = os.WriteFile(filepath.Join(researchDir, "D-001-plan.md"), []byte(planContent), 0o644)
+	_ = os.WriteFile(filepath.Join(researchDir, "FOUNDING-ARCHITECTURE.md"), []byte("---\nstatus: sealed\n---\n# FAD"), 0o644)
+	_ = os.WriteFile(filepath.Join(researchDir, "NOTES.md"), []byte(notesContent), 0o644)
+
+	ctx := t.Context()
+	if err := compileDecisionsRegistry(ctx, ws, tmpDir); err != nil {
+		t.Fatalf("compileDecisionsRegistry failed: %v", err)
+	}
+
+	decisionsData, err := os.ReadFile(filepath.Join(tmpDir, core.DecisionsFile))
+	if err != nil {
+		t.Fatalf("reading DECISIONS.md: %v", err)
+	}
+	decisionsStr := string(decisionsData)
+
+	// Verify all 3 decisions are present in sorted order
+	idx1 := strings.Index(decisionsStr, "<!-- DECISION: D-001 -->")
+	idx2 := strings.Index(decisionsStr, "<!-- DECISION: D-002 -->")
+	idx3 := strings.Index(decisionsStr, "<!-- DECISION: D-003 -->")
+
+	if idx1 == -1 || idx2 == -1 || idx3 == -1 {
+		t.Fatalf("missing one or more decision markers: D-001=%d, D-002=%d, D-003=%d", idx1, idx2, idx3)
+	}
+
+	if !(idx1 < idx2 && idx2 < idx3) {
+		t.Errorf("decisions are not in sorted order: D-001=%d, D-002=%d, D-003=%d", idx1, idx2, idx3)
+	}
+
+	// Verify <details> formatting
+	if !strings.Contains(decisionsStr, "<details>") || !strings.Contains(decisionsStr, "</details>") {
+		t.Errorf("expected <details> blocks in DECISIONS.md, got:\n%s", decisionsStr)
+	}
+
+	// Verify non-ADRs are excluded
+	if strings.Contains(decisionsStr, "D-001-plan") || strings.Contains(decisionsStr, "Decision Plan") {
+		t.Errorf("plan file was mistakenly compiled into DECISIONS.md")
+	}
+	if strings.Contains(decisionsStr, "status: sealed") || strings.Contains(decisionsStr, "FOUNDING-ARCHITECTURE") {
+		t.Errorf("FAD was mistakenly compiled into DECISIONS.md")
+	}
+	if strings.Contains(decisionsStr, "Some notes") {
+		t.Errorf("NOTES.md was mistakenly compiled into DECISIONS.md")
+	}
+}
+
+

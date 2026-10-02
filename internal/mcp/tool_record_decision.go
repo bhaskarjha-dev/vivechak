@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 
@@ -167,24 +168,14 @@ func handleRecordDecision(ctx context.Context, _ *sdkmcp.CallToolRequest, in Rec
 		warnings = append(warnings, issue.String())
 	}
 
-	// Dual-write to DECISIONS.md registry for decision artifacts
+	// Compile DECISIONS.md registry from all individual ADR files
 	if artifactType == "decision" {
-		decRelPath := core.DecisionsFile
-		decUnlock, decErr := store.LockFile(ctx, filepath.Join(root, decRelPath), 5*time.Second)
-		if decErr != nil {
-			warnings = append(warnings, fmt.Sprintf("W-DECISIONS-LOCK: Could not acquire lock on %s: %v", decRelPath, decErr))
-		} else {
-			defer func() { _ = decUnlock() }()
-			var existing []byte
-			if data, err := ws.ReadFile(decRelPath); err == nil {
-				existing = data
-			}
-			newDecContent := updateOrAppendDecision(existing, in.DecisionID, in.Content)
-			if err := store.WriteFileAtomic(ws.Root(), decRelPath, newDecContent, 0o644); err != nil {
-				warnings = append(warnings, fmt.Sprintf("W-DECISIONS-WRITE: Failed to update %s: %v", decRelPath, err))
-			}
+		if compileErr := compileDecisionsRegistry(ctx, ws, root); compileErr != nil {
+			warnings = append(warnings, fmt.Sprintf(
+				"W-DECISIONS-COMPILE: Failed to compile DECISIONS.md: %v", compileErr))
 		}
 	}
+
 
 	// Warn if content contains unexpected or nested decision boundary markers that could confuse the registry
 	startMarker := fmt.Sprintf("<!-- DECISION: %s -->", in.DecisionID)
@@ -220,6 +211,85 @@ func handleRecordDecision(ctx context.Context, _ *sdkmcp.CallToolRequest, in Rec
 	}
 	return env.ToResult()
 }
+
+// compileDecisionsRegistry compiles DECISIONS.md from all individual ADR files in research/.
+func compileDecisionsRegistry(ctx context.Context, ws *store.Workspace, root string) error {
+	entries, err := ws.ListDir(core.ResearchDir)
+	if err != nil {
+		return fmt.Errorf("listing research directory: %w", err)
+	}
+
+	type decisionEntry struct {
+		id      string
+		content string
+	}
+	var decisions []decisionEntry
+
+	for _, e := range entries {
+		name := e.Name()
+		if e.IsDir() || !strings.HasSuffix(name, ".md") {
+			continue
+		}
+		if strings.HasSuffix(name, "-plan.md") ||
+			strings.HasSuffix(name, "-comparison.md") ||
+			strings.HasSuffix(name, "-conflict-resolution.md") ||
+			strings.EqualFold(name, "DECISIONS.md") ||
+			strings.EqualFold(name, "FAD.md") ||
+			strings.EqualFold(name, "RESEARCH-PIPELINE.md") {
+			continue
+		}
+		// Whitelist: D-* files or files with door_type in frontmatter
+		isCandidate := strings.HasPrefix(strings.ToUpper(name), "D-")
+		data, err := ws.ReadFile(filepath.Join(core.ResearchDir, name))
+		if err != nil || len(data) == 0 {
+			continue
+		}
+		fm, _, err := core.ParseFrontmatter(data)
+		if err != nil || fm == nil {
+			continue
+		}
+		if !isCandidate && !fm.Has("door_type") {
+			continue
+		}
+		id := fm.GetString("id")
+		if id == "" {
+			id = fm.GetString("decision_id")
+		}
+		if id == "" {
+			stem := strings.TrimSuffix(name, ".md")
+			id = stem
+		}
+		decisions = append(decisions, decisionEntry{
+			id:      id,
+			content: string(data),
+		})
+	}
+
+	// Sort decisions deterministically by ID
+	sort.Slice(decisions, func(i, j int) bool {
+		return decisions[i].id < decisions[j].id
+	})
+
+	var b strings.Builder
+	b.WriteString("# Architectural Decisions\n\n")
+	for i, d := range decisions {
+		wrapped := wrapFrontmatterForRegistry(d.content)
+		b.WriteString(fmt.Sprintf("<!-- DECISION: %s -->\n%s\n<!-- /DECISION: %s -->\n", d.id, wrapped, d.id))
+		if i < len(decisions)-1 {
+			b.WriteString("\n---\n\n")
+		}
+	}
+
+	decRelPath := core.DecisionsFile
+	decUnlock, decErr := store.LockFile(ctx, filepath.Join(root, decRelPath), 5*time.Second)
+	if decErr != nil {
+		return fmt.Errorf("acquiring lock on %s: %w", decRelPath, decErr)
+	}
+	defer func() { _ = decUnlock() }()
+
+	return store.WriteFileAtomic(ws.Root(), decRelPath, []byte(b.String()), 0o644)
+}
+
 
 // updateOrAppendDecision updates or appends a decision entry into DECISIONS.md.
 func updateOrAppendDecision(existing []byte, decisionID string, content string) []byte {
@@ -425,7 +495,8 @@ func resolveDecisionFilename(ws *store.Workspace, decisionID string, slug string
 				if !e.IsDir() && strings.HasPrefix(name, decisionID+"-") &&
 					strings.HasSuffix(name, ".md") &&
 					!strings.HasSuffix(name, "-plan.md") &&
-					!strings.HasSuffix(name, "-conflict-resolution.md") {
+					!strings.HasSuffix(name, "-conflict-resolution.md") &&
+					!strings.HasSuffix(name, "-comparison.md") {
 					return name
 				}
 			}

@@ -230,26 +230,38 @@ func InspectWorkspace(root string) WorkspaceInfo {
 		}
 	}
 
-	// Check for decisions (DECISIONS.md or ADR files in research/)
-	if _, err := os.Stat(filepath.Join(root, DecisionsFile)); err == nil {
+	// Check for decisions (non-empty DECISIONS.md or ADR files in research/)
+	if fi, err := os.Stat(filepath.Join(root, DecisionsFile)); err == nil && fi.Size() > 0 {
 		info.HasDecisions = true
 	} else if entries, err := os.ReadDir(researchPath); err == nil {
 		for _, e := range entries {
 			name := e.Name()
-			if !e.IsDir() && strings.HasSuffix(name, ".md") && !strings.HasSuffix(name, "-plan.md") && !strings.EqualFold(name, "RESEARCH-PIPELINE.md") && !strings.EqualFold(name, "FAD.md") && !strings.HasPrefix(name, ".") {
-				info.HasDecisions = true
-				break
+			if !e.IsDir() && strings.HasSuffix(name, ".md") && (strings.HasPrefix(strings.ToUpper(name), "D-") || strings.EqualFold(name, "DECISIONS.md")) {
+				if !strings.HasSuffix(name, "-plan.md") && !strings.HasSuffix(name, "-conflict-resolution.md") && !strings.HasSuffix(name, "-comparison.md") {
+					info.HasDecisions = true
+					break
+				}
 			}
 		}
 	}
 
-	// Count sessions
+	// Count sessions (research sessions in sessions/ plus synthesis session FAD.md if present and not in sessions/)
 	sessionsPath := filepath.Join(root, SessionsDir)
+	hasSynthesisInSessions := false
 	if entries, err := os.ReadDir(sessionsPath); err == nil {
 		for _, e := range entries {
 			if !e.IsDir() && filepath.Ext(e.Name()) == ".md" {
 				info.SessionCount++
+				stem := strings.TrimSuffix(e.Name(), ".md")
+				if IsSynthesisSession(stem) {
+					hasSynthesisInSessions = true
+				}
 			}
+		}
+	}
+	if !hasSynthesisInSessions {
+		if _, err := os.Stat(filepath.Join(root, FADFile)); err == nil {
+			info.SessionCount++
 		}
 	}
 

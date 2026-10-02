@@ -115,12 +115,6 @@ func handleSaveSession(ctx context.Context, _ *sdkmcp.CallToolRequest, in SaveSe
 			"Check filesystem permissions.")
 	}
 
-	// For synthesis sessions saved with session ID (e.g. SYN-01), also save to sessions/ directory
-	if isSynthesis && !strings.EqualFold(in.SessionID, "FAD") {
-		sessPath := filepath.Join(core.SessionsDir, filename)
-		_ = store.WriteFileAtomic(ws.Root(), sessPath, contentToSave, 0o644)
-	}
-
 	status := validation.Status
 	warningCount := validation.WarningCount()
 	errorCount := validation.ErrorCount()

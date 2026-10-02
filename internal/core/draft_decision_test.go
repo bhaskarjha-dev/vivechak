@@ -103,4 +103,128 @@ Just raw notes without standard headings.
 			t.Errorf("expected S-99 in informed_by_sessions: %s", draft)
 		}
 	})
+
+	t.Run("preserves multi-option subheadings and multiple risks without premature truncation", func(t *testing.T) {
+		sessionContent := `---
+session_id: R-03
+title: Primary Datastore Selection
+date: 2026-10-02
+status: complete
+---
+
+# Session R-03: Primary Datastore Selection
+
+## Evaluated Options & Alternatives
+
+### Option 1: SQLite with WAL
+SQLite embedded engine. Grade A (docs)
+
+### Option 2: PostgreSQL
+Postgres relational database. Grade A (docs)
+
+### Option 3: DuckDB
+DuckDB analytical engine. Grade A (docs)
+
+## Recommendations & Verdict
+We recommend SQLite with WAL. Grade A (benchmark)
+
+## Discovered Concerns & Failure Modes
+
+### Risk 1: Concurrency Limits
+Single writer limitation.
+
+### Risk 2: Network Shares
+Locking issues on NFS.
+`
+		draft, err := DraftDecisionFromSession([]byte(sessionContent), "D-003")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		bodyStr := draft
+		if !strings.Contains(bodyStr, "Option 1: SQLite with WAL") {
+			t.Errorf("missing Option 1 in draft: %s", bodyStr)
+		}
+		if !strings.Contains(bodyStr, "Option 2: PostgreSQL") {
+			t.Errorf("missing Option 2 in draft: %s", bodyStr)
+		}
+		if !strings.Contains(bodyStr, "Option 3: DuckDB") {
+			t.Errorf("missing Option 3 in draft: %s", bodyStr)
+		}
+		if !strings.Contains(bodyStr, "Risk 1: Concurrency Limits") {
+			t.Errorf("missing Risk 1 in draft: %s", bodyStr)
+		}
+		if !strings.Contains(bodyStr, "Risk 2: Network Shares") {
+			t.Errorf("missing Risk 2 in draft: %s", bodyStr)
+		}
+	})
 }
+
+func TestExtractSection_HeadingHierarchy(t *testing.T) {
+	doc := `# Document Title
+Intro text before any sections.
+
+## Evaluated Options
+Overview of options.
+
+### Option 1: Embedded SQLite
+SQLite details.
+#### Option 1.1: WAL Configuration
+WAL details here.
+
+### Option 2: Server PostgreSQL
+PostgreSQL details.
+
+## Recommendations
+Final verdict is Option 1.
+
+## Other Notes
+Final notes.
+`
+
+	t.Run("extracts options with child and grandchild headings", func(t *testing.T) {
+		options := extractSection(doc, "option", "evaluated")
+		if !strings.Contains(options, "Overview of options.") {
+			t.Errorf("missing section overview: %s", options)
+		}
+		if !strings.Contains(options, "### Option 1: Embedded SQLite") {
+			t.Errorf("missing Option 1 heading: %s", options)
+		}
+		if !strings.Contains(options, "#### Option 1.1: WAL Configuration") {
+			t.Errorf("missing Option 1.1 grandchild heading: %s", options)
+		}
+		if !strings.Contains(options, "### Option 2: Server PostgreSQL") {
+			t.Errorf("missing Option 2 heading: %s", options)
+		}
+		// Sibling heading ## Recommendations must NOT be included
+		if strings.Contains(options, "Recommendations") || strings.Contains(options, "Final verdict") {
+			t.Errorf("section extraction did not stop at sibling heading: %s", options)
+		}
+	})
+
+	t.Run("extracts recommendations section terminated by another sibling", func(t *testing.T) {
+		recs := extractSection(doc, "recommend")
+		if !strings.Contains(recs, "Final verdict is Option 1.") {
+			t.Errorf("missing recommendation content: %s", recs)
+		}
+		if strings.Contains(recs, "Final notes") {
+			t.Errorf("recommendation did not stop at next sibling: %s", recs)
+		}
+	})
+
+	t.Run("returns empty string when no keyword matches", func(t *testing.T) {
+		res := extractSection(doc, "nonexistent-keyword")
+		if res != "" {
+			t.Errorf("expected empty string, got: %q", res)
+		}
+	})
+
+	t.Run("returns empty string on empty body", func(t *testing.T) {
+		res := extractSection("", "option")
+		if res != "" {
+			t.Errorf("expected empty string on empty body, got: %q", res)
+		}
+	})
+}
+
+

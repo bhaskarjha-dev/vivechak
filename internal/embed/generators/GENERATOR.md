@@ -215,6 +215,20 @@ expansion with evidence."
 
 Do NOT prescribe specific search queries or set minimum search counts.
 
+For each session prompt, after the APPROACH block, include a **DOMAIN PROBES** section
+with 3-5 domain-specific investigative questions that target known industry landmines,
+recent API/pricing changes, and non-obvious failure modes specific to this session's
+topic. These probes should be things a senior domain expert would know to check but a
+general-purpose researcher might miss.
+
+Example (for a bank ingestion session):
+- "What changed in this aggregator's pricing or terms in the last 12 months?"
+- "Does the API's authentication model allow redistribution in open-source clients?"
+- "What happens to transaction IDs during the pending-to-posted settlement window?"
+
+The probes are NOT hardcoded templates — they must be generated fresh for each
+session based on the project's specific domain and constraints.
+
 **DONE:** State 3-5 completion criteria that define when this session
 is DONE. Frame each as "This session is complete when [X] is answered with
 [evidence type]." These are quality goals, not method prescriptions — the

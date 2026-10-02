@@ -70,7 +70,7 @@ Open your agent chat in your project repository and run:
 
 ### 4. The Agent Executes the Loop
 
-Your agent coordinates the 9 tools autonomously:
+Your agent coordinates the 10 tools autonomously:
 
 ```
 [Agent: vivechak_init]

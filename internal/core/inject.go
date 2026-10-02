@@ -93,6 +93,123 @@ func InjectContext(session Session, sessionsDir string, completedSessions map[st
 	return result, nil
 }
 
+const synthesisContextBudget = 30 * 1024 // 30KB ~7500 tokens
+
+// SessionTechRow represents a row in the synthesized technology matrix.
+type SessionTechRow struct {
+	SessionID string
+	Topic     string
+	Tech      string
+	Tags      string
+}
+
+// extractTags returns frontmatter tags as a comma-separated string.
+func extractTags(fm Frontmatter) string {
+	if fm == nil {
+		return ""
+	}
+	if slice := fm.GetStringSlice("tags"); len(slice) > 0 {
+		return strings.Join(slice, ", ")
+	}
+	return fm.GetString("tags")
+}
+
+func cleanTableCell(s string) string {
+	s = strings.ReplaceAll(s, "|", "/")
+	s = strings.ReplaceAll(s, "\r", " ")
+	s = strings.ReplaceAll(s, "\n", " ")
+	return strings.TrimSpace(s)
+}
+
+// extractRecommendation extracts the primary recommendation from session body.
+func extractRecommendation(body string) string {
+	lines := strings.Split(body, "\n")
+	inRec := false
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "#") {
+			lower := strings.ToLower(trimmed)
+			if strings.Contains(lower, "recommend") {
+				if idx := strings.Index(trimmed, ":"); idx != -1 && idx+1 < len(trimmed) {
+					candidate := strings.TrimSpace(trimmed[idx+1:])
+					if candidate != "" {
+						return cleanTableCell(candidate)
+					}
+				}
+				if idx := strings.Index(trimmed, "—"); idx != -1 && idx+len("—") < len(trimmed) {
+					candidate := strings.TrimSpace(trimmed[idx+len("—"):])
+					if candidate != "" {
+						return cleanTableCell(candidate)
+					}
+				}
+				inRec = true
+				continue
+			} else if inRec {
+				break
+			}
+		}
+		if inRec && trimmed != "" {
+			val := strings.TrimLeft(trimmed, "-*# ")
+			val = strings.Trim(val, "*_`")
+			val = cleanTableCell(val)
+			if val != "" {
+				if len(val) > 120 {
+					val = val[:117] + "..."
+				}
+				return val
+			}
+		}
+	}
+	return "See session findings"
+}
+
+// buildTechnologyMatrix creates a markdown table summarizing technology choices.
+func buildTechnologyMatrix(rows []SessionTechRow) string {
+	if len(rows) == 0 {
+		return ""
+	}
+	var sb strings.Builder
+	sb.WriteString("## TECHNOLOGY CHOICES ACROSS SESSIONS\n\n")
+	sb.WriteString("| Session | Topic | Chosen Technology | Tags |\n")
+	sb.WriteString("|---|---|---|---|\n")
+	for _, r := range rows {
+		topic := cleanTableCell(r.Topic)
+		if topic == "" {
+			topic = "Research"
+		}
+		tech := cleanTableCell(r.Tech)
+		tags := cleanTableCell(r.Tags)
+		sb.WriteString(fmt.Sprintf("| %s | %s | %s | %s |\n", r.SessionID, topic, tech, tags))
+	}
+	sb.WriteString("\n**Check for coherence:** Do these technology choices work together? Flag any\nruntime conflicts (e.g. CGo requirements across multiple sessions, conflicting\nlanguage runtimes, incompatible dependency versions).\n")
+	return sb.String()
+}
+
+// budgetFindings progressively trims findings if total exceeds the byte budget.
+func budgetFindings(findings []string, sessionIDs []string, budget int) []string {
+	total := 0
+	for _, f := range findings {
+		total += len(f)
+	}
+	if total <= budget || len(findings) == 0 {
+		return findings
+	}
+	perSession := budget / len(findings)
+	trimmed := make([]string, len(findings))
+	for i, f := range findings {
+		if len(f) <= perSession {
+			trimmed[i] = f
+		} else {
+			id := "session"
+			if i < len(sessionIDs) {
+				id = sessionIDs[i]
+			}
+			trimmed[i] = f[:perSession] + "\n\n... [trimmed for synthesis context budget — see sessions/" + id + ".md for full findings]\n"
+		}
+	}
+	return trimmed
+}
+
 // gatherAllFindings reads all completed session files and assembles their
 // findings into a single context block. For synthesis, also extracts ## Delta
 // sections and aggregates them into a belief evolution block.
@@ -100,7 +217,7 @@ func gatherAllFindings(sessionsDir string, completedSessions map[string]bool) (s
 	var findings []string
 	var deltaEntries []string
 	var sessionIDs []string
-	totalBytes := 0
+	var techRows []SessionTechRow
 	seenFiles := make(map[string]bool)
 
 	// Collect and sort IDs for deterministic ordering
@@ -126,7 +243,22 @@ func gatherAllFindings(sessionsDir string, completedSessions map[string]bool) (s
 		fm, body, _ := ParseFrontmatter([]byte(content))
 		excerpt := extractFindings(string(body), id, true)
 		findings = append(findings, excerpt)
-		totalBytes += len(excerpt)
+
+		// Technology row for cross-session coherence
+		topic := id
+		if fm != nil {
+			if t := fm.GetString("title"); t != "" {
+				topic = t
+			}
+		}
+		tags := extractTags(fm)
+		rec := extractRecommendation(string(body))
+		techRows = append(techRows, SessionTechRow{
+			SessionID: id,
+			Topic:     topic,
+			Tech:      rec,
+			Tags:      tags,
+		})
 
 		// Extract Delta section for belief evolution aggregation
 		if delta := extractDeltaSection(string(body)); delta != "" {
@@ -140,18 +272,28 @@ func gatherAllFindings(sessionsDir string, completedSessions map[string]bool) (s
 		}
 	}
 
-	result := strings.Join(findings, "\n\n---\n\n")
+	// Apply synthesis context density budgeting if needed
+	findings = budgetFindings(findings, sessionIDs, synthesisContextBudget)
 
-	// Append aggregated belief evolution block for synthesis
-	if len(deltaEntries) > 0 {
-		beliefEvolution := "\n\n---\n\n## BELIEF EVOLUTION ACROSS SESSIONS\n\n" +
-			strings.Join(deltaEntries, "\n\n")
-		result += beliefEvolution
-		totalBytes += len(beliefEvolution)
+	var parts []string
+	if len(techRows) > 0 {
+		parts = append(parts, buildTechnologyMatrix(techRows))
 	}
+	if len(findings) > 0 {
+		parts = append(parts, strings.Join(findings, "\n\n---\n\n"))
+	}
+	if len(deltaEntries) > 0 {
+		beliefEvolution := "## BELIEF EVOLUTION ACROSS SESSIONS\n\n" +
+			strings.Join(deltaEntries, "\n\n")
+		parts = append(parts, beliefEvolution)
+	}
+
+	result := strings.Join(parts, "\n\n---\n\n")
+	totalBytes := len(result)
 
 	return result, sessionIDs, totalBytes, nil
 }
+
 
 // extractDeltaSection extracts the content under a ## Delta heading from session body.
 // Returns the delta content (without the heading itself), or empty string if not found.
@@ -419,7 +561,13 @@ func extractFindings(body string, sessionID string, isSynthesis bool) string {
 				strings.Contains(lower, "tradeoff") ||
 				strings.Contains(lower, "sensitiv") ||
 				strings.Contains(lower, "criteri") ||
+				strings.Contains(lower, "amend") ||
+				strings.Contains(lower, "post-hoc") ||
+				strings.Contains(lower, "update") ||
+				strings.Contains(lower, "correction") ||
+				strings.Contains(lower, "retract") ||
 				(isSynthesis && (strings.Contains(lower, "rejected") || strings.Contains(lower, "alternatives considered")))
+
 
 			if inRelevantSection {
 				hasRelevantHeading = true

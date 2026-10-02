@@ -206,7 +206,7 @@ func TestExhaustive_AllFeatures_AllScenarios(t *testing.T) {
 	}
 	t.Cleanup(func() { cs.Close() })
 
-	// Verify all 9 tools are listed
+	// Verify all 10 tools are listed
 	var toolList []string
 	for tool, err := range cs.Tools(ctx, nil) {
 		if err != nil {
@@ -758,14 +758,14 @@ Consensus: Raft over QUIC. A (Ongaro Spec)
 			t.Fatalf("save SYN-01 failed: %s", envSaveSyn.Message)
 		}
 
-		// Verify dual write on disk
+		// Verify canonical FAD on disk (no dual-write to sessions/)
 		sessionFile := filepath.Join(pDir, "research", "sessions", "SYN-01.md")
 		fadFile := filepath.Join(pDir, "research", "FAD.md")
-		if _, err := os.Stat(sessionFile); os.IsNotExist(err) {
-			t.Errorf("expected session file %s to exist", sessionFile)
+		if _, err := os.Stat(sessionFile); !os.IsNotExist(err) {
+			t.Errorf("expected session file %s to not exist (no dual-write)", sessionFile)
 		}
 		if _, err := os.Stat(fadFile); os.IsNotExist(err) {
-			t.Errorf("expected FAD file %s to exist from dual-write", fadFile)
+			t.Errorf("expected FAD file %s to exist", fadFile)
 		}
 
 		// 3.15 vivechak_validate tool dry run

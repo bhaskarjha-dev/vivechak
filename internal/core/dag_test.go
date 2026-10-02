@@ -254,7 +254,11 @@ func TestParseDependencies(t *testing.T) {
 		{"T1-01 & T1-02", []string{"T1-01", "T1-02"}},
 		{"[None]", nil},
 		{"`none`", nil},
+		{"[R-01](./R-01.md), [R-02](#r-02)", []string{"R-01", "R-02"}},
+		{"- R-01\n- R-02", []string{"R-01", "R-02"}},
+		{"* R-01\r\n* R-02", []string{"R-01", "R-02"}},
 	}
+
 
 	for _, tc := range tests {
 		got := parseDependencies(tc.input)
@@ -741,6 +745,47 @@ func TestIsSynthesisSession(t *testing.T) {
 		})
 	}
 }
+
+func TestParseDependencies_Comprehensive(t *testing.T) {
+	tests := []struct {
+		input string
+		want  []string
+	}{
+		{"None", nil},
+		{"None (parallel)", nil},
+		{"none", nil},
+		{"—", nil},
+		{"-", nil},
+		{"N/A", nil},
+		{"", nil},
+		{"T1-01", []string{"T1-01"}},
+		{"T1-01, T1-02", []string{"T1-01", "T1-02"}},
+		{"T1-01 (soft), T1-02 (hard)", []string{"T1-01", "T1-02"}},
+		{"[T1-01, T1-02]", []string{"T1-01", "T1-02"}},
+		{"`T1-01` and `T1-02`", []string{"T1-01", "T1-02"}},
+		{"T1-01 & T1-02", []string{"T1-01", "T1-02"}},
+		{"[R-01](./R-01.md), [R-02](./R-02.md)", []string{"R-01", "R-02"}},
+		{"- R-01\n- R-02\n- R-03", []string{"R-01", "R-02", "R-03"}},
+		{"* `R-01` and `R-02`", []string{"R-01", "R-02"}},
+		{"• R-01, • R-02", []string{"R-01", "R-02"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			got := parseDependencies(tt.input)
+			if len(got) != len(tt.want) {
+				t.Fatalf("parseDependencies(%q) = %v (len %d); want %v (len %d)", tt.input, got, len(got), tt.want, len(tt.want))
+			}
+			for i := range got {
+				if got[i] != tt.want[i] {
+					t.Errorf("parseDependencies(%q)[%d] = %q; want %q", tt.input, i, got[i], tt.want[i])
+				}
+			}
+		})
+	}
+}
+
+
 
 
 

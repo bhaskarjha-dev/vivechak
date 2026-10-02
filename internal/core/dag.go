@@ -459,11 +459,22 @@ func ParsePipeline(data []byte) (*DAG, error) {
 // Canonical format uses alphanumeric tokens with optional hyphens or underscores
 // (e.g., "T1-01", "SYN-01", "D-001-S1", "S1").
 
+var markdownLinkRe = regexp.MustCompile(`\[([^\]]+)\]\([^)]*\)`)
+
 // parseDependencies parses a dependency list from the metadata table.
 // Handles formats like: "None (parallel)", "T1-01", "T1-01, T1-02", "T1-01 (soft)",
-// "[T1-01, T1-02]", "`T1-01` and `T1-02`", "T1-01 & T1-02".
+// "[T1-01, T1-02]", "`T1-01` and `T1-02`", "T1-01 & T1-02",
+// markdown links "[R-01](./R-01.md)", and bullet lists "- R-01\n- R-02".
 func parseDependencies(value string) []string {
 	value = strings.TrimSpace(value)
+
+	// Strip markdown link syntax: [text](url) → text
+	value = markdownLinkRe.ReplaceAllString(value, "$1")
+
+	// Normalize newlines to commas (for bullet lists or multi-line dependencies)
+	value = strings.ReplaceAll(value, "\\n", ", ")
+	value = strings.ReplaceAll(value, "\r\n", ", ")
+	value = strings.ReplaceAll(value, "\n", ", ")
 
 	// Clean enclosing brackets, backticks, quotes
 	value = strings.ReplaceAll(value, "[", "")
@@ -486,9 +497,14 @@ func parseDependencies(value string) []string {
 	var deps []string
 	for _, p := range parts {
 		p = strings.TrimSpace(p)
+		// Strip bullet markers (- or * or •)
+		p = strings.TrimLeft(p, "-*• \t")
+		p = strings.TrimSpace(p)
 		if idx := strings.Index(p, "("); idx > 0 {
 			p = strings.TrimSpace(p[:idx])
 		}
+		p = strings.TrimLeft(p, "-*• \t")
+		p = strings.TrimSpace(p)
 		if p != "" && !strings.EqualFold(p, "none") && !strings.EqualFold(p, "n/a") && !strings.EqualFold(p, "and") {
 			deps = append(deps, p)
 		}

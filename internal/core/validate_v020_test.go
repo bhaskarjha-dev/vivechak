@@ -229,3 +229,174 @@ func TestStaleDatePattern(t *testing.T) {
 		}
 	}
 }
+
+func TestObserveSessionQuality_ConfirmationBias(t *testing.T) {
+	t.Run("Delta with only confirmed beliefs emits bias observation", func(t *testing.T) {
+		content := []byte(`
+## Prior
+- Believe SQLite works.
+
+## Delta
+| Belief | Status |
+|---|---|
+| SQLite works | Confirmed |
+`)
+		obs := ObserveSessionQuality(content)
+		foundBias := false
+		for _, o := range obs {
+			if o.Category == "bias" {
+				foundBias = true
+				if !strings.Contains(o.Message, "Delta section has no contradicted or updated beliefs") {
+					t.Errorf("unexpected bias message: %s", o.Message)
+				}
+			}
+		}
+		if !foundBias {
+			t.Error("expected bias observation when Delta contains only confirmed beliefs")
+		}
+	})
+
+	t.Run("Delta with contradicted belief does not emit bias observation", func(t *testing.T) {
+		content := []byte(`
+## Prior
+- Believe SQLite works.
+
+## Delta
+| Belief | Status |
+|---|---|
+| SQLite works | Contradicted - WAL lock issue |
+`)
+		obs := ObserveSessionQuality(content)
+		for _, o := range obs {
+			if o.Category == "bias" {
+				t.Errorf("unexpected bias observation when belief was contradicted: %v", o)
+			}
+		}
+	})
+}
+
+func TestObserveSessionQuality_RecommendationAlternatives(t *testing.T) {
+	t.Run("Recommendation without alternatives emits rigor observation", func(t *testing.T) {
+		content := []byte(`
+## Recommendation
+Adopt PostgreSQL 16 for all primary relational workloads.
+`)
+		obs := ObserveSessionQuality(content)
+		foundRigor := false
+		for _, o := range obs {
+			if o.Category == "rigor" {
+				foundRigor = true
+				if !strings.Contains(o.Message, "Recommendation doesn't reference rejected alternatives") {
+					t.Errorf("unexpected rigor message: %s", o.Message)
+				}
+			}
+		}
+		if !foundRigor {
+			t.Error("expected rigor observation when Recommendation omits alternatives")
+		}
+	})
+
+	t.Run("Recommendation with rejected alternatives emits no rigor observation", func(t *testing.T) {
+		content := []byte(`
+## Recommendation
+Adopt PostgreSQL 16 instead of MySQL or MongoDB which were rejected due to lack of vector indexing.
+`)
+		obs := ObserveSessionQuality(content)
+		for _, o := range obs {
+			if o.Category == "rigor" {
+				t.Errorf("unexpected rigor observation when alternatives mentioned: %v", o)
+			}
+		}
+	})
+}
+
+func TestObserveSessionQuality_RefinedStaleDates(t *testing.T) {
+	t.Run("False positives on ports, latencies, and throughput are ignored", func(t *testing.T) {
+		content := []byte(`
+Connected to localhost:2020 with latency of 2015 ms and throughput 2022 req/s under v2021.0.
+`)
+		obs := ObserveSessionQuality(content)
+		for _, o := range obs {
+			if o.Category == "freshness" {
+				t.Errorf("unexpected freshness observation for port/latency/qps: %v", o)
+			}
+		}
+	})
+
+	t.Run("Actual stale year reference is detected", func(t *testing.T) {
+		content := []byte(`
+According to a survey conducted in 2021, most teams choose Go.
+`)
+		obs := ObserveSessionQuality(content)
+		foundFreshness := false
+		for _, o := range obs {
+			if o.Category == "freshness" {
+				foundFreshness = true
+				if !strings.Contains(o.Message, "2021") {
+					t.Errorf("expected 2021 in freshness message, got: %s", o.Message)
+				}
+			}
+		}
+		if !foundFreshness {
+			t.Error("expected freshness observation for survey conducted in 2021")
+		}
+	})
+}
+
+func TestIsLikelyYearReference_EdgeCases(t *testing.T) {
+	tests := []struct {
+		text  string
+		start int
+		end   int
+		want  bool
+	}{
+		// Valid year references
+		{"published in 2021 by author", 13, 17, true},
+		{"from 2019 to 2024", 5, 9, true},
+		{"since 2020.", 6, 10, true},
+
+		// Ports, versions, variables
+		{"localhost:2020/api", 10, 14, false},
+		{"release v2020.1", 9, 13, false},
+		{"release V2020.1", 9, 13, false},
+		{"issue #2020 was closed", 7, 11, false},
+		{"cost was $2020 total", 10, 14, false},
+		{"mention @2020 user", 9, 13, false},
+
+		// Percentages and multipliers
+		{"growth was 2020% year over year", 11, 15, false},
+		{"scale factor 2020x speedup", 13, 17, false},
+
+		// Latency and throughput units
+		{"latency of 2020 ms under load", 11, 15, false},
+		{"latency of 2020ms under load", 11, 15, false},
+		{"rate is 2020 qps sustained", 8, 12, false},
+		{"rate is 2020req/s sustained", 8, 12, false},
+		{"rate is 2020 rps sustained", 8, 12, false},
+		{"rate is 2020 ops/s sustained", 8, 12, false},
+		{"rendering 2020 fps benchmark", 10, 14, false},
+
+		// Frequency and memory units
+		{"frequency 2020 mhz clock", 10, 14, false},
+		{"frequency 2020 ghz clock", 10, 14, false},
+		{"frequency 2020 hz clock", 10, 14, false},
+		{"frequency 2020 khz clock", 10, 14, false},
+		{"allocated 2020 mb ram", 10, 14, false},
+		{"allocated 2020 gb ram", 10, 14, false},
+		{"allocated 2020 kb cache", 10, 14, false},
+		{"allocated 2020 tb storage", 10, 14, false},
+		{"allocated 2020 bytes total", 10, 14, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.text, func(t *testing.T) {
+			got := isLikelyYearReference(tt.text, tt.start, tt.end)
+			if got != tt.want {
+				t.Errorf("isLikelyYearReference(%q, %d, %d) = %v; want %v",
+					tt.text, tt.start, tt.end, got, tt.want)
+			}
+		})
+	}
+}
+
+

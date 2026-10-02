@@ -112,7 +112,7 @@ vivechak/
 │
 ├── internal/                       ← Server implementation (Go)
 │   ├── core/                       ← Pure logic (workspace, DAG, validation, injection)
-│   ├── mcp/                        ← 9 MCP tool handlers + envelope
+│   ├── mcp/                        ← 10 MCP tool handlers + envelope
 │   ├── store/                      ← Atomic I/O, locking, os.Root confinement
 │   └── embed/                      ← go:embed generators + templates
 │

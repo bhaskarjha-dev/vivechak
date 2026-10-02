@@ -407,13 +407,14 @@ func TestInjectContext_SizeWarning(t *testing.T) {
 	_ = os.WriteFile(filepath.Join(sessionsDir, "T1-01.md"), []byte(sessionContent), 0o644)
 
 	session := Session{
-		ID:           "SYN-01",
-		Title:        "Synthesis",
+		ID:           "T2-01",
+		Title:        "Heavy Dependent Session",
 		Dependencies: []string{"T1-01"},
-		Prompt:       "# Synthesis\n[ALL_SESSION_FINDINGS]",
+		Prompt:       "# Further Research\n[UPSTREAM_FINDINGS]",
 	}
 
 	completed := map[string]bool{"T1-01": true}
+
 	injected, err := InjectContext(session, sessionsDir, completed)
 	if err != nil {
 		t.Fatalf("InjectContext: %v", err)
@@ -669,4 +670,162 @@ This continues the recommended section and must be extracted.
 		}
 	})
 }
+
+func TestBudgetFindings(t *testing.T) {
+	t.Run("6 sessions at 10KB each budgeted to 30KB", func(t *testing.T) {
+		findings := make([]string, 6)
+		sessionIDs := make([]string, 6)
+		for i := 0; i < 6; i++ {
+			findings[i] = strings.Repeat("a", 10*1024)
+			sessionIDs[i] = fmt.Sprintf("R-%02d", i+1)
+		}
+		budgeted := budgetFindings(findings, sessionIDs, 30*1024)
+		perSession := (30 * 1024) / 6
+		for i, f := range budgeted {
+			if !strings.HasPrefix(f, strings.Repeat("a", perSession)) {
+				t.Errorf("session %d does not start with expected %d bytes prefix", i, perSession)
+			}
+			if !strings.Contains(f, "trimmed for synthesis context budget") {
+				t.Errorf("session %d missing trimming notice", i)
+			}
+		}
+	})
+
+	t.Run("6 sessions at 4KB each under 30KB budget remains untrimmed", func(t *testing.T) {
+		findings := make([]string, 6)
+		sessionIDs := make([]string, 6)
+		for i := 0; i < 6; i++ {
+			findings[i] = strings.Repeat("b", 4*1024)
+			sessionIDs[i] = fmt.Sprintf("R-%02d", i+1)
+		}
+		budgeted := budgetFindings(findings, sessionIDs, 30*1024)
+		for i, f := range budgeted {
+			if f != findings[i] {
+				t.Errorf("session %d was modified despite being under budget", i)
+			}
+		}
+	})
+
+	t.Run("1 session at 40KB and 5 sessions at 2KB distributes budget", func(t *testing.T) {
+		findings := []string{
+			strings.Repeat("c", 40*1024),
+			strings.Repeat("d", 2*1024),
+			strings.Repeat("d", 2*1024),
+			strings.Repeat("d", 2*1024),
+			strings.Repeat("d", 2*1024),
+			strings.Repeat("d", 2*1024),
+		}
+		sessionIDs := []string{"R-01", "R-02", "R-03", "R-04", "R-05", "R-06"}
+		budgeted := budgetFindings(findings, sessionIDs, 30*1024)
+		// The 40KB session should be trimmed
+		if !strings.Contains(budgeted[0], "trimmed for synthesis context budget") {
+			t.Errorf("large session R-01 should be trimmed")
+		}
+		// The 2KB sessions should not be trimmed since 2KB <= 5KB perSession
+		for i := 1; i < 6; i++ {
+			if budgeted[i] != findings[i] {
+				t.Errorf("small session %s should not be trimmed", sessionIDs[i])
+			}
+		}
+	})
+}
+
+func TestInjectContext_TechnologyMatrix(t *testing.T) {
+	tmpDir := t.TempDir()
+	sessionsDir := filepath.Join(tmpDir, "sessions")
+	_ = os.MkdirAll(sessionsDir, 0o755)
+
+	_ = os.WriteFile(filepath.Join(sessionsDir, "R-01.md"), []byte(`---
+session_id: R-01
+title: Bank Ingestion
+tags: [ingestion, plaid, simplefin]
+---
+# Ingestion
+## Recommendation: SimpleFIN Bridge + OFX
+Use SimpleFIN for bank data.
+`), 0o644)
+
+	_ = os.WriteFile(filepath.Join(sessionsDir, "R-02.md"), []byte(`---
+session_id: R-02
+title: AI Categorization
+tags: [ai, onnx, categorization]
+---
+# AI
+## Recommendation
+**ONNX MiniLM + llama.cpp**
+Run local embeddings.
+`), 0o644)
+
+	_ = os.WriteFile(filepath.Join(sessionsDir, "R-03.md"), []byte(`---
+session_id: R-03
+title: Datastore
+---
+# Datastore
+## Recommendation
+SQLite WAL + SQLCipher
+`), 0o644)
+
+	// Synthesis test
+	synSession := Session{
+		ID:     "SYN-01",
+		Title:  "Synthesis",
+		Prompt: "# FAD Prompt\n\n[ALL_SESSION_FINDINGS]",
+	}
+	completed := map[string]bool{"R-01": true, "R-02": true, "R-03": true}
+	injected, err := InjectContext(synSession, sessionsDir, completed)
+	if err != nil {
+		t.Fatalf("InjectContext synthesis: %v", err)
+	}
+
+	prompt := injected.InjectedPrompt
+	if !strings.Contains(prompt, "## TECHNOLOGY CHOICES ACROSS SESSIONS") {
+		t.Fatalf("expected technology matrix in synthesis prompt, got:\n%s", prompt)
+	}
+	if !strings.Contains(prompt, "| R-01 | Bank Ingestion | SimpleFIN Bridge + OFX | ingestion, plaid, simplefin |") {
+		t.Errorf("missing or incorrect row for R-01 in matrix:\n%s", prompt)
+	}
+	if !strings.Contains(prompt, "| R-02 | AI Categorization | ONNX MiniLM + llama.cpp | ai, onnx, categorization |") {
+		t.Errorf("missing or incorrect row for R-02 in matrix:\n%s", prompt)
+	}
+	if !strings.Contains(prompt, "| R-03 | Datastore | SQLite WAL + SQLCipher |  |") {
+		t.Errorf("missing or incorrect row for R-03 without tags in matrix:\n%s", prompt)
+	}
+	if !strings.Contains(prompt, "Check for coherence:") {
+		t.Errorf("missing coherence check notice in matrix:\n%s", prompt)
+	}
+
+	// Non-synthesis test should NOT inject matrix
+	depSession := Session{
+		ID:           "R-04",
+		Title:        "UI",
+		Dependencies: []string{"R-03"},
+		Prompt:       "# UI Prompt\n\n[UPSTREAM_FINDINGS]",
+	}
+	injectedDep, err := InjectContext(depSession, sessionsDir, completed)
+	if err != nil {
+		t.Fatalf("InjectContext non-synthesis: %v", err)
+	}
+	if strings.Contains(injectedDep.InjectedPrompt, "## TECHNOLOGY CHOICES ACROSS SESSIONS") {
+		t.Errorf("non-synthesis session should not contain technology matrix")
+	}
+}
+
+func TestExtractFindings_Amendments(t *testing.T) {
+	body := `# Research Output
+## Baseline Findings
+- Initial findings here.
+
+## Post-Hoc Amendment (2026-10-01)
+- CRITICAL: Changed recommendation to BadgerDB due to CGo Windows failure with Pebble.
+`
+	extracted := extractFindings(body, "R-01", false)
+	if !strings.Contains(extracted, "Post-Hoc Amendment") {
+		t.Fatalf("expected Post-Hoc Amendment heading to be preserved, got:\n%s", extracted)
+	}
+	if !strings.Contains(extracted, "Changed recommendation to BadgerDB") {
+		t.Fatalf("expected amendment body content to be extracted, got:\n%s", extracted)
+	}
+}
+
+
 

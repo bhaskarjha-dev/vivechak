@@ -57,7 +57,7 @@ func parseEnvelope(t *testing.T, result *mcp.CallToolResult) Envelope {
 	return env
 }
 
-// TestToolListing verifies all 9 tools are registered.
+// TestToolListing verifies all 10 tools are registered.
 func TestToolListing(t *testing.T) {
 	cs := testServer(t)
 	ctx := context.Background()
@@ -1233,15 +1233,15 @@ func TestNextSession_InjectionSizeWarning(t *testing.T) {
 Prompt T1-01
 ` + "```" + `
 
-### Session SYN-01
+### Session T2-01
 | Field | Value |
 |---|---|
-| **ID** | SYN-01 |
+| **ID** | T2-01 |
 | **Dependencies** | T1-01 |
 
 ` + "```prompt" + `
-Synthesize findings:
-[ALL_SESSION_FINDINGS]
+Investigate based on:
+[UPSTREAM_FINDINGS]
 ` + "```" + `
 `
 	saveRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
@@ -1282,12 +1282,12 @@ status: complete
 		t.Fatalf("save_session: %v", err)
 	}
 
-	// 4. Request SYN-01 via next_session
+	// 4. Request T2-01 via next_session
 	res, err := cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_next_session",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
-			"session_id":   "SYN-01",
+			"session_id":   "T2-01",
 		},
 	})
 	if err != nil {

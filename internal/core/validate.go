@@ -587,27 +587,97 @@ func ObserveSessionQuality(content []byte) []QualityObservation {
 			Message:  "No Delta section found. Consider adding a table showing what research confirmed, updated, or contradicted.",
 			Severity: "suggestion",
 		})
+	} else {
+		// Confirmation bias check: does Delta challenge any beliefs?
+		deltaSection := extractSection(bodyStr, "delta")
+		lowerDelta := strings.ToLower(deltaSection)
+		hasContradiction := strings.Contains(lowerDelta, "contradict") ||
+			strings.Contains(lowerDelta, "updated") ||
+			strings.Contains(lowerDelta, "revised") ||
+			strings.Contains(lowerDelta, "overturned")
+		if !hasContradiction {
+			observations = append(observations, QualityObservation{
+				Category: "bias",
+				Message:  "Delta section has no contradicted or updated beliefs. If every prior was confirmed, consider whether the research genuinely challenged initial assumptions (P8).",
+				Severity: "consideration",
+			})
+		}
 	}
 
-	// Check for stale date references
-	staleMatches := staleDatePattern.FindAllString(bodyStr, -1)
-	if len(staleMatches) > 0 {
-		// Deduplicate
+	// Recommendation alternatives check
+	recSection := extractSection(bodyStr, "recommend")
+	if recSection != "" {
+		lowerRec := strings.ToLower(recSection)
+		hasAlternatives := strings.Contains(lowerRec, "alternative") ||
+			strings.Contains(lowerRec, "rejected") ||
+			strings.Contains(lowerRec, "instead of") ||
+			strings.Contains(lowerRec, "over ")
+		if !hasAlternatives {
+			observations = append(observations, QualityObservation{
+				Category: "rigor",
+				Message:  "Recommendation doesn't reference rejected alternatives. Stating why alternatives were rejected strengthens the decision rationale.",
+				Severity: "suggestion",
+			})
+		}
+	}
+
+	// Check for stale date references (refined to avoid false positives on ports, latencies, QPS)
+	staleIndices := staleDatePattern.FindAllStringIndex(bodyStr, -1)
+	if len(staleIndices) > 0 {
 		seen := make(map[string]bool)
 		var unique []string
-		for _, m := range staleMatches {
-			if !seen[m] {
-				seen[m] = true
-				unique = append(unique, m)
+		for _, idx := range staleIndices {
+			start, end := idx[0], idx[1]
+			if isLikelyYearReference(bodyStr, start, end) {
+				m := bodyStr[start:end]
+				if !seen[m] {
+					seen[m] = true
+					unique = append(unique, m)
+				}
 			}
 		}
-		observations = append(observations, QualityObservation{
-			Category: "freshness",
-			Message:  fmt.Sprintf("Found references to potentially stale dates: %s. Verify these are still current.", strings.Join(unique, ", ")),
-			Severity: "consideration",
-		})
+		if len(unique) > 0 {
+			observations = append(observations, QualityObservation{
+				Category: "freshness",
+				Message:  fmt.Sprintf("Found references to potentially stale dates: %s. Verify these are still current.", strings.Join(unique, ", ")),
+				Severity: "consideration",
+			})
+		}
 	}
 
 	return observations
 }
+
+// isLikelyYearReference distinguishes actual year references from ports (:2020),
+// latencies (2015 ms), throughput (2022 req/s), versions (v2020), and percentages.
+func isLikelyYearReference(text string, start, end int) bool {
+	if start > 0 {
+		prev := text[start-1]
+		if prev == ':' || prev == 'v' || prev == 'V' || prev == '#' || prev == '$' || prev == '@' {
+			return false
+		}
+	}
+	if end < len(text) {
+		next := text[end]
+		if next == '%' || next == 'x' || next == 'X' {
+			return false
+		}
+	}
+	after := text[end:]
+	if len(after) > 0 && (after[0] == ' ' || after[0] == '\t') {
+		after = strings.TrimLeft(after, " \t")
+	}
+	afterLower := strings.ToLower(after)
+	unitPrefixes := []string{"ms", "µs", "us", "ns", "qps", "req", "rps", "rpm", "fps", "hz", "khz", "mhz", "ghz", "kb", "mb", "gb", "tb", "bytes", "ops/s"}
+	for _, u := range unitPrefixes {
+		if strings.HasPrefix(afterLower, u) {
+			rem := afterLower[len(u):]
+			if len(rem) == 0 || !((rem[0] >= 'a' && rem[0] <= 'z') || (rem[0] >= '0' && rem[0] <= '9')) {
+				return false
+			}
+		}
+	}
+	return true
+}
+
 

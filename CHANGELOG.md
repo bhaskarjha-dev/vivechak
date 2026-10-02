@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 First public release of the automated **Vivechak (विवेचक)** system — uniting evidence-grounded research methodology with an autonomous Model Context Protocol (MCP) server.
 
 ### Added
-- **Go MCP Server (`cmd/vivechak/`):** Autonomous orchestration engine implementing the Guided Worker pattern with 9 atomic tools:
+- **Go MCP Server (`cmd/vivechak/`):** Autonomous orchestration engine implementing the Guided Worker pattern with 10 atomic tools:
   - `vivechak_init`: Initializes self-contained project workspaces with required directories and operational contracts.
   - `vivechak_prepare_generator`: Inlines project briefs into multi-scope generator prompts without host LLM file leaks.
   - `vivechak_save_plan`: Parses and validates execution DAGs with cycle detection and parallel execution tracking.
@@ -20,6 +20,7 @@ First public release of the automated **Vivechak (विवेचक)** system �
   - `vivechak_next_session`: Dependency-aware next session retrieval with automated upstream context injection.
   - `vivechak_save_session`: Atomic persistence and validation of session research outputs.
   - `vivechak_record_decision`: Architectural Decision Record (ADR) validation and registry updates.
+  - `vivechak_amend_session`: Post-hoc session and synthesis amendments preserving historical audit trail.
   - `vivechak_validate`: Pre-flight YAML frontmatter and evidentiary grading validation ladder.
   - `vivechak_run_gate`: Two-Track Phase 0 Exit Gate evaluation and premortem enforcement.
 - **Multi-Scope Research Methodology:**

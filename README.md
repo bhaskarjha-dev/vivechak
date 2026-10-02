@@ -171,7 +171,7 @@ vivechak/
 
 ## Using with AI Agents
 
-Vivechak ships as a universal **MCP server** — install the binary, register it with your AI host or agent harness (`vck setup <host>`), and your AI agent gets 9 tools:
+Vivechak ships as a universal **MCP server** — install the binary, register it with your AI host or agent harness (`vck setup <host>`), and your AI agent gets 10 tools:
 
 | Tool | What It Does |
 |---|---|
@@ -182,6 +182,7 @@ Vivechak ships as a universal **MCP server** — install the binary, register it
 | `vivechak_next_session` | Return next session prompt with upstream findings injected |
 | `vivechak_save_session` | Validate + persist completed session output |
 | `vivechak_record_decision` | Save ADR or conflict resolution |
+| `vivechak_amend_session` | Append post-hoc amendments to an existing session or FAD |
 | `vivechak_validate` | Dry-run validation on any artifact |
 | `vivechak_run_gate` | Phase 0 exit gate (Track A + Track B) |
 
@@ -248,7 +249,7 @@ Vivechak's most distinctive property: it was validated by the methodology it pre
 | 2: Self-Validation (Gen 2) | ✅ | 11 meta-research sessions → 10 verdicts → Gen 3 spec |
 | 3: Framework Release (v0.1.0) | ✅ | Framework, generators, templates, bias correction |
 | 4: Methodology Expansion | ✅ | 3 scope levels (Project / Decision / Comparison) |
-| 5: MCP Server | ✅ | Go MCP server with 9 tools, full test suite passing |
+| 5: MCP Server | ✅ | Go MCP server with 10 tools, full test suite passing |
 | 6: Distribution | ✅ | GoReleaser, installers, Homebrew/Scoop/winget, CI pipelines |
 | 7: Demand Proof | Next | Real case study, free wedge skill, content marketing |
 | 8: Research Frontiers | Future | DSPy optimization, multi-agent debate, longitudinal calibration |

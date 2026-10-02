@@ -316,7 +316,7 @@ client.Connect(ctx, ct, nil)
 ```
 
 Key wire test suites:
-- [`TestToolListing`](../internal/mcp/server_test.go#L59-L101): Asserts all 9 tools are correctly registered.
+- [`TestToolListing`](../internal/mcp/server_test.go#L59-L101): Asserts all 10 tools are correctly registered.
 - [`TestAnnotations`](../internal/mcp/server_test.go#L104-L134): Verifies tool annotations (`ReadOnlyHint`, `IdempotentHint`, `DestructiveHint`, `OpenWorldHint`).
 - [`TestStatusNoWorkspace`](../internal/mcp/server_test.go#L137-L158): Verifies `vivechak_status` succeeds gracefully even in empty directories.
 - [`TestInitAndStatus`](../internal/mcp/server_test.go#L161-L222): Verifies directory tree creation and template copying.

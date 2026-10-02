@@ -26,7 +26,7 @@ Vivechak v0.1.0 marks the initial unified release combining the evidence-grounde
 ```
 2024–2025          8 independent project pipelines → pre-development patterns discovered
 Mid 2026           Methodology Genesis: 11 meta-research sessions tested legacy axioms
-Late 2026 (v0.1.0) Initial Unified Release: Go MCP Server (9 tools), Multi-Scope Generators, Package Distribution
+Late 2026 (v0.1.0) Initial Unified Release: Go MCP Server (10 tools), Multi-Scope Generators, Package Distribution
 Next (v0.1.x)      Host feedback, client auto-discovery, telemetry & cost tracking
 Future (v1.0.0)    First LTS release — frozen MCP tool schemas, locked template contracts, knowledge graph
 ```
@@ -202,7 +202,7 @@ Three-scope model: Vivechak now operates at project, decision, and comparison sc
 | **MCP server replaces standalone Engine** | Locked | MCP 2026-07-28 spec (stateless, universal agent support); compound failure risk of standalone Engine |
 | **Go for server language** | Locked | Single binary distribution, 5–20ms startup, `os.Root` security, Tier 1 SDK |
 | **Guided Worker pattern** | Locked | Server returns guidance in response data; no server-side FSM; no LLM API calls |
-| **9 tools with `vivechak_` prefix** | Locked | Code-level audit dropped `synthesize` (violates Guided Worker), renamed 2 tools |
+| **10 tools with `vivechak_` prefix** | Locked | Code-level audit dropped `synthesize` (violates Guided Worker), renamed 2 tools, added `amend_session` |
 | **Workspace files as canonical state** | Locked | No `.vivechak/state.json`; research/ directory IS the database; Git-compatible |
 | **3 scope levels (Project / Decision / Comparison)** | Locked | Cochrane, ODNI ICD 203, R-03/R-06 cross-validation |
 | **Binary-first distribution** | Locked | Agent Plugins not universal; PATH truncation on macOS GUI hosts |

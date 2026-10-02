@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
-	"regexp"
 	"strings"
 
 	"github.com/bhaskarjha-dev/vivechak/internal/core"
@@ -43,15 +42,11 @@ func registerValidate(server *sdkmcp.Server) {
 func handleValidate(_ context.Context, _ *sdkmcp.CallToolRequest, in ValidateInput) (*sdkmcp.CallToolResult, Envelope, error) {
 	const tool = "vivechak_validate"
 
-	// Workspace-wide validation: content empty, project_root provided
-	if strings.TrimSpace(in.Content) == "" && strings.TrimSpace(in.ProjectRoot) != "" {
+	// Workspace-wide validation: content empty
+	if strings.TrimSpace(in.Content) == "" {
 		return handleWorkspaceValidate(tool, in.ProjectRoot)
 	}
 
-	if strings.TrimSpace(in.Content) == "" {
-		return ErrorResult(tool, fmt.Errorf("content is required (or provide project_root for workspace-wide validation)"),
-			"Provide artifact content to validate, or provide only project_root to validate the entire workspace.")
-	}
 
 	artifactType := in.ArtifactType
 	if artifactType == "" {
@@ -147,6 +142,10 @@ func handleWorkspaceValidate(tool string, projectRoot string) (*sdkmcp.CallToolR
 			if e.IsDir() || filepath.Ext(e.Name()) != ".md" {
 				continue
 			}
+			stem := strings.TrimSuffix(e.Name(), ".md")
+			if core.IsSynthesisSession(stem) {
+				continue // Skip synthesis sessions — validated separately as FAD
+			}
 			relPath := filepath.Join(core.SessionsDir, e.Name())
 			if data, err := ws.ReadFile(relPath); err == nil {
 				v := core.ValidateSession(data)
@@ -169,64 +168,52 @@ func handleWorkspaceValidate(tool string, projectRoot string) (*sdkmcp.CallToolR
 		"errors":   sessionsErrors,
 	}
 
-	// Validate decisions (DECISIONS.md)
+	// Validate decisions: individual files in research/ are the canonical source.
+	// DECISIONS.md is a compiled view and is not validated directly to prevent double-counting.
 	decisionsValid := 0
 	decisionsWarnings := 0
 	decisionsErrors := 0
-	if data, err := ws.ReadFile(core.DecisionsFile); err == nil && len(data) > 0 {
-		anchoredRe := regexp.MustCompile(`(?s)<!-- DECISION:\s*([A-Za-z0-9_-]+)\s*-->\s*(.*?)\s*<!-- /DECISION:\s*[A-Za-z0-9_-]+\s*-->`)
-		matches := anchoredRe.FindAllSubmatch(data, -1)
-		if len(matches) > 0 {
-			for _, m := range matches {
-				v := core.ValidateDecision(m[2])
-				if v.HasBlocking() {
-					decisionsErrors++
-					for _, issue := range v.BlockingIssues() {
-						allWarnings = append(allWarnings, fmt.Sprintf("DECISIONS.md (%s): %s", string(m[1]), issue.String()))
+	if entries, err := ws.ListDir(core.ResearchDir); err == nil {
+		for _, e := range entries {
+			name := e.Name()
+			if e.IsDir() || !strings.HasSuffix(name, ".md") {
+				continue
+			}
+			if strings.HasSuffix(name, "-plan.md") ||
+				strings.HasSuffix(name, "-comparison.md") ||
+				strings.HasSuffix(name, "-conflict-resolution.md") ||
+				strings.EqualFold(name, "DECISIONS.md") ||
+				strings.EqualFold(name, "FAD.md") ||
+				strings.EqualFold(name, "RESEARCH-PIPELINE.md") {
+				continue
+			}
+			// Whitelist: only D-* prefixed files or files with door_type in frontmatter
+			isCandidate := strings.HasPrefix(strings.ToUpper(name), "D-")
+			relPath := filepath.Join(core.ResearchDir, name)
+			data, err := ws.ReadFile(relPath)
+			if err != nil || len(data) == 0 {
+				continue
+			}
+			if !isCandidate {
+				if fm, _, err := core.ParseFrontmatter(data); err == nil && fm != nil {
+					if !fm.Has("door_type") {
+						continue // Not a decision record
 					}
-				} else if v.WarningCount() > 0 {
-					decisionsWarnings++
 				} else {
-					decisionsValid++
+					continue
 				}
 			}
-		} else {
+
 			v := core.ValidateDecision(data)
 			if v.HasBlocking() {
 				decisionsErrors++
 				for _, issue := range v.BlockingIssues() {
-					allWarnings = append(allWarnings, fmt.Sprintf("DECISIONS.md: %s", issue.String()))
+					allWarnings = append(allWarnings, fmt.Sprintf("DECISION %s: %s", name, issue.String()))
 				}
 			} else if v.WarningCount() > 0 {
 				decisionsWarnings++
 			} else {
 				decisionsValid++
-			}
-		}
-	}
-	// Also check individual ADR files in research/
-	if entries, err := ws.ListDir(core.ResearchDir); err == nil {
-		for _, e := range entries {
-			name := e.Name()
-			if e.IsDir() || !strings.HasSuffix(name, ".md") ||
-				strings.HasSuffix(name, "-plan.md") ||
-				strings.HasSuffix(name, "-comparison.md") ||
-				strings.HasSuffix(name, "-conflict-resolution.md") ||
-				strings.EqualFold(name, "RESEARCH-PIPELINE.md") ||
-				strings.EqualFold(name, "FAD.md") ||
-				strings.EqualFold(name, "DECISIONS.md") {
-				continue
-			}
-			relPath := filepath.Join(core.ResearchDir, name)
-			if data, err := ws.ReadFile(relPath); err == nil && len(data) > 0 {
-				v := core.ValidateDecision(data)
-				if v.HasBlocking() {
-					decisionsErrors++
-				} else if v.WarningCount() > 0 {
-					decisionsWarnings++
-				} else {
-					decisionsValid++
-				}
 			}
 		}
 	}

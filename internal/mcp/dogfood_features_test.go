@@ -2,6 +2,7 @@ package mcputil
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -305,6 +306,49 @@ Initial conclusion was X. Grade A (direct analysis)
 	envEmpty := parseEnvelope(t, resEmpty)
 	if envEmpty.Success {
 		t.Error("expected empty amendment to fail")
+	}
+
+	// 4. Amend synthesis session FAD (targeting research/FAD.md)
+	fadContent := `---
+session_id: SYN-01
+title: Founding Architecture Document
+date: 2026-10-01
+status: complete
+---
+# Founding Architecture Document
+Core architecture findings here. Grade A (empirical benchmark)
+`
+	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_save_session",
+		Arguments: map[string]any{
+			"project_root": tmpDir,
+			"session_id":   "SYN-01",
+			"content":      fadContent,
+		},
+	})
+
+	resAmendFAD, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_amend_session",
+		Arguments: map[string]any{
+			"project_root": tmpDir,
+			"session_id":   "FAD",
+			"amendment":    "Post-synthesis review: Added rate limiting layer before ingress.",
+		},
+	})
+	if err != nil {
+		t.Fatalf("amend_session FAD failed: %v", err)
+	}
+	envAmendFAD := parseEnvelope(t, resAmendFAD)
+	if !envAmendFAD.Success {
+		t.Fatalf("amend_session FAD unsuccessful: %s", envAmendFAD.Message)
+	}
+
+	fadDiskData, err := os.ReadFile(filepath.Join(tmpDir, core.FADFile))
+	if err != nil {
+		t.Fatalf("reading amended FAD.md: %v", err)
+	}
+	if !strings.Contains(string(fadDiskData), "Added rate limiting layer before ingress") {
+		t.Errorf("expected amendment in FAD.md, got:\n%s", string(fadDiskData))
 	}
 }
 
@@ -701,3 +745,243 @@ PostgreSQL recommended. Grade A (direct docs)
 		t.Errorf("expected NextStep to include synthesis guidance, got: %s", envSyn.NextStep)
 	}
 }
+
+// TestGate_WhitelistScanning verifies non-ADR artifacts in research/ do not fail the gate
+func TestGate_WhitelistScanning(t *testing.T) {
+	cs := testServer(t)
+	ctx := context.Background()
+	tmpDir := t.TempDir()
+
+	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "vivechak_init",
+		Arguments: map[string]any{"project_root": tmpDir, "scope": "decision"},
+	})
+
+	// Save decision plan
+	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_save_plan",
+		Arguments: map[string]any{
+			"project_root": tmpDir,
+			"scope":        "decision",
+			"decision_id":  "D-001",
+			"pipeline_content": `# Decision Plan: D-001
+| Field | Value |
+|---|---|
+| **Decision** | D-001 |
+| **Door Type** | Two-Way |
+| **Output File** | sessions/S1-storage.md |
+` + "```prompt\n# Brief\n```\n",
+		},
+	})
+
+	// Save session S1-storage
+	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_save_session",
+		Arguments: map[string]any{
+			"project_root": tmpDir,
+			"session_id":   "S1-storage",
+			"content": `---
+session_id: S1-storage
+title: Storage Investigation
+date: 2026-10-01
+status: complete
+---
+# Storage Investigation
+Recommendation: SQLite with WAL. Grade A (official documentation)
+`,
+		},
+	})
+
+	// Record valid accepted ADR
+	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_record_decision",
+		Arguments: map[string]any{
+			"project_root": tmpDir,
+			"decision_id":  "D-001",
+			"content": `---
+id: D-001
+title: Storage Architecture
+status: accepted
+door_type: two-way
+review_trigger: "Scale exceeds 500k writes/sec"
+---
+# D-001: Storage Architecture
+## Context
+Local-first embedded database requirement for high throughput.
+## Decision
+We choose SQLite WAL mode. Grade A (official documentation)
+## Consequences
+Single-writer constraint handled via connection queue.
+`,
+		},
+	})
+
+	// Plant non-ADR markdown files in research/ that should be ignored by whitelist
+	notesPath := filepath.Join(tmpDir, core.ResearchDir, "NOTES.md")
+	_ = os.WriteFile(notesPath, []byte(`---
+status: sealed
+random_field: unexpected
+---
+# General Research Notes
+This is just notes, not an ADR.
+`), 0o644)
+
+	resGate, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "vivechak_run_gate",
+		Arguments: map[string]any{"project_root": tmpDir, "verbose": true},
+	})
+	if err != nil {
+		t.Fatalf("run_gate failed: %v", err)
+	}
+	envGate := parseEnvelope(t, resGate)
+	dataMap := envGate.Data.(map[string]any)
+
+	gatePassed, _ := dataMap["gate_passed"].(bool)
+	if !gatePassed {
+		t.Errorf("expected gate to pass with whitelist scanning, got status %v; warnings: %v; data: %v",
+			dataMap["gate_status"], envGate.Warnings, dataMap)
+	}
+}
+
+// TestGate_DiagnosticErrors verifies actionable diagnostics when ADR is not accepted
+func TestGate_DiagnosticErrors(t *testing.T) {
+	cs := testServer(t)
+	ctx := context.Background()
+	tmpDir := t.TempDir()
+
+	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "vivechak_init",
+		Arguments: map[string]any{"project_root": tmpDir, "scope": "decision"},
+	})
+
+	// Save decision plan
+	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_save_plan",
+		Arguments: map[string]any{
+			"project_root": tmpDir,
+			"scope":        "decision",
+			"decision_id":  "D-001",
+			"pipeline_content": `# Decision Plan: D-001
+| Field | Value |
+|---|---|
+| **Decision** | D-001 |
+| **Door Type** | Two-Way |
+| **Output File** | sessions/S1-storage.md |
+` + "```prompt\n# Brief\n```\n",
+		},
+	})
+
+	// Record ADR with status 'proposed' (not accepted)
+	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_record_decision",
+		Arguments: map[string]any{
+			"project_root": tmpDir,
+			"decision_id":  "D-001",
+			"content": `---
+id: D-001
+title: Unsettled Choice
+status: proposed
+door_type: two-way
+---
+# D-001: Unsettled Choice
+## Context
+Need to pick something with adequate rationale.
+## Decision
+Draft choice. Grade B (estimate)
+## Consequences
+Pending final review.
+`,
+		},
+	})
+
+	resGate, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "vivechak_run_gate",
+		Arguments: map[string]any{"project_root": tmpDir, "verbose": true},
+	})
+	if err != nil {
+		t.Fatalf("run_gate failed: %v", err)
+	}
+	envGate := parseEnvelope(t, resGate)
+
+	foundDiagnostic := false
+	for _, warning := range envGate.Warnings {
+		if strings.Contains(warning, "D-001") &&
+			strings.Contains(warning, "proposed") &&
+			strings.Contains(warning, "status to 'accepted'") {
+			foundDiagnostic = true
+			break
+		}
+	}
+	if !foundDiagnostic {
+		t.Errorf("expected actionable diagnostic error with file/id/status/hint in warnings, got warnings: %v", envGate.Warnings)
+	}
+}
+
+// TestWorkspaceValidate_DecisionSingleSource verifies exact count and no double-counting of DECISIONS.md
+func TestWorkspaceValidate_DecisionSingleSource(t *testing.T) {
+	cs := testServer(t)
+	ctx := context.Background()
+	tmpDir := t.TempDir()
+
+	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "vivechak_init",
+		Arguments: map[string]any{"project_root": tmpDir, "scope": "project"},
+	})
+
+	// Record two decisions
+	for _, id := range []string{"D-001", "D-002"} {
+		_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
+			Name: "vivechak_record_decision",
+			Arguments: map[string]any{
+				"project_root": tmpDir,
+				"decision_id":  id,
+				"content": fmt.Sprintf(`---
+id: %s
+title: Decision %s
+status: accepted
+door_type: two-way
+---
+# %s: Decision %s
+## Context
+Context description for %s with sufficient length.
+## Decision
+Recommendation for %s. Grade A (empirical benchmark)
+## Consequences
+Manageable consequences for %s.
+`, id, id, id, id, id, id, id),
+			},
+		})
+	}
+
+	// Verify DECISIONS.md was compiled
+	if _, err := os.Stat(filepath.Join(tmpDir, core.DecisionsFile)); err != nil {
+		t.Fatalf("DECISIONS.md should exist after record_decision: %v", err)
+	}
+
+	// Plant non-ADR files
+	_ = os.WriteFile(filepath.Join(tmpDir, core.ResearchDir, "NOTES.md"), []byte("# Notes\nNot an ADR"), 0o644)
+	_ = os.WriteFile(filepath.Join(tmpDir, core.ResearchDir, "D-001-plan.md"), []byte("# Plan\nNot an ADR"), 0o644)
+
+	resVal, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "vivechak_validate",
+		Arguments: map[string]any{"project_root": tmpDir},
+	})
+	if err != nil {
+		t.Fatalf("workspace validate failed: %v", err)
+	}
+	envVal := parseEnvelope(t, resVal)
+	dataMap := envVal.Data.(map[string]any)
+	decisionsMap := dataMap["decisions"].(map[string]any)
+
+	validCount := int(decisionsMap["valid"].(float64))
+	errorCount := int(decisionsMap["errors"].(float64))
+
+	// Exactly 2 valid decisions (D-001.md, D-002.md), not 3 (double-counting DECISIONS.md) or 5 (non-ADR files)
+	if validCount != 2 {
+		t.Errorf("expected exactly 2 valid decisions, got %d (data: %v, warnings: %v)", validCount, decisionsMap, envVal.Warnings)
+	}
+	if errorCount != 0 {
+		t.Errorf("expected 0 decision errors, got %d", errorCount)
+	}
+}
+

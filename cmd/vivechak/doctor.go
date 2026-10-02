@@ -113,15 +113,33 @@ func checkWorkspace(workspace string) (bool, []string, []string) {
 	if entries, err := os.ReadDir(filepath.Join(workspace, core.ResearchDir)); err == nil {
 		for _, e := range entries {
 			name := e.Name()
-			if !e.IsDir() && strings.HasSuffix(name, ".md") &&
-				!strings.HasSuffix(name, "-plan.md") &&
-				!strings.EqualFold(name, "RESEARCH-PIPELINE.md") &&
-				!strings.EqualFold(name, "FAD.md") &&
-				!strings.EqualFold(name, "DECISIONS.md") {
-				if data, err := os.ReadFile(filepath.Join(workspace, core.ResearchDir, name)); err == nil {
-					adrContents = append(adrContents, string(data))
+			if e.IsDir() || !strings.HasSuffix(name, ".md") {
+				continue
+			}
+			if strings.HasSuffix(name, "-plan.md") ||
+				strings.HasSuffix(name, "-comparison.md") ||
+				strings.HasSuffix(name, "-conflict-resolution.md") ||
+				strings.EqualFold(name, "DECISIONS.md") ||
+				strings.EqualFold(name, "FAD.md") ||
+				strings.EqualFold(name, "RESEARCH-PIPELINE.md") {
+				continue
+			}
+			isCandidate := strings.HasPrefix(strings.ToUpper(name), "D-")
+			path := filepath.Join(workspace, core.ResearchDir, name)
+			data, err := os.ReadFile(path)
+			if err != nil || len(data) == 0 {
+				continue
+			}
+			if !isCandidate {
+				if fm, _, err := core.ParseFrontmatter(data); err == nil && fm != nil {
+					if !fm.Has("door_type") {
+						continue // Not an ADR
+					}
+				} else {
+					continue
 				}
 			}
+			adrContents = append(adrContents, string(data))
 		}
 	}
 	if len(adrContents) > 0 {

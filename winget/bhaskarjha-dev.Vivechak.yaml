@@ -12,7 +12,7 @@ LicenseUrl: https://github.com/bhaskarjha-dev/vivechak/blob/main/LICENSE
 ShortDescription: Evidence-grounded research for technical decisions — MCP server
 Description: |-
   Vivechak is a meta-framework that generates evidence-grounded research for
-  technical decisions. It works as an MCP server with 9 tools for structured
+  technical decisions. It works as an MCP server with 10 tools for structured
   research pipelines, decision analysis, and option comparison.
 Tags:
   - ai

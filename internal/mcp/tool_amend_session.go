@@ -75,32 +75,44 @@ func handleAmendSession(ctx context.Context, _ *sdkmcp.CallToolRequest, in Amend
 	defer ws.Close()
 
 	// Find the session file
-	sessionsDir := core.SessionsDir
-	var sessionFile string
-	if entries, err := ws.ListDir(sessionsDir); err == nil {
-		for _, e := range entries {
-			if e.IsDir() || filepath.Ext(e.Name()) != ".md" {
-				continue
-			}
-			name := strings.TrimSuffix(e.Name(), ".md")
-			nameUpper := strings.ToUpper(name)
-			idUpper := strings.ToUpper(in.SessionID)
-			if nameUpper == idUpper ||
-				strings.HasPrefix(nameUpper, idUpper+"-") ||
-				strings.HasPrefix(nameUpper, idUpper+"_") {
-				sessionFile = e.Name()
-				break
+	var relPath string
+	var displayName string
+	if core.IsSynthesisSession(in.SessionID) {
+		relPath = core.FADFile
+		displayName = filepath.Base(core.FADFile)
+		if _, err := ws.ReadFile(relPath); err != nil {
+			return ErrorResult(tool,
+				fmt.Errorf("synthesis file %s not found", relPath),
+				"Ensure the synthesis session (FAD) has been saved with vivechak_save_session first.")
+		}
+	} else {
+		sessionsDir := core.SessionsDir
+		var sessionFile string
+		if entries, err := ws.ListDir(sessionsDir); err == nil {
+			for _, e := range entries {
+				if e.IsDir() || filepath.Ext(e.Name()) != ".md" {
+					continue
+				}
+				name := strings.TrimSuffix(e.Name(), ".md")
+				nameUpper := strings.ToUpper(name)
+				idUpper := strings.ToUpper(in.SessionID)
+				if nameUpper == idUpper ||
+					strings.HasPrefix(nameUpper, idUpper+"-") ||
+					strings.HasPrefix(nameUpper, idUpper+"_") {
+					sessionFile = e.Name()
+					break
+				}
 			}
 		}
-	}
 
-	if sessionFile == "" {
-		return ErrorResult(tool,
-			fmt.Errorf("session file for %q not found in %s", in.SessionID, sessionsDir),
-			fmt.Sprintf("Ensure session %s has been saved with vivechak_save_session first.", in.SessionID))
+		if sessionFile == "" {
+			return ErrorResult(tool,
+				fmt.Errorf("session file for %q not found in %s", in.SessionID, sessionsDir),
+				fmt.Sprintf("Ensure session %s has been saved with vivechak_save_session first.", in.SessionID))
+		}
+		relPath = filepath.Join(sessionsDir, sessionFile)
+		displayName = sessionFile
 	}
-
-	relPath := filepath.Join(sessionsDir, sessionFile)
 
 	// Acquire lock
 	unlock, err := store.LockFile(ctx, filepath.Join(root, relPath), 5*time.Second)
@@ -134,9 +146,9 @@ func handleAmendSession(ctx context.Context, _ *sdkmcp.CallToolRequest, in Amend
 	}
 
 	dataMap := map[string]any{
-		"workspace_root":     root,
-		"session_id":         in.SessionID,
-		"file_path":          relPath,
+		"workspace_root":      root,
+		"session_id":          in.SessionID,
+		"file_path":           relPath,
 		"amendment_timestamp": timestamp,
 	}
 	if in.AmendingSessionID != "" {
@@ -145,7 +157,7 @@ func handleAmendSession(ctx context.Context, _ *sdkmcp.CallToolRequest, in Amend
 
 	env := Envelope{
 		Success: true,
-		Message: fmt.Sprintf("Amendment appended to session %s (%s)", in.SessionID, sessionFile),
+		Message: fmt.Sprintf("Amendment appended to session %s (%s)", in.SessionID, displayName),
 		Data:    dataMap,
 		NextStep: "Continue with vivechak_next_session for the next research session, " +
 			"or vivechak_status to review progress.",
