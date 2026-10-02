@@ -60,7 +60,7 @@ vck setup                                    # auto-detect host in current works
 vck mcp-config
 ```
 
-Done. Your agent now has 9 MCP tools for evidence-grounded research. See [Host Setup Guide](docs/HOST-SETUP.md) for harness instructions, desktop shortcuts, and manual setup details.
+Done. Your agent now has 10 MCP tools for evidence-grounded research. See [Host Setup Guide](docs/HOST-SETUP.md) for harness instructions, desktop shortcuts, and manual setup details.
 
 ---
 

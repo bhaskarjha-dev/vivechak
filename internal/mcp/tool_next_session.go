@@ -267,6 +267,23 @@ func handleNextSession(_ context.Context, _ *sdkmcp.CallToolRequest, in NextSess
 		otherReady = append(otherReady, s.ID)
 	}
 
+	// Detect layer transition and add replan prompt
+	if dag != nil {
+		highestCompletedLayer := -1
+		for _, s := range dag.Sessions {
+			if completedIDs[s.ID] && s.Layer > highestCompletedLayer {
+				highestCompletedLayer = s.Layer
+			}
+		}
+		if nextSession.Layer > highestCompletedLayer && highestCompletedLayer >= 0 {
+			injWarnings = append(injWarnings, fmt.Sprintf(
+				"LAYER-TRANSITION: Layer %d complete. Before proceeding: consider whether any "+
+					"remaining sessions should be adjusted based on Layer %d findings. If a session "+
+					"is no longer relevant, you may skip it by saving an empty session with a note "+
+					"explaining why.", highestCompletedLayer, highestCompletedLayer))
+		}
+	}
+
 	return buildSessionResponse(tool, nextSession, prompt, completedIDs, dag, in.Verbose, injWarnings, otherReady...)
 }
 
@@ -291,7 +308,7 @@ func buildSessionResponse(tool string, session core.Session, prompt string, comp
 	displayPrompt := prompt
 	approxTokens := len(prompt) / 4
 	truncated := false
-	if !verbose && approxTokens > 10000 {
+	if !verbose && approxTokens > 10000 && !core.IsSynthesisSession(session.ID) {
 		warnings = append(warnings, "W-OUTPUT-SIZE: Prompt exceeds 10K tokens and was truncated. Use verbose=true for full prompt.")
 		truncated = true
 		if len(prompt) > 2000 {
@@ -350,11 +367,13 @@ func buildSessionResponse(tool string, session core.Session, prompt string, comp
 	} else {
 		if core.IsSynthesisSession(session.ID) {
 			nextStep = fmt.Sprintf(
-				"Synthesize findings from all completed sessions into session %s. "+
+				"Synthesize findings from all %d completed sessions into session %s. "+
 					"Every recommendation must trace to session evidence. Conflicts between "+
 					"sessions must be surfaced, not silently averaged. "+
+					"The Belief Evolution section below shows how priors were confirmed or "+
+					"contradicted — use this to identify the research's strongest and weakest signals. "+
 					"Save with vivechak_save_session using session_id='%s'.",
-				session.ID, session.ID)
+				len(completedIDs), session.ID, session.ID)
 		} else {
 			nextStep = fmt.Sprintf(
 				"Execute the prompt for session %s. Ground every significant claim "+

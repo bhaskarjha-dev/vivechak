@@ -8,8 +8,8 @@ status: proposed               # proposed | accepted | rejected | deprecated | s
 door_type: one-way             # one-way | two-way (sets required evidentiary bar)
 date: YYYY-MM-DD
 confidence: medium             # high | medium | low (decoupled from evidence grade)
-evidence_refs: []              # E-NNN IDs supporting this decision
-informed_by_sessions: []       # T#-## session IDs
+evidence_refs: []              # Optional: E-NNN IDs if you maintain a separate evidence ledger
+informed_by_sessions: []       # Session IDs that informed this decision (primary traceability)
 supersedes: null               # D-NNN ID this supersedes, or null
 superseded_by: null            # D-NNN ID that supersedes this, or null
 amends: null                   # D-NNN ID this partially updates, or null

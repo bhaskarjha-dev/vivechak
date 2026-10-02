@@ -208,6 +208,7 @@ func handleRunGate(_ context.Context, _ *sdkmcp.CallToolRequest, in RunGateInput
 	var trackBIssues []string
 	var trackBPassed int
 	var trackBTotal int
+	var gateAdvisories []string
 
 	switch info.Scope {
 	case core.ScopeComparison:
@@ -248,10 +249,12 @@ func handleRunGate(_ context.Context, _ *sdkmcp.CallToolRequest, in RunGateInput
 			trackBIssues = append(trackBIssues, "No decision session found")
 		}
 		// Check B2: Decision record quality (accepted status, reversal triggers, content)
-		if ok, issues := verifyDecisionsMechanical(ws, info); ok {
+		if ok, bIssues, aWarnings := verifyDecisionsMechanical(ws, info); ok {
 			trackBPassed++
+			gateAdvisories = append(gateAdvisories, aWarnings...)
 		} else {
-			trackBIssues = append(trackBIssues, issues...)
+			trackBIssues = append(trackBIssues, bIssues...)
+			gateAdvisories = append(gateAdvisories, aWarnings...)
 		}
 
 	default: // ScopeProject
@@ -286,10 +289,12 @@ func handleRunGate(_ context.Context, _ *sdkmcp.CallToolRequest, in RunGateInput
 		}
 
 		// Check B3: Decisions mechanical validation (ADR lock status, review triggers)
-		if ok, issues := verifyDecisionsMechanical(ws, info); ok {
+		if ok, bIssues, aWarnings := verifyDecisionsMechanical(ws, info); ok {
 			trackBPassed++
+			gateAdvisories = append(gateAdvisories, aWarnings...)
 		} else {
-			trackBIssues = append(trackBIssues, issues...)
+			trackBIssues = append(trackBIssues, bIssues...)
+			gateAdvisories = append(gateAdvisories, aWarnings...)
 		}
 	}
 
@@ -313,6 +318,9 @@ func handleRunGate(_ context.Context, _ *sdkmcp.CallToolRequest, in RunGateInput
 	}
 	for _, issue := range trackBIssues {
 		warnings = append(warnings, "GATE-QUALITY: "+issue)
+	}
+	for _, adv := range gateAdvisories {
+		warnings = append(warnings, "GATE-ADVISORY: "+adv)
 	}
 
 	var nextStep string
@@ -374,9 +382,9 @@ func handleRunGate(_ context.Context, _ *sdkmcp.CallToolRequest, in RunGateInput
 
 // verifyDecisionsMechanical checks ADR files for mechanical correctness:
 // valid frontmatter, accepted status, and reversal triggers on one-way door decisions.
-func verifyDecisionsMechanical(ws *store.Workspace, info core.WorkspaceInfo) (bool, []string) {
+func verifyDecisionsMechanical(ws *store.Workspace, info core.WorkspaceInfo) (bool, []string, []string) {
 	if !info.HasDecisions {
-		return false, []string{"Cannot check decisions — DECISIONS.md not found"}
+		return false, []string{"Cannot check decisions — DECISIONS.md not found"}, nil
 	}
 
 	var allDecisionChunks [][]byte
@@ -401,12 +409,14 @@ func verifyDecisionsMechanical(ws *store.Workspace, info core.WorkspaceInfo) (bo
 	}
 
 	if len(allDecisionChunks) == 0 {
-		return false, []string{"DECISIONS.md or ADR files appear empty or trivial"}
+		return false, []string{"DECISIONS.md or ADR files appear empty or trivial"}, nil
 	}
 
 	hasDecisionsParsed := false
 	allAccepted := true
 	missingReviewTrigger := 0
+	unreviewedOneWay := 0
+	var unreviewedIDs []string
 	processedIDs := make(map[string]bool)
 
 	checkDecisionFM := func(fm core.Frontmatter) {
@@ -437,6 +447,12 @@ func verifyDecisionsMechanical(ws *store.Workspace, info core.WorkspaceInfo) (bo
 				(fm.Has("review_date") && strings.TrimSpace(fm.GetString("review_date")) != "")
 			if !hasReversal {
 				missingReviewTrigger++
+			}
+			// Check human_reviewed for one-way doors (advisory, not blocking)
+			reviewed := strings.ToLower(strings.TrimSpace(fm.GetString("human_reviewed")))
+			if reviewed != "true" {
+				unreviewedOneWay++
+				unreviewedIDs = append(unreviewedIDs, id)
 			}
 		}
 	}
@@ -471,7 +487,7 @@ func verifyDecisionsMechanical(ws *store.Workspace, info core.WorkspaceInfo) (bo
 	var issues []string
 	if !hasDecisionsParsed {
 		issues = append(issues, "No architectural decisions recorded yet — record decisions using vivechak_record_decision before running the gate")
-		return false, issues
+		return false, issues, nil
 	}
 
 	if !allAccepted {
@@ -481,6 +497,13 @@ func verifyDecisionsMechanical(ws *store.Workspace, info core.WorkspaceInfo) (bo
 		issues = append(issues, fmt.Sprintf("%d one-way door decision(s) lack required reversal triggers (review_trigger / reversal_triggers)", missingReviewTrigger))
 	}
 
-	return allAccepted && missingReviewTrigger == 0, issues
+	// Advisory: warn about unreviewed one-way doors (not blocking)
+	var advisories []string
+	if unreviewedOneWay > 0 {
+		idList := strings.Join(unreviewedIDs, ", ")
+		advisories = append(advisories, fmt.Sprintf("⚠ %d one-way door decision(s) lack human review: %s. Consider reviewing before implementation.", unreviewedOneWay, idList))
+	}
+
+	return allAccepted && missingReviewTrigger == 0, issues, advisories
 }
 

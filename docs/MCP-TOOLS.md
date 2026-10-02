@@ -3,7 +3,7 @@
 > **Last verified against code:** 2026-09-28 (v0.1.0)
 > Tool schemas and behaviors described here should match `internal/mcp/server.go`. If you find discrepancies, please file an issue.
 
-The Model Context Protocol (MCP) server for [Vivechak](../README.md) exposes 9 specialized tools designed to run evidence-grounded research pipelines directly inside any MCP-compatible AI host, agent runtime, or IDE.
+The Model Context Protocol (MCP) server for [Vivechak](../README.md) exposes 10 specialized tools designed to run evidence-grounded research pipelines directly inside any MCP-compatible AI host, agent runtime, or IDE.
 
 Vivechak supports two execution models:
 1. **MCP Server Workflow**: Autonomous or semi-autonomous execution where the host agent calls MCP tools to prepare prompts, manage DAG session progression, validate outputs, record ADRs, and verify Phase 0 exit gates.
@@ -615,10 +615,11 @@ Defined in [`RecordDecisionInput`](../internal/mcp/tool_record_decision.go):
 | Parameter | Type | Required | Description |
 |---|---|---|---|
 | `project_root` | `string` | Optional | Workspace root path. |
-| `artifact_type` | `string` | **Required** | Type of artifact: `decision` \| `conflict-resolution`. |
+| `artifact_type` | `string` | Optional | Type of artifact: `decision` (default) \| `conflict-resolution`. |
 | `decision_id` | `string` | **Required** | Decision identifier (e.g., `D-001`, `D-015`). |
 | `slug` | `string` | Optional | Optional slug for filename (e.g. `primary-database` yields `D-001-primary-database-decision.md`). |
-| `content` | `string` | **Required** | Decision record or conflict resolution content (Markdown with YAML frontmatter). |
+| `content` | `string` | Optional* | Decision record or conflict resolution content (Markdown with YAML frontmatter). *Omit when using `auto_draft_from`. |
+| `auto_draft_from` | `string` | Optional | Session ID to auto-draft decision from (e.g. `R-01`). When provided without `content`, generates a pre-populated draft for review. |
 
 #### Response (`data` field)
 - `workspace_root` (`string`): Workspace path.
@@ -668,24 +669,55 @@ Defined in [`RecordDecisionInput`](../internal/mcp/tool_record_decision.go):
 
 ---
 
-### 8. `vivechak_validate`
+### 8. `vivechak_amend_session`
+**Title:** Amend Session  
+**Annotations:** Read-Only: `false` | Idempotent: `false` | Destructive: `false` | Open-World: `false`
+
+#### Description
+Append a post-hoc amendment note to an existing session file. Preserves original content while documenting evolved understanding.
+
+#### What It Does
+Appends a formatted amendment section (`## Post-Hoc Amendment (appended by <amending_session_id>)`) with timestamp and content to the specified session file. Use when downstream sessions or reviews reveal that an earlier session's findings require modification or clarification.
+
+#### Input Parameters
+Defined in [`AmendSessionInput`](../internal/mcp/tool_amend_session.go):
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `project_root` | `string` | Optional | Workspace root path. |
+| `session_id` | `string` | **Required** | Session ID to amend (e.g., `R-01`, `T1-01`). |
+| `amending_session_id` | `string` | Optional | Session ID that discovered the amendment (optional, for traceability). |
+| `amendment` | `string` | **Required** | Amendment content to append. |
+
+#### Response (`data` field)
+- `workspace_root` (`string`): Workspace path.
+- `session_id` (`string`): Session ID.
+- `file_path` (`string`): Relative output file path.
+- `amendment_timestamp` (`string`): RFC3339 timestamp of the amendment.
+- `amending_session_id` (`string`, optional): Source session attribution.
+
+---
+
+### 9. `vivechak_validate`
 **Title:** Validate Artifact  
 **Annotations:** Read-Only: `true` | Idempotent: `true` | Destructive: `false` | Open-World: `false`
 
 #### Description
-Dry-run validation on any Vivechak artifact (session output, plan, decision record, or FAD).
+Dry-run validation on any Vivechak artifact (session output, plan, decision record, or FAD), or entire workspace validation.
 
 #### What It Does
 Executes non-destructive dry-run validation against session reports, architectural decision records, research plans, or Founding Architecture Documents without modifying files on disk. Returns structural defects (L2 blocking), quality warnings (L3 advisory), and auto-construct recommendations (L1) with concrete hints on how to remediate each finding.
+
+**Workspace Mode:** When `content` is omitted and `project_root` is provided, validates all artifacts in the workspace (sessions, decision registry entries, FAD, pipeline) and returns aggregated counts (`valid`, `warnings`, `errors`) per artifact group.
 
 #### Input Parameters
 Defined in [`ValidateInput`](../internal/mcp/tool_validate.go):
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
-| `project_root` | `string` | Optional | Workspace root path. |
-| `artifact_type` | `string` | **Required** | What to validate: `session` \| `decision` \| `conflict-resolution` \| `plan` \| `fad`. |
-| `content` | `string` | **Required** | Content to validate (Markdown). |
+| `project_root` | `string` | Optional | Workspace root path (required for workspace-wide validation). |
+| `artifact_type` | `string` | Optional | What to validate: `session` \| `decision` \| `conflict-resolution` \| `plan` \| `fad` (omit for workspace validation). |
+| `content` | `string` | Optional | Content to validate (Markdown); omit with `project_root` for workspace-wide validation. |
 
 #### Response (`data` field)
 - `artifact_type` (`string`): Artifact type evaluated.
@@ -749,7 +781,7 @@ Defined in [`ValidateInput`](../internal/mcp/tool_validate.go):
 
 ---
 
-### 9. `vivechak_run_gate`
+### 10. `vivechak_run_gate`
 **Title:** Run Phase 0 Gate  
 **Annotations:** Read-Only: `true` | Idempotent: `true` | Destructive: `false` | Open-World: `false`
 

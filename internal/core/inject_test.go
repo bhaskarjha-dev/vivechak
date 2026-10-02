@@ -634,14 +634,18 @@ This continues the recommended section and must be extracted.
 		if !strings.Contains(extracted, "Weighted Evaluation Matrix") || !strings.Contains(extracted, "PostgreSQL | 9.2") {
 			t.Errorf("expected evaluation matrix to be extracted, got: %s", extracted)
 		}
-		if !strings.Contains(extracted, "Open Questions & Risks") || !strings.Contains(extracted, "Network latency") {
-			t.Errorf("expected risks to be extracted, got: %s", extracted)
+		// Risks, concerns, and failure modes are now extracted into a distinct "Upstream Concerns" subsection
+		if !strings.Contains(extracted, "Upstream Concerns") {
+			t.Errorf("expected Upstream Concerns subsection to be present, got: %s", extracted)
 		}
-		if !strings.Contains(extracted, "Discovered Concerns") || !strings.Contains(extracted, "Storage cost explosion") {
-			t.Errorf("expected concerns to be extracted, got: %s", extracted)
+		if !strings.Contains(extracted, "Network latency") {
+			t.Errorf("expected risk content to be extracted into concerns, got: %s", extracted)
 		}
-		if !strings.Contains(extracted, "Failure Modes & Premortem Analysis") || !strings.Contains(extracted, "Connection pool starvation") {
-			t.Errorf("expected failure modes/premortem to be extracted, got: %s", extracted)
+		if !strings.Contains(extracted, "Storage cost explosion") {
+			t.Errorf("expected concern content to be extracted into concerns, got: %s", extracted)
+		}
+		if !strings.Contains(extracted, "Connection pool starvation") {
+			t.Errorf("expected failure modes to be extracted into concerns, got: %s", extracted)
 		}
 	})
 

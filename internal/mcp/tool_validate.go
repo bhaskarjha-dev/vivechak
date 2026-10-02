@@ -3,17 +3,20 @@ package mcputil
 import (
 	"context"
 	"fmt"
+	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/bhaskarjha-dev/vivechak/internal/core"
+	"github.com/bhaskarjha-dev/vivechak/internal/store"
 	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 // ValidateInput holds the arguments for vivechak_validate.
 type ValidateInput struct {
 	ProjectRoot  string `json:"project_root,omitempty" jsonschema:"workspace root path"`
-	ArtifactType string `json:"artifact_type"           jsonschema:"what to validate: session | decision | plan | fad | conflict"`
-	Content      string `json:"content"                  jsonschema:"content to validate (Markdown)"`
+	ArtifactType string `json:"artifact_type,omitempty" jsonschema:"what to validate: session | decision | plan | fad | conflict (omit for workspace-wide validation)"`
+	Content      string `json:"content,omitempty"        jsonschema:"content to validate (Markdown); omit with project_root for workspace-wide validation"`
 }
 
 func registerValidate(server *sdkmcp.Server) {
@@ -23,7 +26,9 @@ func registerValidate(server *sdkmcp.Server) {
 			Title: "Validate Artifact",
 			Description: "Dry-run validation on any Vivechak artifact (session output, plan, " +
 				"decision record, or FAD). Returns validation issues at all levels without " +
-				"saving anything. Use this to check content before saving. Read-only — no side effects.",
+				"saving anything. Use this to check content before saving. " +
+				"Can also validate an entire workspace: omit content and provide only project_root " +
+				"to validate all artifacts in the workspace. Read-only — no side effects.",
 			Annotations: &sdkmcp.ToolAnnotations{
 				ReadOnlyHint:    true,
 				IdempotentHint:  true,
@@ -38,9 +43,14 @@ func registerValidate(server *sdkmcp.Server) {
 func handleValidate(_ context.Context, _ *sdkmcp.CallToolRequest, in ValidateInput) (*sdkmcp.CallToolResult, Envelope, error) {
 	const tool = "vivechak_validate"
 
+	// Workspace-wide validation: content empty, project_root provided
+	if strings.TrimSpace(in.Content) == "" && strings.TrimSpace(in.ProjectRoot) != "" {
+		return handleWorkspaceValidate(tool, in.ProjectRoot)
+	}
+
 	if strings.TrimSpace(in.Content) == "" {
-		return ErrorResult(tool, fmt.Errorf("content is required"),
-			"Provide the artifact content to validate.")
+		return ErrorResult(tool, fmt.Errorf("content is required (or provide project_root for workspace-wide validation)"),
+			"Provide artifact content to validate, or provide only project_root to validate the entire workspace.")
 	}
 
 	artifactType := in.ArtifactType
@@ -100,6 +110,177 @@ func handleValidate(_ context.Context, _ *sdkmcp.CallToolRequest, in ValidateInp
 		Message:  fmt.Sprintf("Validation complete: %s (%d issues)", validation.Status, len(validation.Issues)),
 		Data:     responseData,
 		Warnings: warnings,
+		NextStep: nextStep,
+		Meta:     NewMeta(tool),
+	}
+	return env.ToResult()
+}
+
+// handleWorkspaceValidate validates all artifacts in a workspace and returns aggregated results.
+func handleWorkspaceValidate(tool string, projectRoot string) (*sdkmcp.CallToolResult, Envelope, error) {
+	root, err := core.ResolveWorkspace(projectRoot)
+	if err != nil {
+		return ErrorResult(tool, err, "Initialize a workspace first with vivechak_init.")
+	}
+
+	if !core.WorkspaceExists(root) {
+		return ErrorResult(tool, fmt.Errorf("workspace not initialized at %s", root),
+			"Run vivechak_init first.")
+	}
+
+	ws, err := store.OpenWorkspace(root)
+	if err != nil {
+		return ErrorResult(tool, fmt.Errorf("opening workspace: %w", err),
+			"Provide a valid workspace.")
+	}
+	defer ws.Close()
+
+	var allWarnings []string
+	results := map[string]any{}
+
+	// Validate sessions
+	sessionsValid := 0
+	sessionsWarnings := 0
+	sessionsErrors := 0
+	if entries, err := ws.ListDir(core.SessionsDir); err == nil {
+		for _, e := range entries {
+			if e.IsDir() || filepath.Ext(e.Name()) != ".md" {
+				continue
+			}
+			relPath := filepath.Join(core.SessionsDir, e.Name())
+			if data, err := ws.ReadFile(relPath); err == nil {
+				v := core.ValidateSession(data)
+				if v.HasBlocking() {
+					sessionsErrors++
+					for _, issue := range v.BlockingIssues() {
+						allWarnings = append(allWarnings, fmt.Sprintf("SESSION %s: %s", e.Name(), issue.String()))
+					}
+				} else if v.WarningCount() > 0 {
+					sessionsWarnings++
+				} else {
+					sessionsValid++
+				}
+			}
+		}
+	}
+	results["sessions"] = map[string]any{
+		"valid":    sessionsValid,
+		"warnings": sessionsWarnings,
+		"errors":   sessionsErrors,
+	}
+
+	// Validate decisions (DECISIONS.md)
+	decisionsValid := 0
+	decisionsWarnings := 0
+	decisionsErrors := 0
+	if data, err := ws.ReadFile(core.DecisionsFile); err == nil && len(data) > 0 {
+		anchoredRe := regexp.MustCompile(`(?s)<!-- DECISION:\s*([A-Za-z0-9_-]+)\s*-->\s*(.*?)\s*<!-- /DECISION:\s*[A-Za-z0-9_-]+\s*-->`)
+		matches := anchoredRe.FindAllSubmatch(data, -1)
+		if len(matches) > 0 {
+			for _, m := range matches {
+				v := core.ValidateDecision(m[2])
+				if v.HasBlocking() {
+					decisionsErrors++
+					for _, issue := range v.BlockingIssues() {
+						allWarnings = append(allWarnings, fmt.Sprintf("DECISIONS.md (%s): %s", string(m[1]), issue.String()))
+					}
+				} else if v.WarningCount() > 0 {
+					decisionsWarnings++
+				} else {
+					decisionsValid++
+				}
+			}
+		} else {
+			v := core.ValidateDecision(data)
+			if v.HasBlocking() {
+				decisionsErrors++
+				for _, issue := range v.BlockingIssues() {
+					allWarnings = append(allWarnings, fmt.Sprintf("DECISIONS.md: %s", issue.String()))
+				}
+			} else if v.WarningCount() > 0 {
+				decisionsWarnings++
+			} else {
+				decisionsValid++
+			}
+		}
+	}
+	// Also check individual ADR files in research/
+	if entries, err := ws.ListDir(core.ResearchDir); err == nil {
+		for _, e := range entries {
+			name := e.Name()
+			if e.IsDir() || !strings.HasSuffix(name, ".md") ||
+				strings.HasSuffix(name, "-plan.md") ||
+				strings.HasSuffix(name, "-comparison.md") ||
+				strings.HasSuffix(name, "-conflict-resolution.md") ||
+				strings.EqualFold(name, "RESEARCH-PIPELINE.md") ||
+				strings.EqualFold(name, "FAD.md") ||
+				strings.EqualFold(name, "DECISIONS.md") {
+				continue
+			}
+			relPath := filepath.Join(core.ResearchDir, name)
+			if data, err := ws.ReadFile(relPath); err == nil && len(data) > 0 {
+				v := core.ValidateDecision(data)
+				if v.HasBlocking() {
+					decisionsErrors++
+				} else if v.WarningCount() > 0 {
+					decisionsWarnings++
+				} else {
+					decisionsValid++
+				}
+			}
+		}
+	}
+	results["decisions"] = map[string]any{
+		"valid":    decisionsValid,
+		"warnings": decisionsWarnings,
+		"errors":   decisionsErrors,
+	}
+
+	// Validate FAD if it exists
+	if data, err := ws.ReadFile(core.FADFile); err == nil && len(data) > 0 {
+		v := core.ValidateFAD(data)
+		fadResult := map[string]any{
+			"status":        v.Status,
+			"error_count":   v.ErrorCount(),
+			"warning_count": v.WarningCount(),
+		}
+		if v.HasBlocking() {
+			for _, issue := range v.BlockingIssues() {
+				allWarnings = append(allWarnings, fmt.Sprintf("FAD.md: %s", issue.String()))
+			}
+		}
+		results["fad"] = fadResult
+	}
+
+	// Validate pipeline if it exists
+	if data, err := ws.ReadFile(core.PipelineFile); err == nil && len(data) > 0 {
+		v := core.ValidatePlan(data)
+		pipeResult := map[string]any{
+			"status":        v.Status,
+			"error_count":   v.ErrorCount(),
+			"warning_count": v.WarningCount(),
+		}
+		if v.HasBlocking() {
+			for _, issue := range v.BlockingIssues() {
+				allWarnings = append(allWarnings, fmt.Sprintf("PIPELINE: %s", issue.String()))
+			}
+		}
+		results["pipeline"] = pipeResult
+	}
+
+	totalIssues := len(allWarnings)
+	var nextStep string
+	if totalIssues > 0 {
+		nextStep = fmt.Sprintf("Workspace has %d issue(s). Review the warnings above and address any blocking issues.", totalIssues)
+	} else {
+		nextStep = "Workspace validation passed. All artifacts are structurally valid."
+	}
+
+	env := Envelope{
+		Success:  true,
+		Message:  fmt.Sprintf("Workspace validation complete (%d issue(s) found)", totalIssues),
+		Data:     results,
+		Warnings: allWarnings,
 		NextStep: nextStep,
 		Meta:     NewMeta(tool),
 	}

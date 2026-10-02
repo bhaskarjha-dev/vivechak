@@ -15,11 +15,12 @@ import (
 
 // RecordDecisionInput holds the arguments for vivechak_record_decision.
 type RecordDecisionInput struct {
-	ProjectRoot  string `json:"project_root,omitempty"  jsonschema:"workspace root path"`
-	ArtifactType string `json:"artifact_type"            jsonschema:"type of artifact: decision | conflict-resolution"`
-	DecisionID   string `json:"decision_id"              jsonschema:"decision identifier (e.g. D-015)"`
-	Slug         string `json:"slug,omitempty"           jsonschema:"slug for decision filename (optional)"`
-	Content      string `json:"content"                   jsonschema:"decision record or conflict resolution content (Markdown with YAML frontmatter)"`
+	ProjectRoot   string `json:"project_root,omitempty"   jsonschema:"workspace root path"`
+	ArtifactType  string `json:"artifact_type,omitempty"  jsonschema:"type of artifact: decision | conflict-resolution (default: decision)"`
+	DecisionID    string `json:"decision_id"              jsonschema:"decision identifier (e.g. D-015)"`
+	Slug          string `json:"slug,omitempty"            jsonschema:"slug for decision filename (optional)"`
+	Content       string `json:"content,omitempty"         jsonschema:"decision record or conflict resolution content (Markdown with YAML frontmatter); omit with auto_draft_from to generate a draft"`
+	AutoDraftFrom string `json:"auto_draft_from,omitempty" jsonschema:"session ID to auto-draft decision from (e.g. R-01); omit content to get a draft for review"`
 }
 
 func registerRecordDecision(server *sdkmcp.Server) {
@@ -30,7 +31,9 @@ func registerRecordDecision(server *sdkmcp.Server) {
 			Description: "Save an Architectural Decision Record (ADR) or conflict resolution. " +
 				"Validates against DECISIONS.template.md or CONFLICT-RESOLUTION.template.md schema. " +
 				"Use artifact_type='decision' for ADRs and 'conflict-resolution' for ACH analysis. " +
-				"Classifies decisions as one-way or two-way door per P2.",
+				"Classifies decisions as one-way or two-way door per P2. " +
+				"Supports auto_draft_from: provide a session ID (omit content) to auto-generate a " +
+				"draft decision from session findings for review before saving.",
 			Annotations: &sdkmcp.ToolAnnotations{
 				ReadOnlyHint:    false,
 				IdempotentHint:  true,
@@ -62,9 +65,50 @@ func handleRecordDecision(ctx context.Context, _ *sdkmcp.CallToolRequest, in Rec
 			"Use a simple ID like 'D-01'.")
 	}
 
+	// Auto-draft mode: generate draft from session if auto_draft_from is set and content is empty
+	if strings.TrimSpace(in.Content) == "" && strings.TrimSpace(in.AutoDraftFrom) != "" {
+		ws, err := store.OpenWorkspace(root)
+		if err != nil {
+			return ErrorResult(tool, fmt.Errorf("opening workspace: %w", err), "Provide a valid workspace.")
+		}
+		defer ws.Close()
+
+		sessionsDir := filepath.Join(root, core.SessionsDir)
+		content, _, err := core.ReadSessionFilePublic(sessionsDir, in.AutoDraftFrom)
+		if err != nil {
+			return ErrorResult(tool, fmt.Errorf("reading session %s: %w", in.AutoDraftFrom, err),
+				"Ensure the session has been saved with vivechak_save_session first.")
+		}
+		if content == "" {
+			return ErrorResult(tool, fmt.Errorf("session file for %q not found", in.AutoDraftFrom),
+				fmt.Sprintf("Ensure session %s has been saved first.", in.AutoDraftFrom))
+		}
+
+		draft, err := core.DraftDecisionFromSession([]byte(content), in.DecisionID)
+		if err != nil {
+			return ErrorResult(tool, fmt.Errorf("auto-drafting decision: %w", err),
+				"Check session content and try again.")
+		}
+
+		env := Envelope{
+			Success: true,
+			Message: fmt.Sprintf("Auto-drafted decision %s from session %s", in.DecisionID, in.AutoDraftFrom),
+			Data: map[string]any{
+				"workspace_root":  root,
+				"decision_id":     in.DecisionID,
+				"source_session":  in.AutoDraftFrom,
+				"draft_content":   draft,
+			},
+			NextStep: "Review the auto-drafted decision below. Edit as needed, " +
+				"then call vivechak_record_decision with the final content.",
+			Meta: NewMeta(tool),
+		}
+		return env.ToResult()
+	}
+
 	if strings.TrimSpace(in.Content) == "" {
-		return ErrorResult(tool, fmt.Errorf("content is required"),
-			"Provide the decision record content (Markdown with YAML frontmatter).")
+		return ErrorResult(tool, fmt.Errorf("content is required (or use auto_draft_from to generate a draft)"),
+			"Provide the decision record content, or use auto_draft_from with a session ID to generate a draft.")
 	}
 
 	if err := validateContentSize(in.Content); err != nil {
@@ -170,7 +214,8 @@ func handleRecordDecision(ctx context.Context, _ *sdkmcp.CallToolRequest, in Rec
 		Data:    dataMap,
 		Warnings: warnings,
 		NextStep: "Run vivechak_next_session for the next research session, or " +
-			"vivechak_status to review overall progress.",
+			"vivechak_record_decision with auto_draft_from=[session_id] to auto-draft " +
+			"a decision from session findings. Use vivechak_status to review progress.",
 		Meta: NewMeta(tool),
 	}
 	return env.ToResult()
@@ -185,6 +230,10 @@ func updateOrAppendDecision(existing []byte, decisionID string, content string) 
 	cleanContent = strings.TrimPrefix(cleanContent, startMarker)
 	cleanContent = strings.TrimSuffix(cleanContent, endMarker)
 	cleanContent = strings.TrimSpace(cleanContent)
+
+	// Wrap raw YAML frontmatter in <details> block for correct rendering
+	cleanContent = wrapFrontmatterForRegistry(cleanContent)
+
 	entry := fmt.Sprintf("%s\n%s\n%s", startMarker, cleanContent, endMarker)
 
 	str := string(existing)
@@ -210,6 +259,91 @@ func updateOrAppendDecision(existing []byte, decisionID string, content string) 
 	}
 
 	return []byte(strings.TrimRight(str, "\n") + "\n\n---\n\n" + entry + "\n")
+}
+
+// wrapFrontmatterForRegistry transforms raw YAML frontmatter (--- delimited)
+// into a collapsible <details> block with a YAML code fence inside.
+// This prevents markdown renderers from treating mid-file --- as horizontal rules.
+func wrapFrontmatterForRegistry(content string) string {
+	// Check if content starts with YAML frontmatter
+	trimmed := strings.TrimSpace(content)
+	if !strings.HasPrefix(trimmed, "---") {
+		return content
+	}
+
+	// Find the closing ---
+	lines := strings.SplitN(trimmed, "\n", 2)
+	if len(lines) < 2 {
+		return content
+	}
+	rest := lines[1]
+	endIdx := strings.Index(rest, "\n---")
+	if endIdx < 0 {
+		return content
+	}
+
+	yamlBlock := rest[:endIdx]
+	afterFrontmatter := strings.TrimSpace(rest[endIdx+4:]) // skip "\n---"
+
+	// Extract summary fields from YAML
+	id := extractYAMLField(yamlBlock, "id")
+	if id == "" {
+		id = extractYAMLField(yamlBlock, "decision_id")
+	}
+	title := extractYAMLField(yamlBlock, "title")
+	doorType := extractYAMLField(yamlBlock, "door_type")
+	status := extractYAMLField(yamlBlock, "status")
+
+	// Build summary line
+	summaryParts := []string{}
+	if id != "" {
+		summaryParts = append(summaryParts, "<strong>"+id+"</strong>")
+	}
+	if title != "" {
+		summaryParts = append(summaryParts, title)
+	}
+	if doorType != "" {
+		summaryParts = append(summaryParts, "<code>"+doorType+"</code>")
+	}
+	if status != "" {
+		summaryParts = append(summaryParts, status)
+	}
+	summaryLine := strings.Join(summaryParts, " · ")
+
+	// Build the <details> block
+	var b strings.Builder
+	b.WriteString("<details>\n")
+	b.WriteString("<summary>" + summaryLine + "</summary>\n\n")
+	b.WriteString("```yaml\n")
+	b.WriteString(strings.TrimSpace(yamlBlock) + "\n")
+	b.WriteString("```\n\n")
+	b.WriteString("</details>\n")
+
+	if afterFrontmatter != "" {
+		b.WriteString("\n" + afterFrontmatter)
+	}
+
+	return b.String()
+}
+
+// extractYAMLField extracts a simple scalar value from a YAML block by key name.
+// Handles quoted and unquoted values. Not a full YAML parser — sufficient for
+// extracting known simple fields from decision frontmatter.
+func extractYAMLField(yaml string, key string) string {
+	for _, line := range strings.Split(yaml, "\n") {
+		trimmed := strings.TrimSpace(line)
+		prefix := key + ":"
+		if strings.HasPrefix(trimmed, prefix) {
+			val := strings.TrimSpace(trimmed[len(prefix):])
+			// Strip surrounding quotes
+			val = strings.TrimPrefix(val, "\"")
+			val = strings.TrimSuffix(val, "\"")
+			val = strings.TrimPrefix(val, "'")
+			val = strings.TrimSuffix(val, "'")
+			return val
+		}
+	}
+	return ""
 }
 
 // findUnanchoredDecision locates an unanchored decision block (YAML frontmatter and optional markdown)

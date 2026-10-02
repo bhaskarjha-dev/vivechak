@@ -80,6 +80,7 @@ func TestToolListing(t *testing.T) {
 		"vivechak_record_decision",
 		"vivechak_validate",
 		"vivechak_run_gate",
+		"vivechak_amend_session",
 	}
 
 	if len(tools) != len(expected) {

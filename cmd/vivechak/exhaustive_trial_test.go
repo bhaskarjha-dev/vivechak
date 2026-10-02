@@ -214,8 +214,8 @@ func TestExhaustive_AllFeatures_AllScenarios(t *testing.T) {
 		}
 		toolList = append(toolList, tool.Name)
 	}
-	if len(toolList) != 9 {
-		t.Fatalf("expected 9 tools, got %d: %v", len(toolList), toolList)
+	if len(toolList) != 10 {
+		t.Fatalf("expected 10 tools, got %d: %v", len(toolList), toolList)
 	}
 
 	// -------------------------------------------------------------
@@ -238,6 +238,12 @@ func TestExhaustive_AllFeatures_AllScenarios(t *testing.T) {
 		env := parseTestEnvelope(t, res)
 		if !env.Success {
 			t.Fatalf("init failed: %s", env.Message)
+		}
+
+		// Verify research/.gitignore was automatically created
+		giPath := filepath.Join(pDir, core.ResearchDir, ".gitignore")
+		if giData, err := os.ReadFile(giPath); err != nil || !strings.Contains(string(giData), "*.lock") {
+			t.Errorf("expected research/.gitignore with *.lock, err: %v, content: %s", err, string(giData))
 		}
 
 		// 3.2 Idempotency test: Call vivechak_init again -> should succeed safely and report already initialized
@@ -601,6 +607,56 @@ Use Raft over QUIC transport.
 		envS2 := parseTestEnvelope(t, resS2)
 		if !envS2.Success {
 			t.Fatalf("save T1-02 failed: %s", envS2.Message)
+		}
+
+		// Post-Hoc Amendment Test: Amend T1-01 based on T1-02 discovery
+		resAmend, err := cs.CallTool(ctx, &mcp.CallToolParams{
+			Name: "vivechak_amend_session",
+			Arguments: map[string]any{
+				"project_root":        pDir,
+				"session_id":          "T1-01",
+				"amending_session_id": "T1-02",
+				"amendment":           "Consensus discovery: RocksDB requires batch commit tuning under Raft leader log replication.",
+			},
+		})
+		if err != nil {
+			t.Fatalf("amend_session T1-01: %v", err)
+		}
+		envAmend := parseTestEnvelope(t, resAmend)
+		if !envAmend.Success {
+			t.Fatalf("amend T1-01 failed: %s", envAmend.Message)
+		}
+
+		// Auto-Draft Decision Test: Request draft for D-002 from session T1-02
+		resDraft, err := cs.CallTool(ctx, &mcp.CallToolParams{
+			Name: "vivechak_record_decision",
+			Arguments: map[string]any{
+				"project_root":    pDir,
+				"decision_id":     "D-002",
+				"auto_draft_from": "T1-02",
+			},
+		})
+		if err != nil {
+			t.Fatalf("auto-draft D-002: %v", err)
+		}
+		envDraft := parseTestEnvelope(t, resDraft)
+		if !envDraft.Success || envDraft.Data["draft_content"] == nil {
+			t.Fatalf("expected auto-draft content for D-002, got: %v", envDraft.Data)
+		}
+
+		// Workspace-Wide Validation Test: call vivechak_validate with only project_root
+		resWsVal, err := cs.CallTool(ctx, &mcp.CallToolParams{
+			Name: "vivechak_validate",
+			Arguments: map[string]any{
+				"project_root": pDir,
+			},
+		})
+		if err != nil {
+			t.Fatalf("workspace validate: %v", err)
+		}
+		envWsVal := parseTestEnvelope(t, resWsVal)
+		if !envWsVal.Success {
+			t.Fatalf("workspace validate failed: %s", envWsVal.Message)
 		}
 
 		// Record Decision D-002 (Two-Way Door)

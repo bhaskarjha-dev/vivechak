@@ -94,9 +94,11 @@ func InjectContext(session Session, sessionsDir string, completedSessions map[st
 }
 
 // gatherAllFindings reads all completed session files and assembles their
-// findings into a single context block.
+// findings into a single context block. For synthesis, also extracts ## Delta
+// sections and aggregates them into a belief evolution block.
 func gatherAllFindings(sessionsDir string, completedSessions map[string]bool) (string, []string, int, error) {
 	var findings []string
+	var deltaEntries []string
 	var sessionIDs []string
 	totalBytes := 0
 	seenFiles := make(map[string]bool)
@@ -121,13 +123,70 @@ func gatherAllFindings(sessionsDir string, completedSessions map[string]bool) (s
 		sessionIDs = append(sessionIDs, id)
 
 		// Extract key findings (frontmatter body)
-		_, body, _ := ParseFrontmatter([]byte(content))
+		fm, body, _ := ParseFrontmatter([]byte(content))
 		excerpt := extractFindings(string(body), id, true)
 		findings = append(findings, excerpt)
 		totalBytes += len(excerpt)
+
+		// Extract Delta section for belief evolution aggregation
+		if delta := extractDeltaSection(string(body)); delta != "" {
+			title := id
+			if fm != nil {
+				if t := fm.GetString("title"); t != "" {
+					title = id + " — " + t
+				}
+			}
+			deltaEntries = append(deltaEntries, fmt.Sprintf("### %s\n%s", title, delta))
+		}
 	}
 
-	return strings.Join(findings, "\n\n---\n\n"), sessionIDs, totalBytes, nil
+	result := strings.Join(findings, "\n\n---\n\n")
+
+	// Append aggregated belief evolution block for synthesis
+	if len(deltaEntries) > 0 {
+		beliefEvolution := "\n\n---\n\n## BELIEF EVOLUTION ACROSS SESSIONS\n\n" +
+			strings.Join(deltaEntries, "\n\n")
+		result += beliefEvolution
+		totalBytes += len(beliefEvolution)
+	}
+
+	return result, sessionIDs, totalBytes, nil
+}
+
+// extractDeltaSection extracts the content under a ## Delta heading from session body.
+// Returns the delta content (without the heading itself), or empty string if not found.
+func extractDeltaSection(body string) string {
+	lines := strings.Split(body, "\n")
+	var deltaContent strings.Builder
+	inDelta := false
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "#") {
+			lower := strings.ToLower(trimmed)
+			if strings.Contains(lower, "delta") && !inDelta {
+				inDelta = true
+				continue
+			} else if inDelta {
+				// Hit another heading at same or higher level — stop
+				level := 0
+				for level < len(trimmed) && trimmed[level] == '#' {
+					level++
+				}
+				if level <= 2 { // ## or # heading ends the delta section
+					break
+				}
+				// Sub-heading within delta — include it
+				deltaContent.WriteString(line + "\n")
+				continue
+			}
+		}
+		if inDelta {
+			deltaContent.WriteString(line + "\n")
+		}
+	}
+
+	return strings.TrimSpace(deltaContent.String())
 }
 
 // gatherDependencyFindings reads only the direct dependency session files.
@@ -156,6 +215,12 @@ func gatherDependencyFindings(sessionsDir string, dependencies []string) (string
 	}
 
 	return strings.Join(findings, "\n\n---\n\n"), sessionIDs, totalBytes, nil
+}
+
+// ReadSessionFilePublic is the exported wrapper around readSessionFile.
+// Used by the MCP layer for auto-drafting decisions from session content.
+func ReadSessionFilePublic(sessionsDir string, sessionID string) (string, string, error) {
+	return readSessionFile(sessionsDir, sessionID)
 }
 
 // readSessionFile reads a session file from the sessions directory.
@@ -238,12 +303,15 @@ func readSessionFile(sessionsDir string, sessionID string) (string, string, erro
 // When isSynthesis is true, rejected alternatives & tradeoffs are retained so FAD
 // synthesis (Section 5) has access to them (Principle P8). When false, they are excluded
 // to prevent context contamination in intermediate research prompts (Principle P6).
+// Concern/risk/failure headings are tracked separately and emitted as a distinct
+// "Upstream Concerns" subsection to make them visible for stress-testing.
 func extractFindings(body string, sessionID string, isSynthesis bool) string {
 	if body == "" {
 		return ""
 	}
 
 	var substantiveContent strings.Builder
+	var concernContent strings.Builder
 	type headingEntry struct {
 		level int
 		line  string
@@ -255,7 +323,16 @@ func extractFindings(body string, sessionID string, isSynthesis bool) string {
 	lines := strings.Split(body, "\n")
 	inRelevantSection := false
 	inRejectedSection := false
+	inConcernSection := false
 	fenceLen := 0
+
+	// isConcernHeading checks if a lowercase heading indicates a concern/risk section
+	isConcernHeading := func(lower string) bool {
+		return strings.Contains(lower, "concern") ||
+			strings.Contains(lower, "risk") ||
+			strings.Contains(lower, "failure") ||
+			strings.Contains(lower, "premortem")
+	}
 
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
@@ -265,7 +342,9 @@ func extractFindings(body string, sessionID string, isSynthesis bool) string {
 		if fenceLen == 0 {
 			if nTicks >= 3 {
 				fenceLen = nTicks
-				if inRelevantSection && !inRejectedSection {
+				if inConcernSection {
+					concernContent.WriteString(line + "\n")
+				} else if inRelevantSection && !inRejectedSection {
 					for _, h := range pendingHeadings {
 						substantiveContent.WriteString(h.line + "\n")
 					}
@@ -278,14 +357,18 @@ func extractFindings(body string, sessionID string, isSynthesis bool) string {
 		} else {
 			if nTicks >= fenceLen && strings.TrimSpace(trimmed[nTicks:]) == "" {
 				fenceLen = 0
-				if inRelevantSection && !inRejectedSection {
+				if inConcernSection {
+					concernContent.WriteString(line + "\n")
+				} else if inRelevantSection && !inRejectedSection {
 					substantiveContent.WriteString(line + "\n")
 					substantiveBytes += len(trimmed)
 				}
 				continue
 			}
 			// Line is inside code block; preserve if in relevant section without parsing as headings
-			if inRelevantSection && !inRejectedSection && trimmed != "" {
+			if inConcernSection && trimmed != "" {
+				concernContent.WriteString(line + "\n")
+			} else if inRelevantSection && !inRejectedSection && trimmed != "" {
 				for _, h := range pendingHeadings {
 					substantiveContent.WriteString(h.line + "\n")
 				}
@@ -302,10 +385,22 @@ func extractFindings(body string, sessionID string, isSynthesis bool) string {
 			if !isSynthesis && (strings.Contains(lower, "rejected") || strings.Contains(lower, "alternatives considered")) {
 				inRejectedSection = true
 				inRelevantSection = false
+				inConcernSection = false
 				pendingHeadings = nil
 				continue
 			}
 			inRejectedSection = false
+
+			// Check if this is a concern heading — track separately
+			if isConcernHeading(lower) {
+				inConcernSection = true
+				inRelevantSection = false
+				pendingHeadings = nil
+				// Don't add concern heading to pending — we emit concerns separately
+				continue
+			}
+
+			inConcernSection = false
 			inRelevantSection = strings.Contains(lower, "recommend") ||
 				strings.Contains(lower, "finding") ||
 				strings.Contains(lower, "conclusion") ||
@@ -321,11 +416,7 @@ func extractFindings(body string, sessionID string, isSynthesis bool) string {
 				strings.Contains(lower, "architecture") ||
 				strings.Contains(lower, "matrix") ||
 				strings.Contains(lower, "evaluat") ||
-				strings.Contains(lower, "risk") ||
-				strings.Contains(lower, "concern") ||
 				strings.Contains(lower, "tradeoff") ||
-				strings.Contains(lower, "failure") ||
-				strings.Contains(lower, "premortem") ||
 				strings.Contains(lower, "sensitiv") ||
 				strings.Contains(lower, "criteri") ||
 				(isSynthesis && (strings.Contains(lower, "rejected") || strings.Contains(lower, "alternatives considered")))
@@ -346,6 +437,16 @@ func extractFindings(body string, sessionID string, isSynthesis bool) string {
 		}
 
 		if inRejectedSection {
+			continue
+		}
+
+		// Concern section content — track separately
+		if inConcernSection && trimmed != "" {
+			if strings.HasPrefix(trimmed, "- ") || strings.HasPrefix(trimmed, "* ") {
+				concernContent.WriteString(trimmed + "\n")
+			} else {
+				concernContent.WriteString("- " + trimmed + "\n")
+			}
 			continue
 		}
 
@@ -378,10 +479,21 @@ func extractFindings(body string, sessionID string, isSynthesis bool) string {
 		if len(body) > maxLen {
 			result += "\n\n... [truncated for context injection]"
 		}
+		// Append concerns even in fallback
+		if concerns := strings.TrimSpace(concernContent.String()); concerns != "" {
+			result += "\n\n### Upstream Concerns (stress-test these)\n" + concerns
+		}
 		return result
 	}
 
-	return fmt.Sprintf("## Findings from %s\n\n%s", sessionID, substantiveContent.String())
+	result := fmt.Sprintf("## Findings from %s\n\n%s", sessionID, substantiveContent.String())
+
+	// Append discovered concerns as a distinct subsection
+	if concerns := strings.TrimSpace(concernContent.String()); concerns != "" {
+		result += "\n### Upstream Concerns (stress-test these)\n" + concerns + "\n"
+	}
+
+	return result
 }
 
 // injectIntoPrompt replaces a slot placeholder with the given content.

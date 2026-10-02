@@ -139,9 +139,18 @@ func handleInit(_ context.Context, req *sdkmcp.CallToolRequest, in InitInput) (*
 		}
 	}
 
-	// Copy templates from embedded assets
+	// Write .gitignore to exclude operational files (only if it doesn't already exist)
 	var copied []string
 	var warnings []string
+	gitignoreRel := filepath.Join(core.ResearchDir, ".gitignore")
+	if !ws.FileExists(gitignoreRel) {
+		gitignoreContent := []byte("# Vivechak operational files\n*.lock\n")
+		if err := store.WriteFileAtomic(ws.Root(), gitignoreRel, gitignoreContent, 0o644); err != nil {
+			warnings = append(warnings, fmt.Sprintf("W-GITIGNORE: could not write .gitignore: %v", err))
+		}
+	}
+
+	// Copy templates from embedded assets
 	for _, tmpl := range core.TemplatesForScope(scope) {
 		data, err := vembed.ReadTemplate(tmpl)
 		if err != nil {

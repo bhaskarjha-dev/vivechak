@@ -55,6 +55,34 @@ func ParseFrontmatter(data []byte) (Frontmatter, []byte, error) {
 	trimmed := d[start:]
 	hasOuterFence := false
 
+	// Check if wrapped in <details> block (e.g. registry decision entries with collapsible metadata)
+	if bytes.HasPrefix(trimmed, []byte("<details>")) || bytes.HasPrefix(trimmed, []byte("<details ")) || bytes.HasPrefix(trimmed, []byte("<details\n")) || bytes.HasPrefix(trimmed, []byte("<details\r\n")) {
+		detailsClose := bytes.Index(trimmed, []byte("</details>"))
+		if detailsClose != -1 {
+			detailsContent := trimmed[:detailsClose]
+			// Look for ```yaml inside <details>...</details>
+			yamlStart := bytes.Index(detailsContent, []byte("```yaml"))
+			if yamlStart != -1 {
+				yamlStartLine := yamlStart + 7
+				if nl := bytes.IndexByte(detailsContent[yamlStartLine:], '\n'); nl != -1 {
+					yamlContentStart := yamlStartLine + nl + 1
+					yamlEnd := bytes.Index(detailsContent[yamlContentStart:], []byte("```"))
+					if yamlEnd != -1 {
+						yamlBlock := detailsContent[yamlContentStart : yamlContentStart+yamlEnd]
+						fm := make(Frontmatter)
+						if err := yaml.Unmarshal(yamlBlock, &fm); err == nil && len(fm) > 0 {
+							bodyStart := detailsClose + 10 // len("</details>")
+							for bodyStart < len(trimmed) && (trimmed[bodyStart] == '\r' || trimmed[bodyStart] == '\n' || trimmed[bodyStart] == ' ' || trimmed[bodyStart] == '\t') {
+								bodyStart++
+							}
+							return fm, trimmed[bodyStart:], nil
+						}
+					}
+				}
+			}
+		}
+	}
+
 	// Check if wrapped in code fence, e.g. ```yaml or ```
 	if bytes.HasPrefix(trimmed, []byte("```yaml")) || bytes.HasPrefix(trimmed, []byte("```")) {
 		nl := bytes.IndexByte(trimmed, '\n')

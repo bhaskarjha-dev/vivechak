@@ -639,3 +639,46 @@ title: Test
 	})
 }
 
+func TestParseFrontmatter_DetailsBlock(t *testing.T) {
+	input := `<details>
+<summary><strong>D-001</strong> · Database Selection · <code>one-way</code> · accepted</summary>
+
+` + "```yaml" + `
+id: D-001
+title: Database Selection
+door_type: one-way
+status: accepted
+human_reviewed: true
+` + "```" + `
+
+</details>
+
+# D-001: Database Selection
+
+We selected PostgreSQL for relational persistence.
+`
+	fm, body, err := ParseFrontmatter([]byte(input))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if fm == nil {
+		t.Fatalf("expected non-nil frontmatter from details block")
+	}
+	if fm.GetString("id") != "D-001" {
+		t.Errorf("expected id D-001, got %q", fm.GetString("id"))
+	}
+	if fm.GetString("door_type") != "one-way" {
+		t.Errorf("expected door_type one-way, got %q", fm.GetString("door_type"))
+	}
+	if fm.GetString("status") != "accepted" {
+		t.Errorf("expected status accepted, got %q", fm.GetString("status"))
+	}
+	if !strings.Contains(string(body), "# D-001: Database Selection") {
+		t.Errorf("expected body to contain header, got: %s", string(body))
+	}
+	if !strings.Contains(string(body), "PostgreSQL") {
+		t.Errorf("expected body to contain PostgreSQL, got: %s", string(body))
+	}
+}
+
+
