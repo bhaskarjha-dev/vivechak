@@ -148,6 +148,6 @@ All are `verification_method: fetched`. I read the repo files, METR's post and T
 2. **Predictive validity.** Does any L3 signal predict blind-audited claim support or later ADR reversal? Ground truth is the gap behind GA-04. Start logging P8 `prediction` and `review_date` outcomes now; they're the only long-horizon ground truth.
 3. **Visibility effect.** Does showing the validator's output change agent behavior? A/B hidden vs visible advisory checks, measuring label inflation, length and unsupported-claim rate.
 4. **Self-assessment bias.** If the host shares the author's model family, LLM-judge self-preference applies. Do your P7 critique probes mitigate it?
-5. **Who fetches.** Can Vivechak mint source IDs in a host-agent architecture, or only once the Engine controls API calls (v0.2+)?
+5. **Who fetches.** Can Vivechak mint source IDs in a host-agent architecture, or only once the Engine controls API calls (future milestones)?
 
 Want this as a D-016 decision-record draft in your ADR frontmatter format?

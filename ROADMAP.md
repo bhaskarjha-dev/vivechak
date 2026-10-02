@@ -27,7 +27,7 @@ Vivechak v0.1.0 marks the initial unified release combining the evidence-grounde
 2024–2025          8 independent project pipelines → pre-development patterns discovered
 Mid 2026           Methodology Genesis: 11 meta-research sessions tested legacy axioms
 Late 2026 (v0.1.0) Initial Unified Release: Go MCP Server (9 tools), Multi-Scope Generators, Package Distribution
-Next (v0.2.0)      Host feedback, client auto-discovery, telemetry & cost tracking
+Next (v0.1.x)      Host feedback, client auto-discovery, telemetry & cost tracking
 Future (v1.0.0)    First LTS release — frozen MCP tool schemas, locked template contracts, knowledge graph
 ```
 
@@ -242,7 +242,7 @@ These items were evaluated during Phase 4 planning and deferred to the MCP serve
 
 ## Future Roadmap
 
-### Phase 6: Research Frontiers (v0.2.0+ and v1.0.0 Milestones)
+### Phase 6: Research Frontiers (v0.1.x+ and v1.0.0 Milestones)
 
 These require significant accumulated project data from MCP server usage. Each has explicit gate conditions:
 

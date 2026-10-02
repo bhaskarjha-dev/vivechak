@@ -15,7 +15,7 @@
 
 ## Context
 
-This research informed Vivechak v0.2.0:
+This research informed Vivechak v0.1.0:
 1. **Prompt Architecture Evolution:** Expanding from 5 to 8 blocks (`DECISION`, `KNOWN`, `CALIBRATION`, `DONE`), introducing dynamic moves vocabulary (`DEEPEN`/`WIDEN`/`CORROBORATE`/`FALSIFY`/`PIVOT`), iterative research self-correction, and `Prior`/`Delta` epistemic tracking.
 2. **Advisory Validation Philosophy:** Transitioning from rigid blocking enforcement to enablement and advisory quality observations, grounded in empirical evidence against composite scoring and gaming.
 3. **Hybrid Execution Patterns:** Supporting both headless MCP agent loops and interactive manual/browser research sessions via the Manual Session Card pattern ([`HYBRID-EXECUTION.md`](../../HYBRID-EXECUTION.md)).

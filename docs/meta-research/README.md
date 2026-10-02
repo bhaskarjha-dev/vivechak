@@ -17,7 +17,7 @@ the framework practices what it preaches.
 | [`v2/FINAL-PLAN.md`](v2/FINAL-PLAN.md) | The definitive implementation plan for v0.1.0 — 5 phases, risk register, kill criteria |
 | [`v2/RESEARCH-PIPELINE-v2.md`](v2/RESEARCH-PIPELINE-v2.md) | MCP server & multi-scope research pipeline (D-011–D-014) |
 | [`v2/README.md`](v2/README.md) | MCP server & multi-scope research context and methodology notes |
-| [`v3/README.md`](v3/README.md) | v0.2.0 meta-research index — prompt evolution, advisory validation, hybrid execution |
+| [`v3/README.md`](v3/README.md) | v0.1.0 meta-research index — prompt evolution, advisory validation, hybrid execution |
 | [`v3/D-UX-01-cli-design.md`](v3/D-UX-01-cli-design.md) | CLI subcommand architecture and command taxonomy research (informs D-015) |
 | [`v3/D-UX-02-validation-depth.md`](v3/D-UX-02-validation-depth.md) | Research depth validation and advisory vs blocking philosophy (informs D-016) |
 | [`v3/D-UX-03-hybrid-workflow.md`](v3/D-UX-03-hybrid-workflow.md) | Hybrid MCP/Manual workflow and HITL execution patterns |
