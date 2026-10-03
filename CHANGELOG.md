@@ -33,6 +33,7 @@ First public release of the automated **Vivechak (विवेचक)** system �
   - `COMPARISON-SESSION.template.md`: Standardized WEP comparison session output structure.
   - `FOUNDING-ARCHITECTURE.template.md`: Map-Reduce synthesis template for technical architectures.
   - `PHASE-0-GATE.template.md`: Two-track pre-codebase exit gate with Klein premortem protocol.
+  - `SESSION.template.md`: Standard research session output format with YAML frontmatter, evidence ledger, and delta tracking.
 - **CLI Subcommands & Shorthand Alias:**
   - `vck` official 3-letter shorthand CLI binary alias installed alongside `vivechak` across Homebrew, Scoop, WinGet, and shell installers (100% collision-free across all OS and package ecosystems).
   - `vck setup` (aliased with `install`) subcommand enabling single-command host setup (`vck setup cursor`, `vck setup claude`, `vck setup vscode`), workspace auto-detection (`vck setup` with zero arguments), direct custom config file targeting, and `--dry-run` (`-n`) preview mode.

@@ -137,7 +137,7 @@ vivechak/
 │
 ├── internal/                       ← Server implementation
 │   ├── core/                       ← Pure logic (workspace, DAG, validation)
-│   ├── mcp/                        ← 9 MCP tool handlers
+│   ├── mcp/                        ← 10 MCP tool handlers
 │   ├── store/                      ← Atomic file I/O with os.Root confinement
 │   └── embed/                      ← Embedded generators + templates
 │
@@ -158,7 +158,7 @@ vivechak/
 ├── FRAMEWORK.md                    ← Deep methodology reference
 ├── docs/HOST-SETUP.md              ← Universal MCP setup & desktop shortcuts
 │
-├── templates/                      ← 5 operational contracts (copy to projects)
+├── templates/                      ← 6 operational contracts (copy to projects)
 ├── examples/                       ← Concrete adoption walkthroughs
 ├── docs/meta-research/              ← 14 locked ADRs + evidence provenance
 │

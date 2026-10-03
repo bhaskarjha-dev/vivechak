@@ -30,6 +30,7 @@ func registerSavePlan(server *sdkmcp.Server) {
 			Title: "Save Research Plan",
 			Description: "Validate and persist an agent-generated research plan. " +
 				"At project scope: validates DAG structure and saves RESEARCH-PIPELINE.md + DECISIONS.md. " +
+				"Dependencies are plain session IDs (e.g. 'T0-01, T0-03'); do not include qualifiers like 'Hard:' or 'Soft:'. " +
 				"At decision scope: validates routing and saves [ID]-PLAN.md + proposed ADR. " +
 				"At comparison scope: saves the generated comparison prompt. " +
 				"Runs L1-L2 validation before saving — blocks on structural errors, warns on quality issues.",

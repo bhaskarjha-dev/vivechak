@@ -2,7 +2,6 @@ package core
 
 import (
 	"fmt"
-	"regexp"
 	"strings"
 	"time"
 )
@@ -44,19 +43,20 @@ func DraftDecisionFromSession(sessionContent []byte, decisionID string) (string,
 
 	// YAML frontmatter
 	b.WriteString("---\n")
-	b.WriteString(fmt.Sprintf("id: %s\n", decisionID))
+	fmt.Fprintf(&b, "id: %s\n", decisionID)
 	if sessionTitle != "" {
-		b.WriteString(fmt.Sprintf("title: \"%s\"\n", sessionTitle))
+		escapedTitle := strings.ReplaceAll(strings.ReplaceAll(sessionTitle, `\`, `\\`), `"`, `\"`)
+		fmt.Fprintf(&b, "title: \"%s\"\n", escapedTitle)
 	} else {
 		b.WriteString("title: \"[Decision Title]\"\n")
 	}
 	b.WriteString("status: proposed\n")
 	b.WriteString("door_type: one-way             # one-way | two-way\n")
-	b.WriteString(fmt.Sprintf("date: %s\n", time.Now().UTC().Format("2006-01-02")))
+	fmt.Fprintf(&b, "date: %s\n", time.Now().UTC().Format("2006-01-02"))
 	b.WriteString("confidence: medium             # high | medium | low\n")
 	b.WriteString("evidence_refs: []              # Optional: E-NNN IDs if you maintain a separate evidence ledger\n")
 	if sessionID != "" {
-		b.WriteString(fmt.Sprintf("informed_by_sessions: [\"%s\"]\n", sessionID))
+		fmt.Fprintf(&b, "informed_by_sessions: [\"%s\"]\n", sessionID)
 	} else {
 		b.WriteString("informed_by_sessions: []\n")
 	}
@@ -73,7 +73,7 @@ func DraftDecisionFromSession(sessionContent []byte, decisionID string) (string,
 	b.WriteString("---\n\n")
 
 	// Body
-	b.WriteString(fmt.Sprintf("# %s: %s\n\n", decisionID, sessionTitle))
+	fmt.Fprintf(&b, "# %s: %s\n\n", decisionID, sessionTitle)
 
 	// Context
 	b.WriteString("## Context & Problem Statement\n\n")
@@ -119,11 +119,11 @@ func DraftDecisionFromSession(sessionContent []byte, decisionID string) (string,
 	return b.String(), nil
 }
 
-// extractSection extracts the first matching section from body content.
+// ExtractSection extracts the first matching section from body content.
 // Searches for headings containing any of the keywords.
 // Once inside the section, child headings (higher level number, e.g. ### inside ##)
 // are retained as content, while sibling or parent headings (<= sectionLevel) terminate extraction.
-func extractSection(body string, keywords ...string) string {
+func ExtractSection(body string, keywords ...string) string {
 	lines := strings.Split(body, "\n")
 	var result strings.Builder
 	inSection := false
@@ -170,11 +170,13 @@ func extractSection(body string, keywords ...string) string {
 	return strings.TrimSpace(result.String())
 }
 
-// extractEvidenceGrades finds all inline evidence grade markers in the body.
-var draftEvidencePattern = regexp.MustCompile(`(?:\[?[Gg]rade\s+[A-E][^\]\)\n]*\]?|\b[A-E]\s*\([^)]+\)|\([Gg]rade\s+[A-E][^)]*\)|\([A-E]\s*[·|][^)]*\))`)
+// extractSection is an alias for ExtractSection.
+func extractSection(body string, keywords ...string) string {
+	return ExtractSection(body, keywords...)
+}
 
 func extractEvidenceGrades(body string) []string {
-	matches := draftEvidencePattern.FindAllString(body, 20)
+	matches := EvidenceGradePattern.FindAllString(body, 20)
 	if len(matches) == 0 {
 		return nil
 	}

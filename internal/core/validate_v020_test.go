@@ -399,4 +399,194 @@ func TestIsLikelyYearReference_EdgeCases(t *testing.T) {
 	}
 }
 
+func TestObserveSessionQuality_GradeDistribution(t *testing.T) {
+	// >70% Grade A with >=4 grades triggers warning
+	contentSkewed := []byte(`
+## Prior
+Initial assumption.
+## Key Findings
+- Finding 1 [Grade A]
+- Finding 2 [Grade A]
+- Finding 3 [Grade A]
+- Finding 4 [Grade A]
+- Finding 5 [Grade B]
+## Discovered Concerns
+None major.
+## Delta
+Contradicted old belief.
+`)
+	obs := ObserveSessionQuality(contentSkewed)
+	foundDist := false
+	for _, o := range obs {
+		if o.Category == "evidence" && strings.Contains(o.Message, "Grade distribution") {
+			foundDist = true
+			break
+		}
+	}
+	if !foundDist {
+		t.Error("expected grade distribution warning when Grade A > 70%")
+	}
+
+	// Balanced distribution does not trigger warning
+	contentBalanced := []byte(`
+## Prior
+Initial assumption.
+## Key Findings
+- Finding 1 [Grade A]
+- Finding 2 [Grade A]
+- Finding 3 [Grade B]
+- Finding 4 [Grade B]
+- Finding 5 [Grade C]
+## Discovered Concerns
+None major.
+## Delta
+Contradicted old belief.
+`)
+	obs2 := ObserveSessionQuality(contentBalanced)
+	for _, o := range obs2 {
+		if o.Category == "evidence" && strings.Contains(o.Message, "Grade distribution") {
+			t.Errorf("unexpected grade distribution warning on balanced grades: %v", o)
+		}
+	}
+}
+
+func TestObserveSessionQuality_DiscoveredConcerns(t *testing.T) {
+	contentNoConcerns := []byte(`
+## Prior
+Initial assumption.
+## Key Findings
+- Finding 1 [Grade A]
+- Finding 2 [Grade B]
+- Finding 3 [Grade B]
+## Delta
+Contradicted old belief.
+`)
+	obs := ObserveSessionQuality(contentNoConcerns)
+	foundConcerns := false
+	for _, o := range obs {
+		if o.Category == "concerns" && strings.Contains(o.Message, "Discovered Concerns") {
+			foundConcerns = true
+			break
+		}
+	}
+	if !foundConcerns {
+		t.Error("expected Discovered Concerns observation when section missing")
+	}
+
+	contentWithConcerns := []byte(`
+## Prior
+Initial assumption.
+## Key Findings
+- Finding 1 [Grade A]
+- Finding 2 [Grade B]
+- Finding 3 [Grade B]
+## Discovered Concerns
+Found latency spikes under load.
+## Delta
+Contradicted old belief.
+`)
+	obs2 := ObserveSessionQuality(contentWithConcerns)
+	for _, o := range obs2 {
+		if o.Category == "concerns" && strings.Contains(o.Message, "Discovered Concerns") {
+			t.Errorf("unexpected concerns observation when section present: %v", o)
+		}
+	}
+}
+
+func TestObserveSessionQuality_KeyFindingsCount(t *testing.T) {
+	contentFewFindings := []byte(`
+## Prior
+Initial assumption.
+## Key Findings
+- Only one finding [Grade A]
+## Discovered Concerns
+Concerns.
+## Delta
+Contradicted old belief.
+`)
+	obs := ObserveSessionQuality(contentFewFindings)
+	foundDepth := false
+	for _, o := range obs {
+		if o.Category == "depth" && strings.Contains(o.Message, "Only 1 key finding") {
+			foundDepth = true
+			break
+		}
+	}
+	if !foundDepth {
+		t.Error("expected depth observation when fewer than 3 findings")
+	}
+}
+
+func TestObserveSessionQuality_GradeAURLs(t *testing.T) {
+	contentNoURL := []byte(`
+## Prior
+Initial assumption.
+## Key Findings
+- Primary claim [Grade A]
+## Discovered Concerns
+Concerns.
+## Delta
+Contradicted old belief.
+## Evidence Ledger
+| Claim | Grade A · fetched | Missing URL |
+`)
+	obs := ObserveSessionQuality(contentNoURL)
+	foundURLWarn := false
+	for _, o := range obs {
+		if o.Category == "evidence" && strings.Contains(o.Message, "lack URLs") {
+			foundURLWarn = true
+			break
+		}
+	}
+	if !foundURLWarn {
+		t.Error("expected URL warning for Grade A fetched citation without URL")
+	}
+
+	contentWithURL := []byte(`
+## Prior
+Initial assumption.
+## Key Findings
+- Primary claim [Grade A]
+## Discovered Concerns
+Concerns.
+## Delta
+Contradicted old belief.
+## Evidence Ledger
+| Claim | Grade A · fetched | https://docs.example.com/spec |
+`)
+	obs2 := ObserveSessionQuality(contentWithURL)
+	for _, o := range obs2 {
+		if o.Category == "evidence" && strings.Contains(o.Message, "lack URLs") {
+			t.Errorf("unexpected URL warning when URL present: %v", o)
+		}
+	}
+}
+
+func TestHasSectionHeading(t *testing.T) {
+	tests := []struct {
+		name     string
+		body     string
+		keywords []string
+		want     bool
+	}{
+		{"level 1 heading", "# Prior Beliefs\nSome text.", []string{"prior"}, true},
+		{"level 2 heading", "## Prior\nSome text.", []string{"prior"}, true},
+		{"level 3 heading", "### Discovered Concerns & Landmines\nDetails.", []string{"discovered concerns", "discovered concern"}, true},
+		{"level 4 heading", "#### Delta and Changes\nTable.", []string{"delta"}, true},
+		{"compound keywords", "## Key Findings & Benchmarks\n- A", []string{"key findings"}, true},
+		{"narrative text not heading", "In the prior era, we used monoliths.\nNow microservices.", []string{"prior"}, false},
+		{"subheading match", "## Context\n### Prior Knowledge\nNotes.", []string{"prior"}, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := hasSectionHeading(tt.body, tt.keywords...)
+			if got != tt.want {
+				t.Errorf("hasSectionHeading(%q, %v) = %v; want %v", tt.body, tt.keywords, got, tt.want)
+			}
+		})
+	}
+}
+
+
 

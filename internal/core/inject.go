@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"unicode/utf8"
 )
 
 // ContextSlot defines a placeholder in a session prompt that should be
@@ -179,10 +180,24 @@ func buildTechnologyMatrix(rows []SessionTechRow) string {
 		}
 		tech := cleanTableCell(r.Tech)
 		tags := cleanTableCell(r.Tags)
-		sb.WriteString(fmt.Sprintf("| %s | %s | %s | %s |\n", r.SessionID, topic, tech, tags))
+		fmt.Fprintf(&sb, "| %s | %s | %s | %s |\n", r.SessionID, topic, tech, tags)
 	}
 	sb.WriteString("\n**Check for coherence:** Do these technology choices work together? Flag any\nruntime conflicts (e.g. CGo requirements across multiple sessions, conflicting\nlanguage runtimes, incompatible dependency versions).\n")
 	return sb.String()
+}
+
+// safeTruncateUTF8 truncates s to at most maxBytes without splitting a multi-byte UTF-8 rune.
+func safeTruncateUTF8(s string, maxBytes int) string {
+	if len(s) <= maxBytes {
+		return s
+	}
+	if maxBytes <= 0 {
+		return ""
+	}
+	for maxBytes > 0 && !utf8.RuneStart(s[maxBytes]) {
+		maxBytes--
+	}
+	return s[:maxBytes]
 }
 
 // budgetFindings progressively trims findings if total exceeds the byte budget.
@@ -204,7 +219,7 @@ func budgetFindings(findings []string, sessionIDs []string, budget int) []string
 			if i < len(sessionIDs) {
 				id = sessionIDs[i]
 			}
-			trimmed[i] = f[:perSession] + "\n\n... [trimmed for synthesis context budget — see sessions/" + id + ".md for full findings]\n"
+			trimmed[i] = safeTruncateUTF8(f, perSession) + "\n\n... [trimmed for synthesis context budget — see sessions/" + id + ".md for full findings]\n"
 		}
 	}
 	return trimmed

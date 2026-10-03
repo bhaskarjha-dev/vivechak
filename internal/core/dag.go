@@ -50,10 +50,10 @@ type DAG struct {
 	Tier string `json:"tier,omitempty"`
 }
 
-// SessionByID returns the session with the given ID, or nil if not found.
+// SessionByID returns the session with the given ID, or nil if not found (case-insensitive).
 func (d *DAG) SessionByID(id string) *Session {
 	for i := range d.Sessions {
-		if d.Sessions[i].ID == id {
+		if strings.EqualFold(d.Sessions[i].ID, id) {
 			return &d.Sessions[i]
 		}
 	}
@@ -77,9 +77,11 @@ func (d *DAG) ValidateDAG() error {
 		if strings.TrimSpace(s.ID) == "" {
 			return fmt.Errorf("session with empty ID found")
 		}
-		if ids[s.ID] {
+		upperID := strings.ToUpper(s.ID)
+		if ids[upperID] {
 			return fmt.Errorf("duplicate session ID: %s", s.ID)
 		}
+		ids[upperID] = true
 		ids[s.ID] = true
 	}
 
@@ -93,7 +95,7 @@ func (d *DAG) ValidateDAG() error {
 	// Check for dangling dependencies
 	for _, s := range d.Sessions {
 		for _, dep := range s.Dependencies {
-			if !ids[dep] {
+			if !ids[dep] && !ids[strings.ToUpper(dep)] {
 				return fmt.Errorf("session %s depends on nonexistent session %s", s.ID, dep)
 			}
 		}
@@ -140,15 +142,15 @@ func (d *DAG) ValidateDAG() error {
 func (d *DAG) NextSessions(completedIDs map[string]bool) []Session {
 	var ready []Session
 	for _, s := range d.Sessions {
-		// Skip already completed
-		if completedIDs[s.ID] {
+		// Skip already completed (case-insensitive)
+		if completedIDs[s.ID] || completedIDs[strings.ToUpper(s.ID)] || completedIDs[strings.ToLower(s.ID)] {
 			continue
 		}
 
-		// Check if all dependencies are met
+		// Check if all dependencies are met (case-insensitive)
 		allDeps := true
 		for _, dep := range s.Dependencies {
-			if !completedIDs[dep] {
+			if !completedIDs[dep] && !completedIDs[strings.ToUpper(dep)] && !completedIDs[strings.ToLower(dep)] {
 				allDeps = false
 				break
 			}
@@ -517,9 +519,12 @@ func parseDependencies(value string) []string {
 	value = strings.ReplaceAll(value, "\"", "")
 	value = strings.ReplaceAll(value, "'", "")
 
+	// Strip trailing punctuation from entire string
+	value = strings.Trim(value, " \t\r\n.,;:[]`'\"")
+
 	lower := strings.ToLower(strings.TrimSpace(value))
 	if lower == "none" || strings.HasPrefix(lower, "none (") || strings.HasPrefix(lower, "none(") ||
-		lower == "—" || lower == "-" || lower == "n/a" || lower == "" {
+		strings.HasPrefix(lower, "none.") || lower == "—" || lower == "-" || lower == "n/a" || lower == "nil" || lower == "null" || lower == "" {
 		return nil
 	}
 
@@ -538,8 +543,8 @@ func parseDependencies(value string) []string {
 			p = strings.TrimSpace(p[:idx])
 		}
 		p = strings.TrimLeft(p, "-*• \t")
-		p = strings.TrimSpace(p)
-		if p != "" && !strings.EqualFold(p, "none") && !strings.EqualFold(p, "n/a") && !strings.EqualFold(p, "and") {
+		p = strings.Trim(p, " \t\r\n.,;:[]`'\"")
+		if p != "" && !strings.EqualFold(p, "none") && !strings.EqualFold(p, "n/a") && !strings.EqualFold(p, "nil") && !strings.EqualFold(p, "null") && !strings.EqualFold(p, "and") {
 			deps = append(deps, p)
 		}
 	}

@@ -169,7 +169,7 @@ claims need download/usage data. Prefer official docs, RFCs, source code,
 peer-reviewed benchmarks over blog posts and SEO content.
 
 **KNOWN:** For sessions that depend on upstream sessions, include the
-`[KNOWN_CONTEXT]` placeholder here. Tag upstream claims as `INHERITED` —
+`[UPSTREAM_FINDINGS]` placeholder here. Tag upstream claims as `INHERITED` —
 they are starting assumptions to stress-test, not settled facts. For
 sessions with no upstream dependencies, state the key assumptions the
 session starts with and note they are unverified.
@@ -275,9 +275,20 @@ IMPORTANT: Do NOT include expert personas, hardcoded search queries,
 or minimum search counts in any prompt. Each prompt must be a complete,
 front-loaded, single-turn brief.
 
-**Context Injection Placeholders:**
-- For any downstream session that depends on upstream sessions, include the exact placeholder `[UPSTREAM_FINDINGS]` inside the prompt where upstream findings should be injected. Also include `[KNOWN_CONTEXT]` in the KNOWN block for structured upstream context.
-- For the final grand synthesis session (`SYN-01`), include the exact placeholder `[ALL_SESSION_FINDINGS]` inside the prompt where all session findings should be aggregated. Note that saving with `vivechak_save_session` (session_id='SYN-01') automatically writes the output to `research/FAD.md` as the canonical Founding Architecture Document and mirrors a human-facing copy to `FOUNDING-ARCHITECTURE.md` at the project root. Do NOT manually create additional copies. The template `FOUNDING-ARCHITECTURE.template.md` defines the structure — the canonical internal file is always `research/FAD.md`.
+**Context Injection Slots:** Every session prompt with dependencies MUST include
+these placeholders (the MCP server replaces them with extracted findings):
+- `[UPSTREAM_FINDINGS]` — replaced with recommendations and key findings from
+  completed upstream sessions
+- `[KNOWN_CONTEXT]` — replaced with the same upstream context (alternative slot)
+
+For the synthesis session (SYN-01), use `[ALL_SESSION_FINDINGS]` to receive all
+completed session findings. Note that saving with `vivechak_save_session` (session_id='SYN-01') automatically writes the output to `research/FAD.md` as the canonical Founding Architecture Document and mirrors a human-facing copy to `FOUNDING-ARCHITECTURE.md` at the project root. Do NOT manually create additional copies. The template `FOUNDING-ARCHITECTURE.template.md` defines the structure — the canonical internal file is always `research/FAD.md`.
+
+Example in a session prompt's KNOWN block:
+```
+KNOWN:
+[UPSTREAM_FINDINGS]
+```
 
 ## DELIVERABLE
 

@@ -24,8 +24,8 @@ func registerValidate(server *sdkmcp.Server) {
 			Name:  "vivechak_validate",
 			Title: "Validate Artifact",
 			Description: "Dry-run validation on any Vivechak artifact (session output, plan, " +
-				"decision record, or FAD). Returns validation issues at all levels without " +
-				"saving anything. Use this to check content before saving. " +
+				"decision record, or FAD). Use for dry-run validation of in-progress content only — " +
+				"save_session validates automatically, so calling validate before save doubles token cost. " +
 				"Can also validate an entire workspace: omit content and provide only project_root " +
 				"to validate all artifacts in the workspace. Read-only — no side effects.",
 			Annotations: &sdkmcp.ToolAnnotations{
@@ -76,8 +76,11 @@ func handleValidate(_ context.Context, _ *sdkmcp.CallToolRequest, in ValidateInp
 		warnings = append(warnings, issue.String())
 	}
 
-	// Gather advisory quality observations
-	observations := core.ObserveSessionQuality([]byte(in.Content))
+	// Gather advisory quality observations for session artifacts
+	var observations []core.QualityObservation
+	if artifactType == "session" {
+		observations = core.ObserveSessionQuality([]byte(in.Content))
+	}
 
 	var nextStep string
 	if validation.HasBlocking() {

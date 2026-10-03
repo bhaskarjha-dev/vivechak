@@ -154,6 +154,43 @@ func handleSaveSession(ctx context.Context, _ *sdkmcp.CallToolRequest, in SaveSe
 		}
 	}
 
+	// Quality observations (advisory, never blocking)
+	if !isSynthesis {
+		observations := core.ObserveSessionQuality([]byte(in.Content))
+		if len(observations) > 0 {
+			obsData := make([]map[string]string, len(observations))
+			for i, o := range observations {
+				obsData[i] = map[string]string{
+					"category": o.Category,
+					"message":  o.Message,
+					"severity": o.Severity,
+				}
+				// Surface as warnings for maximum visibility
+				if o.Severity == "consideration" || o.Severity == "suggestion" {
+					warnings = append(warnings, fmt.Sprintf("Q-%s: %s", strings.ToUpper(o.Category), o.Message))
+				}
+			}
+			dataMap["quality_observations"] = obsData
+		}
+	}
+
+	// Mini-status (eliminates need for separate status calls)
+	completedSessions, _ := scanCompletedSessions(ws)
+	gateDecisions := collectGateDecisions(ws)
+	progress := map[string]any{
+		"sessions_completed": len(completedSessions),
+		"decisions_recorded": len(gateDecisions),
+	}
+	info := core.InspectWorkspace(root)
+	if info.HasPipeline {
+		if pipeData, err := ws.ReadFile(core.PipelineFile); err == nil {
+			if dag, err := core.ParsePipeline(pipeData); err == nil {
+				progress["sessions_total"] = len(dag.Sessions)
+			}
+		}
+	}
+	dataMap["progress"] = progress
+
 	env := Envelope{
 		Success: true,
 		Message: fmt.Sprintf("Session %s saved as %s (%d warnings, %d errors)", in.SessionID, status, warningCount, errorCount),

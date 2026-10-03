@@ -10,7 +10,7 @@ Vivechak is an evidence-grounded research meta-framework for technical decisions
 2. **Decision** ([`GENERATOR-DECISION.md`](../GENERATOR-DECISION.md)) — Single architectural decision producing an Architectural Decision Record (ADR) across 1–3 sessions.
 3. **Comparison** ([`GENERATOR-COMPARISON.md`](../GENERATOR-COMPARISON.md)) — Bounded technology evaluation producing a Weighted Evaluation Protocol (WEP) matrix in a single session.
 
-The project ships as both a zero-dependency manual workflow and an autonomous **Model Context Protocol (MCP)** server providing 9 purpose-built tools.
+The project ships as both a zero-dependency manual workflow and an autonomous **Model Context Protocol (MCP)** server providing 10 purpose-built tools.
 
 ---
 
@@ -36,7 +36,7 @@ vivechak/
 │   ├── mcp/                # MCP protocol server and tool handlers (package mcputil)
 │   │   ├── server.go       # Server factory and tool registration dispatcher
 │   │   ├── envelope.go     # Standardized JSON response envelope & dual-channel encoding
-│   │   ├── tool_*.go       # 9 individual MCP tool handlers
+│   │   ├── tool_*.go       # 10 individual MCP tool handlers
 │   │   └── server_test.go  # In-memory JSON-RPC wire tests
 │   ├── store/              # Storage, path jail, and concurrency primitives
 │   │   ├── workspace.go    # os.Root confinement wrapper
@@ -91,7 +91,7 @@ Defined in [`internal/core/workspace.go`](../internal/core/workspace.go#L34-L88)
 The workspace layout is standard across all Vivechak projects:
 - `research/` — Workspace root
 - `research/sessions/` — Markdown outputs from individual research sessions
-- `research/templates/` — Copy of the 5 canonical templates
+- `research/templates/` — Copy of the 6 canonical templates
 - `research/RESEARCH-PIPELINE.md` — DAG session definitions and metadata
 - `research/DECISIONS.md` — Central architectural decision registry
 - `research/FAD.md` — Synthesized Founding Architecture Document
@@ -259,7 +259,7 @@ var Generators embed.FS
 var Templates embed.FS
 ```
 - [`ReadGenerator(name)`](../internal/embed/embed.go#L26-L32): Retrieves generator prompts by filename (`GENERATOR.md`, `GENERATOR-DECISION.md`, `GENERATOR-COMPARISON.md`).
-- [`ReadTemplate(name)`](../internal/embed/embed.go#L38-L44): Retrieves output templates (`DECISIONS.template.md`, `CONFLICT-RESOLUTION.template.md`, `COMPARISON-SESSION.template.md`, `FOUNDING-ARCHITECTURE.template.md`, `PHASE-0-GATE.template.md`).
+- [`ReadTemplate(name)`](../internal/embed/embed.go#L38-L44): Retrieves output templates (`DECISIONS.template.md`, `CONFLICT-RESOLUTION.template.md`, `COMPARISON-SESSION.template.md`, `FOUNDING-ARCHITECTURE.template.md`, `PHASE-0-GATE.template.md`, `SESSION.template.md`).
 
 ### Synchronization with Root Markdown Files
 Vivechak maintains canonical human-readable files at the repository root and identical copies in `internal/embed/` for binary compilation:
@@ -475,6 +475,6 @@ npx @modelcontextprotocol/inspector ./bin/vivechak
 npx @modelcontextprotocol/inspector go run ./cmd/vivechak
 ```
 Once open in your browser, you can:
-- Inspect all 9 registered tool definitions and schemas.
+- Inspect all 10 registered tool definitions and schemas.
 - Trigger `vivechak_init`, `vivechak_prepare_generator`, or `vivechak_status`.
 - Verify the dual-channel `Envelope` JSON structure and `next_step` instructions.

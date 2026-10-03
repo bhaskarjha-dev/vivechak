@@ -2306,4 +2306,552 @@ Resolved in favor of SQLite. A (doc)`
 	}
 }
 
+func TestServerInstructions(t *testing.T) {
+	instrLen := len(ServerInstructions)
+	if instrLen <= 1000 || instrLen >= 2000 {
+		t.Errorf("expected ServerInstructions length between 1000 and 2000 bytes, got %d", instrLen)
+	}
+	requiredSubstrings := []string{
+		"Evidence Grades",
+		"Workflow",
+		"Session Sections",
+		"Token Efficiency",
+	}
+	for _, sub := range requiredSubstrings {
+		if !strings.Contains(ServerInstructions, sub) {
+			t.Errorf("ServerInstructions missing required substring %q", sub)
+		}
+	}
+}
+
+func TestToolDescriptions(t *testing.T) {
+	cs := testServer(t)
+	ctx := context.Background()
+
+	toolsToTest := map[string]string{
+		"vivechak_prepare_generator": "vision",
+		"vivechak_save_plan":         "Dependencies",
+		"vivechak_run_gate":          "Structural checks",
+		"vivechak_validate":          "dry-run",
+	}
+
+	for tool, err := range cs.Tools(ctx, nil) {
+		if err != nil {
+			t.Fatalf("listing tools: %v", err)
+		}
+		expectedPhrase, ok := toolsToTest[tool.Name]
+		if !ok {
+			continue
+		}
+		if len(tool.Description) < 100 {
+			t.Errorf("tool %q description too short: %d bytes", tool.Name, len(tool.Description))
+		}
+		if !strings.Contains(tool.Description, expectedPhrase) {
+			t.Errorf("tool %q description missing phrase %q", tool.Name, expectedPhrase)
+		}
+	}
+}
+
+func TestSaveSession_QualityObservationsAndProgress(t *testing.T) {
+	cs := testServer(t)
+	ctx := context.Background()
+	tmpDir := t.TempDir()
+
+	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "vivechak_init",
+		Arguments: map[string]any{"project_root": tmpDir, "scope": "project"},
+	})
+
+	sessContent := `---
+id: T0-01
+title: Initial Research
+status: complete
+topic: architecture
+informs_decisions: [D-001]
+confidence: high
+---
+# Prior
+Initial belief here.
+
+# Research Question
+What db?
+
+# Key Findings
+- Finding 1 [Grade A · direct | fetched https://example.com]
+- Finding 2 [Grade B · direct | cached]
+- Finding 3 [Grade B · indirect | cached]
+
+# Recommendation
+Use Postgres.
+
+# Alternatives Considered
+MySQL was considered.
+
+# Open Questions & Risks
+None.
+
+# Sources & Evidence Ledger
+| Claim | Grade | Modifiers | Method | Source |
+|---|---|---|---|---|
+| Finding 1 | Grade A | direct | fetched | https://example.com |
+`
+	res, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_save_session",
+		Arguments: map[string]any{
+			"project_root": tmpDir,
+			"session_id":   "T0-01",
+			"content":      sessContent,
+		},
+	})
+	if err != nil {
+		t.Fatalf("save_session: %v", err)
+	}
+	env := parseEnvelope(t, res)
+	if !env.Success {
+		t.Fatalf("save_session expected success, got error: %s", env.Message)
+	}
+
+	dataMap, ok := env.Data.(map[string]any)
+	if !ok {
+		t.Fatalf("expected env.Data to be map[string]any, got %T", env.Data)
+	}
+
+	obsRaw, ok := dataMap["quality_observations"]
+	if !ok {
+		t.Fatalf("expected quality_observations in save_session response data")
+	}
+	obsSlice, ok := obsRaw.([]any)
+	if !ok || len(obsSlice) == 0 {
+		t.Fatalf("expected non-empty quality_observations slice, got %v", obsRaw)
+	}
+
+	progressRaw, ok := dataMap["progress"]
+	if !ok {
+		t.Fatalf("expected progress in save_session response data")
+	}
+	progMap, ok := progressRaw.(map[string]any)
+	if !ok {
+		t.Fatalf("expected progress to be map[string]any, got %T", progressRaw)
+	}
+	if progMap["sessions_completed"] != float64(1) && progMap["sessions_completed"] != 1 {
+		t.Errorf("expected sessions_completed=1, got %v", progMap["sessions_completed"])
+	}
+}
+
+func TestRecordDecision_ProgressAndDoorTypeAwareNextStep(t *testing.T) {
+	cs := testServer(t)
+	ctx := context.Background()
+	tmpDir := t.TempDir()
+
+	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "vivechak_init",
+		Arguments: map[string]any{"project_root": tmpDir, "scope": "project"},
+	})
+
+	adr := `---
+id: D-001
+title: Primary Datastore
+status: accepted
+door_type: one-way
+review_trigger: "latency > 100ms"
+informed_by_sessions: [T0-01]
+confidence: high
+---
+# Context
+Storage requirement.
+# Evaluated Options
+1. Postgres
+# Decision Outcome
+Chosen Option 1.
+# Rejected Alternatives & Tradeoffs
+MySQL rejected due to JSON querying needs.
+`
+	res, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_record_decision",
+		Arguments: map[string]any{
+			"project_root": tmpDir,
+			"decision_id":  "D-001",
+			"content":      adr,
+		},
+	})
+	if err != nil {
+		t.Fatalf("record_decision: %v", err)
+	}
+	env := parseEnvelope(t, res)
+	if !env.Success {
+		t.Fatalf("record_decision expected success, got: %s", env.Message)
+	}
+
+	recDataMap, ok := env.Data.(map[string]any)
+	if !ok {
+		t.Fatalf("expected env.Data to be map[string]any, got %T", env.Data)
+	}
+	progRaw, ok := recDataMap["progress"]
+	if !ok {
+		t.Fatalf("expected progress in record_decision data")
+	}
+	progMap, ok := progRaw.(map[string]any)
+	if !ok {
+		t.Fatalf("expected progress to be map, got %T", progRaw)
+	}
+	if progMap["decisions_recorded"] != float64(1) && progMap["decisions_recorded"] != 1 {
+		t.Errorf("expected decisions_recorded=1, got %v", progMap["decisions_recorded"])
+	}
+}
+
+func TestGate_EvidentiaryIntegrity_B3_B4_B5(t *testing.T) {
+	cs := testServer(t)
+	ctx := context.Background()
+	tmpDir := t.TempDir()
+
+	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "vivechak_init",
+		Arguments: map[string]any{"project_root": tmpDir, "scope": "project"},
+	})
+
+	pipelineContent := `# Research Pipeline
+## Execution DAG
+- T0-01: Session 1 (Door: one-way)
+`
+	_ = os.WriteFile(filepath.Join(tmpDir, "research", "RESEARCH-PIPELINE.md"), []byte(pipelineContent), 0o644)
+
+	sessContent := `---
+id: T0-01
+title: Session 1
+status: complete
+informs_decisions: [D-001]
+---
+# Key Findings
+- Finding 1 [Grade C · direct | recalled memory]
+# Sources & Evidence Ledger
+| Claim | Grade | Modifiers | Method | Source |
+|---|---|---|---|---|
+| Finding 1 | Grade C | direct | recalled | memory |
+`
+	_ = os.WriteFile(filepath.Join(tmpDir, "research", "sessions", "T0-01.md"), []byte(sessContent), 0o644)
+
+	decContent := `---
+id: D-001
+title: Decision 1
+status: accepted
+door_type: one-way
+review_trigger: "latency > 100ms"
+informed_by_sessions: [T0-01]
+---
+# Context
+Context here.
+# Decision Outcome
+We decided to use Postgres.
+`
+	_ = os.WriteFile(filepath.Join(tmpDir, "research", "D-001-db.md"), []byte(decContent), 0o644)
+
+	res, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "vivechak_run_gate",
+		Arguments: map[string]any{"project_root": tmpDir, "verbose": true},
+	})
+	if err != nil {
+		t.Fatalf("run_gate: %v", err)
+	}
+	env := parseEnvelope(t, res)
+
+	hasB3 := false
+	hasB4 := false
+	hasB5 := false
+	for _, w := range env.Warnings {
+		if strings.Contains(w, "B3-EVIDENTIARY") {
+			hasB3 = true
+		}
+		if strings.Contains(w, "B4-VERIFICATION") {
+			hasB4 = true
+		}
+		if strings.Contains(w, "B5-ALTERNATIVES") {
+			hasB5 = true
+		}
+	}
+	if !hasB3 {
+		t.Errorf("expected B3-EVIDENTIARY advisory for one-way door with Grade C, got warnings: %v", env.Warnings)
+	}
+	if !hasB4 {
+		t.Errorf("expected B4-VERIFICATION advisory for one-way door with recalled method, got warnings: %v", env.Warnings)
+	}
+	if !hasB5 {
+		t.Errorf("expected B5-ALTERNATIVES advisory for one-way door lacking alternatives, got warnings: %v", env.Warnings)
+	}
+}
+
+func TestGate_EvidentiaryIntegrity_RAMNotRecalled(t *testing.T) {
+	cs := testServer(t)
+	ctx := context.Background()
+	tmpDir := t.TempDir()
+
+	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "vivechak_init",
+		Arguments: map[string]any{"project_root": tmpDir, "scope": "project"},
+	})
+
+	pipelineContent := `# Research Pipeline
+## Execution DAG
+- T0-01: In-Memory Datastore Evaluation
+`
+	_ = os.WriteFile(filepath.Join(tmpDir, "research", "RESEARCH-PIPELINE.md"), []byte(pipelineContent), 0o644)
+
+	// Session text discussing RAM, heap memory, in-memory caching - NOT unverified recall citations!
+	sessContent := `---
+id: T0-01
+title: In-Memory Datastore Evaluation
+status: complete
+informs_decisions: [D-001]
+---
+# Key Findings
+- Redis keeps data in system memory (RAM). Grade A (primary docs: https://redis.io)
+- Memory limits were evaluated under load. Grade B (benchmark)
+- Heap allocation remained under 200MB during spikes. Grade A (direct telemetry)
+# Sources & Evidence Ledger
+| Claim | Grade | Modifiers | Method | Source |
+|---|---|---|---|---|
+| RAM usage | Grade A | direct | fetched | https://redis.io |
+| Heap memory | Grade A | fresh | fetched | https://redis.io/docs |
+`
+	_ = os.WriteFile(filepath.Join(tmpDir, "research", "sessions", "T0-01.md"), []byte(sessContent), 0o644)
+
+	decContent := `---
+id: D-001
+title: Cache Store
+status: accepted
+door_type: one-way
+review_trigger: "memory usage > 512MB"
+informed_by_sessions: [T0-01]
+---
+# Context
+In-memory caching is needed.
+# Decision Outcome
+We decided on Redis.
+# Rejected Alternatives
+Memcached was rejected due to lack of persistence data structures.
+`
+	_ = os.WriteFile(filepath.Join(tmpDir, "research", "D-001.md"), []byte(decContent), 0o644)
+
+	res, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "vivechak_run_gate",
+		Arguments: map[string]any{"project_root": tmpDir, "verbose": true},
+	})
+	if err != nil {
+		t.Fatalf("run_gate: %v", err)
+	}
+	env := parseEnvelope(t, res)
+
+	// Verify that B4-VERIFICATION does NOT fire for system memory/RAM discussions!
+	for _, w := range env.Warnings {
+		if strings.Contains(w, "B4-VERIFICATION") {
+			t.Errorf("unexpected B4-VERIFICATION advisory triggered by technical RAM/memory keywords: %s", w)
+		}
+	}
+}
+
+func TestGate_EvidentiaryIntegrity_FallbackToDecisionsMD(t *testing.T) {
+	cs := testServer(t)
+	ctx := context.Background()
+	tmpDir := t.TempDir()
+
+	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "vivechak_init",
+		Arguments: map[string]any{"project_root": tmpDir, "scope": "project"},
+	})
+
+	pipelineContent := `# Research Pipeline
+## Execution DAG
+- T0-01: Session 1
+`
+	_ = os.WriteFile(filepath.Join(tmpDir, "research", "RESEARCH-PIPELINE.md"), []byte(pipelineContent), 0o644)
+
+	sessContent := `---
+id: T0-01
+title: Session 1
+status: complete
+informs_decisions: [D-001]
+---
+# Key Findings
+- Finding 1 [Grade C · direct | recalled memory]
+# Sources & Evidence Ledger
+| Claim | Grade | Modifiers | Method | Source |
+|---|---|---|---|---|
+| Finding 1 | Grade C | direct | recalled | memory |
+`
+	_ = os.WriteFile(filepath.Join(tmpDir, "research", "sessions", "T0-01.md"), []byte(sessContent), 0o644)
+
+	// Note: DO NOT create research/D-001.md! Only place D-001 inside DECISIONS.md
+	decisionsContent := `# Architecture Decisions
+
+<!-- DECISION: D-001 -->
+---
+id: D-001
+title: Datastore Decision
+status: accepted
+door_type: one-way
+review_trigger: "latency > 100ms"
+informed_by_sessions: [T0-01]
+---
+# Context
+Context here.
+# Decision Outcome
+Decision outcome.
+<!-- /DECISION: D-001 -->
+`
+	_ = os.WriteFile(filepath.Join(tmpDir, "research", "DECISIONS.md"), []byte(decisionsContent), 0o644)
+
+	res, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "vivechak_run_gate",
+		Arguments: map[string]any{"project_root": tmpDir, "verbose": true},
+	})
+	if err != nil {
+		t.Fatalf("run_gate: %v", err)
+	}
+	env := parseEnvelope(t, res)
+
+	// Fallback to DECISIONS.md should detect D-001, find T0-01 has Grade C & recalled, and missing rejected alternatives
+	hasB3 := false
+	hasB4 := false
+	hasB5 := false
+	for _, w := range env.Warnings {
+		if strings.Contains(w, "B3-EVIDENTIARY") {
+			hasB3 = true
+		}
+		if strings.Contains(w, "B4-VERIFICATION") {
+			hasB4 = true
+		}
+		if strings.Contains(w, "B5-ALTERNATIVES") {
+			hasB5 = true
+		}
+	}
+	if !hasB3 {
+		t.Errorf("expected B3-EVIDENTIARY via DECISIONS.md fallback, got warnings: %v", env.Warnings)
+	}
+	if !hasB4 {
+		t.Errorf("expected B4-VERIFICATION via DECISIONS.md fallback, got warnings: %v", env.Warnings)
+	}
+	if !hasB5 {
+		t.Errorf("expected B5-ALTERNATIVES via DECISIONS.md fallback, got warnings: %v", env.Warnings)
+	}
+}
+
+func TestValidate_PlanDoesNotTriggerSessionObservations(t *testing.T) {
+	cs := testServer(t)
+	ctx := context.Background()
+	tmpDir := t.TempDir()
+
+	planContent := `# Research Plan: Distributed Tracing
+## Strategy
+Investigate OpenTelemetry vs OpenTracing.
+## Execution Plan
+1. T0-01: Tracing protocol
+2. T0-02: Collector performance
+`
+	res, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_validate",
+		Arguments: map[string]any{
+			"project_root":  tmpDir,
+			"artifact_type": "plan",
+			"content":       planContent,
+		},
+	})
+	if err != nil {
+		t.Fatalf("validate plan: %v", err)
+	}
+	env := parseEnvelope(t, res)
+	if !env.Success {
+		t.Fatalf("expected validation success for plan, got: %s", env.Message)
+	}
+
+	// Verify that dry-running a plan does NOT emit session quality observations (Prior / Delta)
+	for _, w := range env.Warnings {
+		if strings.Contains(w, "No Prior section") || strings.Contains(w, "No Delta section") {
+			t.Errorf("unexpected session observation leaked into plan validation: %s", w)
+		}
+	}
+}
+
+func TestNextSession_CaseInsensitive(t *testing.T) {
+	cs := testServer(t)
+	ctx := context.Background()
+	tmpDir := t.TempDir()
+
+	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "vivechak_init",
+		Arguments: map[string]any{"project_root": tmpDir, "scope": "project"},
+	})
+
+	pipelineContent := `# Research Pipeline
+
+#### T0-01: Session 1
+| Field | Value |
+|---|---|
+| **ID** | T0-01 |
+| **Dependencies** | None |
+| **Output File** | sessions/T0-01.md |
+
+` + "```prompt\n# Brief\n```" + `
+
+#### T0-02: Session 2
+| Field | Value |
+|---|---|
+| **ID** | T0-02 |
+| **Dependencies** | T0-01 |
+| **Output File** | sessions/T0-02.md |
+
+` + "```prompt\n# Brief\n```"
+
+	_ = os.WriteFile(filepath.Join(tmpDir, "research", "RESEARCH-PIPELINE.md"), []byte(pipelineContent), 0o644)
+
+	// Save session 1 with lowercase filename / id "t0-01"
+	sessContent := `---
+id: t0-01
+title: Session 1
+status: complete
+---
+# Key Findings
+- Finding 1 [Grade A]
+## Recommendation
+Recommended Option A.
+`
+	saveRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_save_session",
+		Arguments: map[string]any{
+			"project_root": tmpDir,
+			"session_id":   "t0-01",
+			"content":      sessContent,
+		},
+	})
+	if err != nil {
+		t.Fatalf("save_session: %v", err)
+	}
+	saveEnv := parseEnvelope(t, saveRes)
+	if !saveEnv.Success {
+		t.Fatalf("save_session failed: %s", saveEnv.Message)
+	}
+
+	// Now ask for next_session: T0-02 should be ready because t0-01 completed!
+	nextRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_next_session",
+		Arguments: map[string]any{
+			"project_root": tmpDir,
+		},
+	})
+	if err != nil {
+		t.Fatalf("next_session: %v", err)
+	}
+	nextEnv := parseEnvelope(t, nextRes)
+	if !nextEnv.Success {
+		t.Fatalf("expected next_session success, got: %s", nextEnv.Message)
+	}
+	dataMap, ok := nextEnv.Data.(map[string]any)
+	if !ok {
+		t.Fatalf("expected nextEnv.Data map, got %T", nextEnv.Data)
+	}
+	if dataMap["session_id"] != "T0-02" {
+		t.Errorf("expected next ready session to be T0-02, got %v", dataMap["session_id"])
+	}
+}
+
+
+
 

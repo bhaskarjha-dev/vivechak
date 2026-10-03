@@ -115,7 +115,7 @@ The AI will output two distinct deliverables:
 
 ### Step 4: Set Up the `research/` Directory
 
-In your project repository root, create the `research/` directory structure and copy the 5 operational templates from the Vivechak repository:
+In your project repository root, create the `research/` directory structure and copy the 6 operational templates from the Vivechak repository:
 
 ```
 my-project/

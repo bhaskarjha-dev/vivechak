@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"unicode/utf8"
 )
 
 func TestInjectContext_Dependencies(t *testing.T) {
@@ -850,11 +851,11 @@ func TestExtractFindings_SynthesisTighter(t *testing.T) {
 	// Construct a 10KB session with full sections
 	var longDetailed strings.Builder
 	for i := 0; i < 40; i++ {
-		longDetailed.WriteString(fmt.Sprintf("- Detailed benchmark result %d: latency was %d ms with standard deviation 0.%d. Grade A (direct benchmark)\n", i, 10+i, i))
+		fmt.Fprintf(&longDetailed, "- Detailed benchmark result %d: latency was %d ms with standard deviation 0.%d. Grade A (direct benchmark)\n", i, 10+i, i)
 	}
 	var longSources strings.Builder
 	for i := 0; i < 30; i++ {
-		longSources.WriteString(fmt.Sprintf("| %d | https://docs.example.com/api/%d | Grade A | fresh | fetched | claim %d |\n", i, i, i))
+		fmt.Fprintf(&longSources, "| %d | https://docs.example.com/api/%d | Grade A | fresh | fetched | claim %d |\n", i, i, i)
 	}
 
 	body := fmt.Sprintf(`# Database Selection
@@ -948,6 +949,56 @@ And a third paragraph with further justifications and secondary commentary.
 		t.Errorf("non-synthesis extraction should include full recommendation")
 	}
 }
+
+func TestSafeTruncateUTF8(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		maxBytes int
+	}{
+		{"empty string", "", 10},
+		{"negative bytes", "hello", -5},
+		{"zero bytes", "hello", 0},
+		{"ascii exact", "hello", 5},
+		{"ascii truncate", "hello world", 5},
+		{"devanagari exact", "विवेचक", 21},
+		{"devanagari truncate mid-rune", "विवेचक", 4},  // each Devanagari letter is 3 bytes; 4 bytes shouldn't split second rune
+		{"emoji exact", "⚡🚀", 8},
+		{"emoji truncate mid-rune", "⚡🚀", 5},      // ⚡ is 3 bytes, 🚀 is 4 bytes; at 5 bytes only ⚡ should remain
+		{"mixed text with em-dash", "Prefix — Suffix", 10}, // '—' is 3 bytes
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			res := safeTruncateUTF8(tt.input, tt.maxBytes)
+			if len(res) > tt.maxBytes && tt.maxBytes >= 0 {
+				t.Errorf("result length %d exceeds maxBytes %d", len(res), tt.maxBytes)
+			}
+			if !utf8.ValidString(res) {
+				t.Errorf("result is not valid UTF-8: %q (bytes: %x)", res, []byte(res))
+			}
+			if !strings.HasPrefix(tt.input, res) {
+				t.Errorf("result %q is not a prefix of input %q", res, tt.input)
+			}
+		})
+	}
+
+	// Specific assertion on emoji truncation:
+	// "⚡🚀": '⚡' is 3 bytes (E2 9A A1), '🚀' is 4 bytes (F0 9F 9A 80).
+	// Truncating at 5 bytes should yield "⚡" (3 bytes), NOT broken bytes.
+	emojiResult := safeTruncateUTF8("⚡🚀", 5)
+	if emojiResult != "⚡" {
+		t.Errorf("safeTruncateUTF8(\"⚡🚀\", 5) = %q, want \"⚡\"", emojiResult)
+	}
+
+	// Devanagari "विवेचक": 'व' is 3 bytes (E0 A4 B5), 'ि' is 3 bytes (E0 A4 BF).
+	// Truncating at 5 bytes should yield "व" (3 bytes).
+	devResult := safeTruncateUTF8("विवेचक", 5)
+	if devResult != "व" {
+		t.Errorf("safeTruncateUTF8(\"विवेचक\", 5) = %q, want \"व\"", devResult)
+	}
+}
+
 
 
 

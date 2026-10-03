@@ -901,12 +901,15 @@ Defined in [`RunGateInput`](../internal/mcp/tool_run_gate.go):
 ```
 
 #### Common Warnings
-- `GATE-A: RESEARCH-PIPELINE.md not found`
-- `GATE-A: FAD.md not found — synthesis not complete`
-- `GATE-A: Only 3/6 templates found`
-- `GATE-B: Only 1 sessions — minimum 3 recommended for a meaningful pipeline`
-- `GATE-B: DECISIONS.md appears empty or trivial`
-- `GATE-B: [L3-WARN] W-NO-EVIDENCE-GRADES: No inline evidence grades found`
+- `GATE-STRUCTURAL: Pipeline file RESEARCH-PIPELINE.md not found`
+- `GATE-STRUCTURAL: FAD file FAD.md not found — synthesis not complete`
+- `GATE-STRUCTURAL: Template directory missing or incomplete`
+- `GATE-QUALITY: Only 1 session(s) completed — minimum 3 recommended for a meaningful pipeline`
+- `GATE-QUALITY: DECISIONS.md or ADR files appear empty or trivial`
+- `GATE-QUALITY: 1 one-way door decision(s) lack required reversal triggers`
+- `GATE-ADVISORY: B3-EVIDENTIARY: Session T0-01 informs one-way door D-001 but has Grade C/D/E citation(s)`
+- `GATE-ADVISORY: B4-VERIFICATION: Session T0-01 informs one-way door D-001 but has 'recalled' citation(s)`
+- `GATE-ADVISORY: B5-ALTERNATIVES: One-way door D-001 lacks documented rejected alternatives section`
 
 ---
 
@@ -938,8 +941,9 @@ Vivechak organizes all artifact validation into a 4-level validation ladder defi
 | `W-OUTPUT-SIZE` | L3 | `next_session` | Assembled prompt exceeds 10,000 tokens. Truncated unless `verbose: true`. |
 | `W-STALE-DOWNSTREAM` | L3 | `amend_session` | Amended session has completed downstream dependents; findings may be based on stale assumptions. |
 | `W-TEMPLATE-MISSING` | L3 | `init` | A template file could not be read from embedded binary assets. |
-| `GATE-A: <check>` | L4 | `run_gate` | Track A structural check failed (missing pipeline, FAD, templates, or decisions). |
-| `GATE-B: <check>` | L4 | `run_gate` | Track B mechanical quality check failed (<3 sessions, un-graded FAD, or empty decisions). |
+| `GATE-STRUCTURAL: <check>` | L4 | `run_gate` | Structural completeness check failed (missing pipeline, FAD, templates, or uncompleted DAG sessions). |
+| `GATE-QUALITY: <check>` | L4 | `run_gate` | Mechanical quality check failed (<3 sessions, un-graded FAD, or unfinalized decisions / missing reversal triggers). |
+| `GATE-ADVISORY: <check>` | L4 | `run_gate` | Evidentiary integrity advisory (B3 evidence threshold, B4 verification method, B5 rejected alternatives, human review). |
 
 ---
 

@@ -26,7 +26,9 @@ func registerPrepareGenerator(server *sdkmcp.Server) {
 			Title: "Prepare Generator Prompt",
 			Description: "Return the appropriate generator prompt with context slots filled in, ready for " +
 				"execution. Accepts scope (project/decision/comparison) and your context description. " +
-				"The returned prompt should be executed in a fresh AI session to generate your research pipeline. " +
+				"The context parameter should include: project vision, tech stack (languages, frameworks), " +
+				"constraints (timeline, team size), key open questions, and non-negotiables. " +
+				"Execute the returned prompt yourself in an AI session to produce the pipeline document for vivechak_save_plan. " +
 				"Read-only — does not modify the workspace.",
 			Annotations: &sdkmcp.ToolAnnotations{
 				ReadOnlyHint:    true,

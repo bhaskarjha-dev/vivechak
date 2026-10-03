@@ -1,6 +1,7 @@
 package mcputil
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
@@ -360,7 +361,7 @@ title: Decision Plan
 		t.Fatalf("missing one or more decision markers: D-001=%d, D-002=%d, D-003=%d", idx1, idx2, idx3)
 	}
 
-	if !(idx1 < idx2 && idx2 < idx3) {
+	if idx1 >= idx2 || idx2 >= idx3 {
 		t.Errorf("decisions are not in sorted order: D-001=%d, D-002=%d, D-003=%d", idx1, idx2, idx3)
 	}
 
@@ -380,5 +381,100 @@ title: Decision Plan
 		t.Errorf("NOTES.md was mistakenly compiled into DECISIONS.md")
 	}
 }
+
+func TestCompileDecisionsRegistry_UnanchoredAndNaturalSort(t *testing.T) {
+	tmpDir := t.TempDir()
+	researchDir := filepath.Join(tmpDir, "research")
+	if err := os.MkdirAll(researchDir, 0o755); err != nil {
+		t.Fatalf("creating research dir: %v", err)
+	}
+
+	ws, err := store.OpenWorkspace(tmpDir)
+	if err != nil {
+		t.Fatalf("opening workspace: %v", err)
+	}
+	defer ws.Close()
+
+	// 1. Write DECISIONS.md containing UNANCHORED frontmatter blocks with out-of-order IDs:
+	// D-1, D-10, D-2
+	decisionsPreamble := `# Architecture Decisions
+
+Registry of decisions made during research.
+
+---
+id: D-1
+title: Language Selection
+status: proposed
+door_type: one-way
+---
+# D-1: Language Selection
+We chose Go.
+
+---
+id: D-10
+title: Metrics Framework
+status: proposed
+door_type: two-way
+---
+# D-10: Metrics
+We chose Prometheus.
+
+---
+id: D-2
+title: Datastore Selection
+status: proposed
+door_type: one-way
+---
+# D-2: Datastore
+We chose SQLite.
+`
+	if err := os.WriteFile(filepath.Join(researchDir, "DECISIONS.md"), []byte(decisionsPreamble), 0o644); err != nil {
+		t.Fatalf("writing DECISIONS.md: %v", err)
+	}
+
+	// 2. Also write an individual ADR file in research/ D-3.md
+	d3Content := `---
+id: D-3
+title: API Protocol
+status: accepted
+door_type: one-way
+review_trigger: "protocol deprecation"
+---
+# D-3: API Protocol
+We chose JSON-RPC over MCP.
+`
+	if err := os.WriteFile(filepath.Join(researchDir, "D-3.md"), []byte(d3Content), 0o644); err != nil {
+		t.Fatalf("writing D-3.md: %v", err)
+	}
+
+	// 3. Compile registry
+	ctx := context.Background()
+	if err := compileDecisionsRegistry(ctx, ws, tmpDir); err != nil {
+		t.Fatalf("compileDecisionsRegistry failed: %v", err)
+	}
+
+	// 4. Verify DECISIONS.md has all 4 decisions wrapped in anchors and sorted naturally:
+	// D-1 -> D-2 -> D-3 -> D-10 (natural numeric sorting!)
+	data, err := os.ReadFile(filepath.Join(researchDir, "DECISIONS.md"))
+	if err != nil {
+		t.Fatalf("reading compiled DECISIONS.md: %v", err)
+	}
+	content := string(data)
+
+	idx1 := strings.Index(content, "<!-- DECISION: D-1 -->")
+	idx2 := strings.Index(content, "<!-- DECISION: D-2 -->")
+	idx3 := strings.Index(content, "<!-- DECISION: D-3 -->")
+	idx10 := strings.Index(content, "<!-- DECISION: D-10 -->")
+
+	if idx1 == -1 || idx2 == -1 || idx3 == -1 || idx10 == -1 {
+		t.Fatalf("missing anchor in compiled registry: D-1=%d, D-2=%d, D-3=%d, D-10=%d\ncontent:\n%s", idx1, idx2, idx3, idx10, content)
+	}
+
+	// Natural sort check: D-1 < D-2 < D-3 < D-10
+	if idx1 >= idx2 || idx2 >= idx3 || idx3 >= idx10 {
+		t.Errorf("expected natural order D-1 < D-2 < D-3 < D-10; got indices: D-1=%d, D-2=%d, D-3=%d, D-10=%d", idx1, idx2, idx3, idx10)
+	}
+}
+
 
 
