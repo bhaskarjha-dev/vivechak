@@ -67,9 +67,10 @@ func TemplatesForScope(scope Scope) []string {
 // in research/ (e.g. DECISIONS.md, FAD.md, FOUNDING-ARCHITECTURE.md, PHASE-0-GATE.md,
 // RESEARCH-PIPELINE.md, *-plan.md, *-comparison.md, *-conflict-resolution.md).
 func IsSpecialResearchFile(name string) bool {
-	if strings.HasSuffix(name, "-plan.md") ||
-		strings.HasSuffix(name, "-comparison.md") ||
-		strings.HasSuffix(name, "-conflict-resolution.md") ||
+	lower := strings.ToLower(name)
+	if strings.HasSuffix(lower, "-plan.md") ||
+		strings.HasSuffix(lower, "-comparison.md") ||
+		strings.HasSuffix(lower, "-conflict-resolution.md") ||
 		strings.EqualFold(name, "DECISIONS.md") ||
 		strings.EqualFold(name, "FAD.md") ||
 		strings.EqualFold(name, "FOUNDING-ARCHITECTURE.md") ||

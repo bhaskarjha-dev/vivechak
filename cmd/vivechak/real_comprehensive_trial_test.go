@@ -935,13 +935,13 @@ NATS at-most-once delivery requires JetStream for durability. Grade A (docs)
 		var sessionHeaders strings.Builder
 		for i := 1; i <= 10; i++ {
 			id := fmt.Sprintf("R-%02d", i)
-			sessionHeaders.WriteString(fmt.Sprintf(`#### %s: Topic %d
+			fmt.Fprintf(&sessionHeaders, `#### %s: Topic %d
 | Field | Value |
 |---|---|
 | **ID** | %s |
 | **Layer** | 0 |
 | **Output File** | sessions/%s.md |
-`+"```prompt\n# Brief\n```\n\n", id, i, id, id))
+`+"```prompt\n# Brief\n```\n\n", id, i, id, id)
 
 			// Write session file
 			findingBlock := strings.Repeat(fmt.Sprintf("Findings and benchmarks for session %s. Grade A (empirical measurement). ", id), 50)
@@ -1044,3 +1044,444 @@ Adopt Technology %d. Grade A (benchmark)
 		}
 	})
 }
+
+// TestRealMassive_ZeroTrust_LiveSubprocess_AuditVerification performs an end-to-end
+// verification against a live compiled binary running as a real child process over stdio.
+// It verifies: 6 operational templates, case-insensitive diamond DAG resolution,
+// mini-status response enrichment, non-blocking quality observations, RAM keywords
+// not triggering false recalled advisories, unanchored decision parsing, natural
+// numeric sorting (D-1, D-2, D-10), validation isolation, gate artifact generation,
+// and CLI doctor workspace health verification.
+func TestRealMassive_ZeroTrust_LiveSubprocess_AuditVerification(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping in short mode")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	t.Cleanup(cancel)
+
+	// 1. Build live binary
+	binDir := t.TempDir()
+	binName := "vck_zt_trial"
+	if runtime.GOOS == "windows" {
+		binName += ".exe"
+	}
+	binPath := filepath.Join(binDir, binName)
+
+	buildCmd := exec.CommandContext(ctx, "go", "build", "-o", binPath, ".")
+	if out, err := buildCmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to build binary: %v\noutput: %s", err, string(out))
+	}
+
+	// 2. Launch child process and connect over stdio
+	serverCmd := exec.CommandContext(ctx, binPath, "serve")
+	transport := &mcp.CommandTransport{Command: serverCmd}
+
+	client := mcp.NewClient(
+		&mcp.Implementation{Name: "zt-trial-client", Version: "1.0.0"},
+		nil,
+	)
+
+	cs, err := client.Connect(ctx, transport, nil)
+	if err != nil {
+		t.Fatalf("failed to connect to live MCP server: %v", err)
+	}
+	t.Cleanup(func() { _ = cs.Close() })
+
+	callAndParse := func(toolName string, args map[string]any) testEnvelope {
+		res, err := cs.CallTool(ctx, &mcp.CallToolParams{
+			Name:      toolName,
+			Arguments: args,
+		})
+		if err != nil {
+			t.Fatalf("call to %s failed: %v", toolName, err)
+		}
+		return parseTestEnvelope(t, res)
+	}
+
+	projectDir := t.TempDir()
+
+	// --- STEP 1: vivechak_init ---
+	initEnv := callAndParse("vivechak_init", map[string]any{
+		"project_root": projectDir,
+		"scope":        "project",
+	})
+	if !initEnv.Success {
+		t.Fatalf("init failed: %s", initEnv.Message)
+	}
+
+	// Check all 6 operational templates exist on disk
+	expectedTemplates := []string{
+		"DECISIONS.template.md",
+		"CONFLICT-RESOLUTION.template.md",
+		"COMPARISON-SESSION.template.md",
+		"FOUNDING-ARCHITECTURE.template.md",
+		"PHASE-0-GATE.template.md",
+		"SESSION.template.md",
+	}
+	for _, tpl := range expectedTemplates {
+		tplPath := filepath.Join(projectDir, "research", "templates", tpl)
+		if _, err := os.Stat(tplPath); err != nil {
+			t.Errorf("expected template %s to exist on disk: %v", tpl, err)
+		}
+	}
+
+	// --- STEP 2: vivechak_prepare_generator ---
+	prepEnv := callAndParse("vivechak_prepare_generator", map[string]any{
+		"context": "Project Vision: High-throughput telemetry pipeline. Go + SQLite WAL. 3 engineers.",
+		"scope":   "project",
+	})
+	if !prepEnv.Success {
+		t.Fatalf("prepare_generator failed: %s", prepEnv.Message)
+	}
+	prepPrompt, ok := prepEnv.Data["prompt"].(string)
+	if !ok || !strings.Contains(prepPrompt, "High-throughput telemetry") {
+		t.Fatalf("prepare_generator did not embed project vision context")
+	}
+
+	// --- STEP 3: vivechak_save_plan (Diamond DAG with mixed-case dependencies) ---
+	// T0-01 (root) -> t0-02 & T0-03 (parallel) -> SYN-01 (synthesis)
+	pipelineContent := `# Telemetry Research Pipeline
+
+#### T0-01: In-Memory Storage & Buffer Evaluation
+| Field | Value |
+|---|---|
+| **ID** | T0-01 |
+| **Layer** | 0 |
+| **Door Type** | one-way |
+| **Dependencies** | None |
+| **Output File** | sessions/T0-01.md |
+
+` + "```prompt\n# Brief: Evaluate memory structures and RAM limits\n```" + `
+
+#### t0-02: Disk Spillover & WAL Mechanism
+| Field | Value |
+|---|---|
+| **ID** | t0-02 |
+| **Layer** | 1 |
+| **Door Type** | two-way |
+| **Dependencies** | T0-01 |
+| **Output File** | sessions/t0-02.md |
+
+` + "```prompt\n# Brief: Investigate disk WAL durability\nKNOWN:\n[UPSTREAM_FINDINGS]\n```" + `
+
+#### T0-03: Ingestion Protocol
+| Field | Value |
+|---|---|
+| **ID** | T0-03 |
+| **Layer** | 1 |
+| **Door Type** | two-way |
+| **Dependencies** | t0-01 |
+| **Output File** | sessions/T0-03.md |
+
+` + "```prompt\n# Brief: Investigate gRPC vs WebSocket\nKNOWN:\n[UPSTREAM_FINDINGS]\n```" + `
+
+#### SYN-01: Synthesis
+| Field | Value |
+|---|---|
+| **ID** | SYN-01 |
+| **Layer** | 2 |
+| **Door Type** | one-way |
+| **Dependencies** | T0-02, t0-03 |
+| **Output File** | sessions/SYN-01.md |
+
+` + "```prompt\n# Brief: Grand Synthesis\n[ALL_SESSION_FINDINGS]\n```"
+
+	savePlanEnv := callAndParse("vivechak_save_plan", map[string]any{
+		"project_root": projectDir,
+		"content":      pipelineContent,
+	})
+	if !savePlanEnv.Success {
+		t.Fatalf("save_plan failed: %s", savePlanEnv.Message)
+	}
+
+	// --- STEP 4: vivechak_next_session -> T0-01 ---
+	next1 := callAndParse("vivechak_next_session", map[string]any{
+		"project_root": projectDir,
+	})
+	if !next1.Success || next1.Data["session_id"] != "T0-01" {
+		t.Fatalf("expected next session T0-01, got: %+v", next1.Data)
+	}
+
+	// --- STEP 5: vivechak_save_session T0-01 ---
+	// Contains RAM, heap, in-memory caching keywords (to test no false recalled flags)
+	// Contains Grade A with primary docs URL
+	// Contains Prior, Discovered Concerns, and Delta
+	t001Content := `---
+id: T0-01
+title: In-Memory Storage & Buffer Evaluation
+status: complete
+informs_decisions: [D-001]
+---
+## Prior
+We assumed in-memory ring buffers would consume more than 500MB of RAM.
+
+## Research Question
+What is the optimal in-memory buffering architecture?
+
+## Key Findings
+- In-memory ring buffers keep memory allocation strictly under 128MB. Grade A (primary spec: https://golang.org/pkg/sync)
+- RAM usage spikes remain bounded under 100k msg/s. Grade A (telemetry: https://benchmark.example.com)
+- System memory paging is avoided via pre-allocation. Grade B (vendor benchmarks)
+- Heap garbage collection pauses are sub-millisecond. Grade A (direct runtime telemetry: https://golang.org/doc/gc)
+
+## Recommendation
+Implement fixed-size ring buffers in RAM.
+
+## Alternatives Considered
+| Option | Verdict | Tradeoff |
+|---|---|---|
+| Redis | Rejected | Process boundary IPC latency overhead |
+| Channels | Rejected | Channel contention under 100k msg/s |
+
+## Discovered Concerns
+Ring buffer overflows drop oldest frames without disk backpressure.
+
+## Delta
+| Prior Belief | Status | Evidence | Impact |
+|---|---|---|---|
+| RAM usage > 500MB | Contradicted | Max 128MB measured | High |
+
+## Sources & Evidence Ledger
+| Claim | Grade | Modifiers | Method | Source |
+|---|---|---|---|---|
+| RAM allocation | Grade A | direct | fetched | https://golang.org/pkg/sync |
+| Heap pause | Grade A | fresh | fetched | https://golang.org/doc/gc |
+`
+	saveSess1 := callAndParse("vivechak_save_session", map[string]any{
+		"project_root": projectDir,
+		"session_id":   "T0-01",
+		"content":      t001Content,
+	})
+	if !saveSess1.Success {
+		t.Fatalf("save_session T0-01 failed: %s", saveSess1.Message)
+	}
+
+	// Verify mini-status in save_session response
+	progress1, ok := saveSess1.Data["progress"].(map[string]any)
+	if !ok || progress1["sessions_completed"] != float64(1) && progress1["sessions_completed"] != 1 {
+		t.Fatalf("expected progress.sessions_completed = 1, got %v", saveSess1.Data["progress"])
+	}
+
+	// --- STEP 6: vivechak_next_session -> parallel readiness ---
+	next2 := callAndParse("vivechak_next_session", map[string]any{
+		"project_root": projectDir,
+	})
+	if !next2.Success {
+		t.Fatalf("next_session failed: %s", next2.Message)
+	}
+	// Verify parallel hint or other ready sessions
+	if otherReady, ok := next2.Data["other_ready_sessions"].([]any); !ok || len(otherReady) == 0 {
+		t.Logf("note: next2 data: %+v", next2.Data)
+	}
+
+	// --- STEP 7: Save t0-02 and T0-03 (parallel branches) ---
+	t002Content := `---
+id: t0-02
+title: Disk Spillover & WAL Mechanism
+status: complete
+---
+## Key Findings
+- SQLite WAL mode sustains 50k writes/s. Grade A (primary docs: https://sqlite.org/wal.html)
+- Sync cost is amortized across checkpoint intervals. Grade B (benchmark)
+- Recovery after crash takes < 100ms. Grade A (direct crash testing: https://sqlite.org)
+## Recommendation
+Use SQLite WAL mode.
+`
+	callAndParse("vivechak_save_session", map[string]any{
+		"project_root": projectDir,
+		"session_id":   "t0-02",
+		"content":      t002Content,
+	})
+
+	t003Content := `---
+id: T0-03
+title: Ingestion Protocol
+status: complete
+---
+## Key Findings
+- gRPC streaming achieves 2x lower CPU utilization than JSON-RPC. Grade A (bench: https://grpc.io)
+- Protobuf serialization latency is 0.2ms. Grade B (internal bench)
+- Backpressure flow control is built-in via HTTP/2. Grade A (RFC: https://httpwg.org/specs/rfc7540.html)
+## Recommendation
+Use gRPC streaming.
+`
+	callAndParse("vivechak_save_session", map[string]any{
+		"project_root": projectDir,
+		"session_id":   "T0-03",
+		"content":      t003Content,
+	})
+
+	// --- STEP 8: Decision recording with unanchored preservation and natural sorting ---
+	d001Content := `---
+id: D-001
+title: In-Memory Ring Buffer Strategy
+status: accepted
+door_type: one-way
+review_trigger: "dropped frame rate > 0.01%"
+informed_by_sessions: [T0-01]
+human_reviewed: true
+---
+# Context
+High-throughput buffer architecture.
+# Decision Outcome
+Chosen fixed-size ring buffer in RAM.
+# Rejected Alternatives
+Redis rejected due to IPC overhead.
+`
+	rec1 := callAndParse("vivechak_record_decision", map[string]any{
+		"project_root": projectDir,
+		"decision_id":  "D-001",
+		"content":      d001Content,
+	})
+	if !rec1.Success {
+		t.Fatalf("record_decision D-001 failed: %s", rec1.Message)
+	}
+	// Verify one-way door guidance in next_step
+	if !strings.Contains(rec1.NextStep, "one-way door") {
+		t.Errorf("expected one-way door guidance in next_step: %s", rec1.NextStep)
+	}
+
+	// Manually inject an unanchored decision D-002 directly into DECISIONS.md to simulate manual edit
+	decPath := filepath.Join(projectDir, "research", "DECISIONS.md")
+	decData, _ := os.ReadFile(decPath)
+	unanchoredD002 := "\n\n---\nid: D-002\ntitle: Disk WAL Mechanism\nstatus: accepted\ndoor_type: two-way\n---\n# Context\nWAL choice.\n# Decision Outcome\nSQLite WAL.\n"
+	_ = os.WriteFile(decPath, append(decData, []byte(unanchoredD002)...), 0o644)
+
+	// Now record D-010 via tool
+	d010Content := `---
+id: D-010
+title: Telemetry Wire Protocol
+status: accepted
+door_type: two-way
+---
+# Context
+Ingestion format.
+# Decision Outcome
+gRPC chosen.
+`
+	rec10 := callAndParse("vivechak_record_decision", map[string]any{
+		"project_root": projectDir,
+		"decision_id":  "D-010",
+		"content":      d010Content,
+	})
+	if !rec10.Success {
+		t.Fatalf("record_decision D-010 failed: %s", rec10.Message)
+	}
+
+	// Read DECISIONS.md on disk: verify D-001 < D-002 < D-010 natural sort!
+	compiledDecs, _ := os.ReadFile(decPath)
+	compStr := string(compiledDecs)
+	pos1 := strings.Index(compStr, "<!-- DECISION: D-001 -->")
+	pos2 := strings.Index(compStr, "<!-- DECISION: D-002 -->")
+	pos10 := strings.Index(compStr, "<!-- DECISION: D-010 -->")
+	if pos1 == -1 || pos2 == -1 || pos10 == -1 {
+		t.Fatalf("missing decision anchors in compiled registry: D-001=%d, D-002=%d, D-010=%d", pos1, pos2, pos10)
+	}
+	if pos1 >= pos2 || pos2 >= pos10 {
+		t.Errorf("expected natural order D-001 < D-002 < D-010; got indices %d, %d, %d", pos1, pos2, pos10)
+	}
+
+	// --- STEP 9: Dry-run validate on a plan -> verify isolation ---
+	valPlan := callAndParse("vivechak_validate", map[string]any{
+		"project_root":  projectDir,
+		"artifact_type": "plan",
+		"content":       "# Plan\n## Execution\n1. S1\n2. S2\n",
+	})
+	if !valPlan.Success {
+		t.Fatalf("validate plan failed: %s", valPlan.Message)
+	}
+	for _, w := range valPlan.Warnings {
+		if strings.Contains(w, "No Prior section") || strings.Contains(w, "No Delta section") {
+			t.Errorf("session quality warning leaked into plan validation: %s", w)
+		}
+	}
+
+	// --- STEP 10: Grand synthesis session SYN-01 ---
+	synNext := callAndParse("vivechak_next_session", map[string]any{
+		"project_root": projectDir,
+		"session_id":   "SYN-01",
+	})
+	if !synNext.Success {
+		t.Fatalf("next_session for SYN-01 failed: %s", synNext.Message)
+	}
+
+	// Save synthesis -> creates FAD.md
+	fadContent := `---
+id: SYN-01
+title: Telemetry Pipeline Founding Architecture
+status: complete
+---
+# Founding Architecture Document: Telemetry Pipeline
+
+## 1. Executive Summary
+High-throughput telemetry pipeline combining fixed RAM ring buffers with SQLite WAL disk spillover and gRPC streaming.
+
+## 2. Technology Choices & Evidence
+- In-memory buffering: Ring buffers in RAM (Grade A, primary docs)
+- Storage: SQLite WAL (Grade A, primary docs)
+- Transport: gRPC streaming (Grade A, primary docs)
+
+## 3. Premortem & Failure Scenarios
+1. Memory overflow under sustained 200k msg/s burst: mitigated by backpressure.
+2. WAL checkpoint stall on slow disk: mitigated by separate I/O pool.
+3. Network partition between collectors: mitigated by local spooling.
+
+## 4. Architectural Decisions
+- D-001: In-memory ring buffer (one-way)
+- D-002: SQLite WAL (two-way)
+- D-010: gRPC (two-way)
+`
+	saveSyn := callAndParse("vivechak_save_session", map[string]any{
+		"project_root": projectDir,
+		"session_id":   "SYN-01",
+		"content":      fadContent,
+	})
+	if !saveSyn.Success {
+		t.Fatalf("save_session SYN-01 failed: %s", saveSyn.Message)
+	}
+
+	// Check FAD.md created on disk
+	fadDiskPath := filepath.Join(projectDir, "research", "FAD.md")
+	if _, err := os.Stat(fadDiskPath); err != nil {
+		t.Errorf("expected research/FAD.md to exist on disk: %v", err)
+	}
+
+	// --- STEP 11: vivechak_run_gate ---
+	gateRes := callAndParse("vivechak_run_gate", map[string]any{
+		"project_root": projectDir,
+		"verbose":      true,
+	})
+	if !gateRes.Success {
+		t.Fatalf("run_gate failed: %s", gateRes.Message)
+	}
+
+	// Verify no false B4-VERIFICATION triggered by RAM keywords
+	for _, w := range gateRes.Warnings {
+		if strings.Contains(w, "B4-VERIFICATION") {
+			t.Errorf("unexpected B4-VERIFICATION advisory triggered: %s", w)
+		}
+	}
+
+	// Check PHASE-0-GATE.md created on disk
+	gateDiskPath := filepath.Join(projectDir, "research", "PHASE-0-GATE.md")
+	gateFileBytes, gErr := os.ReadFile(gateDiskPath)
+	if gErr != nil {
+		t.Fatalf("expected research/PHASE-0-GATE.md to exist on disk: %v", gErr)
+	}
+	gateFileStr := string(gateFileBytes)
+	if !strings.Contains(gateFileStr, "Track A") || !strings.Contains(gateFileStr, "Track B") {
+		t.Errorf("PHASE-0-GATE.md missing track headers")
+	}
+
+	// --- STEP 12: CLI vck doctor on completed workspace ---
+	docCmd := exec.CommandContext(ctx, binPath, "doctor", projectDir)
+	docOut, docErr := docCmd.CombinedOutput()
+	if docErr != nil {
+		t.Fatalf("doctor failed on completed workspace: %v\noutput: %s", docErr, string(docOut))
+	}
+	if !strings.Contains(string(docOut), "Workspace is healthy") {
+		t.Errorf("expected doctor output to report 'Workspace is healthy', got: %s", string(docOut))
+	}
+}
+

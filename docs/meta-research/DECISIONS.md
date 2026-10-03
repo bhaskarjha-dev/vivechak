@@ -25,7 +25,7 @@
 | D-010 | Single Generator with Inline Method (No 5-Layer Stack) | One-Way | Accepted |
 | D-011 | Guided Worker Pattern for MCP Server | One-Way | Accepted |
 | D-012 | Three Scope Levels: Project / Decision / Comparison | Two-Way | Accepted |
-| D-013 | 9 MCP Tools with `vivechak_` Prefix | One-Way | Accepted |
+| D-013 | 10 MCP Tools with `vivechak_` Prefix | One-Way | Accepted |
 | D-014 | Binary-First Distribution | Two-Way | Accepted |
 
 ---
@@ -421,7 +421,7 @@ Cross-domain validation: Cochrane systematic reviews use full/scoping/rapid revi
 ```yaml
 ---
 id: D-013
-title: "9 MCP Tools with vivechak_ Prefix"
+title: "10 MCP Tools with vivechak_ Prefix"
 status: accepted
 door_type: one-way
 date: 2026-09-27
@@ -432,7 +432,7 @@ schema_version: "0.1.0"
 ---
 ```
 
-# D-013: 9 MCP Tools with `vivechak_` Prefix
+# D-013: 10 MCP Tools with `vivechak_` Prefix
 
 ## Context & Problem Statement
 
@@ -440,7 +440,7 @@ The tool surface defines what agents can do. Too many tools increases cognitive 
 
 ## Decision Outcome
 
-**Chosen Option:** 9 tools after code-level audit (2026-09-27) dropped `vivechak_synthesize`:
+**Chosen Option:** 10 tools after code-level audit dropped `vivechak_synthesize` and added `vivechak_amend_session`:
 
 | Tool | Purpose | Read-Only |
 |---|---|---|
@@ -451,12 +451,13 @@ The tool surface defines what agents can do. Too many tools increases cognitive 
 | `vivechak_next_session` | Get next actionable session with context injection | Yes |
 | `vivechak_save_session` | Validate and persist session output | No |
 | `vivechak_record_decision` | Persist ADR or conflict resolution | No |
+| `vivechak_amend_session` | Append post-hoc session amendments | No |
 | `vivechak_validate` | Dry-run validation (no side effects) | Yes |
 | `vivechak_run_gate` | Phase 0 exit gate (mechanical checks) | Yes |
 
 ### Rationale
 
-`vivechak_synthesize` was dropped because it can't synthesize without an LLM, and the server must not call LLM APIs. SYN-01 is handled by `vivechak_next_session` (which returns the synthesis prompt with all findings injected) + `vivechak_save_session` (which persists the result).
+`vivechak_synthesize` was dropped because it can't synthesize without an LLM, and the server must not call LLM APIs. SYN-01 is handled by `vivechak_next_session` (which returns the synthesis prompt with all findings injected) + `vivechak_save_session` (which persists the result). `vivechak_amend_session` was added to record post-hoc revisions with transitive downstream stale alerts, yielding 10 atomic tools.
 
 `get_generator_prompt` → `prepare_generator` and `save_pipeline` → `save_plan` were renamed for clarity.
 

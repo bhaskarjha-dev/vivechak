@@ -137,7 +137,7 @@ vivechak/
 │
 ├── internal/                       ← Server implementation
 │   ├── core/                       ← Pure logic (workspace, DAG, validation)
-│   ├── mcp/                        ← 9 MCP tool handlers
+│   ├── mcp/                        ← 10 MCP tool handlers
 │   ├── store/                      ← Atomic file I/O with os.Root confinement
 │   └── embed/                      ← Embedded generators + templates
 │
@@ -158,7 +158,7 @@ vivechak/
 ├── FRAMEWORK.md                    ← Deep methodology reference
 ├── docs/HOST-SETUP.md              ← Universal MCP setup & desktop shortcuts
 │
-├── templates/                      ← 5 operational contracts (copy to projects)
+├── templates/                      ← 6 operational contracts (copy to projects)
 ├── examples/                       ← Concrete adoption walkthroughs
 ├── docs/meta-research/              ← 14 locked ADRs + evidence provenance
 │
@@ -176,16 +176,16 @@ Vivechak ships as a universal **MCP server** — install the binary, register it
 
 | Tool | What It Does |
 |---|---|
-| `vivechak_init` | Create workspace structure with templates |
+| `vivechak_init` | Create workspace structure and copy the 6 operational contracts |
 | `vivechak_prepare_generator` | Return scope-appropriate generator prompt with context filled in |
-| `vivechak_save_plan` | Validate + persist generated research plan |
+| `vivechak_save_plan` | Validate + persist generated research plan and execution DAG |
 | `vivechak_status` | Report workspace progress (DAG completion, blocked sessions) |
-| `vivechak_next_session` | Return next session prompt with upstream findings injected |
-| `vivechak_save_session` | Validate + persist completed session output |
-| `vivechak_record_decision` | Save ADR or conflict resolution |
-| `vivechak_amend_session` | Append post-hoc amendments to an existing session or FAD |
-| `vivechak_validate` | Dry-run validation on any artifact |
-| `vivechak_run_gate` | Phase 0 exit gate (Track A + Track B) |
+| `vivechak_next_session` | Return next session prompt with upstream findings automatically injected |
+| `vivechak_save_session` | Validate + persist completed session output with real-time quality coaching (`Q-*`), mini-status, and FAD root copy mirroring |
+| `vivechak_record_decision` | Save ADR or conflict resolution, and automatically compile consolidated `DECISIONS.md` registry |
+| `vivechak_amend_session` | Append post-hoc amendments with transitive downstream stale alerts (`W-STALE-DOWNSTREAM`) |
+| `vivechak_validate` | Dry-run validation ladder on any research artifact |
+| `vivechak_run_gate` | Phase 0 exit gate (Track A + Track B with automated B1–B9 structural and evidentiary checks, auto-persisting `PHASE-0-GATE.md`) |
 
 The agent calls these tools in sequence. The server handles context injection, DAG resolution, evidence grading validation, and exit gate checks — the agent handles the actual research using its LLM capabilities.
 

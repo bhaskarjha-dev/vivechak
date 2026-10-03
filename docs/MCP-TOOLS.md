@@ -1,7 +1,7 @@
 # MCP Tools Reference
 
-> **Last verified against code:** 2026-09-28 (v0.1.0)
-> Tool schemas and behaviors described here should match `internal/mcp/server.go`. If you find discrepancies, please file an issue.
+> **Last verified against code:** 2026-10-04 (v0.1.0)
+> Tool schemas and behaviors described here match `internal/mcp/server.go`. If you find discrepancies, please file an issue.
 
 The Model Context Protocol (MCP) server for [Vivechak](../README.md) exposes 10 specialized tools designed to run evidence-grounded research pipelines directly inside any MCP-compatible AI host, agent runtime, or IDE.
 
@@ -541,7 +541,9 @@ When sessions remain but are blocked by incomplete dependencies:
 Validate and persist a completed research session output.
 
 #### What It Does
-Validates the research session Markdown output against the 4-level validation ladder defined in [`ValidateSession()`](../internal/core/validate.go) and saves it to `research/sessions/<session_id>.md`. The tool checks YAML frontmatter syntax, required metadata fields (`session_id`, `title`, `date`), non-empty body, and inline evidence grades (`A-E`). If blocking issues (Level 2) are detected, the file is safely saved as a draft with status `draft`.
+Validates the research session Markdown output against the 4-level validation ladder defined in [`ValidateSession()`](../internal/core/validate.go) and saves it to `research/sessions/<session_id>.md`. The tool checks YAML frontmatter syntax, required metadata fields (`session_id`, `title`, `date`), non-empty body, and inline evidence grades (`A-E`). For synthesis sessions (`SYN-01`), it writes to `research/FAD.md` as the canonical document and automatically mirrors a human-facing copy to `FOUNDING-ARCHITECTURE.md` at project root.
+
+In addition, the tool runs the **Quality Coaching Engine** ([`ObserveSessionQuality()`](../internal/core/validate.go)), evaluating grade distribution skew, Grade A URL citations, key findings depth, discovered concerns, and Delta confirmation bias, surfacing actionable observations in `warnings` (as `Q-*`) and `data.quality_observations`. If blocking issues (Level 2) are detected, the file is safely saved as a draft with status `draft`.
 
 #### Input Parameters
 Defined in [`SaveSessionInput`](../internal/mcp/tool_save_session.go):
@@ -560,13 +562,15 @@ Defined in [`SaveSessionInput`](../internal/mcp/tool_save_session.go):
 - `status` (`string`): Validation status: `valid`, `valid-with-warnings`, or `draft`.
 - `validation_passed` (`boolean`): Whether validation passed without blocking Level 2 issues (`true` if valid or valid-with-warnings, `false` if draft).
 - `validation` ([`ValidationResult`](../internal/core/validate.go)): Object containing `status` and `issues` array.
+- `quality_observations` (`object[]`, optional): List of advisory quality observations (`category`, `message`, `severity`).
+- `progress` (`object`): Real-time mini-status containing `sessions_completed`, `sessions_total`, and `decisions_recorded` (eliminates need to poll `vivechak_status`).
 
 #### Example
 **Request:**
 ```json
 {
   "session_id": "T1-01",
-  "content": "---\nsession_id: T1-01\ntitle: Distributed Cache Engine\ndate: 2026-09-27\nstatus: complete\n---\n\n## Findings\nRedis 7.2 demonstrates 110k ops/sec with sub-millisecond p99 latency A (official Redis benchmarks 2024). DragonFly shows 2.5x higher throughput B (Dragonfly technical whitepaper)."
+  "content": "---\nsession_id: T1-01\ntitle: Distributed Cache Engine\ndate: 2026-09-27\nstatus: complete\n---\n\n## Findings\nRedis 7.2 demonstrates 110k ops/sec with sub-millisecond p99 latency A (official Redis benchmarks 2024: https://redis.io/benchmarks). DragonFly shows 2.5x higher throughput B (Dragonfly technical whitepaper)."
 }
 ```
 
@@ -583,6 +587,11 @@ Defined in [`SaveSessionInput`](../internal/mcp/tool_save_session.go):
     "validation_passed": true,
     "validation": {
       "status": "valid"
+    },
+    "progress": {
+      "sessions_completed": 1,
+      "sessions_total": 4,
+      "decisions_recorded": 0
     }
   },
   "next_step": "Run vivechak_next_session for the next session, or vivechak_record_decision to record decisions from this session's findings.",
@@ -593,12 +602,17 @@ Defined in [`SaveSessionInput`](../internal/mcp/tool_save_session.go):
 }
 ```
 
-#### Common Warnings
-- `[L3-WARN] W-NO-EVIDENCE-GRADES: No inline evidence grades found (expected A-E grades per P3) (fix: Add evidence grades like 'A (official docs)' or 'B (peer-reviewed study)' to claims)`
-- `[L3-WARN] W-RECALLED-GRADE-CAP: Recalled knowledge must be capped at Grade D per Principle P3 (fix: Downgrade recalled claims to Grade D or corroborate them with live fetched/cached sources)`
-- `[L2-BLOCK] V-MISSING-FIELD: Required frontmatter field "date" is missing (fix: Add 'date: <value>' to the frontmatter block)`
+#### Common Warnings & Quality Observations
+- `[L3-WARN] W-NO-EVIDENCE-GRADES: No inline evidence grades found (expected A-E grades per P3)`
+- `[L3-WARN] W-RECALLED-GRADE-CAP: Recalled knowledge must be capped at Grade D per Principle P3`
+- `Q-EVIDENCE: Grade distribution is 4 A / 0 B / 0 C+ (100% Grade A). Web-based research typically produces ~25% A, ~50% B, ~25% C. Verify Grade A citations include URLs to primary sources.`
+- `Q-EVIDENCE: 1 Grade A 'fetched' citation(s) lack URLs. Grade A requires verifiable access to primary sources — include the source URL or downgrade to Grade B.`
+- `Q-CONCERNS: No Discovered Concerns section found. Every research session should uncover at least one unexpected finding beyond the stated scope.`
+- `Q-BIAS: Delta section has no contradicted or updated beliefs. If every prior was confirmed, consider whether the research genuinely challenged initial assumptions (P8).`
+- `Q-DEPTH: Only 2 key finding(s). Sessions typically benefit from 4-7 graded findings for adequate decision support.`
+- `[L2-BLOCK] V-MISSING-FIELD: Required frontmatter field "date" is missing`
 - `[L2-BLOCK] V-MISSING-FRONTMATTER: Session output has no YAML frontmatter`
-- `[L2-BLOCK] V-INVALID-FRONTMATTER: YAML frontmatter is malformed: unclosed frontmatter block (fix: Ensure opening '---' has a matching closing '---' line)`
+- `[L2-BLOCK] V-INVALID-FRONTMATTER: YAML frontmatter is malformed: unclosed frontmatter block`
 
 ---
 
@@ -611,6 +625,8 @@ Save an Architectural Decision Record (ADR) or conflict resolution.
 
 #### What It Does
 Validates and persists an ADR or Analysis of Competing Hypotheses (ACH) conflict resolution to `research/<decision_id>-decision.md` or `research/<decision_id>-conflict-resolution.md`. Evaluates required frontmatter (`decision_id`, `title`, `status`), verifies presence of `door_type` (`one-way` or `two-way`), and checks that the document body is substantive (>100 characters) with context, consequences, and evidence references.
+
+In addition, the tool acts as a **Single-Source ADR Compiler**: whenever a decision is recorded, it automatically discovers all canonical `D-*.md` files in `research/`, wraps each decision's YAML frontmatter in collapsible `<details>` blocks, and compiles the consolidated `research/DECISIONS.md` registry atomically under a cross-process lock.
 
 #### Input Parameters
 Defined in [`RecordDecisionInput`](../internal/mcp/tool_record_decision.go):
@@ -630,6 +646,8 @@ Defined in [`RecordDecisionInput`](../internal/mcp/tool_record_decision.go):
 - `artifact_type` (`string`): `decision` or `conflict-resolution`.
 - `file_path` (`string`): Path to written document.
 - `status` (`string`): Validation status (`valid`, `valid-with-warnings`, or `draft`).
+- `registry_updated` (`boolean`): Whether `research/DECISIONS.md` was automatically compiled.
+- `progress` (`object`): Real-time mini-status tracking `sessions_completed` and `decisions_recorded`.
 - `validation` ([`ValidationResult`](../internal/core/validate.go)): Detailed validation issues list.
 
 #### Example
@@ -638,7 +656,7 @@ Defined in [`RecordDecisionInput`](../internal/mcp/tool_record_decision.go):
 {
   "artifact_type": "decision",
   "decision_id": "D-001",
-  "content": "---\ndecision_id: D-001\ntitle: Adopt Redis Cluster for Session Persistence\nstatus: accepted\ndoor_type: one-way\n---\n\n## Context\nOur microservices require sub-5ms session access with multi-region failover.\n\n## Decision\nWe will deploy Redis Cluster across 3 availability zones.\n\n## Consequences\nHigh operational simplicity, but cross-region synchronization requires custom tooling."
+  "content": "---\ndecision_id: D-001\ntitle: Adopt Redis Cluster for Session Persistence\nstatus: accepted\ndoor_type: one-way\nreview_trigger: Re-evaluate if memory footprint exceeds 32GB or cluster nodes exceed 10\n---\n\n## Context\nOur microservices require sub-5ms session access with multi-region failover.\n\n## Decision\nWe will deploy Redis Cluster across 3 availability zones.\n\n## Alternatives Considered\nMemcached, DynamoDB DAX.\n\n## Consequences\nHigh operational simplicity, but cross-region synchronization requires custom tooling."
 }
 ```
 
@@ -646,13 +664,18 @@ Defined in [`RecordDecisionInput`](../internal/mcp/tool_record_decision.go):
 ```json
 {
   "success": true,
-  "message": "Saved decision D-001 as valid",
+  "message": "Saved decision D-001 as valid; updated DECISIONS.md registry",
   "data": {
     "workspace_root": "d:/dev/pro/my-cloud-app",
     "decision_id": "D-001",
     "artifact_type": "decision",
     "file_path": "research/D-001-decision.md",
     "status": "valid",
+    "registry_updated": true,
+    "progress": {
+      "sessions_completed": 1,
+      "decisions_recorded": 1
+    },
     "validation": {
       "status": "valid"
     }
@@ -901,12 +924,15 @@ Defined in [`RunGateInput`](../internal/mcp/tool_run_gate.go):
 ```
 
 #### Common Warnings
-- `GATE-A: RESEARCH-PIPELINE.md not found`
-- `GATE-A: FAD.md not found — synthesis not complete`
-- `GATE-A: Only 3/6 templates found`
-- `GATE-B: Only 1 sessions — minimum 3 recommended for a meaningful pipeline`
-- `GATE-B: DECISIONS.md appears empty or trivial`
-- `GATE-B: [L3-WARN] W-NO-EVIDENCE-GRADES: No inline evidence grades found`
+- `GATE-STRUCTURAL: Pipeline file RESEARCH-PIPELINE.md not found`
+- `GATE-STRUCTURAL: FAD file FAD.md not found — synthesis not complete`
+- `GATE-STRUCTURAL: Template directory missing or incomplete`
+- `GATE-QUALITY: Only 1 session(s) completed — minimum 3 recommended for a meaningful pipeline`
+- `GATE-QUALITY: DECISIONS.md or ADR files appear empty or trivial`
+- `GATE-QUALITY: 1 one-way door decision(s) lack required reversal triggers`
+- `GATE-ADVISORY: B3-EVIDENTIARY: Session T0-01 informs one-way door D-001 but has Grade C/D/E citation(s)`
+- `GATE-ADVISORY: B4-VERIFICATION: Session T0-01 informs one-way door D-001 but has 'recalled' citation(s)`
+- `GATE-ADVISORY: B5-ALTERNATIVES: One-way door D-001 lacks documented rejected alternatives section`
 
 ---
 
@@ -938,8 +964,15 @@ Vivechak organizes all artifact validation into a 4-level validation ladder defi
 | `W-OUTPUT-SIZE` | L3 | `next_session` | Assembled prompt exceeds 10,000 tokens. Truncated unless `verbose: true`. |
 | `W-STALE-DOWNSTREAM` | L3 | `amend_session` | Amended session has completed downstream dependents; findings may be based on stale assumptions. |
 | `W-TEMPLATE-MISSING` | L3 | `init` | A template file could not be read from embedded binary assets. |
-| `GATE-A: <check>` | L4 | `run_gate` | Track A structural check failed (missing pipeline, FAD, templates, or decisions). |
-| `GATE-B: <check>` | L4 | `run_gate` | Track B mechanical quality check failed (<3 sessions, un-graded FAD, or empty decisions). |
+| `GATE-STRUCTURAL: <check>` | L4 | `run_gate` | Structural completeness check failed (missing pipeline, FAD, templates, or uncompleted DAG sessions). |
+| `GATE-QUALITY: <check>` | L4 | `run_gate` | Mechanical quality check failed (<3 sessions, un-graded FAD, or unfinalized decisions / missing reversal triggers). |
+| `GATE-ADVISORY: <check>` | L4 | `run_gate` | Evidentiary integrity advisory (B3 evidence threshold, B4 verification method, B5 rejected alternatives, human review). |
+| `Q-EVIDENCE` | Advisory | `save_session` | Grade distribution skewed (>70% Grade A) or Grade A "fetched" citation lacks URL. |
+| `Q-CONCERNS` | Advisory | `save_session` | Missing `## Discovered Concerns` section. Research should uncover unexpected findings beyond stated scope. |
+| `Q-DEPTH` | Advisory | `save_session` | Fewer than 3 key findings in session output. Sessions typically benefit from 4-7 findings. |
+| `Q-BIAS` | Advisory | `save_session` | Delta section has 0 contradicted, refined, or updated prior beliefs (P8 confirmation bias warning). |
+| `Q-RIGOR` | Advisory | `save_session` | Recommendation lacks explicit reference to rejected alternatives. |
+| `Q-FRESHNESS` | Advisory | `save_session` | References to potentially stale dates detected (with exclusion of port numbers, latencies, RAM). |
 
 ---
 

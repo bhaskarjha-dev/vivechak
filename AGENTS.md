@@ -163,7 +163,12 @@ When modifying Go code in `cmd/` or `internal/`:
 2. **Embed sync:** `internal/embed/generators/` and `internal/embed/templates/` must stay in sync with root-level generators and templates. Verified by `TestEmbeddedFilesMatchRoot` and enforced by CI (`.github/workflows/ci.yml`).
 3. **10 MCP tools:** `vivechak_init`, `vivechak_prepare_generator`, `vivechak_save_plan`, `vivechak_status`, `vivechak_next_session`, `vivechak_save_session`, `vivechak_record_decision`, `vivechak_amend_session`, `vivechak_validate`, `vivechak_run_gate`. Each tool is one file in `internal/mcp/tool_*.go`.
 4. **Guided Worker pattern:** Every tool response includes `next_step`. Hard refusals ONLY for impossible operations, never for "wrong order."
-5. **Testing:** `go test ./...` runs all tests. `internal/mcp/server_test.go` has wire-level integration tests.
+5. **Quality coaching:** `core.ObserveSessionQuality` runs inside `vivechak_save_session`, surfacing real-time non-blocking `Q-*` observations (grade inflation, missing discovered concerns, Delta confirmation bias, low findings count).
+6. **Single-source ADRs:** `vivechak_record_decision` treats individual `D-*.md` files as canonical and compiles the consolidated `research/DECISIONS.md` registry.
+7. **Automated Phase 0 Gate:** `vivechak_run_gate` mechanically evaluates B1–B9 checks (including B3 threshold, B4 verification, B5 rejected alternatives, B6 reversal triggers) and auto-persists `research/PHASE-0-GATE.md`.
+8. **Concurrency & Atomic I/O:** `store.WriteFileAtomic` employs monotonic `tmpFileCounter` to prevent Windows nanosecond collision races; mutating operations acquire advisory locks.
+9. **Special research files:** Use `core.IsSpecialResearchFile` when scanning `research/` to prevent non-ADR markdown files from corrupting decision registries.
+10. **Testing:** `go test ./...` runs all tests. `internal/mcp/server_test.go` has wire-level integration tests.
 
 ---
 

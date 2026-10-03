@@ -1,7 +1,7 @@
 ---
 # Architectural Decision Record Template — Vivechak v0.1.0
 # Usage: Add one entry per decision to your project's DECISIONS.md registry file.
-# For projects with many decisions, individual files (decisions/D-NNN-[slug].md) may be used instead.
+# For projects with many decisions, individual files (research/D-NNN-[slug].md) may be used instead.
 id: D-NNN
 title: "[Decision Title]"
 status: proposed               # proposed | accepted | rejected | deprecated | superseded

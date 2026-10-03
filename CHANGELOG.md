@@ -7,6 +7,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased]
+
+Improvements addressing forensic audits (`temp/audit/`), implementing active epistemic coaching, programmatic Phase 0 Gate verification, single-source ADR compilation, and Windows concurrency safety.
+
+### Added
+- **Quality Coaching & Semantic Observation Engine (`ObserveSessionQuality`):** Real-time advisory feedback during `vivechak_save_session` to eliminate research superficiality and confirmation bias without blocking workflow:
+  - **Grade Inflation Scanner:** Emits `Q-EVIDENCE` when Grade A citations exceed 70% of claims, coaching realistic web distributions (~25% A, ~50% B, ~25% C).
+  - **Grade A URL Verification (`EI-01`):** Requires `http://` or `https://` URLs for all `Grade A ... fetched` citations.
+  - **Discovered Concerns Validator:** Emits `Q-CONCERNS` advisory if `## Discovered Concerns` section is missing.
+  - **Confirmation Bias Detector (P8, `SRF-01`):** Inspects the Delta table and emits `Q-BIAS` when 0 prior beliefs are contradicted, refined, or updated.
+  - **Key Findings Depth:** Emits `Q-DEPTH` when a session produces fewer than 3 key findings.
+  - **Rejected Alternatives Check:** Emits `Q-RIGOR` when Recommendations lack reference to rejected alternatives.
+  - **Stale Date Detection:** Emits `Q-FRESHNESS` on outdated year references while ignoring false positives on port numbers, latencies, and memory sizes.
+- **Automated Phase 0 Gate Evidentiary Engine (`tool_run_gate.go`):**
+  - Programmatic verification of **B3** (Evidentiary Threshold: scans one-way door sessions for low grades C/D/E), **B4** (Verification Integrity: detects ungrounded recalled claims), **B5** (Rejected Alternatives: requires $\ge 30$ chars of documented rejected options), and **B6** (Reversal Triggers: enforces measurable review conditions).
+  - Automated persistence of formatted exit gate checklist to `research/PHASE-0-GATE.md` with timestamps and verdict routing.
+- **Single-Source ADR Compilation (`tool_record_decision.go`):**
+  - Individual `D-*.md` files are the canonical single source of truth; `compileDecisionsRegistry` automatically generates `research/DECISIONS.md` wrapping YAML frontmatter in collapsible `<details>` blocks.
+  - Validation skips `DECISIONS.md` to prevent double-counting ADRs.
+- **Real-Time Mini-Status Progress Embedding:**
+  - `vivechak_save_session` and `vivechak_record_decision` return a `progress` object (`sessions_completed`, `sessions_total`, `decisions_recorded`), eliminating the need for redundant `vivechak_status` polling.
+- **Transitive Downstream Stale Cascades (`tool_amend_session.go`):**
+  - BFS traversal of DAG dependencies identifies completed downstream sessions and emits `W-STALE-DOWNSTREAM` warnings with `potentially_stale_sessions`.
+- **Synthesis Single-Write & Root Copy Mirroring:**
+  - Saving synthesis (`SYN-01`) writes directly to canonical `research/FAD.md` and mirrors byte-for-byte to `FOUNDING-ARCHITECTURE.md` at project root.
+- **6th Embedded Operational Contract:**
+  - Standardized `templates/SESSION.template.md` embedded into binary (`internal/embed/templates/SESSION.template.md`) and scaffolded during `vivechak_init`.
+- **Expanded Server Instructions:**
+  - Expanded `ServerInstructions` to ~1,500 bytes with canonical 4-step workflow, grading definitions, and token economics guidelines.
+
+### Changed
+- **Centralized Research File Filtering:** Replaced fragile scattered blacklist loops with `core.IsSpecialResearchFile`, preventing non-ADR markdown files (`*-plan.md`, `PHASE-0-GATE.md`, `NOTES.md`) from corrupting ADR counts.
+- **Guided Worker Next-Step Advice:** Dynamic `next_step` prompts advise whether the next task is a One-Way or Two-Way door with corresponding evidence standards.
+
+### Fixed
+- **High-Concurrency Windows File Locking:** Added monotonic atomic counter `tmpFileCounter` in `internal/store/atomic.go` to eliminate Windows temporary filename rename collisions under rapid concurrent operations.
+- **Windows File Sharing Violations:** Serialized decision writing and registry compilation under `core.DecisionsFile` lock with exponential backoff retry loops.
+
+---
+
 ## [0.1.0] - 2026-09-28 — Initial Unified Release (Go MCP Server & Multi-Scope Engine)
 
 First public release of the automated **Vivechak (विवेचक)** system — uniting evidence-grounded research methodology with an autonomous Model Context Protocol (MCP) server.
@@ -33,6 +73,7 @@ First public release of the automated **Vivechak (विवेचक)** system �
   - `COMPARISON-SESSION.template.md`: Standardized WEP comparison session output structure.
   - `FOUNDING-ARCHITECTURE.template.md`: Map-Reduce synthesis template for technical architectures.
   - `PHASE-0-GATE.template.md`: Two-track pre-codebase exit gate with Klein premortem protocol.
+  - `SESSION.template.md`: Standard research session output format with YAML frontmatter, evidence ledger, and delta tracking.
 - **CLI Subcommands & Shorthand Alias:**
   - `vck` official 3-letter shorthand CLI binary alias installed alongside `vivechak` across Homebrew, Scoop, WinGet, and shell installers (100% collision-free across all OS and package ecosystems).
   - `vck setup` (aliased with `install`) subcommand enabling single-command host setup (`vck setup cursor`, `vck setup claude`, `vck setup vscode`), workspace auto-detection (`vck setup` with zero arguments), direct custom config file targeting, and `--dry-run` (`-n`) preview mode.

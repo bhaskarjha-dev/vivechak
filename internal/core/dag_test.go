@@ -849,6 +849,46 @@ func TestDAG_TransitiveDependents(t *testing.T) {
 	}
 }
 
+func TestDAG_CaseInsensitiveOperations(t *testing.T) {
+	dag := &DAG{
+		Sessions: []Session{
+			{ID: "T0-01", Dependencies: nil},
+			{ID: "t0-02", Dependencies: []string{"T0-01"}},
+			{ID: "T1-01", Dependencies: []string{"t0-01", "T0-02"}},
+		},
+	}
+
+	// 1. SessionByID with various casings
+	if s := dag.SessionByID("t0-01"); s == nil || s.ID != "T0-01" {
+		t.Errorf("expected to find T0-01 with lowercase query, got: %v", s)
+	}
+	if s := dag.SessionByID("T0-02"); s == nil || s.ID != "t0-02" {
+		t.Errorf("expected to find t0-02 with uppercase query, got: %v", s)
+	}
+
+	// 2. ValidateDAG with mixed casing dependencies
+	if err := dag.ValidateDAG(); err != nil {
+		t.Errorf("expected ValidateDAG to succeed with mixed-case dependencies, got: %v", err)
+	}
+
+	// 3. NextSessions with mixed-case completed IDs
+	completed := map[string]bool{
+		"t0-01": true, // lowercase completion of T0-01
+	}
+	ready := dag.NextSessions(completed)
+	if len(ready) != 1 || !strings.EqualFold(ready[0].ID, "t0-02") {
+		t.Errorf("expected t0-02 to be ready when t0-01 completed, got: %+v", ready)
+	}
+
+	// Complete t0-02 with uppercase ID
+	completed["T0-02"] = true
+	ready = dag.NextSessions(completed)
+	if len(ready) != 1 || !strings.EqualFold(ready[0].ID, "t1-01") {
+		t.Errorf("expected T1-01 to be ready when T0-02 completed, got: %+v", ready)
+	}
+}
+
+
 
 
 

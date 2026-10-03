@@ -14,7 +14,7 @@ Vivechak v0.1.0 marks the initial unified release combining the evidence-grounde
 | Component | State | Description |
 |---|---|---|
 | **Multi-Scope Generators** | ✅ Ship-ready | `GENERATOR.md` (Project), `GENERATOR-DECISION.md` (Decision), `GENERATOR-COMPARISON.md` (Comparison) |
-| **Go MCP Server** | ✅ Shipped | 9 atomic tools implementing the Guided Worker pattern with 32/32 tests passing |
+| **Go MCP Server** | ✅ Shipped | 10 atomic tools implementing the Guided Worker pattern with comprehensive test suites passing across all packages |
 | **CLI & Diagnostics** | ✅ Shipped | `vck` shorthand alias, `vck setup` (1-second host configuration + 14 presets), `vck mcp-config` (universal JSON config), and `vck doctor` workspace integrity checker |
 | **FRAMEWORK.md** | ✅ Consolidated | Complete standalone spec (principles + evidence grading + multi-scope methodology) |
 | **6 Templates** | ✅ Agent-ready | Decisions, Conflict Resolution, Comparison Session, FAD, Phase 0 Gate, Session Note (`schema_version: "0.1.0"`) |
@@ -224,7 +224,7 @@ Automated (MCP Server):
 
 **Distribution:** GitHub Releases (GoReleaser, 6 platforms) → shell installers (with `vck` shorthand alias) → `vck setup` / `vck mcp-config` (1-second host configuration + 14 desktop/harness presets) → Homebrew/Scoop/winget → thin Agent Plugin → MCP Registry.
 
-**Evidence base:** 12 research sessions (~770KB evidence corpus) archived in `meta-research/v2-research/`. Full implementation plan in `meta-research/v2-research/FINAL-PLAN.md`.
+**Evidence base:** 12 research sessions (~770KB evidence corpus) archived in `docs/meta-research/v2/`. Full implementation plan in `docs/meta-research/v2/FINAL-PLAN.md`.
 
 #### Deferred Convenience Items → MCP Tool Targets
 
@@ -232,7 +232,7 @@ These items were evaluated during Phase 4 planning and deferred to the MCP serve
 
 | Item | What | Target | Rationale for Deferral |
 |---|---|---|---|
-| Template init script (`vivechak init`) | Automate the 5-template copy + directory creation | `vivechak_init` tool ✅ | Implemented in v0.1.0 |
+| Template init script (`vivechak init`) | Automate the 6-template copy + directory creation | `vivechak_init` tool ✅ | Implemented in v0.1.0 |
 | YAML frontmatter validator | Validate ADR schema before synthesis | `vivechak_validate` tool ✅ | Implemented in v0.1.0 |
 | Code-based generator CLI | Replace copy-paste prompt with CLI interface | `vivechak_prepare_generator` tool ✅ | Implemented in v0.1.0 |
 | Blast-radius tracker | Track which decisions affect which components | Post-Phase 5 | Needs 5+ projects with tracked evidence |

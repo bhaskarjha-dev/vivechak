@@ -90,6 +90,7 @@ func TestEmbeddedFilesMatchRoot(t *testing.T) {
 		"DECISIONS.template.md",
 		"FOUNDING-ARCHITECTURE.template.md",
 		"PHASE-0-GATE.template.md",
+		"SESSION.template.md",
 	} {
 		rootPath := filepath.Join(rootTmplDir, name)
 		rootData, err := os.ReadFile(rootPath)

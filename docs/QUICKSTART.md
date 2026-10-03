@@ -23,7 +23,7 @@ Throughout this quickstart, we use a concrete scenario:
 
 ## Path A: MCP Server (Recommended)
 
-Give your AI coding agent (Cursor, VS Code, Claude Desktop, Antigravity, etc.) direct access to Vivechak's 9 orchestration tools.
+Give your AI coding agent (Cursor, VS Code, Claude Desktop, Antigravity, etc.) direct access to Vivechak's 10 orchestration tools.
 
 ### 1. Install Vivechak
 
@@ -74,7 +74,7 @@ Your agent coordinates the 10 tools autonomously:
 
 ```
 [Agent: vivechak_init]
-  └─ Creates research/ workspace, directories, and 5 operational contracts
+  └─ Creates research/ workspace, directories, and 6 operational contracts
 [Agent: vivechak_prepare_generator]
   └─ Fills your vision into GENERATOR.md
 [Agent: executes generator prompt]
@@ -117,13 +117,14 @@ The AI returns two separate documents. Create a `research/` directory in your pr
 1. `research/RESEARCH-PIPELINE.md` (the session DAG and copy-paste prompts)
 2. `research/DECISIONS.md` (the decision registry)
 
-### 4. Copy the 5 Contract Templates
+### 4. Copy the 6 Contract Templates
 Copy the templates from `templates/` into your project's `research/templates/`:
 - `DECISIONS.template.md`
 - `CONFLICT-RESOLUTION.template.md`
 - `COMPARISON-SESSION.template.md`
 - `FOUNDING-ARCHITECTURE.template.md`
 - `PHASE-0-GATE.template.md`
+- `SESSION.template.md`
 
 Your project workspace is now completely self-contained:
 ```

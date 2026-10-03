@@ -599,15 +599,15 @@ func TestValidateSession_TemplateFile(t *testing.T) {
 	}
 
 	filled := string(data)
-	filled = strings.Replace(filled, `"[SESSION-ID]"`, `"T1-01"`, -1)
-	filled = strings.Replace(filled, `"[Session Title]"`, `"Database Selection"`, -1)
-	filled = strings.Replace(filled, `"[YYYY-MM-DD]"`, `"2026-10-01"`, -1)
-	filled = strings.Replace(filled, `"[topic-slug]"`, `"database-selection"`, -1)
-	filled = strings.Replace(filled, `"[high|medium|low]"`, `"high"`, -1)
-	filled = strings.Replace(filled, `"[A-E]"`, `"A"`, -1)
-	filled = strings.Replace(filled, `"[modifiers]"`, `"corroborated · fresh"`, -1)
-	filled = strings.Replace(filled, `"[verification]"`, `"fetched"`, -1)
-	filled = strings.Replace(filled, `status: draft`, `status: complete`, -1)
+	filled = strings.ReplaceAll(filled, `"[SESSION-ID]"`, `"T1-01"`)
+	filled = strings.ReplaceAll(filled, `"[Session Title]"`, `"Database Selection"`)
+	filled = strings.ReplaceAll(filled, `"[YYYY-MM-DD]"`, `"2026-10-01"`)
+	filled = strings.ReplaceAll(filled, `"[topic-slug]"`, `"database-selection"`)
+	filled = strings.ReplaceAll(filled, `"[high|medium|low]"`, `"high"`)
+	filled = strings.ReplaceAll(filled, `"[A-E]"`, `"A"`)
+	filled = strings.ReplaceAll(filled, `"[modifiers]"`, `"corroborated · fresh"`)
+	filled = strings.ReplaceAll(filled, `"[verification]"`, `"fetched"`)
+	filled = strings.ReplaceAll(filled, `status: draft`, `status: complete`)
 
 	res := ValidateSession([]byte(filled))
 	if res.ErrorCount() > 0 {

@@ -405,7 +405,7 @@ func buildSessionResponse(tool string, session core.Session, prompt string, comp
 	return env.ToResult()
 }
 
-var sessionIDPrefixRe = regexp.MustCompile(`^(T\d+-\d+|S\d+-\d+|D-[A-Za-z0-9_-]+-S\d+|SYN-\d+|C\d+-\d+|COMP-\d+|FAD)(?:[-_].*)?$`)
+var sessionIDPrefixRe = regexp.MustCompile(`^(?i)(T\d+-\d+|S\d+-\d+|D-[A-Za-z0-9_-]+-S\d+|SYN-\d+|C\d+-\d+|COMP-\d+|FAD)(?:[-_].*)?$`)
 
 // scanCompletedSessions reads the sessions directory and FAD file using workspace confinement,
 // returning completed IDs. Authoritative IDs come from YAML frontmatter (session_id or id fields), falling back to filename stem.
@@ -436,19 +436,24 @@ func scanCompletedSessions(ws *store.Workspace, knownIDs ...string) (map[string]
 			id := core.ExtractSessionID(e.Name(), fm)
 			if id != "" {
 				completed[id] = true
+				completed[strings.ToUpper(id)] = true
 			}
 
 			// If no explicit frontmatter session ID was present, also match session ID prefix
 			// to avoid deadlocking the DAG when files are saved with title slugs (e.g. T1-01-database.md)
 			if !hasExplicitFMID {
 				stem := strings.TrimSuffix(e.Name(), ".md")
+				lowerStem := strings.ToLower(stem)
 				for _, kid := range knownIDs {
-					if stem == kid || strings.HasPrefix(stem, kid+"-") || strings.HasPrefix(stem, kid+"_") {
+					lowerKid := strings.ToLower(kid)
+					if lowerStem == lowerKid || strings.HasPrefix(lowerStem, lowerKid+"-") || strings.HasPrefix(lowerStem, lowerKid+"_") {
 						completed[kid] = true
+						completed[strings.ToUpper(kid)] = true
 					}
 				}
 				if sub := sessionIDPrefixRe.FindStringSubmatch(stem); len(sub) > 1 {
 					completed[sub[1]] = true
+					completed[strings.ToUpper(sub[1])] = true
 				}
 			}
 		}

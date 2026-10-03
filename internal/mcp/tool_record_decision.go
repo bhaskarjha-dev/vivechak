@@ -215,31 +215,120 @@ func handleRecordDecision(ctx context.Context, _ *sdkmcp.CallToolRequest, in Rec
 		dataMap["decisions_file"] = core.DecisionsFile
 	}
 
+	// Mini-status (eliminates need for separate status calls)
+	completedSessions, _ := scanCompletedSessions(ws)
+	gateDecisions := collectGateDecisions(ws)
+	progress := map[string]any{
+		"sessions_completed": len(completedSessions),
+		"decisions_recorded": len(gateDecisions),
+	}
+	info := core.InspectWorkspace(root)
+	if info.HasPipeline {
+		if pipeData, err := ws.ReadFile(core.PipelineFile); err == nil {
+			if dag, err := core.ParsePipeline(pipeData); err == nil {
+				progress["sessions_total"] = len(dag.Sessions)
+			}
+		}
+	}
+	dataMap["progress"] = progress
+
+	nextStep := "Run vivechak_next_session for the next research session, or " +
+		"vivechak_record_decision with auto_draft_from=[session_id] to auto-draft " +
+		"a decision from session findings. Use vivechak_status to review progress."
+	if fm, _, _ := core.ParseFrontmatter([]byte(in.Content)); fm != nil {
+		if strings.EqualFold(fm.GetString("door_type"), "one-way") {
+			nextStep += " (one-way door — requires Grade A/B evidence, specific reversal triggers, and documented rejected alternatives)"
+		}
+	}
+
 	env := Envelope{
-		Success: true,
-		Message: fmt.Sprintf("Saved %s %s as %s", artifactType, in.DecisionID, validation.Status),
-		Data:    dataMap,
+		Success:  true,
+		Message:  fmt.Sprintf("Saved %s %s as %s", artifactType, in.DecisionID, validation.Status),
+		Data:     dataMap,
 		Warnings: warnings,
-		NextStep: "Run vivechak_next_session for the next research session, or " +
-			"vivechak_record_decision with auto_draft_from=[session_id] to auto-draft " +
-			"a decision from session findings. Use vivechak_status to review progress.",
-		Meta: NewMeta(tool),
+		NextStep: nextStep,
+		Meta:     NewMeta(tool),
 	}
 	return env.ToResult()
 }
 
-// compileDecisionsRegistry compiles DECISIONS.md from all individual ADR files in research/.
+// compileDecisionsRegistry compiles DECISIONS.md from all individual ADR files in research/,
+// while preserving planned/unmaterialized decisions already registered in DECISIONS.md.
 func compileDecisionsRegistry(ctx context.Context, ws *store.Workspace, root string) error {
+	decRelPath := core.DecisionsFile
+	existingByID := make(map[string]string)
+	var preamble string
+
+	// 1. Read existing DECISIONS.md to preserve planned decisions and preamble
+	if existingData, err := ws.ReadFile(decRelPath); err == nil && len(existingData) > 0 {
+		anchoredRe := regexp.MustCompile(`(?s)<!-- DECISION:\s*([A-Za-z0-9_-]+)\s*-->\s*(.*?)\s*<!-- /DECISION:\s*[A-Za-z0-9_-]+\s*-->`)
+		matches := anchoredRe.FindAllSubmatchIndex(existingData, -1)
+
+		earliestDecisionStart := -1
+
+		for _, loc := range matches {
+			if earliestDecisionStart == -1 || loc[0] < earliestDecisionStart {
+				earliestDecisionStart = loc[0]
+			}
+			id := string(existingData[loc[2]:loc[3]])
+			body := string(existingData[loc[4]:loc[5]])
+			existingByID[id] = body
+		}
+
+		isInsideAnchors := func(start, end int) bool {
+			for _, loc := range matches {
+				if start >= loc[0] && end <= loc[1] {
+					return true
+				}
+			}
+			return false
+		}
+
+		// Also check for any unanchored frontmatter blocks (whether or not anchored blocks exist)
+		fmRegex := regexp.MustCompile(`(?ms)^---\s*\n(.*?)\n---\s*`)
+		fmMatches := fmRegex.FindAllSubmatchIndex(existingData, -1)
+		for _, loc := range fmMatches {
+			if isInsideAnchors(loc[0], loc[1]) {
+				continue
+			}
+			if fm, _, pErr := core.ParseFrontmatter(existingData[loc[0]:loc[1]]); pErr == nil && fm != nil {
+				id := fm.GetString("id")
+				if id == "" {
+					id = fm.GetString("decision_id")
+				}
+				if id != "" {
+					if earliestDecisionStart == -1 || loc[0] < earliestDecisionStart {
+						earliestDecisionStart = loc[0]
+					}
+					// Find end of this unanchored decision: next anchor or next unanchored fm block or EOF
+					endIdx := len(existingData)
+					for _, aLoc := range matches {
+						if aLoc[0] > loc[0] && aLoc[0] < endIdx {
+							endIdx = aLoc[0]
+						}
+					}
+					for _, otherFm := range fmMatches {
+						if otherFm[0] > loc[0] && otherFm[0] < endIdx && !isInsideAnchors(otherFm[0], otherFm[1]) {
+							endIdx = otherFm[0]
+						}
+					}
+					existingByID[id] = string(existingData[loc[0]:endIdx])
+				}
+			}
+		}
+
+		if earliestDecisionStart > 0 {
+			preamble = string(existingData[:earliestDecisionStart])
+		} else if earliestDecisionStart == -1 {
+			preamble = string(existingData)
+		}
+	}
+
+	// 2. Scan individual ADR files in research/
 	entries, err := ws.ListDir(core.ResearchDir)
 	if err != nil {
 		return fmt.Errorf("listing research directory: %w", err)
 	}
-
-	type decisionEntry struct {
-		id      string
-		content string
-	}
-	var decisions []decisionEntry
 
 	for _, e := range entries {
 		name := e.Name()
@@ -278,28 +367,42 @@ func compileDecisionsRegistry(ctx context.Context, ws *store.Workspace, root str
 			stem := strings.TrimSuffix(name, ".md")
 			id = stem
 		}
+		existingByID[id] = string(data)
+	}
+
+	type decisionEntry struct {
+		id      string
+		content string
+	}
+	var decisions []decisionEntry
+	for id, content := range existingByID {
 		decisions = append(decisions, decisionEntry{
 			id:      id,
-			content: string(data),
+			content: content,
 		})
 	}
 
-	// Sort decisions deterministically by ID
+	// Sort decisions deterministically by natural ID
 	sort.Slice(decisions, func(i, j int) bool {
-		return decisions[i].id < decisions[j].id
+		return naturalDecisionIDLess(decisions[i].id, decisions[j].id)
 	})
 
 	var b strings.Builder
-	b.WriteString("# Architectural Decisions\n\n")
+	trimmedPreamble := strings.TrimSpace(preamble)
+	if trimmedPreamble != "" {
+		b.WriteString(trimmedPreamble)
+		b.WriteString("\n\n")
+	} else {
+		b.WriteString("# Architectural Decisions\n\n")
+	}
 	for i, d := range decisions {
 		wrapped := wrapFrontmatterForRegistry(d.content)
-		b.WriteString(fmt.Sprintf("<!-- DECISION: %s -->\n%s\n<!-- /DECISION: %s -->\n", d.id, wrapped, d.id))
+		fmt.Fprintf(&b, "<!-- DECISION: %s -->\n%s\n<!-- /DECISION: %s -->\n", d.id, wrapped, d.id)
 		if i < len(decisions)-1 {
 			b.WriteString("\n---\n\n")
 		}
 	}
 
-	decRelPath := core.DecisionsFile
 	return store.WriteFileAtomic(ws.Root(), decRelPath, []byte(b.String()), 0o644)
 }
 
@@ -492,6 +595,19 @@ func findUnanchoredDecision(content string, decisionID string) (int, int, bool) 
 		return startIdx, loc[1] + nextLoc[0], true
 	}
 	return startIdx, len(content), true
+}
+
+// naturalDecisionIDLess sorts decision IDs naturally so D-2 sorts before D-10.
+func naturalDecisionIDLess(a, b string) bool {
+	var numA, numB int
+	if n, err := fmt.Sscanf(strings.ToUpper(a), "D-%d", &numA); n == 1 && err == nil {
+		if m, err := fmt.Sscanf(strings.ToUpper(b), "D-%d", &numB); m == 1 && err == nil {
+			if numA != numB {
+				return numA < numB
+			}
+		}
+	}
+	return a < b
 }
 
 // resolveDecisionFilename determines the target filename for a decision artifact.

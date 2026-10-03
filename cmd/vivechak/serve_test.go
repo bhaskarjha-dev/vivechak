@@ -362,7 +362,7 @@ Dry run test.
 		t.Fatalf("validate failed: %s", env.Message)
 	}
 
-	// 16. Save SYN-01 (dual-writes to research/FAD.md and research/sessions/SYN-01.md)
+	// 16. Save SYN-01 (writes to research/FAD.md and mirrors to FOUNDING-ARCHITECTURE.md)
 	fadContent := `---
 session_id: SYN-01
 title: Founding Architecture Document

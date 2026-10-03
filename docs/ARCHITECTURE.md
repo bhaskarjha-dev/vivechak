@@ -1,6 +1,6 @@
 # Server Architecture Guide
 
-> **Last verified against code:** 2026-09-28 (v0.1.0)
+> **Last verified against code:** 2026-10-04 (v0.1.0)
 > If you find discrepancies with the actual code, please file an issue.
 
 Welcome to the internal architecture guide for **Vivechak** (विवेचक). This document is written for Go developers and contributors who want to understand, extend, or maintain the Vivechak MCP server codebase.
@@ -10,7 +10,7 @@ Vivechak is an evidence-grounded research meta-framework for technical decisions
 2. **Decision** ([`GENERATOR-DECISION.md`](../GENERATOR-DECISION.md)) — Single architectural decision producing an Architectural Decision Record (ADR) across 1–3 sessions.
 3. **Comparison** ([`GENERATOR-COMPARISON.md`](../GENERATOR-COMPARISON.md)) — Bounded technology evaluation producing a Weighted Evaluation Protocol (WEP) matrix in a single session.
 
-The project ships as both a zero-dependency manual workflow and an autonomous **Model Context Protocol (MCP)** server providing 9 purpose-built tools.
+The project ships as both a zero-dependency manual workflow and an autonomous **Model Context Protocol (MCP)** server providing 10 purpose-built tools.
 
 ---
 
@@ -36,7 +36,7 @@ vivechak/
 │   ├── mcp/                # MCP protocol server and tool handlers (package mcputil)
 │   │   ├── server.go       # Server factory and tool registration dispatcher
 │   │   ├── envelope.go     # Standardized JSON response envelope & dual-channel encoding
-│   │   ├── tool_*.go       # 9 individual MCP tool handlers
+│   │   ├── tool_*.go       # 10 individual MCP tool handlers
 │   │   └── server_test.go  # In-memory JSON-RPC wire tests
 │   ├── store/              # Storage, path jail, and concurrency primitives
 │   │   ├── workspace.go    # os.Root confinement wrapper
@@ -91,10 +91,12 @@ Defined in [`internal/core/workspace.go`](../internal/core/workspace.go#L34-L88)
 The workspace layout is standard across all Vivechak projects:
 - `research/` — Workspace root
 - `research/sessions/` — Markdown outputs from individual research sessions
-- `research/templates/` — Copy of the 5 canonical templates
+- `research/templates/` — Copy of the 6 canonical templates
 - `research/RESEARCH-PIPELINE.md` — DAG session definitions and metadata
-- `research/DECISIONS.md` — Central architectural decision registry
+- `research/DECISIONS.md` — Central architectural decision registry (auto-compiled from individual `D-*.md` files)
 - `research/FAD.md` — Synthesized Founding Architecture Document
+- `FOUNDING-ARCHITECTURE.md` — Root-level human-facing mirror of `research/FAD.md`
+- `research/PHASE-0-GATE.md` — Auto-persisted Phase 0 exit gate evaluation checklist
 
 ### Pipeline DAG (`core.DAG` & `core.Session`)
 Defined in [`internal/core/dag.go`](../internal/core/dag.go#L10-L49), [`ParsePipeline`](../internal/core/dag.go#L104) converts `RESEARCH-PIPELINE.md` into an in-memory graph.
@@ -113,6 +115,16 @@ Defined in [`internal/core/validate.go`](../internal/core/validate.go#L11-L22), 
 | **L2** | `L2Block` | Persists as `draft`, blocks completion | Missing YAML frontmatter, missing mandatory fields (`session_id`, `title`, `date`), empty markdown body. |
 | **L3** | `L3Warn` | Emits non-fatal warnings | Missing inline evidence grades (`A-E (source)`), missing `door_type`, decision body < 100 characters. |
 | **L4** | `L4Gate` | Exit gate evaluation across project | Pipeline structural completeness and mechanical quality verification. |
+
+### Quality Coaching Engine (`core.ObserveSessionQuality`)
+Defined in [`internal/core/validate.go`](../internal/core/validate.go#L552-L655), `ObserveSessionQuality` performs real-time advisory analysis on session outputs during `vivechak_save_session` (and dry-run `vivechak_validate`). It coaches the agent on epistemic rigor without blocking workflow:
+- **Grade Distribution:** Alerts when Grade A citations exceed 70% of claims, prompting primary source verification.
+- **Grade A URL Verification:** Scans for `Grade A ... fetched` citations lacking an HTTP(S) URL.
+- **Key Findings Depth:** Alerts when fewer than 3 key findings are provided.
+- **Discovered Concerns:** Flags sessions lacking an unexpected findings section.
+- **Confirmation Bias Check:** Warns when 100% of prior beliefs in the Delta table are confirmed without contradiction or refinement.
+- **Rejected Alternatives:** Verifies recommendations cite rejected alternatives.
+- **Date Freshness:** Checks for potentially stale dates while filtering out ports and metrics.
 
 ### Response Envelope (`mcputil.Envelope`)
 Defined in [`internal/mcp/envelope.go`](../internal/mcp/envelope.go#L24-L44), every tool returns the standard envelope:
@@ -236,7 +248,7 @@ Implemented in [`internal/store/lock.go`](../internal/store/lock.go#L14-L37), ev
 
 ### Atomic Writes
 Implemented in [`internal/store/atomic.go`](../internal/store/atomic.go#L10-L54):
-1. A unique temporary file is opened inside `os.Root`: `.tmp_<unixnano>_<pid>`.
+1. A unique temporary file is opened inside `os.Root`: `.tmp_<unixnano>_<pid>_<counter>` (using a monotonic `atomic.Uint64` counter to eliminate Windows high-frequency timestamp collisions).
 2. Content is fully written to the file descriptor.
 3. `f.Sync()` flushes internal kernel buffers to physical storage.
 4. `f.Close()` closes the file handle.
@@ -259,7 +271,7 @@ var Generators embed.FS
 var Templates embed.FS
 ```
 - [`ReadGenerator(name)`](../internal/embed/embed.go#L26-L32): Retrieves generator prompts by filename (`GENERATOR.md`, `GENERATOR-DECISION.md`, `GENERATOR-COMPARISON.md`).
-- [`ReadTemplate(name)`](../internal/embed/embed.go#L38-L44): Retrieves output templates (`DECISIONS.template.md`, `CONFLICT-RESOLUTION.template.md`, `COMPARISON-SESSION.template.md`, `FOUNDING-ARCHITECTURE.template.md`, `PHASE-0-GATE.template.md`).
+- [`ReadTemplate(name)`](../internal/embed/embed.go#L38-L44): Retrieves output templates (`DECISIONS.template.md`, `CONFLICT-RESOLUTION.template.md`, `COMPARISON-SESSION.template.md`, `FOUNDING-ARCHITECTURE.template.md`, `PHASE-0-GATE.template.md`, `SESSION.template.md`).
 
 ### Synchronization with Root Markdown Files
 Vivechak maintains canonical human-readable files at the repository root and identical copies in `internal/embed/` for binary compilation:
@@ -475,6 +487,6 @@ npx @modelcontextprotocol/inspector ./bin/vivechak
 npx @modelcontextprotocol/inspector go run ./cmd/vivechak
 ```
 Once open in your browser, you can:
-- Inspect all 9 registered tool definitions and schemas.
+- Inspect all 10 registered tool definitions and schemas.
 - Trigger `vivechak_init`, `vivechak_prepare_generator`, or `vivechak_status`.
 - Verify the dual-channel `Envelope` JSON structure and `next_step` instructions.

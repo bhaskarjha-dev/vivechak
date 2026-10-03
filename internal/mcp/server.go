@@ -7,17 +7,40 @@ import (
 	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
+// ServerInstructions describes Vivechak's workflow, grading, sections, and token-efficiency guidelines.
+const ServerInstructions = "Vivechak: Evidence-grounded research for technical decisions.\n\n" +
+	"## Workflow\n" +
+	"1. vivechak_status → orient (or vivechak_init for new workspace)\n" +
+	"2. vivechak_prepare_generator → get generator prompt → execute → vivechak_save_plan\n" +
+	"3. Loop: vivechak_next_session → research → vivechak_save_session → vivechak_record_decision\n" +
+	"4. vivechak_run_gate → verify → implement\n\n" +
+	"## Rules\n" +
+	"- Follow next_step in every response — it guides the workflow\n" +
+	"- ⚡ = parallel sessions; execute concurrently when possible\n" +
+	"- Pass content as Markdown with YAML frontmatter (---delimited---)\n\n" +
+	"## Evidence Grades (use in session findings)\n" +
+	"Grade A: Official docs/specs directly accessed (include URL). " +
+	"Grade B: Benchmarks, secondary analysis, vendor data. " +
+	"Grade C: Community reports, blog posts, recalled knowledge.\n" +
+	"Verification: fetched (URL required) | cached | recalled | human.\n" +
+	"Recalled knowledge capped at Grade D.\n\n" +
+	"## Session Sections (required in save_session content)\n" +
+	"Prior → Research Question → Key Findings (with evidence grades) → " +
+	"Recommendation → Alternatives Considered → Open Questions & Risks → " +
+	"Discovered Concerns → Delta (belief changes table) → Evidence Ledger table\n\n" +
+	"## Token Efficiency\n" +
+	"- Don't read templates — next_session provides the session prompt with context\n" +
+	"- save_session validates automatically — vivechak_validate is only for dry-run checks\n" +
+	"- Use auto_draft_from in record_decision to avoid manual formatting\n\n" +
+	"Three scopes: project (→ FAD), decision (→ ADR), comparison (→ WEP matrix)."
+
 // NewServer creates and configures the Vivechak MCP server with all 10 tools.
 func NewServer(version string, logger *slog.Logger) *sdkmcp.Server {
 	server := sdkmcp.NewServer(
 		&sdkmcp.Implementation{Name: "vivechak", Version: version},
 		&sdkmcp.ServerOptions{
-			Instructions: "Vivechak: Evidence-grounded research for technical decisions. " +
-				"Start with vivechak_status to orient, or vivechak_init to create a new workspace. " +
-				"This server provides 10 tools for running Vivechak research pipelines at three scope levels: " +
-				"project (full pipeline → FAD), decision (1-3 sessions → ADR), or comparison (1 session → WEP matrix). " +
-				"Every response includes a next_step field guiding you to the appropriate next action.",
-			Logger: logger,
+			Instructions: ServerInstructions,
+			Logger:       logger,
 		},
 	)
 

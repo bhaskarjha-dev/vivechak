@@ -157,8 +157,10 @@ func (r *ValidationResult) AddFieldIssueWithHint(level ValidationLevel, code, fi
 	})
 }
 
-// evidenceGradePattern matches inline evidence grades like "A (source)", "[Grade A]", "(Grade B · ...)", "(A · corroborated · fresh | fetched)", "[E-01]", "E-001", etc.
-var evidenceGradePattern = regexp.MustCompile(`(?:\[?[Gg]rade\s+[A-E][^\]\)\n]*\]?|\b[A-E]\s*\([^)]+\)|\([Gg]rade\s+[A-E][^)]*\)|\([A-E]\s*[·|][^)]*\)|\[[A-E]\s*[·|][^\]]*\]|\[E-\d+\]|\bE-\d+\b)`)
+// EvidenceGradePattern matches inline evidence grades like "A (source)", "[Grade A]", "(Grade B · ...)", "(A · corroborated · fresh | fetched)", "[E-01]", "E-001", etc.
+var EvidenceGradePattern = regexp.MustCompile(`(?:\[?[Gg]rade\s+[A-E][^\]\)\n]*\]?|\b[A-E]\s*\([^)]+\)|\([Gg]rade\s+[A-E][^)]*\)|\([A-E]\s*[·|][^)]*\)|\[[A-E]\s*[·|][^\]]*\]|\[E-\d+\]|\bE-\d+\b)`)
+
+var evidenceGradePattern = EvidenceGradePattern
 
 // recalledHighGradePattern matches Grade A or B claims that rely on recalled/parametric memory.
 // Per Principle P3 (Evidentiary Grounding), unverified recall must be capped at Grade D.
@@ -571,9 +573,90 @@ func ObserveSessionQuality(content []byte) []QualityObservation {
 		})
 	}
 
+	// Grade distribution analysis
+	gradeACount := 0
+	gradeBCount := 0
+	gradeCPlusCount := 0
+	for _, g := range gradeMatches {
+		upper := strings.ToUpper(g)
+		if strings.Contains(upper, "GRADE A") || strings.Contains(upper, "[A]") || strings.Contains(upper, "(A ") {
+			gradeACount++
+		} else if strings.Contains(upper, "GRADE B") || strings.Contains(upper, "[B]") || strings.Contains(upper, "(B ") {
+			gradeBCount++
+		} else {
+			gradeCPlusCount++
+		}
+	}
+	if gradeCount >= 4 && gradeACount > int(float64(gradeCount)*0.7) {
+		observations = append(observations, QualityObservation{
+			Category: "evidence",
+			Message: fmt.Sprintf("Grade distribution is %d A / %d B / %d C+ (%d%% Grade A). "+
+				"Web-based research typically produces ~25%% A, ~50%% B, ~25%% C. "+
+				"Verify Grade A citations include URLs to primary sources.",
+				gradeACount, gradeBCount, gradeCPlusCount,
+				gradeACount*100/gradeCount),
+			Severity: "consideration",
+		})
+	}
+
+	// Discovered Concerns check
+	hasConcerns := hasSectionHeading(bodyStr, "discovered concerns", "discovered concern")
+	if !hasConcerns {
+		observations = append(observations, QualityObservation{
+			Category: "concerns",
+			Message: "No Discovered Concerns section found. Every research session should " +
+				"uncover at least one unexpected finding beyond the stated scope.",
+			Severity: "suggestion",
+		})
+	}
+
+	// Key Findings count check
+	findingsSection := extractSection(bodyStr, "key findings")
+	if findingsSection != "" {
+		bulletCount := strings.Count(findingsSection, "\n- ") + strings.Count(findingsSection, "\n* ")
+		trimmedFindings := strings.TrimSpace(findingsSection)
+		if len(trimmedFindings) > 0 && (trimmedFindings[0] == '-' || trimmedFindings[0] == '*') {
+			bulletCount++
+		}
+		if bulletCount > 0 && bulletCount < 3 {
+			observations = append(observations, QualityObservation{
+				Category: "depth",
+				Message: fmt.Sprintf("Only %d key finding(s). Sessions typically benefit "+
+					"from 4-7 graded findings for adequate decision support.", bulletCount),
+				Severity: "suggestion",
+			})
+		}
+	}
+
+	// Grade A URL check: Grade A "fetched" citations require URLs
+	evidenceLedger := extractSection(bodyStr, "evidence")
+	if evidenceLedger == "" {
+		evidenceLedger = extractSection(bodyStr, "sources")
+	}
+	if evidenceLedger != "" {
+		gradeAFetched := regexp.MustCompile(`(?i)grade\s*a.*?\bfetched\b`)
+		urlPattern := regexp.MustCompile(`https?://`)
+		rows := strings.Split(evidenceLedger, "\n")
+		gradeANoURL := 0
+		for _, row := range rows {
+			if gradeAFetched.MatchString(row) && !urlPattern.MatchString(row) {
+				gradeANoURL++
+			}
+		}
+		if gradeANoURL > 0 {
+			observations = append(observations, QualityObservation{
+				Category: "evidence",
+				Message: fmt.Sprintf("%d Grade A 'fetched' citation(s) lack URLs. "+
+					"Grade A requires verifiable access to primary sources — "+
+					"include the source URL or downgrade to Grade B.", gradeANoURL),
+				Severity: "consideration",
+			})
+		}
+	}
+
 	// Check for Prior/Delta sections
-	hasPrior := strings.Contains(bodyStr, "## Prior") || strings.Contains(bodyStr, "## Prior (")
-	hasDelta := strings.Contains(bodyStr, "## Delta") || strings.Contains(bodyStr, "## Delta (")
+	hasPrior := hasSectionHeading(bodyStr, "prior")
+	hasDelta := hasSectionHeading(bodyStr, "delta")
 	if !hasPrior {
 		observations = append(observations, QualityObservation{
 			Category: "structure",
@@ -672,12 +755,30 @@ func isLikelyYearReference(text string, start, end int) bool {
 	for _, u := range unitPrefixes {
 		if strings.HasPrefix(afterLower, u) {
 			rem := afterLower[len(u):]
-			if len(rem) == 0 || !((rem[0] >= 'a' && rem[0] <= 'z') || (rem[0] >= '0' && rem[0] <= '9')) {
+			isAlnum := len(rem) > 0 && ((rem[0] >= 'a' && rem[0] <= 'z') || (rem[0] >= '0' && rem[0] <= '9'))
+			if len(rem) == 0 || !isAlnum {
 				return false
 			}
 		}
 	}
 	return true
+}
+
+// hasSectionHeading checks whether body contains any markdown heading (# ...) containing any of the keywords.
+func hasSectionHeading(body string, keywords ...string) bool {
+	lines := strings.Split(body, "\n")
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "#") {
+			lower := strings.ToLower(trimmed)
+			for _, kw := range keywords {
+				if strings.Contains(lower, kw) {
+					return true
+				}
+			}
+		}
+	}
+	return false
 }
 
 

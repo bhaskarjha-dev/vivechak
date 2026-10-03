@@ -7,7 +7,7 @@
 
 ## Overview
 
-Vivechak is an evidence-grounded research meta-framework. While it ships with a 9-tool Model Context Protocol (MCP) server for automated agent integration, **the methodology itself is entirely interface-agnostic**. You can execute the full research pipeline by hand using web browser AI chats, your favorite text editor, and standard Markdown files.
+Vivechak is an evidence-grounded research meta-framework. While it ships with a 10-tool Model Context Protocol (MCP) server for automated agent integration, **the methodology itself is entirely interface-agnostic**. You can execute the full research pipeline by hand using web browser AI chats, your favorite text editor, and standard Markdown files.
 
 Whether executed through an automated agent or manually through copy-paste:
 - Every factual claim requires an **Evidence Grade (A–E)** with verification metadata.
@@ -115,7 +115,7 @@ The AI will output two distinct deliverables:
 
 ### Step 4: Set Up the `research/` Directory
 
-In your project repository root, create the `research/` directory structure and copy the 5 operational templates from the Vivechak repository:
+In your project repository root, create the `research/` directory structure and copy the 6 operational templates from the Vivechak repository:
 
 ```
 my-project/

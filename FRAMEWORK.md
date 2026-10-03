@@ -638,7 +638,7 @@ The long-term vision is a 5-layer code-based tool:
 
 Vivechak's epistemic core — evidence grading (Admiralty-Code-derived source grading with GRADE-inspired modifiers), ACH conflict resolution (CIA/Heuer), premortem protocol (Gary Klein), reversibility routing (Bezos Type 1/2 doors), and map-reduce synthesis — was not invented for software. These primitives govern how intelligence reasons about truth, risk, and irreversibility in *any* domain.
 
-The generator prompt already uses "technical project" rather than "software project." The 4 operational templates (Decisions, Conflict Resolution, FAD, Phase 0 Gate) contain zero software-specific content. Non-software domains have been successfully researched using adapted versions of the generator.
+The generator prompt already uses "technical project" rather than "software project." The 6 operational templates (Decisions, Conflict Resolution, Comparison Session, FAD, Phase 0 Gate, Session Note) contain zero software-specific content. Non-software domains have been successfully researched using adapted versions of the generator.
 
 **To adapt for a non-software domain:**
 1. The 8 core principles, evidence grading, and all templates work without modification.
