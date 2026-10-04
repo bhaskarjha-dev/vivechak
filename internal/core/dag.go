@@ -668,10 +668,10 @@ func (d *DAG) Serialize() []byte {
 	if d.Archetype != "" {
 		title = fmt.Sprintf("Research Pipeline: %s", d.Archetype)
 	}
-	sb.WriteString(fmt.Sprintf("# %s\n\n", title))
+	fmt.Fprintf(&sb, "# %s\n\n", title)
 
 	if d.Tier != "" || d.ComplexityScore > 0 {
-		sb.WriteString(fmt.Sprintf("> **Tier:** %s · **Complexity Score:** %d\n\n", d.Tier, d.ComplexityScore))
+		fmt.Fprintf(&sb, "> **Tier:** %s · **Complexity Score:** %d\n\n", d.Tier, d.ComplexityScore)
 	}
 
 	sb.WriteString("## Pipeline Topology\n\n")

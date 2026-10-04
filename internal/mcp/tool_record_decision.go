@@ -722,7 +722,7 @@ func updateFrontmatterFields(content []byte, updates map[string]string) ([]byte,
 		var b strings.Builder
 		b.WriteString("---\n")
 		for k, v := range updates {
-			b.WriteString(fmt.Sprintf("%s: %s\n", k, v))
+			fmt.Fprintf(&b, "%s: %s\n", k, v)
 		}
 		b.WriteString("---\n\n")
 		b.WriteString(trimmed)

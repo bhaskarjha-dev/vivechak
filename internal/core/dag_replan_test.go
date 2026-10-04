@@ -40,14 +40,22 @@ func TestDAG_AddSession(t *testing.T) {
 		t.Errorf("expected error adding session with nonexistent dependency")
 	}
 
-	// 4. Cycle creation
-	// If T0-01 depends on T1-01:
+	// 4. Valid addition with existing dependency
 	err = dag.AddSession(Session{
-		ID:           "T0-00",
+		ID:           "T2-01",
 		Dependencies: []string{"T1-01"},
 	})
 	if err != nil {
-		// T0-00 depending on T1-01 is not a cycle by itself, but adding an edge back would be
+		t.Errorf("unexpected error adding valid session: %v", err)
+	}
+
+	// 5. Self-dependency cycle
+	err = dag.AddSession(Session{
+		ID:           "T2-02",
+		Dependencies: []string{"T2-02"},
+	})
+	if err == nil {
+		t.Errorf("expected error adding session with self-dependency cycle")
 	}
 }
 
