@@ -39,6 +39,7 @@ Every deferred feature is tracked with its origin, explicit gate condition, and 
 | **Cross-Session Field Guide** | Comprehensive operational guide for running 20+ session pipelines across distributed agent sessions. | Audit Backlog | Multi-day project research pipelines in production | Low |
 | **Examiner Calibration Questions** | Pre-generated calibration questions for human architects to probe agent-generated FADs during Phase 0 reviews. | Audit Backlog | Team adoption where human architects review autonomous agent research | Low |
 | **Worked Failed Pipeline Example** | A complete negative example in `examples/FAILED-PIPELINE.md` demonstrating failure recovery, contradictory evidence resolution, and gate rejection. | Audit (OP-02) | Real failure logs harvested from live dogfooding | Low |
+| **Thin Agent Plugin Package** | `plugin.json` + `mcp.json` + quick-start skills bundle for IDEs supporting the Agent Plugins standard (Cursor, VS Code extensions). Supplementary to the native binary. | ADR D-014 / Meta-Research R-05 | Demand from users on harnesses with native plugin discovery; or Claude Desktop/Antigravity adding Agent Plugins support | Low |
 
 ### Future (Data-Gated)
 
