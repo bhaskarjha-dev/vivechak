@@ -60,7 +60,7 @@ vck setup                                    # auto-detect host in current works
 vck mcp-config
 ```
 
-Done. Your agent now has 10 MCP tools for evidence-grounded research. See [Host Setup Guide](docs/HOST-SETUP.md) for harness instructions, desktop shortcuts, and manual setup details.
+Done. Your agent now has 13 MCP tools for evidence-grounded research. See [Host Setup Guide](docs/HOST-SETUP.md) for harness instructions, desktop shortcuts, and manual setup details.
 
 ---
 
@@ -137,7 +137,7 @@ vivechak/
 │
 ├── internal/                       ← Server implementation
 │   ├── core/                       ← Pure logic (workspace, DAG, validation)
-│   ├── mcp/                        ← 10 MCP tool handlers
+│   ├── mcp/                        ← 13 MCP tool handlers
 │   ├── store/                      ← Atomic file I/O with os.Root confinement
 │   └── embed/                      ← Embedded generators + templates
 │
@@ -172,7 +172,7 @@ vivechak/
 
 ## Using with AI Agents
 
-Vivechak ships as a universal **MCP server** — install the binary, register it with your AI host or agent harness (`vck setup <host>`), and your AI agent gets 10 tools:
+Vivechak ships as a universal **MCP server** — install the binary, register it with your AI host or agent harness (`vck setup <host>`), and your AI agent gets 13 tools:
 
 | Tool | What It Does |
 |---|---|
@@ -182,10 +182,13 @@ Vivechak ships as a universal **MCP server** — install the binary, register it
 | `vivechak_status` | Report workspace progress (DAG completion, blocked sessions) |
 | `vivechak_next_session` | Return next session prompt with upstream findings automatically injected |
 | `vivechak_save_session` | Validate + persist completed session output with real-time quality coaching (`Q-*`), mini-status, and FAD root copy mirroring |
-| `vivechak_record_decision` | Save ADR or conflict resolution, and automatically compile consolidated `DECISIONS.md` registry |
+| `vivechak_record_decision` | Save ADR or conflict resolution, handle ADR supersession, and automatically compile consolidated `DECISIONS.md` registry |
 | `vivechak_amend_session` | Append post-hoc amendments with transitive downstream stale alerts (`W-STALE-DOWNSTREAM`) |
 | `vivechak_validate` | Dry-run validation ladder on any research artifact |
 | `vivechak_run_gate` | Phase 0 exit gate (Track A + Track B with automated B1–B9 structural and evidentiary checks, auto-persisting `PHASE-0-GATE.md`) |
+| `vivechak_challenge` | Adversarial stress-testing of completed sessions (red-team, evidence audit, cross-session consistency) |
+| `vivechak_replan` | Mid-flight DAG mutation (add/remove sessions, update dependencies/prompts) |
+| `vivechak_visualize` | Render pipeline DAG as Mermaid flowchart or ASCII status table |
 
 The agent calls these tools in sequence. The server handles context injection, DAG resolution, evidence grading validation, and exit gate checks — the agent handles the actual research using its LLM capabilities.
 
@@ -201,7 +204,7 @@ The agent calls these tools in sequence. The server handles context injection, D
 | **Adaptive Scaling** | 8-dimension complexity scoring (0–24) maps to 4 tiers (1–30 sessions) |
 | **Open-Ended Input** | Accepts natural language vision dumps; AI extracts parameters and classifies |
 | **Constrained DAG** | Sessions run when dependencies are met, not rigid stage gates |
-| **5-Block Prompts** | BRIEF, SCOPE, APPROACH, DELIVERABLE, FORMAT — no personas, no hardcoded queries |
+| **8-Block Prompts** | DECISION, BRIEF, SCOPE, KNOWN, CALIBRATION, APPROACH, DONE, FORMAT — no personas, no hardcoded queries |
 | **Staged Triangulation** | Single-model default → multi-model only for contested one-way doors |
 | **GRADE-Aligned Evidence** | A–E grades + modifiers (corroboration, recency, directness) + verification |
 | **Two-Track Gate** | Fast-track for reversible decisions; 9-step + premortem for irreversible |
@@ -225,7 +228,7 @@ In August 2026, the framework was subjected to its own methodology. 11 independe
 | Absolute aspect-isolation | Refined | Context Architecture Law — conditional decomposition + synthesis |
 | Mandatory 3-model triangulation | Refined | Staged, risk-triggered protocol |
 | Fixed 17–27 sessions | Refuted | 4-tier adaptive scaling (1–30) |
-| 8-section XML prompts | Refuted | 5-block prompt anatomy |
+| 8-section XML prompts | Refuted | 8-block prompt anatomy |
 | Expert personas improve research | Refuted | Personas debunked for factual accuracy |
 | Fixed ~40/60 compose/build | Refined | Wardley evolution mapping |
 
@@ -250,7 +253,7 @@ Vivechak's most distinctive property: it was validated by the methodology it pre
 | 2: Self-Validation (Gen 2) | ✅ | 11 meta-research sessions → 10 verdicts → Gen 3 spec |
 | 3: Framework Release (v0.1.0) | ✅ | Framework, generators, templates, bias correction |
 | 4: Methodology Expansion | ✅ | 3 scope levels (Project / Decision / Comparison) |
-| 5: MCP Server | ✅ | Go MCP server with 10 tools, full test suite passing |
+| 5: MCP Server | ✅ | Go MCP server with 13 tools, full test suite passing |
 | 6: Distribution | ✅ | GoReleaser, installers, Homebrew/Scoop/winget, CI pipelines |
 | 7: Demand Proof | Next | Real case study, free wedge skill, content marketing |
 | 8: Research Frontiers | Future | DSPy optimization, multi-agent debate, longitudinal calibration |

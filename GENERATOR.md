@@ -213,6 +213,25 @@ investigate and include them. The stated scope defines the minimum —
 not the maximum — of what this session should cover. Justify any scope
 expansion with evidence."
 
+**Research Depth Mandate:** Every generated session prompt MUST include these
+instructions in its APPROACH block:
+
+APPROACH:
+- Do NOT limit yourself to the exact terms in the research question. Use ALLIED TERMS:
+  synonyms, related concepts, competitor names, failure modes, edge cases.
+  Example: Researching "SQLite encryption" → also search "SQLCipher alternatives",
+  "SQLite security CVE", "embedded database encryption benchmarks",
+  "SQLCipher cross-compilation", "SQLCipher vs SQLite SEE."
+- Execute MULTIPLE SEARCH STRATEGIES per finding:
+  1. Direct: the obvious query
+  2. Adversarial: "{topic} problems", "{topic} failures", "{topic} criticism"
+  3. Comparative: "{topic} vs {alternative}", "{topic} alternatives {year}"
+  4. Community: "{topic} Reddit", "{topic} real-world experience"
+- Target 8-12 SUBSTANTIVE findings with evidence grades, not 20 shallow bullet points.
+- For every recommendation, search for the STRONGEST ARGUMENT AGAINST it.
+  If you can't find disconfirming evidence, document the search terms you tried.
+- Every Grade A/B finding MUST cite a specific source with URL.
+
 Do NOT prescribe specific search queries or set minimum search counts.
 
 For each session prompt, after the APPROACH block, include a **DOMAIN PROBES** section
@@ -242,12 +261,9 @@ criterion if research reveals material concerns beyond stated scope.
 
 <!-- CORE:BEGIN — shared methodology kernel (must stay identical across GENERATOR.md, GENERATOR-DECISION.md, GENERATOR-COMPARISON.md) -->
 For evidence grading, every factual claim should carry:
-- Base grade: A (official docs/RFCs/peer-reviewed studies) | B (empirical/benchmarks) |
-  C (vendor claims) | D (blog/tutorial/AI recall) | E (unverifiable)
-- Modifiers: corroboration (single/corroborated/contested),
-  recency (fresh/aging/stale), directness (direct/indirect)
-- Verification: fetched | cached | recalled | secondhand | human-provided
-  (recalled claims capped at Grade D regardless of apparent source)
+- Base grade: A (official docs/RFCs/peer-reviewed studies) | B (empirical/benchmarks) | C (vendor claims) | D (blog/tutorial/AI recall) | E (unverifiable)
+- Modifiers: corroboration (single/corroborated/contested), recency (fresh/aging/stale), directness (direct/indirect)
+- Verification: fetched | cached | recalled | secondhand | human-provided (recalled claims capped at Grade D regardless of apparent source)
 <!-- CORE:END -->
 
 **FORMAT:** Single complete Markdown file artifact with YAML frontmatter

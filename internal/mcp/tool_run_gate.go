@@ -81,11 +81,17 @@ func handleRunGate(_ context.Context, _ *sdkmcp.CallToolRequest, in RunGateInput
 		}
 
 		// Check 2: Templates present
-		expectedTemplates := len(core.TemplatesForScope(core.ScopeDecision))
-		if info.TemplateCount >= expectedTemplates {
+		expectedDecTemplates := core.TemplatesForScope(core.ScopeDecision)
+		missingDecTemplates := 0
+		for _, tmpl := range expectedDecTemplates {
+			if _, err := ws.Stat(filepath.Join(core.TemplatesDir, tmpl)); err != nil {
+				missingDecTemplates++
+			}
+		}
+		if missingDecTemplates == 0 && info.TemplateCount >= len(expectedDecTemplates) {
 			trackAPassed++
 		} else {
-			trackAIssues = append(trackAIssues, fmt.Sprintf("Only %d/%d templates found", info.TemplateCount, expectedTemplates))
+			trackAIssues = append(trackAIssues, fmt.Sprintf("%d/%d required templates missing", missingDecTemplates, len(expectedDecTemplates)))
 		}
 
 		// Check 3: Decision record exists
@@ -198,11 +204,17 @@ func handleRunGate(_ context.Context, _ *sdkmcp.CallToolRequest, in RunGateInput
 		}
 
 		// Check 3: Templates present
-		expectedTemplates := len(core.TemplatesForScope(core.ScopeProject))
-		if info.TemplateCount >= expectedTemplates {
+		expectedProjTemplates := core.TemplatesForScope(core.ScopeProject)
+		missingProjTemplates := 0
+		for _, tmpl := range expectedProjTemplates {
+			if _, err := ws.Stat(filepath.Join(core.TemplatesDir, tmpl)); err != nil {
+				missingProjTemplates++
+			}
+		}
+		if missingProjTemplates == 0 && info.TemplateCount >= len(expectedProjTemplates) {
 			trackAPassed++
 		} else {
-			trackAIssues = append(trackAIssues, fmt.Sprintf("Only %d/%d templates found", info.TemplateCount, expectedTemplates))
+			trackAIssues = append(trackAIssues, fmt.Sprintf("%d/%d required templates missing", missingProjTemplates, len(expectedProjTemplates)))
 		}
 
 		// Check 4: Decisions exist
@@ -242,7 +254,14 @@ func handleRunGate(_ context.Context, _ *sdkmcp.CallToolRequest, in RunGateInput
 				if !e.IsDir() && strings.HasSuffix(e.Name(), ".md") {
 					if data, err := ws.ReadFile(filepath.Join(core.SessionsDir, e.Name())); err == nil {
 						v := core.ValidateSession(data)
-						if v.WarningCount() == 0 {
+						hasNoGrades := false
+						for _, issue := range v.Issues {
+							if issue.Code == "W-NO-EVIDENCE-GRADES" {
+								hasNoGrades = true
+								break
+							}
+						}
+						if !hasNoGrades {
 							hasGrades = true
 							break
 						}
@@ -689,20 +708,24 @@ func verifyEvidentiaryIntegrity(ws *store.Workspace, info core.WorkspaceInfo) ([
 				continue
 			}
 			sessStr := string(sData)
+			checkStr := extractRecommendationText(sessStr)
+			if len(strings.TrimSpace(checkStr)) < 20 {
+				checkStr = sessStr
+			}
 
-			// B3: Check evidence grades
-			lowGrades := len(lowGradeRe.FindAllString(sessStr, -1))
+			// B3: Check evidence grades supporting the recommendation
+			lowGrades := len(lowGradeRe.FindAllString(checkStr, -1))
 			if lowGrades > 0 {
 				advisories = append(advisories, fmt.Sprintf(
-					"B3-EVIDENTIARY: Session %s informs one-way door %s but has %d Grade C/D/E citation(s). One-way decisions require Grade A/B evidence.",
+					"B3-EVIDENTIARY: Session %s informs one-way door %s but recommendation has %d Grade C/D/E citation(s). One-way decisions require Grade A/B evidence.",
 					sid, d.ID, lowGrades))
 			}
 
-			// B4: Check recalled verification
-			recalledCount := len(recalledCitationRe.FindAllString(sessStr, -1))
+			// B4: Check recalled verification supporting the recommendation
+			recalledCount := len(recalledCitationRe.FindAllString(checkStr, -1))
 			if recalledCount > 0 {
 				advisories = append(advisories, fmt.Sprintf(
-					"B4-VERIFICATION: Session %s informs one-way door %s but has %d 'recalled' citation(s). One-way decisions require fetched/cached verification.",
+					"B4-VERIFICATION: Session %s informs one-way door %s but recommendation has %d 'recalled' citation(s). One-way decisions require fetched/cached verification.",
 					sid, d.ID, recalledCount))
 			}
 		}
@@ -979,10 +1002,16 @@ func renderGateArtifact(ws *store.Workspace, root, projectName, gateStatus strin
 		tmpl = strings.Replace(tmpl, "- [ ] Every locked ADR contains an explicit `review_trigger`", "- [x] Every locked ADR contains an explicit `review_trigger`", 1)
 		tmpl = strings.Replace(tmpl, "- [ ] Review triggers are specific and measurable", "- [x] Review triggers are specific and measurable", 1)
 
-		// B7: Premortem Protocol (check if FAD documents failure scenarios)
+		// B7: Premortem Protocol (check if FAD documents substantive failure scenarios)
 		if fadBytes, fErr := ws.ReadFile(core.FADFile); fErr == nil {
 			fadStr := strings.ToLower(string(fadBytes))
+			hasSubstantivePremortem := false
 			if strings.Contains(fadStr, "premortem") || strings.Contains(fadStr, "failure scenario") || strings.Contains(fadStr, "risk register") {
+				if !strings.Contains(fadStr, "[risk 1]") && !strings.Contains(fadStr, "[action]") && len(fadStr) > 300 {
+					hasSubstantivePremortem = true
+				}
+			}
+			if hasSubstantivePremortem {
 				tmpl = strings.Replace(tmpl, "- [ ] 30-minute prospective hindsight", "- [x] 30-minute prospective hindsight", 1)
 				tmpl = strings.Replace(tmpl, "- [ ] Prompt: *\"It is 12 months from now", "- [x] Prompt: *\"It is 12 months from now", 1)
 				tmpl = strings.Replace(tmpl, "- [ ] Top 3 failure scenarios documented", "- [x] Top 3 failure scenarios documented", 1)
@@ -1036,6 +1065,30 @@ func renderGateArtifact(ws *store.Workspace, root, projectName, gateStatus strin
 	tmpl = strings.Replace(tmpl, "**Date:** `[YYYY-MM-DD]`", fmt.Sprintf("**Date:** %s", today), 1)
 
 	return []byte(tmpl)
+}
+
+// extractRecommendationText extracts text under the Recommendation heading in a session
+// to allow evidentiary checks to focus on what supports the chosen decision rather than rejected options.
+func extractRecommendationText(content string) string {
+	lines := strings.Split(content, "\n")
+	inRec := false
+	var recLines []string
+	for _, l := range lines {
+		trimmed := strings.TrimSpace(l)
+		if strings.HasPrefix(trimmed, "## ") {
+			lower := strings.ToLower(trimmed)
+			if strings.Contains(lower, "recommend") {
+				inRec = true
+				continue
+			} else if inRec {
+				break
+			}
+		}
+		if inRec {
+			recLines = append(recLines, l)
+		}
+	}
+	return strings.Join(recLines, "\n")
 }
 
 

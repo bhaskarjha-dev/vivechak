@@ -23,7 +23,7 @@ Throughout this quickstart, we use a concrete scenario:
 
 ## Path A: MCP Server (Recommended)
 
-Give your AI coding agent (Cursor, VS Code, Claude Desktop, Antigravity, etc.) direct access to Vivechak's 10 orchestration tools.
+Give your AI coding agent (Cursor, VS Code, Claude Desktop, Antigravity, etc.) direct access to Vivechak's 13 orchestration tools.
 
 ### 1. Install Vivechak
 
@@ -70,7 +70,7 @@ Open your agent chat in your project repository and run:
 
 ### 4. The Agent Executes the Loop
 
-Your agent coordinates the 10 tools autonomously:
+Your agent coordinates the 13 tools autonomously:
 
 ```
 [Agent: vivechak_init]

@@ -49,3 +49,18 @@ func GeneratorFile(scope Scope) string {
 		return ""
 	}
 }
+
+// SessionPrefix returns the canonical prefix for session IDs for a given scope.
+// ScopeComparison uses "C-" (e.g. C-01).
+// ScopeDecision uses "D-" (e.g. D-01 or D-015-S1).
+// ScopeProject uses "T" (e.g. T0-01, T1-01).
+func SessionPrefix(scope Scope) string {
+	switch scope {
+	case ScopeComparison:
+		return "C-"
+	case ScopeDecision:
+		return "D-"
+	default:
+		return "T"
+	}
+}

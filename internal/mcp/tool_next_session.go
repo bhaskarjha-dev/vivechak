@@ -80,11 +80,18 @@ func handleNextSession(_ context.Context, _ *sdkmcp.CallToolRequest, in NextSess
 			}
 		}
 
+		compSessionID := core.SessionPrefix(info.Scope) + "01" // C-01
+		if strings.Contains(compFile, "CMP-") || strings.Contains(string(compContent), "CMP-01") || strings.Contains(compFile, "COMP-") {
+			compSessionID = "CMP-01"
+		} else if idMatch := regexp.MustCompile(`(?m)^\|\s*\*\*ID\*\*\s*\|\s*([A-Za-z0-9_-]+)\s*\|`).FindSubmatch(compContent); len(idMatch) > 1 {
+			compSessionID = string(idMatch[1])
+		}
+
 		promptStr := string(compContent)
 		dataMap := map[string]any{
 			"workspace_root":       root,
 			"scope":                info.Scope,
-			"session_id":           "CMP-01",
+			"session_id":           compSessionID,
 			"prompt":               promptStr,
 			"prompt_char_count":    len(promptStr),
 			"prompt_approx_tokens": len(promptStr) / 4,
@@ -102,9 +109,9 @@ func handleNextSession(_ context.Context, _ *sdkmcp.CallToolRequest, in NextSess
 			Success: true,
 			Message: msg,
 			Data:    dataMap,
-			NextStep: "Execute your comparison research prompt. Ground claims with current, " +
-			"verifiable evidence. Save the output with vivechak_save_session using session_id='CMP-01'.",
-			Meta:     NewMeta(tool),
+			NextStep: fmt.Sprintf("Execute your comparison research prompt. Ground claims with current, "+
+				"verifiable evidence. Save the output with vivechak_save_session using session_id=%q.", compSessionID),
+			Meta: NewMeta(tool),
 		}
 		return env.ToResult()
 	}

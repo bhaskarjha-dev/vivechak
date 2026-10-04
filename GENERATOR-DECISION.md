@@ -28,7 +28,6 @@ One-way door if R>=2 or B=3; novel if N>=2. Where the context is silent, state a
 1. [ID]-PLAN.md: Routing (profile table, door, lane, gate track, assumptions and flip conditions, requester leaning, adjacent decisions); per session: a header (### [ID]-S[n]: [Title]), a table (ID [ID]-S[n], role, depends, filename sessions/[ID]-S[n]-[slug].md) and its prompt in a `prompt` code fence; Closing: run sessions independently; if a one-way door's results are contested or weight-sensitive, rerun C on a second model; complete the ADR; a human reviews it before acceptance.
 2. [ID]-[slug].md, the proposed ADR: YAML frontmatter with exactly these keys: id, title, status (proposed), door_type, date, confidence, evidence_refs, informed_by_sessions, supersedes, superseded_by, amends, review_trigger, review_date, prediction, tags, authored_by, human_reviewed (false), schema_version ("0.1.0"). Fill id, title, door_type, date, informed_by_sessions, review_trigger and tags; null or [] for the rest. Body: Context & Problem Statement → Evaluated Options (the requester's options plus the status quo, one hypothesis each: what would have to be true; pending L if none) → Decision Outcome (pending) → Rejected Alternatives & Tradeoffs (pending) → Failure Modes & Reversal Triggers. Seed review_trigger and failure modes from your flip conditions.
 
-<!-- CORE:BEGIN — shared methodology kernel (must stay identical across GENERATOR.md, GENERATOR-DECISION.md, GENERATOR-COMPARISON.md) -->
 ## SESSION PROMPT TEMPLATE (fill {slots}; {a | b} = pick one; {filename} = the session's filename; keep the rest verbatim)
 ```prompt
 # RESEARCH BRIEF: {title}
@@ -84,13 +83,14 @@ Start broad, then trace the tradeoffs, failure modes and benchmarks that matter 
 4. "What would change this recommendation" is answered.}
 Open risks and reversal triggers; if a decisive unknown depends on the requester's workload, the smallest probe that would settle it.
 Discovered Concerns, including any stronger unlisted option (omit if none).
+<!-- CORE:BEGIN — shared methodology kernel (must stay identical across GENERATOR.md, GENERATOR-DECISION.md, GENERATOR-COMPARISON.md) -->
 For evidence grading, every factual claim should carry:
 - Base grade: A (official docs/RFCs/peer-reviewed studies) | B (empirical/benchmarks) | C (vendor claims) | D (blog/tutorial/AI recall) | E (unverifiable)
 - Modifiers: corroboration (single/corroborated/contested), recency (fresh/aging/stale), directness (direct/indirect)
 - Verification: fetched | cached | recalled | secondhand | human-provided (recalled claims capped at Grade D regardless of apparent source)
+<!-- CORE:END -->
 
 ## FORMAT
 Single Markdown file with YAML frontmatter (id, title, date, status, topic, tags, informs_decisions, confidence). Sections: Prior (pre-research beliefs: 3-5 checkable propositions "I believe [X] because [reasoning]") → Research Question → Key Findings (3-7 bullets) → Recommendation (isolated from rejected options) → Alternatives Considered → Detailed Findings → Open Questions & Risks → Delta (what research changed: table with Prior Belief | Status | Evidence | Impact) → Sources & Evidence Ledger. Filename: {filename} (id = its stem)
 ```
-<!-- CORE:END -->
 

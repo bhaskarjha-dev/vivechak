@@ -206,7 +206,7 @@ func TestExhaustive_AllFeatures_AllScenarios(t *testing.T) {
 	}
 	t.Cleanup(func() { cs.Close() })
 
-	// Verify all 10 tools are listed
+	// Verify all 13 tools are listed
 	var toolList []string
 	for tool, err := range cs.Tools(ctx, nil) {
 		if err != nil {
@@ -214,8 +214,8 @@ func TestExhaustive_AllFeatures_AllScenarios(t *testing.T) {
 		}
 		toolList = append(toolList, tool.Name)
 	}
-	if len(toolList) != 10 {
-		t.Fatalf("expected 10 tools, got %d: %v", len(toolList), toolList)
+	if len(toolList) != 13 {
+		t.Fatalf("expected 13 tools, got %d: %v", len(toolList), toolList)
 	}
 
 	// -------------------------------------------------------------

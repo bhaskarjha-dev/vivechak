@@ -367,8 +367,10 @@ func TestRecalledHighGradePattern(t *testing.T) {
 		"A (recalled)",
 		"Grade A (recalled)",
 		"Grade B (parametric memory)",
+		"Grade C (memory)",
 		"[Grade A · recalled]",
 		"(Grade B · recalled)",
+		"[Grade C · recalled]",
 		"[B: recalled]",
 		"(A · memory)",
 		"Grade A [recalled]",
@@ -382,7 +384,8 @@ func TestRecalledHighGradePattern(t *testing.T) {
 
 	negatives := []string{
 		"Grade D (recalled)",
-		"Grade C (memory)",
+		"Grade D (memory)",
+		"Grade E (recalled)",
 		"Grade A (verified)",
 		"B (benchmarks)",
 		"[A · official docs]",

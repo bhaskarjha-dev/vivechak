@@ -22,6 +22,7 @@ type RecordDecisionInput struct {
 	Slug          string `json:"slug,omitempty"            jsonschema:"slug for decision filename (optional)"`
 	Content       string `json:"content,omitempty"         jsonschema:"decision record or conflict resolution content (Markdown with YAML frontmatter); omit with auto_draft_from to generate a draft"`
 	AutoDraftFrom string `json:"auto_draft_from,omitempty" jsonschema:"session ID to auto-draft decision from (e.g. R-01); omit content to get a draft for review"`
+	Supersedes    string `json:"supersedes,omitempty"      jsonschema:"decision ID being superseded by this decision (e.g. D-003)"`
 }
 
 func registerRecordDecision(server *sdkmcp.Server) {
@@ -34,7 +35,9 @@ func registerRecordDecision(server *sdkmcp.Server) {
 				"Use artifact_type='decision' for ADRs and 'conflict-resolution' for ACH analysis. " +
 				"Classifies decisions as one-way or two-way door per P2. " +
 				"Supports auto_draft_from: provide a session ID (omit content) to auto-generate a " +
-				"draft decision from session findings for review before saving.",
+				"draft decision from session findings for review before saving. " +
+				"Supports supersedes: provide a decision ID to mark an existing ADR as superseded, " +
+				"link the records, and detect stale session references.",
 			Annotations: &sdkmcp.ToolAnnotations{
 				ReadOnlyHint:    false,
 				IdempotentHint:  true,
@@ -126,6 +129,62 @@ func handleRecordDecision(ctx context.Context, _ *sdkmcp.CallToolRequest, in Rec
 			"Use 'decision' for ADRs or 'conflict-resolution' for ACH analysis.")
 	}
 
+	ws, err := store.OpenWorkspace(root)
+	if err != nil {
+		return ErrorResult(tool, fmt.Errorf("opening workspace: %w", err), "Provide a valid workspace.")
+	}
+	defer ws.Close()
+
+	var supersededFile string
+	if in.Supersedes != "" {
+		if artifactType != "decision" {
+			return ErrorResult(tool, fmt.Errorf("supersedes can only be used with artifact_type='decision'"),
+				"Provide artifact_type='decision' when superseding a decision.")
+		}
+		if strings.EqualFold(in.Supersedes, in.DecisionID) {
+			return ErrorResult(tool, fmt.Errorf("decision %s cannot supersede itself", in.DecisionID),
+				"Provide a different decision ID to supersede.")
+		}
+		if !isValidID(in.Supersedes) {
+			return ErrorResult(tool, fmt.Errorf("invalid supersedes ID %q", in.Supersedes),
+				"Use a valid decision ID like 'D-001'.")
+		}
+		oldFilename := resolveDecisionFilename(ws, in.Supersedes, "")
+		oldRelPath := filepath.Join(core.ResearchDir, oldFilename)
+		oldData, readErr := ws.ReadFile(oldRelPath)
+		if readErr != nil {
+			return ErrorResult(tool, fmt.Errorf("superseded decision %s not found: %w", in.Supersedes, readErr),
+				fmt.Sprintf("Ensure decision %s exists in %s before superseding it.", in.Supersedes, core.ResearchDir))
+		}
+
+		updatedOldData, updateErr := updateFrontmatterFields(oldData, map[string]string{
+			"status":        "superseded",
+			"superseded_by": in.DecisionID,
+		})
+		if updateErr != nil {
+			return ErrorResult(tool, fmt.Errorf("updating superseded decision frontmatter: %w", updateErr),
+				"Check frontmatter format of the superseded decision.")
+		}
+
+		oldUnlock, lockErr := store.LockFile(ctx, filepath.Join(root, oldRelPath), 5*time.Second)
+		if lockErr != nil {
+			return ErrorResult(tool, fmt.Errorf("could not acquire lock for %s: %w", oldFilename, lockErr), "Another process may be writing. Try again.")
+		}
+		defer func() { _ = oldUnlock() }()
+
+		if err := store.WriteFileAtomic(ws.Root(), oldRelPath, updatedOldData, 0o644); err != nil {
+			return ErrorResult(tool, fmt.Errorf("writing updated superseded decision %s: %w", oldFilename, err), "Check filesystem permissions.")
+		}
+		supersededFile = oldRelPath
+
+		updatedNewContent, updateNewErr := updateFrontmatterFields([]byte(in.Content), map[string]string{
+			"supersedes": in.Supersedes,
+		})
+		if updateNewErr == nil {
+			in.Content = string(updatedNewContent)
+		}
+	}
+
 	// Validate content
 	var validation *core.ValidationResult
 	switch artifactType {
@@ -134,12 +193,6 @@ func handleRecordDecision(ctx context.Context, _ *sdkmcp.CallToolRequest, in Rec
 	default:
 		validation = core.ValidateDecision([]byte(in.Content))
 	}
-
-	ws, err := store.OpenWorkspace(root)
-	if err != nil {
-		return ErrorResult(tool, fmt.Errorf("opening workspace: %w", err), "Provide a valid workspace.")
-	}
-	defer ws.Close()
 
 	// Determine filename, harmonizing with existing ADR files in research/
 	var filename string
@@ -203,6 +256,26 @@ func handleRecordDecision(ctx context.Context, _ *sdkmcp.CallToolRequest, in Rec
 		warnings = append(warnings, "W-MARKER-CONFLICT: content contains unexpected nested HTML decision markers that may conflict with the registry format")
 	}
 
+	// Scan sessions for stale references to superseded decision
+	if in.Supersedes != "" {
+		refPattern := regexp.MustCompile(`\b` + regexp.QuoteMeta(in.Supersedes) + `\b`)
+		if sEntries, err := ws.ListDir(core.SessionsDir); err == nil {
+			for _, se := range sEntries {
+				if se.IsDir() || !strings.HasSuffix(se.Name(), ".md") {
+					continue
+				}
+				sData, sErr := ws.ReadFile(filepath.Join(core.SessionsDir, se.Name()))
+				if sErr != nil {
+					continue
+				}
+				if refPattern.Match(sData) {
+					stem := strings.TrimSuffix(se.Name(), ".md")
+					warnings = append(warnings, fmt.Sprintf("W-STALE-DECISION-REFERENCE: session %s references superseded decision %s", stem, in.Supersedes))
+				}
+			}
+		}
+	}
+
 	dataMap := map[string]any{
 		"workspace_root": root,
 		"decision_id":    in.DecisionID,
@@ -210,6 +283,10 @@ func handleRecordDecision(ctx context.Context, _ *sdkmcp.CallToolRequest, in Rec
 		"file_path":      filepath.Join(core.ResearchDir, filename),
 		"status":         validation.Status,
 		"validation":     validation,
+	}
+	if in.Supersedes != "" {
+		dataMap["supersedes"] = in.Supersedes
+		dataMap["superseded_file"] = supersededFile
 	}
 	if artifactType == "decision" {
 		dataMap["decisions_file"] = core.DecisionsFile
@@ -619,15 +696,84 @@ func resolveDecisionFilename(ws *store.Workspace, decisionID string, slug string
 	}
 	if ws != nil {
 		if entries, err := ws.ListDir(core.ResearchDir); err == nil {
+			idUpper := strings.ToUpper(decisionID)
 			for _, e := range entries {
 				name := e.Name()
-				if !e.IsDir() && strings.HasPrefix(name, decisionID+"-") &&
-					strings.HasSuffix(name, ".md") &&
-					!core.IsSpecialResearchFile(name) {
+				if e.IsDir() || core.IsSpecialResearchFile(name) || !strings.HasSuffix(strings.ToLower(name), ".md") {
+					continue
+				}
+				nameUpper := strings.ToUpper(name)
+				if nameUpper == idUpper+".MD" ||
+					strings.HasPrefix(nameUpper, idUpper+"-") ||
+					strings.HasPrefix(nameUpper, idUpper+"_") {
 					return name
 				}
 			}
 		}
 	}
 	return decisionID + "-decision.md"
+}
+
+// updateFrontmatterFields modifies or adds key-value pairs in YAML frontmatter,
+// preserving all existing comments, indentation, and markdown body.
+func updateFrontmatterFields(content []byte, updates map[string]string) ([]byte, error) {
+	trimmed := strings.TrimSpace(string(content))
+	if !strings.HasPrefix(trimmed, "---") {
+		var b strings.Builder
+		b.WriteString("---\n")
+		for k, v := range updates {
+			b.WriteString(fmt.Sprintf("%s: %s\n", k, v))
+		}
+		b.WriteString("---\n\n")
+		b.WriteString(trimmed)
+		return []byte(b.String()), nil
+	}
+
+	lines := strings.SplitN(trimmed, "\n", 2)
+	if len(lines) < 2 {
+		return content, nil
+	}
+	rest := lines[1]
+	endIdx := strings.Index(rest, "\n---")
+	if endIdx < 0 {
+		return content, nil
+	}
+
+	yamlBlock := rest[:endIdx]
+	afterFrontmatter := rest[endIdx+4:] // after \n---
+
+	yamlLines := strings.Split(yamlBlock, "\n")
+	applied := make(map[string]bool)
+
+	var newYamlLines []string
+	for _, yLine := range yamlLines {
+		trimmedLine := strings.TrimSpace(yLine)
+		matched := false
+		for k, v := range updates {
+			if strings.HasPrefix(trimmedLine, k+":") {
+				indentLen := len(yLine) - len(strings.TrimLeft(yLine, " \t"))
+				indent := yLine[:indentLen]
+				newYamlLines = append(newYamlLines, fmt.Sprintf("%s%s: %s", indent, k, v))
+				applied[k] = true
+				matched = true
+				break
+			}
+		}
+		if !matched {
+			newYamlLines = append(newYamlLines, yLine)
+		}
+	}
+
+	for k, v := range updates {
+		if !applied[k] {
+			newYamlLines = append(newYamlLines, fmt.Sprintf("%s: %s", k, v))
+		}
+	}
+
+	var res strings.Builder
+	res.WriteString("---\n")
+	res.WriteString(strings.Join(newYamlLines, "\n"))
+	res.WriteString("\n---")
+	res.WriteString(afterFrontmatter)
+	return []byte(res.String()), nil
 }

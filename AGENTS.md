@@ -114,7 +114,7 @@ vivechak/
 │
 ├── internal/                       ← Server implementation (Go)
 │   ├── core/                       ← Pure logic (workspace, DAG, validation, injection)
-│   ├── mcp/                        ← 10 MCP tool handlers + envelope
+│   ├── mcp/                        ← 13 MCP tool handlers + envelope
 │   ├── store/                      ← Atomic I/O, locking, os.Root confinement
 │   └── embed/                      ← go:embed generators + templates
 │
@@ -133,9 +133,12 @@ vivechak/
 │   ├── QUICKSTART.md               ← Vivechak in 5 Minutes
 │   ├── MANUAL-WORKFLOW.md          ← Complete manual copy-paste guide
 │   ├── HOST-SETUP.md               ← Universal MCP setup & desktop shortcuts
-│   ├── MCP-TOOLS.md                ← 10-tool reference with examples
+│   ├── MCP-TOOLS.md                ← 13-tool reference with examples
 │   ├── ARCHITECTURE.md             ← Server internals for contributors
 │   ├── BRAND.md                    ← Brand identity, geometry & design tokens
+│   ├── HARNESS-COMPATIBILITY.md    ← Compatibility matrix across 8 harness categories
+│   ├── PARALLEL-EXECUTION.md       ← Concurrent subagents & locking guide
+│   ├── HYBRID-EXECUTION.md         ← Native hybrid (MCP + manual) operational guide
 │   ├── assets/logo.svg             ← Minimalist Devanagari V-sieve logo mark
 │   └── meta-research/              ← Empirical evidence base
 │       ├── README.md               ← Provenance index
@@ -161,7 +164,7 @@ When modifying Go code in `cmd/` or `internal/`:
 
 1. **Package dependency direction:** `core/` has NO dependency on `mcp/`. `mcp/` depends on `core/`. `store/` is independent.
 2. **Embed sync:** `internal/embed/generators/` and `internal/embed/templates/` must stay in sync with root-level generators and templates. Verified by `TestEmbeddedFilesMatchRoot` and enforced by CI (`.github/workflows/ci.yml`).
-3. **10 MCP tools:** `vivechak_init`, `vivechak_prepare_generator`, `vivechak_save_plan`, `vivechak_status`, `vivechak_next_session`, `vivechak_save_session`, `vivechak_record_decision`, `vivechak_amend_session`, `vivechak_validate`, `vivechak_run_gate`. Each tool is one file in `internal/mcp/tool_*.go`.
+3. **13 MCP tools:** `vivechak_init`, `vivechak_prepare_generator`, `vivechak_save_plan`, `vivechak_status`, `vivechak_next_session`, `vivechak_save_session`, `vivechak_record_decision`, `vivechak_amend_session`, `vivechak_validate`, `vivechak_run_gate`, `vivechak_challenge`, `vivechak_replan`, `vivechak_visualize`. Each tool is one file in `internal/mcp/tool_*.go`.
 4. **Guided Worker pattern:** Every tool response includes `next_step`. Hard refusals ONLY for impossible operations, never for "wrong order."
 5. **Quality coaching:** `core.ObserveSessionQuality` runs inside `vivechak_save_session`, surfacing real-time non-blocking `Q-*` observations (grade inflation, missing discovered concerns, Delta confirmation bias, low findings count).
 6. **Single-source ADRs:** `vivechak_record_decision` treats individual `D-*.md` files as canonical and compiles the consolidated `research/DECISIONS.md` registry.

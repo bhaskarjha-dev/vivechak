@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -79,6 +80,21 @@ func handleSavePlan(ctx context.Context, _ *sdkmcp.CallToolRequest, in SavePlanI
 
 	if err := validateContentSize(in.Content); err != nil {
 		return ErrorResult(tool, err, "Reduce content size or split into multiple artifacts.")
+	}
+
+	// Auto-extract ID from plan content if not explicitly provided
+	if in.DecisionID == "" && (scope == core.ScopeDecision || scope == core.ScopeComparison) {
+		reID := regexp.MustCompile(`(?m)(?:^\|\s*\*\*ID\*\*\s*\|\s*([A-Za-z0-9_-]+)\s*\||^#+\s*(?:Comparison Plan:|Decision Plan:|Session)\s*([A-Za-z0-9_-]+))`)
+		if m := reID.FindStringSubmatch(in.Content); len(m) > 0 {
+			if m[1] != "" {
+				in.DecisionID = strings.TrimSpace(m[1])
+			} else if m[2] != "" {
+				in.DecisionID = strings.TrimSpace(m[2])
+			}
+		}
+		if in.DecisionID == "" && scope == core.ScopeComparison {
+			in.DecisionID = core.SessionPrefix(scope) + "01"
+		}
 	}
 
 	if in.DecisionID != "" && !isValidID(in.DecisionID) {

@@ -63,7 +63,11 @@ try {
     # Install
     New-Item -ItemType Directory -Path $InstallDir -Force | Out-Null
     Copy-Item (Join-Path $TmpDir 'vivechak.exe') -Destination (Join-Path $InstallDir 'vivechak.exe') -Force
-    Copy-Item (Join-Path $TmpDir 'vivechak.exe') -Destination (Join-Path $InstallDir 'vck.exe') -Force
+    if (Test-Path (Join-Path $TmpDir 'vck.exe')) {
+        Copy-Item (Join-Path $TmpDir 'vck.exe') -Destination (Join-Path $InstallDir 'vck.exe') -Force
+    } else {
+        Copy-Item (Join-Path $TmpDir 'vivechak.exe') -Destination (Join-Path $InstallDir 'vck.exe') -Force
+    }
 
     # Add to PATH if not already there (preserving unexpanded variables like %USERPROFILE%)
     $RegKey = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Environment', $true)

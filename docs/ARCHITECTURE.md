@@ -1,6 +1,6 @@
 # Server Architecture Guide
 
-> **Last verified against code:** 2026-10-04 (v0.1.0)
+> **Last verified against code:** 2026-10-05 (v0.1.0)
 > If you find discrepancies with the actual code, please file an issue.
 
 Welcome to the internal architecture guide for **Vivechak** (विवेचक). This document is written for Go developers and contributors who want to understand, extend, or maintain the Vivechak MCP server codebase.
@@ -10,7 +10,7 @@ Vivechak is an evidence-grounded research meta-framework for technical decisions
 2. **Decision** ([`GENERATOR-DECISION.md`](../GENERATOR-DECISION.md)) — Single architectural decision producing an Architectural Decision Record (ADR) across 1–3 sessions.
 3. **Comparison** ([`GENERATOR-COMPARISON.md`](../GENERATOR-COMPARISON.md)) — Bounded technology evaluation producing a Weighted Evaluation Protocol (WEP) matrix in a single session.
 
-The project ships as both a zero-dependency manual workflow and an autonomous **Model Context Protocol (MCP)** server providing 10 purpose-built tools.
+The project ships as both a zero-dependency manual workflow and an autonomous **Model Context Protocol (MCP)** server providing 13 purpose-built tools.
 
 ---
 
@@ -26,17 +26,18 @@ vivechak/
 │       ├── config.go       # "setup" and "mcp-config" host configuration & 14 presets
 │       └── doctor.go       # "doctor" workspace integrity verification
 ├── internal/
-│   ├── core/               # Pure business logic (DAG, validation, injection, scopes)
+│   ├── core/               # Pure business logic (DAG, validation, injection, scopes, challenge)
 │   │   ├── scope.go        # Scope definitions (project, decision, comparison)
 │   │   ├── workspace.go    # Workspace layout & 4-step resolution chain
 │   │   ├── dag.go          # Pipeline DAG parsing and dependency resolution
 │   │   ├── frontmatter.go  # YAML frontmatter parsing and composition
 │   │   ├── inject.go       # Upstream context injection engine
-│   │   └── validate.go     # 4-level validation ladder (L1–L4)
+│   │   ├── validate.go     # 4-level validation ladder (L1–L4)
+│   │   └── challenge.go    # Adversarial challenge prompt generator
 │   ├── mcp/                # MCP protocol server and tool handlers (package mcputil)
 │   │   ├── server.go       # Server factory and tool registration dispatcher
 │   │   ├── envelope.go     # Standardized JSON response envelope & dual-channel encoding
-│   │   ├── tool_*.go       # 10 individual MCP tool handlers
+│   │   ├── tool_*.go       # 13 individual MCP tool handlers
 │   │   └── server_test.go  # In-memory JSON-RPC wire tests
 │   ├── store/              # Storage, path jail, and concurrency primitives
 │   │   ├── workspace.go    # os.Root confinement wrapper
@@ -100,7 +101,7 @@ The workspace layout is standard across all Vivechak projects:
 
 ### Pipeline DAG (`core.DAG` & `core.Session`)
 Defined in [`internal/core/dag.go`](../internal/core/dag.go#L10-L49), [`ParsePipeline`](../internal/core/dag.go#L104) converts `RESEARCH-PIPELINE.md` into an in-memory graph.
-- [`Session`](../internal/core/dag.go#L10-L34): Represents an individual node, capturing `ID` (e.g., `T1-01`, `SYN-01`), `Layer` (0 for landscape, 1 for deep dives, etc.), `DoorType` (`One-Way` vs `Two-Way`), `DecisionRef`, `Dependencies`, `OutputFile`, and the complete 5-block markdown `Prompt`.
+- [`Session`](../internal/core/dag.go#L10-L34): Represents an individual node, capturing `ID` (e.g., `T1-01`, `SYN-01`), `Layer` (0 for landscape, 1 for deep dives, etc.), `DoorType` (`One-Way` vs `Two-Way`), `DecisionRef`, `Dependencies`, `OutputFile`, and the complete 8-block markdown `Prompt`.
 - [`DAG.NextSessions(completedIDs)`](../internal/core/dag.go#L63-L85): Computes ready nodes by checking which uncompleted sessions have all upstream dependencies satisfied. Identifies parallel tracks that can execute concurrently.
 
 ### Frontmatter Parser (`core.Frontmatter`)
@@ -328,7 +329,7 @@ client.Connect(ctx, ct, nil)
 ```
 
 Key wire test suites:
-- [`TestToolListing`](../internal/mcp/server_test.go#L59-L101): Asserts all 10 tools are correctly registered.
+- [`TestToolListing`](../internal/mcp/server_test.go#L59-L101): Asserts all 13 tools are correctly registered.
 - [`TestAnnotations`](../internal/mcp/server_test.go#L104-L134): Verifies tool annotations (`ReadOnlyHint`, `IdempotentHint`, `DestructiveHint`, `OpenWorldHint`).
 - [`TestStatusNoWorkspace`](../internal/mcp/server_test.go#L137-L158): Verifies `vivechak_status` succeeds gracefully even in empty directories.
 - [`TestInitAndStatus`](../internal/mcp/server_test.go#L161-L222): Verifies directory tree creation and template copying.
@@ -487,6 +488,6 @@ npx @modelcontextprotocol/inspector ./bin/vivechak
 npx @modelcontextprotocol/inspector go run ./cmd/vivechak
 ```
 Once open in your browser, you can:
-- Inspect all 10 registered tool definitions and schemas.
+- Inspect all 13 registered tool definitions and schemas.
 - Trigger `vivechak_init`, `vivechak_prepare_generator`, or `vivechak_status`.
 - Verify the dual-channel `Envelope` JSON structure and `next_step` instructions.

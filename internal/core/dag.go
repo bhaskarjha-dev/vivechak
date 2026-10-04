@@ -359,8 +359,8 @@ func ParsePipeline(data []byte) (*DAG, error) {
 			}
 		}
 
-		// Check for horizontal session table row (e.g. decision plans)
-		if strings.Contains(line, "|") && !strings.Contains(line, "**") && !strings.Contains(line, "---") {
+		// Check for horizontal session table row (e.g. decision plans: | ID | Topic | Dependencies | OutputFile |)
+		if strings.Contains(line, "|") && !strings.Contains(line, "**") && !strings.Contains(line, "---") && strings.Count(trimmed, "|") == 5 {
 			if matches := sessionTableRowRe.FindStringSubmatch(trimmed); matches != nil {
 				idVal := strings.TrimSpace(matches[1])
 				if !strings.EqualFold(idVal, "session-id") && !strings.EqualFold(idVal, "id") && !strings.EqualFold(idVal, "session") {
@@ -400,8 +400,11 @@ func ParsePipeline(data []byte) (*DAG, error) {
 						currentSession.DecisionRef = value
 					}
 				case "dependencies":
-					if currentSession != nil && len(currentSession.Dependencies) == 0 {
-						currentSession.Dependencies = parseDependencies(value)
+					if currentSession != nil {
+						parsedDeps := parseDependencies(value)
+						if len(parsedDeps) > 0 {
+							currentSession.Dependencies = parsedDeps
+						}
 					}
 				case "output file":
 					if currentSession != nil && currentSession.OutputFile == "" {
@@ -549,4 +552,295 @@ func parseDependencies(value string) []string {
 		}
 	}
 	return deps
+}
+
+// AddSession appends a new research session to the DAG after verifying that
+// dependencies exist and no cycles are created.
+func (d *DAG) AddSession(s Session) error {
+	s.ID = strings.TrimSpace(s.ID)
+	if s.ID == "" {
+		return fmt.Errorf("session ID cannot be empty")
+	}
+	if !validSessionIDRe.MatchString(s.ID) {
+		return fmt.Errorf("session ID %q is invalid — use alphanumeric characters with optional hyphens or underscores", s.ID)
+	}
+	if d.SessionByID(s.ID) != nil {
+		return fmt.Errorf("session %s already exists in pipeline", s.ID)
+	}
+
+	// Validate dependencies exist
+	for _, dep := range s.Dependencies {
+		dep = strings.TrimSpace(dep)
+		if strings.EqualFold(dep, s.ID) {
+			return fmt.Errorf("session %s cannot depend on itself", s.ID)
+		}
+		if d.SessionByID(dep) == nil {
+			return fmt.Errorf("dependency %s does not exist in pipeline", dep)
+		}
+	}
+
+	if s.OutputFile == "" {
+		s.OutputFile = fmt.Sprintf("sessions/%s.md", s.ID)
+	}
+
+	d.Sessions = append(d.Sessions, s)
+	if err := d.ValidateDAG(); err != nil {
+		d.Sessions = d.Sessions[:len(d.Sessions)-1]
+		return err
+	}
+	return nil
+}
+
+// RemoveSession removes a session from the DAG if no other sessions depend on it.
+func (d *DAG) RemoveSession(id string) error {
+	id = strings.TrimSpace(id)
+	idx := -1
+	for i, s := range d.Sessions {
+		if strings.EqualFold(s.ID, id) {
+			idx = i
+			break
+		}
+	}
+	if idx == -1 {
+		return fmt.Errorf("session %s not found in pipeline", id)
+	}
+
+	// Check if any other session depends on id
+	for _, s := range d.Sessions {
+		for _, dep := range s.Dependencies {
+			if strings.EqualFold(dep, id) {
+				return fmt.Errorf("cannot remove session %s: session %s depends on it", id, s.ID)
+			}
+		}
+	}
+
+	d.Sessions = append(d.Sessions[:idx], d.Sessions[idx+1:]...)
+	return nil
+}
+
+// UpdateDependencies changes dependencies for a session and verifies no cycles are formed.
+func (d *DAG) UpdateDependencies(id string, deps []string) error {
+	id = strings.TrimSpace(id)
+	s := d.SessionByID(id)
+	if s == nil {
+		return fmt.Errorf("session %s not found in pipeline", id)
+	}
+
+	for _, dep := range deps {
+		dep = strings.TrimSpace(dep)
+		if strings.EqualFold(dep, id) {
+			return fmt.Errorf("session %s cannot depend on itself", id)
+		}
+		if d.SessionByID(dep) == nil {
+			return fmt.Errorf("dependency %s does not exist in pipeline", dep)
+		}
+	}
+
+	oldDeps := s.Dependencies
+	s.Dependencies = deps
+	if err := d.ValidateDAG(); err != nil {
+		s.Dependencies = oldDeps
+		return err
+	}
+	return nil
+}
+
+// UpdatePrompt replaces the prompt text of an existing session.
+func (d *DAG) UpdatePrompt(id string, prompt string) error {
+	id = strings.TrimSpace(id)
+	s := d.SessionByID(id)
+	if s == nil {
+		return fmt.Errorf("session %s not found in pipeline", id)
+	}
+	if strings.TrimSpace(prompt) == "" {
+		return fmt.Errorf("prompt content cannot be empty")
+	}
+	s.Prompt = prompt
+	return nil
+}
+
+// Serialize re-renders the DAG into Markdown format suitable for RESEARCH-PIPELINE.md,
+// ensuring round-trip fidelity through ParsePipeline.
+func (d *DAG) Serialize() []byte {
+	var sb strings.Builder
+
+	title := "Research Pipeline"
+	if d.Archetype != "" {
+		title = fmt.Sprintf("Research Pipeline: %s", d.Archetype)
+	}
+	sb.WriteString(fmt.Sprintf("# %s\n\n", title))
+
+	if d.Tier != "" || d.ComplexityScore > 0 {
+		sb.WriteString(fmt.Sprintf("> **Tier:** %s · **Complexity Score:** %d\n\n", d.Tier, d.ComplexityScore))
+	}
+
+	sb.WriteString("## Pipeline Topology\n\n")
+	sb.WriteString("| ID | Topic | Dependencies | Output File |\n")
+	sb.WriteString("|---|---|---|---|\n")
+	for _, s := range d.Sessions {
+		deps := "none"
+		if len(s.Dependencies) > 0 {
+			deps = strings.Join(s.Dependencies, ", ")
+		}
+		sTitle := s.Title
+		if sTitle == "" {
+			sTitle = s.ID
+		}
+		out := s.OutputFile
+		if out == "" {
+			out = fmt.Sprintf("sessions/%s.md", s.ID)
+		}
+		fmt.Fprintf(&sb, "| %s | %s | %s | %s |\n", s.ID, sTitle, deps, out)
+	}
+	sb.WriteString("\n---\n\n## Session Prompts\n\n")
+
+	for _, s := range d.Sessions {
+		sTitle := s.Title
+		if sTitle == "" {
+			sTitle = s.ID
+		}
+		fmt.Fprintf(&sb, "### Session %s: %s\n\n", s.ID, sTitle)
+		sb.WriteString("| **Field** | **Value** |\n")
+		sb.WriteString("|---|---|\n")
+		fmt.Fprintf(&sb, "| **ID** | %s |\n", s.ID)
+		fmt.Fprintf(&sb, "| **Layer** | %d |\n", s.Layer)
+		deps := "none"
+		if len(s.Dependencies) > 0 {
+			deps = strings.Join(s.Dependencies, ", ")
+		}
+		fmt.Fprintf(&sb, "| **Dependencies** | %s |\n", deps)
+		if s.DecisionRef != "" {
+			fmt.Fprintf(&sb, "| **Decision** | %s |\n", s.DecisionRef)
+		}
+		out := s.OutputFile
+		if out == "" {
+			out = fmt.Sprintf("sessions/%s.md", s.ID)
+		}
+		fmt.Fprintf(&sb, "| **Output** | %s |\n", out)
+		if s.DoorType != "" {
+			fmt.Fprintf(&sb, "| **Door Type** | %s |\n", s.DoorType)
+		}
+		sb.WriteString("\n")
+
+		if s.Prompt != "" {
+			sb.WriteString("```prompt\n")
+			sb.WriteString(strings.TrimSpace(s.Prompt))
+			sb.WriteString("\n```\n\n")
+		} else {
+			sb.WriteString("```prompt\n")
+			fmt.Fprintf(&sb, "# %s: %s\n\nBRIEF:\nConduct research for %s.\n", s.ID, sTitle, sTitle)
+			sb.WriteString("```\n\n")
+		}
+		sb.WriteString("---\n\n")
+	}
+
+	return []byte(sb.String())
+}
+
+// ToMermaid generates a Mermaid flowchart representation of the DAG,
+// color-coding sessions by their completion status.
+func (d *DAG) ToMermaid(completedIDs map[string]bool) string {
+	if d == nil || len(d.Sessions) == 0 {
+		return "graph TD\n    empty[\"No sessions in pipeline\"]\n"
+	}
+	if completedIDs == nil {
+		completedIDs = make(map[string]bool)
+	}
+
+	var sb strings.Builder
+	sb.WriteString("graph TD\n")
+
+	// Node definitions
+	for _, s := range d.Sessions {
+		label := s.ID
+		if s.Title != "" {
+			label = fmt.Sprintf("%s: %s", s.ID, s.Title)
+		}
+		label = strings.ReplaceAll(label, "\"", "'")
+		fmt.Fprintf(&sb, "    %s[\"%s\"]\n", s.ID, label)
+	}
+
+	// Directed edges
+	for _, s := range d.Sessions {
+		for _, dep := range s.Dependencies {
+			dep = strings.TrimSpace(dep)
+			if dep != "" {
+				fmt.Fprintf(&sb, "    %s --> %s\n", dep, s.ID)
+			}
+		}
+	}
+
+	// Status styles
+	for _, s := range d.Sessions {
+		isDone := completedIDs[s.ID] || completedIDs[strings.ToUpper(s.ID)] || completedIDs[strings.ToLower(s.ID)]
+		if isDone {
+			fmt.Fprintf(&sb, "    style %s fill:#22c55e,stroke:#16a34a,color:#ffffff\n", s.ID)
+		} else if IsSynthesisSession(s.ID) {
+			fmt.Fprintf(&sb, "    style %s fill:#3b82f6,stroke:#2563eb,color:#ffffff\n", s.ID)
+		} else {
+			allDepsDone := true
+			for _, dep := range s.Dependencies {
+				if !completedIDs[dep] && !completedIDs[strings.ToUpper(dep)] && !completedIDs[strings.ToLower(dep)] {
+					allDepsDone = false
+					break
+				}
+			}
+			if allDepsDone {
+				fmt.Fprintf(&sb, "    style %s fill:#f59e0b,stroke:#d97706,color:#ffffff\n", s.ID)
+			} else {
+				fmt.Fprintf(&sb, "    style %s fill:#6b7280,stroke:#4b5563,color:#ffffff\n", s.ID)
+			}
+		}
+	}
+
+	return sb.String()
+}
+
+// ToStatusTable generates a formatted Markdown status table of all sessions.
+func (d *DAG) ToStatusTable(completedIDs map[string]bool) string {
+	if d == nil || len(d.Sessions) == 0 {
+		return "No sessions in pipeline.\n"
+	}
+	if completedIDs == nil {
+		completedIDs = make(map[string]bool)
+	}
+
+	var sb strings.Builder
+	sb.WriteString("| Session ID | Title | Layer | Status | Dependencies | Decision |\n")
+	sb.WriteString("|---|---|---|---|---|---|\n")
+
+	for _, s := range d.Sessions {
+		isDone := completedIDs[s.ID] || completedIDs[strings.ToUpper(s.ID)] || completedIDs[strings.ToLower(s.ID)]
+		status := "Blocked"
+		if isDone {
+			status = "Completed"
+		} else {
+			allDepsDone := true
+			for _, dep := range s.Dependencies {
+				if !completedIDs[dep] && !completedIDs[strings.ToUpper(dep)] && !completedIDs[strings.ToLower(dep)] {
+					allDepsDone = false
+					break
+				}
+			}
+			if allDepsDone {
+				status = "Ready (⚡)"
+			}
+		}
+
+		deps := "none"
+		if len(s.Dependencies) > 0 {
+			deps = strings.Join(s.Dependencies, ", ")
+		}
+		dec := s.DecisionRef
+		if dec == "" {
+			dec = "—"
+		}
+		sTitle := s.Title
+		if sTitle == "" {
+			sTitle = s.ID
+		}
+		fmt.Fprintf(&sb, "| %s | %s | %d | %s | %s | %s |\n", s.ID, sTitle, s.Layer, status, deps, dec)
+	}
+
+	return sb.String()
 }

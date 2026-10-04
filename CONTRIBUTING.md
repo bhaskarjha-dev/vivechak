@@ -98,7 +98,7 @@ When releasing a new version, update ALL of the following references:
 | Core Principles (§2) | ✅ If the principle affects how pipelines are generated | — | ✅ If it changes user-facing behavior |
 | Pipeline Architecture (§3) — scaling, tiers, session budgets | ✅ Scoring rubric and tier mapping are duplicated in GENERATOR.md Step 2 | — | — |
 | Pipeline Architecture (§3) — failure modes, termination, checkpoints | ✅ "How to Execute" section must reflect new guidance | — | — |
-| Prompt Design (§4) — 5-block anatomy, output rubric | ✅ Step 4 writes prompts using this anatomy | — | — |
+| Prompt Design (§4) — 8-block anatomy, output rubric | ✅ Step 4 writes prompts using this anatomy | — | — |
 | Evidence System (§5) — grading, modifiers, citation format | ✅ Evidence grading is inlined in every generated prompt | — | — |
 | Output Architecture (§6) — YAML frontmatter, body skeleton | ✅ FORMAT block in generated prompts | ✅ Template schemas must match | — |
 | Phase 0 Gate (§7) | — | ✅ PHASE-0-GATE template | — |
@@ -133,7 +133,7 @@ These elements exist in MORE THAN ONE file and MUST stay synchronized:
 | 8-dimension complexity rubric | FRAMEWORK.md §3.2 | GENERATOR.md Step 2 (intentionally abbreviated labels for prompt economy — substantively identical) |
 | Tier mapping (score → session budget) | FRAMEWORK.md §3.2 | GENERATOR.md Step 2 |
 | Per-decision routing matrix | FRAMEWORK.md §3.2 | GENERATOR.md Step 3 |
-| 5-block prompt anatomy | FRAMEWORK.md §4 | GENERATOR.md Step 4 |
+| 8-block prompt anatomy | FRAMEWORK.md §4 | GENERATOR.md Step 4 |
 | Evidence grading tiers (A-E) | FRAMEWORK.md §5.1 | GENERATOR.md Step 4 (inlined in every prompt), GENERATOR-DECISION.md, GENERATOR-COMPARISON.md — marked by `CORE:BEGIN/END` blocks |
 | ADR YAML schema (18 fields) | templates/DECISIONS.template.md (canonical) | GENERATOR.md DELIVERABLE §2 (full schema inlined), GENERATOR-DECISION.md, FRAMEWORK.md §5.7 (example) |
 | Template filenames (6 templates) | templates/ directory | GENERATOR.md "How to Execute", README.md Step 2, AGENTS.md §2 |

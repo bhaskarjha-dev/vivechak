@@ -52,7 +52,7 @@ func TestRealMassive_E2E_AllFeatures(t *testing.T) {
 	}
 	t.Cleanup(func() { cs.Close() })
 
-	// 3. Verify tools/list has exactly 10 tools with expected schemas
+	// 3. Verify tools/list has exactly 13 tools with expected schemas
 	var toolNames []string
 	toolMap := make(map[string]*mcp.Tool)
 	for tool, err := range cs.Tools(ctx, nil) {
@@ -63,8 +63,8 @@ func TestRealMassive_E2E_AllFeatures(t *testing.T) {
 		toolMap[tool.Name] = tool
 	}
 
-	if len(toolNames) != 10 {
-		t.Fatalf("expected 10 tools from live server, got %d: %v", len(toolNames), toolNames)
+	if len(toolNames) != 13 {
+		t.Fatalf("expected 13 tools from live server, got %d: %v", len(toolNames), toolNames)
 	}
 
 	expectedTools := []string{
@@ -78,6 +78,9 @@ func TestRealMassive_E2E_AllFeatures(t *testing.T) {
 		"vivechak_amend_session",
 		"vivechak_validate",
 		"vivechak_run_gate",
+		"vivechak_challenge",
+		"vivechak_replan",
+		"vivechak_visualize",
 	}
 	for _, expected := range expectedTools {
 		if _, ok := toolMap[expected]; !ok {

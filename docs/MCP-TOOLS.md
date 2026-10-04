@@ -1,9 +1,9 @@
 # MCP Tools Reference
 
-> **Last verified against code:** 2026-10-04 (v0.1.0)
+> **Last verified against code:** 2026-10-05 (v0.1.0)
 > Tool schemas and behaviors described here match `internal/mcp/server.go`. If you find discrepancies, please file an issue.
 
-The Model Context Protocol (MCP) server for [Vivechak](../README.md) exposes 10 specialized tools designed to run evidence-grounded research pipelines directly inside any MCP-compatible AI host, agent runtime, or IDE.
+The Model Context Protocol (MCP) server for [Vivechak](../README.md) exposes 13 specialized tools designed to run evidence-grounded research pipelines directly inside any MCP-compatible AI host, agent runtime, or IDE.
 
 Vivechak supports two execution models:
 1. **MCP Server Workflow**: Autonomous or semi-autonomous execution where the host agent calls MCP tools to prepare prompts, manage DAG session progression, validate outputs, record ADRs, and verify Phase 0 exit gates.
@@ -475,7 +475,7 @@ When an actionable session is ready:
 - `total_sessions` (`integer`): Total number of sessions in the pipeline.
 - `completed_sessions` (`integer`): Number of completed sessions.
 - `already_completed` (`boolean`): Whether this specific session was already run.
-- `prompt` (`string`): Assembled 5-block prompt with upstream findings injected.
+- `prompt` (`string`): Assembled 8-block prompt with upstream findings injected.
 - `prompt_char_count` (`integer`): Character count.
 - `prompt_approx_tokens` (`integer`): Estimated token count.
 - `other_ready_sessions` (`string[]`, optional): Other unblocked sessions that can execute in parallel.
@@ -639,6 +639,7 @@ Defined in [`RecordDecisionInput`](../internal/mcp/tool_record_decision.go):
 | `slug` | `string` | Optional | Optional slug for filename (e.g. `primary-database` yields `D-001-primary-database-decision.md`). |
 | `content` | `string` | Optional* | Decision record or conflict resolution content (Markdown with YAML frontmatter). *Omit when using `auto_draft_from`. |
 | `auto_draft_from` | `string` | Optional | Session ID to auto-draft decision from (e.g. `R-01`). When provided without `content`, generates a pre-populated draft for review. |
+| `supersedes` | `string` | Optional | ID of decision being superseded (e.g. `D-003`). Marks old decision as `superseded`, links records, and checks for stale session references. |
 
 #### Response (`data` field)
 - `workspace_root` (`string`): Workspace path.
@@ -646,6 +647,8 @@ Defined in [`RecordDecisionInput`](../internal/mcp/tool_record_decision.go):
 - `artifact_type` (`string`): `decision` or `conflict-resolution`.
 - `file_path` (`string`): Path to written document.
 - `status` (`string`): Validation status (`valid`, `valid-with-warnings`, or `draft`).
+- `supersedes` (`string`, optional): ID of superseded decision if requested.
+- `superseded_file` (`string`, optional): Path to updated superseded decision artifact.
 - `registry_updated` (`boolean`): Whether `research/DECISIONS.md` was automatically compiled.
 - `progress` (`object`): Real-time mini-status tracking `sessions_completed` and `decisions_recorded`.
 - `validation` ([`ValidationResult`](../internal/core/validate.go)): Detailed validation issues list.
@@ -936,6 +939,116 @@ Defined in [`RunGateInput`](../internal/mcp/tool_run_gate.go):
 
 ---
 
+### 11. `vivechak_challenge`
+**Title:** Challenge Research Findings  
+**Annotations:** Read-Only: `true` | Idempotent: `true` | Destructive: `false` | Open-World: `false`
+
+#### Description
+Generate adversarial challenge prompts for a completed research session to stress-test your findings.
+
+#### What It Does
+Implements Principle P8 (Structured Falsification). Analyzes a saved session artifact and generates targeted adversarial prompts that the host agent executes in an independent session to stress-test its own conclusions.
+
+Supported modes:
+- `red_team` (default): Extracts recommendations and core claims, generating 4 challenge tracks: Disconfirming Search, Premortem Analysis (12-month failure post-mortem), Edge Case & Boundary Probing, and Hidden Migration/TCO Cost Audit.
+- `evidence_audit`: Audits every citation in the session, generating targeted verification queries for Grade A/B claims and flagged Grade C vendor claims.
+- `cross_session`: Evaluates mutual consistency, latent contradictions, and competing assumptions across all completed sessions in the workspace.
+
+Challenge findings or updates can be saved directly via `vivechak_amend_session`.
+
+#### Input Parameters
+Defined in [`ChallengeInput`](../internal/mcp/tool_challenge.go):
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `project_root` | `string` | Optional | Workspace root path. |
+| `session_id` | `string` | **Required** | Session identifier to challenge (e.g. `T1-01`). |
+| `mode` | `string` | Optional | Challenge mode: `red_team` (default) \| `evidence_audit` \| `cross_session`. |
+
+#### Response (`data` field)
+- `session_id` (`string`): Target session ID.
+- `mode` (`string`): Challenge mode used.
+- `recommendation` (`string`): Recommendation extracted from session.
+- `prompts` (`string[]`): Generated adversarial challenge prompts.
+- `prompt_count` (`integer`): Number of challenge prompts.
+
+---
+
+### 12. `vivechak_replan`
+**Title:** Replan Research Pipeline  
+**Annotations:** Read-Only: `false` | Idempotent: `false` | Destructive: `false` | Open-World: `false`
+
+#### Description
+Mutate an active research pipeline DAG mid-flight without losing completed work.
+
+#### What It Does
+Safely modifies the DAG topology in `research/RESEARCH-PIPELINE.md` when new findings require altering the research plan.
+
+Supported operations:
+- `add_session`: Inserts a new session into the DAG. Validates that dependencies exist in the graph and that no circular dependency is introduced.
+- `remove_session`: Removes an uncompleted session. Fails if completed sessions depend on it.
+- `update_deps`: Modifies the dependency list of an uncompleted session. Verifies acyclicity.
+- `update_prompt`: Replaces the research prompt text of an uncompleted session.
+
+Validates the entire mutated graph via `core.DAG.ValidateDAG()` and re-serializes `RESEARCH-PIPELINE.md` with complete round-trip fidelity.
+
+#### Input Parameters
+Defined in [`ReplanInput`](../internal/mcp/tool_replan.go):
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `project_root` | `string` | Optional | Workspace root path. |
+| `operation` | `string` | **Required** | Mutation operation: `add_session` \| `remove_session` \| `update_deps` \| `update_prompt`. |
+| `session_id` | `string` | **Required** | Session identifier being added, removed, or modified. |
+| `title` | `string` | Optional* | Session title (required for `add_session`). |
+| `layer` | `integer` | Optional | DAG execution layer (for `add_session`). |
+| `door_type` | `string` | Optional | `one-way` or `two-way` (for `add_session`). |
+| `dependencies` | `string[]` | Optional | Upstream dependency IDs (for `add_session` or `update_deps`). |
+| `prompt` | `string` | Optional | Prompt text (for `add_session` or `update_prompt`). |
+| `output_file` | `string` | Optional | Expected output path (for `add_session`). |
+
+#### Response (`data` field)
+- `operation` (`string`): Performed operation.
+- `session_id` (`string`): Target session ID.
+- `total_sessions` (`integer`): New total session count in the pipeline DAG.
+
+---
+
+### 13. `vivechak_visualize`
+**Title:** Visualize Research Pipeline  
+**Annotations:** Read-Only: `true` | Idempotent: `true` | Destructive: `false` | Open-World: `false`
+
+#### Description
+Render the research pipeline DAG as a Mermaid graph or text status table.
+
+#### What It Does
+Computes the live execution status of every session node in the active pipeline and outputs a visual representation of progress and parallel execution paths.
+
+Supported formats:
+- `mermaid` (default): Emits Mermaid TD flowchart syntax with color-coded nodes:
+  - Green (`#22c55e`): Completed sessions
+  - Amber (`#f59e0b`): Unblocked, ready-to-run sessions (indicates parallel opportunities)
+  - Gray (`#6b7280`): Blocked downstream sessions
+  - Blue (`#3b82f6`): Grand synthesis sink (`SYN-01`)
+- `table`: Emits an ASCII status table with columns: ID, Title, Layer, Status, Dependencies, Output File.
+
+#### Input Parameters
+Defined in [`VisualizeInput`](../internal/mcp/tool_visualize.go):
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `project_root` | `string` | Optional | Workspace root path. |
+| `format` | `string` | Optional | Output format: `mermaid` (default) \| `table`. |
+
+#### Response (`data` field)
+- `format` (`string`): `mermaid` or `table`.
+- `rendering` (`string`): Rendered Mermaid definition or ASCII table.
+- `total_sessions` (`integer`): Total number of sessions.
+- `completed_sessions` (`integer`): Number of completed sessions.
+- `ready_sessions` (`string[]`): Sessions currently unblocked and ready to run.
+
+---
+
 ## Validation Ladder & Warning Codes Reference
 
 Vivechak organizes all artifact validation into a 4-level validation ladder defined in [`ValidationLevel`](../internal/core/validate.go):
@@ -963,6 +1076,7 @@ Vivechak organizes all artifact validation into a 4-level validation ladder defi
 | `W-SHORT-BODY` | L3 | `record_decision`, `validate` | Conflict resolution or artifact body length is less than 100 characters. |
 | `W-OUTPUT-SIZE` | L3 | `next_session` | Assembled prompt exceeds 10,000 tokens. Truncated unless `verbose: true`. |
 | `W-STALE-DOWNSTREAM` | L3 | `amend_session` | Amended session has completed downstream dependents; findings may be based on stale assumptions. |
+| `W-STALE-DECISION-REFERENCE` | L3 | `record_decision` | Superseded decision is referenced by existing completed sessions. |
 | `W-TEMPLATE-MISSING` | L3 | `init` | A template file could not be read from embedded binary assets. |
 | `GATE-STRUCTURAL: <check>` | L4 | `run_gate` | Structural completeness check failed (missing pipeline, FAD, templates, or uncompleted DAG sessions). |
 | `GATE-QUALITY: <check>` | L4 | `run_gate` | Mechanical quality check failed (<3 sessions, un-graded FAD, or unfinalized decisions / missing reversal triggers). |

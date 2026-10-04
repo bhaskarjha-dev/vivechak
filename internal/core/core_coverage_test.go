@@ -46,6 +46,18 @@ func TestScopeFromString_And_GeneratorFile(t *testing.T) {
 	}
 }
 
+func TestSessionPrefix(t *testing.T) {
+	if p := SessionPrefix(ScopeComparison); p != "C-" {
+		t.Errorf("expected C-, got %q", p)
+	}
+	if p := SessionPrefix(ScopeDecision); p != "D-" {
+		t.Errorf("expected D-, got %q", p)
+	}
+	if p := SessionPrefix(ScopeProject); p != "T" {
+		t.Errorf("expected T, got %q", p)
+	}
+}
+
 func TestValidation_HelpersAndArtifact(t *testing.T) {
 	// 1. ValidationLevel.String()
 	levels := []struct {

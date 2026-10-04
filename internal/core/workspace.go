@@ -284,11 +284,11 @@ func InspectWorkspace(root string) WorkspaceInfo {
 		}
 	}
 
-	// Count templates
+	// Count templates (only non-hidden .md files)
 	templatesPath := filepath.Join(root, TemplatesDir)
 	if entries, err := os.ReadDir(templatesPath); err == nil {
 		for _, e := range entries {
-			if !e.IsDir() {
+			if !e.IsDir() && strings.HasSuffix(e.Name(), ".md") && !strings.HasPrefix(e.Name(), ".") {
 				info.TemplateCount++
 			}
 		}

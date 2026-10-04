@@ -179,12 +179,13 @@ func checkWorkspace(workspace string) (bool, []string, []string) {
 			if pipelineContent != "" && id != "" {
 				inPipeline := strings.Contains(pipelineContent, id)
 				if !inPipeline {
-					// Check progressively shorter hyphen-delimited prefixes for slugged filenames
-					// e.g. "D-001-S1-slug" -> "D-001-S1", "T1-01-database-selection" -> "T1-01", "S1-database" -> "S1"
-					parts := strings.Split(id, "-")
+					// Check progressively shorter hyphen- or underscore-delimited prefixes for slugged filenames
+					// e.g. "D-001-S1-slug" -> "D-001-S1", "T1-01-database-selection" -> "T1-01", "T1_01_database" -> "T1_01"
+					parts := strings.FieldsFunc(id, func(r rune) bool { return r == '-' || r == '_' })
 					for k := len(parts) - 1; k >= 1; k-- {
-						prefix := strings.Join(parts[:k], "-")
-						if strings.Contains(pipelineContent, prefix) {
+						prefixHyphen := strings.Join(parts[:k], "-")
+						prefixUnderscore := strings.Join(parts[:k], "_")
+						if strings.Contains(pipelineContent, prefixHyphen) || strings.Contains(pipelineContent, prefixUnderscore) {
 							inPipeline = true
 							break
 						}
@@ -225,8 +226,9 @@ func checkWorkspace(workspace string) (bool, []string, []string) {
 						continue
 					}
 					seenMatches[match] = true
-					if !strings.Contains(decisionsContent, match) {
-						if pipelineContent != "" && strings.Contains(pipelineContent, match) {
+					decIDPattern := regexp.MustCompile(`(?i)\b` + regexp.QuoteMeta(match) + `\b`)
+					if !decIDPattern.MatchString(decisionsContent) {
+						if pipelineContent != "" && decIDPattern.MatchString(pipelineContent) {
 							successes = append(successes, fmt.Sprintf("ℹ In-flight planned decision in %s: %s (declared in pipeline, awaiting ADR)", e.Name(), match))
 						} else {
 							errs = append(errs, fmt.Sprintf("✗ Stale decision ref in %s: %s", e.Name(), match))

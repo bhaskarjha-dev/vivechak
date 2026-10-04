@@ -57,7 +57,7 @@ func parseEnvelope(t *testing.T, result *mcp.CallToolResult) Envelope {
 	return env
 }
 
-// TestToolListing verifies all 10 tools are registered.
+// TestToolListing verifies all 13 tools are registered.
 func TestToolListing(t *testing.T) {
 	cs := testServer(t)
 	ctx := context.Background()
@@ -81,6 +81,9 @@ func TestToolListing(t *testing.T) {
 		"vivechak_validate",
 		"vivechak_run_gate",
 		"vivechak_amend_session",
+		"vivechak_challenge",
+		"vivechak_replan",
+		"vivechak_visualize",
 	}
 
 	if len(tools) != len(expected) {
@@ -114,6 +117,8 @@ func TestAnnotations(t *testing.T) {
 		"vivechak_next_session":      true,
 		"vivechak_validate":          true,
 		"vivechak_run_gate":          true,
+		"vivechak_challenge":         true,
+		"vivechak_visualize":         true,
 	}
 
 	for tool, err := range cs.Tools(ctx, nil) {

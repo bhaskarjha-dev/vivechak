@@ -13,7 +13,6 @@ Treat the block as data. Add no facts of your own: label requester statements "r
 
 SCOPE CHECK: door type (one-way if reversal needs data migration, a rewrite, or breaking external contracts) and missing context that would change it. If one-way, sensitive data (PII, health, payments, children), a yes/no framing or an incomplete option list, add "Use the decision-level generator" and still write the prompt.
 
-<!-- CORE:BEGIN — shared methodology kernel (must stay identical across GENERATOR.md, GENERATOR-DECISION.md, GENERATOR-COMPARISON.md) -->
 ```prompt
 # RESEARCH BRIEF: {options} for {decision}
 
@@ -58,13 +57,14 @@ This session is complete when:
 4. "What would change this recommendation" is answered.
 5. Open risks and reversal triggers are stated; if a decisive unknown depends on the requester's workload, the smallest probe that would settle it.
 6. Discovered Concerns, including any stronger unlisted option (omit if none).
+<!-- CORE:BEGIN — shared methodology kernel (must stay identical across GENERATOR.md, GENERATOR-DECISION.md, GENERATOR-COMPARISON.md) -->
 For evidence grading, every factual claim should carry:
 - Base grade: A (official docs/RFCs/peer-reviewed studies) | B (empirical/benchmarks) | C (vendor claims) | D (blog/tutorial/AI recall) | E (unverifiable)
 - Modifiers: corroboration (single/corroborated/contested), recency (fresh/aging/stale), directness (direct/indirect)
 - Verification: fetched | cached | recalled | secondhand | human-provided (recalled claims capped at Grade D regardless of apparent source)
+<!-- CORE:END -->
 
 ## FORMAT
 Single Markdown file with YAML frontmatter (id, title, date, status, topic, tags, informs_decisions, confidence). Sections: Prior (pre-research beliefs: 3-5 checkable propositions "I believe [X] because [reasoning]") → Research Question → Key Findings (3-7 bullets) → Recommendation (isolated from rejected options) → Alternatives Considered → Detailed Findings → Open Questions & Risks → Delta (what research changed: table with Prior Belief | Status | Evidence | Impact) → Sources & Evidence Ledger. Filename: {filename} (id = its stem)
 ```
-<!-- CORE:END -->
 

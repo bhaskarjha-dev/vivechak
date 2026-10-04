@@ -1,297 +1,192 @@
-# Vivechak Roadmap & Development History
-### Evolution, Decisions, and Future Direction
+# Vivechak Roadmap & Future Direction
+### Autonomous Evidence-Grounded Research for Technical Decisions
 
 ---
 
-## Current State: v0.1.0 (September 2026)
+## 1. Current State: v0.1.0 (October 2026)
 
-**Status:** Operational, battle-tested, and automated via Model Context Protocol (MCP).
+**Status:** Shipped, battle-tested, and automated via Model Context Protocol (MCP).
 
-Vivechak v0.1.0 marks the initial unified release combining the evidence-grounded research methodology with an autonomous Go MCP server and multi-scope pipeline generators.
+Vivechak v0.1.0 delivers a unified, evidence-grounded research methodology powered by an autonomous, single-binary Go MCP server and multi-scope generators. It operates across three distinct scope levels (Project → FAD, Decision → ADR, Comparison → WEP matrix) while maintaining a strict Guided Worker pattern with zero LLM API dependencies.
 
 ### What v0.1.0 Delivers
 
 | Component | State | Description |
 |---|---|---|
-| **Multi-Scope Generators** | ✅ Ship-ready | `GENERATOR.md` (Project), `GENERATOR-DECISION.md` (Decision), `GENERATOR-COMPARISON.md` (Comparison) |
-| **Go MCP Server** | ✅ Shipped | 10 atomic tools implementing the Guided Worker pattern with comprehensive test suites passing across all packages |
+| **13 Atomic MCP Tools** | ✅ Shipped | Full lifecycle support: `init`, `prepare_generator`, `save_plan`, `status`, `next_session`, `save_session`, `record_decision` (with ADR supersession), `amend_session`, `validate`, `run_gate`, `challenge` (adversarial red-teaming), `replan` (in-flight DAG mutation), and `visualize` (Mermaid graph + status table) |
+| **Multi-Scope Generators** | ✅ Shipped | `GENERATOR.md` (Project), `GENERATOR-DECISION.md` (Decision), `GENERATOR-COMPARISON.md` (Comparison) with synchronized `CORE:BEGIN/END` methodology kernels and Research Depth Mandates |
+| **Namespaces & Protocols** | ✅ Shipped | `C-NNN` comparison namespace, `T-NNN` project tasks, `D-NNN` ADRs; ADR supersession protocol with transitive stale-reference detection |
 | **CLI & Diagnostics** | ✅ Shipped | `vck` shorthand alias, `vck setup` (1-second host configuration + 14 presets), `vck mcp-config` (universal JSON config), and `vck doctor` workspace integrity checker |
-| **FRAMEWORK.md** | ✅ Consolidated | Complete standalone spec (principles + evidence grading + multi-scope methodology) |
-| **6 Templates** | ✅ Agent-ready | Decisions, Conflict Resolution, Comparison Session, FAD, Phase 0 Gate, Session Note (`schema_version: "0.1.0"`) |
-| **Package Distribution** | ✅ Shipped | GoReleaser (6 platforms), Homebrew tap, Scoop bucket, WinGet manifest, shell installers (`install.sh`, `install.ps1`) with `vck` alias |
-| **meta-research/** | ✅ Sealed | 14 locked ADRs (D-001–D-014), 27 research artifacts, empirical evidence base |
+| **FRAMEWORK.md** | ✅ Shipped | Complete standalone specification (8 principles, evidence grading A–E, 8-block prompt anatomy, Weighted Evaluation Protocol, Phase 0 Gate) |
+| **6 Operational Templates** | ✅ Shipped | `DECISIONS.template.md`, `CONFLICT-RESOLUTION.template.md`, `COMPARISON-SESSION.template.md`, `FOUNDING-ARCHITECTURE.template.md`, `PHASE-0-GATE.template.md`, `SESSION.template.md` (`schema_version: "0.1.0"`) |
+| **Distribution & Packages** | ✅ Shipped | Single-binary cross-compilation (6 platforms via GoReleaser), Homebrew, Scoop, WinGet, shell installers (`install.sh`, `install.ps1`) |
+| **meta-research/** | ✅ Sealed | 14 locked ADRs (D-001–D-014), 27 research artifacts, empirical evidence base validating every design decision |
 
-### Repository Evolution
+---
+
+## 2. Deferred Features (Tracked & Prioritized)
+
+Every deferred feature is tracked with its origin, explicit gate condition, and design rationale. We explicitly reject feature creep; features are built only when evidence demonstrates demand.
+
+### Near-Term (Clear Design, Awaiting Demand Signal)
+
+| Feature | Description | Origin | Gate Condition | Est. Effort |
+|---|---|---|---|---|
+| **Incremental Session Building** | `vivechak_add_finding` / `vivechak_save_draft` tool endpoints allowing agents to stream findings incrementally rather than writing complete sessions. | Definitive Plan | 3+ user requests showing context window overflow on single session writes | Medium |
+| **`vivechak_export`** | One-command compilation of FAD and ADR registry into self-contained HTML/PDF reports with embedded SVG charts and offline citation snapshots. | Definitive Plan | User demand for stakeholder presentation beyond Markdown | Low |
+| **Post-Save Git Hooks** | Optional auto-commit hook (`vck-git`) that commits completed sessions and compiled ADR registries into git history automatically. | Definitive Plan | Demand from solo developers wanting zero-overhead git tracking | Low |
+| **TUI Dashboard (`vck tui`)** | Interactive terminal dashboard for human architects to monitor parallel agent research progress, view Mermaid DAGs, and review decisions. | Definitive Plan | Demand for terminal-first visual monitoring | Medium |
+| **Cross-Session Field Guide** | Comprehensive operational guide for running 20+ session pipelines across distributed agent sessions. | Audit Backlog | Multi-day project research pipelines in production | Low |
+| **Examiner Calibration Questions** | Pre-generated calibration questions for human architects to probe agent-generated FADs during Phase 0 reviews. | Audit Backlog | Team adoption where human architects review autonomous agent research | Low |
+| **Worked Failed Pipeline Example** | A complete negative example in `examples/FAILED-PIPELINE.md` demonstrating failure recovery, contradictory evidence resolution, and gate rejection. | Audit (OP-02) | Real failure logs harvested from live dogfooding | Low |
+
+### Future (Data-Gated)
+
+| Feature | Description | Origin | Gate Condition |
+|---|---|---|---|
+| **Cross-Project Knowledge Graph** | Reusable evidence ledger and technology profiles indexed across multiple independent projects. | Phase 6 | 5+ production projects with tracked evidence in consistent schema |
+| **Adaptive Prompt Evolution** | Prompts that automatically adapt tone, search strategies, and domain probes based on previous session outcomes within a pipeline. | Phase 6 | Empirical evidence showing prompt underperformance patterns across 10+ pipelines |
+| **Longitudinal Calibration Tracking** | Tetlock-style Brier scoring tracking whether predictions made in ADRs match production outcomes at 3, 6, and 12 months. | Phase 6 | 3+ projects with 6+ months post-FAD production telemetry |
+| **DSPy Prompt Optimization** | Compile-time prompt optimization mathematically tuning prompt tokens for frontier models. | Phase 6 | Quantifiable automated research quality metric defined and validated |
+| **SHA-256 Content Addressing** | Cryptographic hashing of evidence citations and session artifacts to guarantee tamper-proof audit trails for regulated industries. | Phase 6 | Enterprise compliance demand signal (SOC2 / ISO / FDA) |
+
+### Explicitly Evaluated as Rejected (Out of Scope)
+
+| Proposal | Why Rejected | Where Handled |
+|---|---|---|
+| **Tool-use calibration** | Host harness responsibility, not Vivechak's job. | Host Agent Harness (Cursor, Claude, Antigravity) |
+| **Code generation / Scaffolding** | Vivechak produces evidence-grounded research; coding tools produce code. Mixing them dilutes epistemic rigor. | Downstream Coding Agents |
+| **Standalone Orchestration Engine** | Replaced by standard MCP server. Eliminates duplicate LLM loops, vendor lock-in, and fragile multi-agent state engines. | Sealed ADR D-011 |
+| **SQLite State Store** | Workspaces contain <50 files. Markdown IS the database. Principle P6 (Dual-Audience Artifacts) is foundational. | Principle P6 |
+| **Structured JSON Tool Inputs** | Breaks Principle P6 (Dual-Audience Artifacts). YAML frontmatter + Markdown body is the standard contract for human and machine consumption. | Principle P6 |
+| **Blocking Minimum Finding Counts** | Refuted by empirical gaming analysis (D-UX-02). Handled via non-blocking advisory quality coaching (`Q-DEPTH` warning) instead of hard errors. | Quality Coaching Engine |
+| **Mandatory Cloud Sync** | Violates workspace-as-database principle. All state must remain local Markdown/Git. | Principle P6 |
+
+---
+
+## 3. Long-Term Architectural Vision
+
+### 3.1 LLM Bridge (BYOK Intelligence Layer)
+
+Vivechak's core guarantee is that **every tool executes deterministically without calling LLM APIs**. The MCP server is a zero-intelligence, high-reliability state and guidance engine.
+
+In future releases, an optional **BYOK (Bring-Your-Own-Key) LLM Bridge** may be introduced:
+
+```
+┌────────────────────────────────────────────────────────┐
+│ Host Agent (Cursor, Claude Code, Antigravity, etc.)    │
+└──────────────────────────┬─────────────────────────────┘
+                           │ MCP stdio
+┌──────────────────────────▼─────────────────────────────┐
+│ Vivechak MCP Server (v0.1.0 Core — Always Active)      │
+│  - Workspace resolution & OS confinement (os.Root)     │
+│  - DAG dependency resolution & topological sorting     │
+│  - Frontmatter parsing & template validation           │
+│  - Evidentiary grounding & B1–B9 Phase 0 exit gate     │
+└──────────────────────────┬─────────────────────────────┘
+                           │ (Optional BYOK Hook)
+┌──────────────────────────▼─────────────────────────────┐
+│ BYOK LLM Bridge (Optional Enrichment Layer)            │
+│  - Automated red-team challenge execution              │
+│  - Inline semantic conflict detection                  │
+│  - Dynamic domain probe formulation                    │
+│  - Synthesizer co-pilot                                │
+└────────────────────────────────────────────────────────┘
+```
+
+**Key Architectural Invariants of the LLM Bridge:**
+1. **Passive by default:** If no API key is configured, Vivechak operates in standard mode (generating prompts for the host agent to execute).
+2. **Never gate progress:** Bridge failures or API rate limits fall back gracefully to passive mode.
+3. **Local first:** Supports local OpenAI-compatible endpoints (Ollama, vLLM) alongside commercial providers.
+
+### 3.2 Empirical Sandbox & Spike Runner
+
+For Two-Way Door decisions that require empirical benchmarks rather than literature review:
+- Ephemeral container runner (Docker / Podman) executing standardized spike scripts.
+- Automatically captures CPU, memory, and latency profiles as Grade B empirical evidence.
+- Directly links benchmark telemetry into session evidence ledgers.
+
+### 3.3 Living Reversal Sentinels
+
+Architectural Decision Records in Vivechak contain explicit **reversal triggers** and **scheduled review dates**:
+- Background sentinels (GitHub Actions / scheduled CI jobs) periodically check upstream dependencies, security CVE databases, and major version releases.
+- If a reversal condition is met (e.g., library deprecated, upstream pricing modified >30%), an automated issue is opened with a pre-filled `vivechak_challenge` prompt.
+
+---
+
+## 4. Harness Ecosystem Compatibility
+
+Vivechak is intentionally harness-agnostic. By speaking standard MCP over `stdio`, it integrates seamlessly across all major AI runtime environments. Detailed integration instructions are documented in [docs/HARNESS-COMPATIBILITY.md](docs/HARNESS-COMPATIBILITY.md).
+
+| Category | Environments | Integration Mode | Status |
+|---|---|---|---|
+| **IDE AI Harnesses** | Cursor, VS Code (Copilot/Cline), Claude Desktop, Google Antigravity, Windsurf | MCP stdio via `vck setup` (14 presets) | ✅ Production |
+| **CLI Agent Harnesses** | Claude Code, `agy` CLI, OpenHands, Aider | MCP stdio or headless CLI | ✅ Production |
+| **Cloud Agent Platforms** | Devin, Factory Droid, GitHub Workspaces | Pre-installed binary via `install.sh` / `vck mcp-config` | ✅ Production |
+| **Parallel Agent Swarms** | Subagent spawning (Antigravity, CrewAI, LangGraph) | Multi-process concurrent access with advisory file locking | ✅ Production |
+| **CI/CD Pipelines** | GitHub Actions, GitLab CI | Headless `vck doctor` and `vivechak_run_gate` | ✅ Production |
+
+---
+
+## 5. Architecture Principles
+
+Vivechak is governed by three architectural pillars:
+
+1. **Workspace As Database (P6):** There is no hidden internal database (`.vivechak/state.json`). The `research/` folder, its Markdown session files, and YAML frontmatters ARE the database. It is 100% inspectable, diffable, and version-controllable via Git.
+2. **Guided Worker Pattern:** The MCP server never dictates rigid turn-by-turn state machines or throws hard errors for "wrong order." Every tool returns a constructive `next_step` guidance string to orchestrate autonomous agents smoothly.
+3. **Zero-Dependency Core:** The Go implementation relies solely on the standard library and official MCP SDK. It compiles to a standalone, zero-dependency binary that launches in 10ms with zero runtime overhead.
+
+---
+
+## 6. Development History & Decision Archive
+
+<details>
+<summary><strong>Click to view Repository Evolution & Pre-v1.0 Architectural Decisions (OVH-01 – OVH-07)</strong></summary>
+
+### Repository Evolution Timeline
 
 ```
 2024–2025          8 independent project pipelines → pre-development patterns discovered
 Mid 2026           Methodology Genesis: 11 meta-research sessions tested legacy axioms
-Late 2026 (v0.1.0) Initial Unified Release: Go MCP Server (10 tools), Multi-Scope Generators, Package Distribution
+Late 2026 (v0.1.0) Initial Unified Release: Go MCP Server (13 tools), Multi-Scope Generators, Package Distribution
 Next (v0.1.x)      Host feedback, client auto-discovery, telemetry & cost tracking
 Future (v1.0.0)    First LTS release — frozen MCP tool schemas, locked template contracts, knowledge graph
 ```
 
----
+### Architectural Overhaul Decisions (OVH)
 
-## Architecture Overhaul Decisions
+#### OVH-01: File Consolidation (38 → 27 files)
+- **Rationale:** First-principles audit revealed that of 38 files, only 6 were actually touched by users. Merged PRINCIPLES.md and EVIDENCE-GRADING.md into FRAMEWORK.md. Consolidated CONTEXT.md and VISION.md into README.md. Deleted premature JSON schemas and redundant templates.
 
-These architectural decisions were made during the pre-v1.0 empirical overhaul and are captured here for provenance. They are NOT part of the sealed meta-research — they are structural decisions about the repository and tooling.
+#### OVH-02: Generator Prompt Redesign
+- Replaced expert personas with neutral audience framing (Zheng et al. 2024).
+- Eliminated hardcoded search queries in favor of dynamic agentic ReAct loops.
+- Replaced rigid section templates with quality-based coverage checklists.
+- Banned multi-turn drip-feeding (Laban et al. ICLR 2026 documented 39% performance degradation).
 
-### OVH-01: File Consolidation (38 → 27 files)
+#### OVH-03: Self-Contained Workspace Design
+- Designed project research workspaces to be 100% self-contained by copying operational templates into `research/templates/`.
 
-**Rationale:** First-principles audit revealed that of 38 files, only 6 were actually touched by users. 23 were meta/internal-use, 7 were redundant/premature.
+#### OVH-04: Self-Documenting Generator Output
+- Generator outputs include execution instructions inline, eliminating external dependencies.
 
-| Merged | Into | Why |
-|---|---|---|
-| PRINCIPLES.md + EVIDENCE-GRADING.md | FRAMEWORK.md | Eliminated fragmentation; one spec file, one read |
-| CONTEXT.md + VISION.md + ROADMAP.md | README.md (+ this file) | About-Vivechak content consolidated; no user ever reads 3 separate "about" docs |
-| META-PROMPT-GENERATOR.md | GENERATOR.md | Cleaner name, focused on the prompt (removed architecture spec for non-existent CLI) |
+#### OVH-05: SaaS De-Anchoring
+- Eliminated web-app SaaS bias from templates, ensuring the framework applies equally to systems programming, infrastructure, and non-software technical decisions.
 
-| Deleted | Why |
-|---|---|
-| templates/RESEARCH-PIPELINE.template.md | Redundant — generator already produces this |
-| templates/PROMPT-LIBRARY.template.md | Redundant — generator already produces this |
-| templates/COMPLEXITY-SCORING.template.md | Redundant — generator includes scoring |
-| templates/EVIDENCE-RECORD.template.md | Premature — standalone evidence records are a v4.0 feature |
-| schemas/ (3 JSON schemas) | Premature — no validation tooling exists to consume them |
+#### OVH-06: Bounded Exploration Mandate (P4)
+- Stated scope serves as a coverage floor, not a ceiling. Explicitly permits agents to discover critical risks and unlisted options.
 
-### OVH-02: Generator Prompt Redesign (7 Problems Fixed)
+#### OVH-07: Weighted Evaluation Protocol (WEP)
+- Standardized multi-criteria decision analysis for all 2+ option comparisons to counteract narrative volume and verbosity biases.
 
-| Problem | Fix | Evidence |
-|---|---|---|
-| Used persona ("You are a Research Pipeline Architect") | Task framing, no role assignment | Zheng et al. EMNLP 2024, Basil et al. 2025 |
-| 8 mandatory structured input fields | Open-ended vision dump; AI extracts structure | P4: prescriptive on WHAT, not HOW |
-| Team Size biased complexity score downward | Renamed to "Coordination Complexity," assessed by AI | Solo + AI agents ≤ small project in 2026 |
-| Self-reported risk profile | AI infers regulatory exposure from vision | Users systematically underestimate risk |
-| Not self-contained (name-dropped concepts) | All methodology operationalized inline | The receiving AI has never seen Vivechak |
-| Told instead of showed | Operational step-by-step instructions | P4: showing > telling |
-| No uncertainty handling | Undecided elements become research questions | First principles |
+### Evolution Waves Completed
 
-### OVH-03: Self-Contained Workspace Design
+- **Phase 4 (Framework Polish):** Pipeline failure modes documented, calibration loops added to P8, change propagation map instituted.
+- **Phase 4.5 (Multi-Scope Expansion):** Decision-scope generator (`GENERATOR-DECISION.md`) and comparison generator (`GENERATOR-COMPARISON.md`) created; Admiralty-Code evidence grading formalized; `CORE:BEGIN/END` markers aligned across all generators.
+- **Phase 5 (MCP Server Automation):** Single-binary Go MCP server with 13 tools, atomic I/O, advisory locking, and automated Phase 0 gate evaluation.
 
-**Decision:** New projects copy the 4 templates into their `research/templates/` directory, making the workspace 100% independent of the meta-repo.
+### Source Material Extraction Status
 
-**Why:** AI agents (Antigravity, Claude Code, Cursor) need local contracts to autonomously execute Steps 3-5. Without templates in the workspace, agents hallucinate structure.
+All original research notes from `brain-archive/` and historical project references (`references/project-1` through `project-8`) have been 100% extracted, empirically tested, and consolidated into `FRAMEWORK.md` and the sealed `docs/meta-research/` directory.
 
-### OVH-04: Self-Documenting Generator Output
-
-**Decision:** The generator prompt instructs the AI to include a "How to Execute This Pipeline" section at the top of the generated RESEARCH-PIPELINE.md.
-
-**Why:** The generated output itself should tell the user/agent how to run the pipeline, record decisions, synthesize, and gate — without referencing the meta-repo.
-
-### OVH-05: SaaS De-Anchoring (Critique Response)
-
-**Trigger:** External critique identified that FOUNDING-ARCHITECTURE.template.md hardcoded SaaS web-app examples (Auth/Clerk, DB/PostgreSQL, Client?API?Services?DB diagram, package.json). Validated against our own meta-research finding T1-03 (framing bias).
-
-**Decision:** Fix the template and generator narrowly. Reject the proposed 3-tier "Universal Epistemic Engine" rewrite.
-
-| Critique Claim | Verdict | Action |
-|---|---|---|
-| FAD template induces SaaS anchoring bias | **Correct** | Fixed: neutral placeholders, "Project Structure Specification" |
-| Generator scope too narrow ("software project") | **Partially correct** | Fixed: "technical project," broadened examples |
-| 3-Tier architecture with Domain Archetype Profiles | **Rejected** | Premature abstraction, zero demand evidence |
-| Vocabulary overhaul ("Asset Primitives") | **Rejected** | Enterprise jargon hurts usability |
-| "Universal Epistemic Engine for all enterprise" | **Rejected** | Scope creep without empirical validation |
-
-**Rationale for rejection:** The critique asked us to make a One-Way Door architectural rewrite based on Grade E evidence (zero empirical validation, zero demand signal). This is the exact mistake Vivechak exists to prevent. Domain-agnostic expansion added to Phase 6 as a validation-gated frontier instead.
-
-### OVH-06: Bounded Exploration Mandate (P4 Enhancement)
-
-**Problem:** Vivechak prompts were prescriptive on WHAT to cover but never stated the coverage checklist is a floor, not a ceiling. Frontier models exhibited "hyper-literalism" — constraining native reasoning to only listed elements, missing emergent concerns the prompt author couldn't anticipate.
-
-**Evidence:** "Prompting Inversion" effect documented in 2025–2026 research — overly rigid constraints on frontier models stifle native reasoning capabilities that would otherwise discover critical concerns organically.
-
-**Decision:** Add Bounded Exploration Mandate to P4. Applied at all 3 pipeline layers:
-1. Generator prompt BRIEF: "The project vision defines the starting point, not the ceiling"
-2. Generator Step 3: may add sessions for concerns user didn't mention
-3. Generator Step 4: instructs generated prompts to include exploration permission in APPROACH block
-
-**Constraint:** Exploration is bounded — "justify with evidence," not unbounded freedom.
-
-### OVH-07: Weighted Evaluation Protocol (Comparison Bias Correction)
-
-**Problem:** Qualitative-only comparisons are vulnerable to narrative volume bias (popular tech has more positive text), verbosity bias (longer analysis reads as stronger), and vendor marketing contamination (Grade C evidence at scale).
-
-**Evidence:** Multi-Criteria Decision Analysis (MCDA) and Analytic Hierarchy Process (AHP) are established bias-correction techniques. LLM-as-Judge research (2025–2026) documents position bias, verbosity bias, and self-preference as systematic.
-
-**Decision:** Add Weighted Evaluation Protocol (Framework §6.4) for comparison sessions. 6-step protocol: project-derived criteria, justified weights, evidence-referenced 1-5 scores, weighted totals, sensitivity check, qualitative-quantitative synthesis.
-
-**Constraint:** Score complements qualitative analysis, never replaces it. Coarse 1-5 scale prevents false precision.
-
----
-
-## Completed Evolution Phases
-
-### Phase 4: Framework Polish (DONE — September 2026)
-
-Real-world usage across multiple projects (including non-software domains) validated the core methodology but revealed documentation gaps and refinement opportunities. All items completed and committed.
-
-#### Wave 1: Documentation Gaps ✅
-
-| Item | Where | Status |
-|---|---|---|
-| Pipeline failure modes | FRAMEWORK.md §3.1 | ✅ 3 recovery protocols (garbage sessions, synthesis deadlocks, gate gaps) |
-| Extract-2-files guidance | README.md Step 1 | ✅ Blockquote with extraction instructions |
-| Session unit normalization | FRAMEWORK.md §3.2 | ✅ Definition of "session" with deep-research vs standard-chat calibration |
-
-#### Wave 2: Methodology Refinements ✅
-
-| Item | Where | Status |
-|---|---|---|
-| Calibration closing loop | P8 in FRAMEWORK.md + DECISIONS.template.md | ✅ `review_date`, `prediction` fields, Calibration Record section |
-| Scoring rubric refinement | FRAMEWORK.md §3.2 | ✅ Rubric calibration paragraph |
-| Domain-agnostic formalization | FRAMEWORK.md §8 | ✅ "Beyond Software" + "Archetype Maintenance" subsections |
-
-#### Wave 3: Archetypes & Templates ✅
-
-| Item | Where | Status |
-|---|---|---|
-| Archetype expansion guidance | FRAMEWORK.md §8 | ✅ Domain adaptation steps documented |
-| Archetype revision cadence | FRAMEWORK.md §8 | ✅ Maintenance model with review triggers |
-
-#### Systemic Fix: Change Propagation Map ✅
-
-Added after discovering that Phase 4 improvements to FRAMEWORK.md hadn't been propagated to GENERATOR.md. Now in CONTRIBUTING.md with mandatory check in AGENTS.md §3.
-
-### Open Backlog (Identified via Audit, Not Yet Addressed)
-
-Items identified during the comprehensive repository audit that are valid but not yet implemented. Ordered by severity:
-
-| ID | Severity | What | Where | Why Not Done Yet |
-|---|---|---|---|---|
-| SM-01 | Moderate | Domain Novelty / Technical Novelty dimension overlap risk | FRAMEWORK.md §3.2 scoring rubric | Requires real-world data on whether double-counting inflates scores. Track across next 3 projects. |
-| SM-02 | Moderate | Sharp tier boundary cliff at score 15→16 | FRAMEWORK.md §3.2 tier mapping | Needs rubric calibration data. Added guidance for boundary cases (F-22) but structural fix needs evidence. |
-| AB-03 | ~~Moderate~~ | ~~One-way door examples missing inter-service patterns~~ | GENERATOR.md Step 3 | ✅ DONE — Added 4 patterns (inter-service, event sourcing, monolith/micro, data partitioning) |
-| GA-02 | Opportunity | No protocol for human stakeholder disagreement on ADRs | templates/ | ACH handles model disagreement but not team disagreement. Consider adding to CONFLICT-RESOLUTION template. |
-| GA-04 | Opportunity | Quality rubric exists but no evaluation process defined | FRAMEWORK.md §4.3 | Who evaluates session output quality? Self-assessed? Template-based? Define when friction emerges. |
-| ES-03 | Opportunity | Missing "tool-generated" verification method | FRAMEWORK.md §5 evidence system | Evidence produced by running benchmarks/code is distinct from "fetched." Add when Engine exists. |
-| OP-02 | Opportunity | No worked example of a failed/corrected pipeline | examples/ | A failure example would be more instructive than the success example alone. Create when real failure data available. |
-| OP-03 | Opportunity | No positioning vs Structured MADR 1.0 (2026) | README.md | MADR 4.0 + Structured MADR 1.0 converge on Vivechak's ADR format. Clarify differentiation. |
-| DA-03 | Opportunity | Context injection token budget not quantified | FRAMEWORK.md §3.1 dependency protocol | Protocol says "3-5 sentences" but doesn't specify token budget. Quantify from Engine usage data. |
-| PE-01 | ~~Opportunity~~ | ~~\"Context engineering\" terminology evolution not reflected~~ | FRAMEWORK.md | ✅ DONE — Added context engineering note to P1 (Phase 1.7) |
-
-**Explicitly evaluated as OUT OF SCOPE** (not Vivechak's responsibility):
-- Tool-use calibration — about agent harness design, not research methodology
-- FAD → Fitness Functions — post-Vivechak concern (the coding tool owns fitness functions)
-- Archetype fallback monitoring — only relevant when archetypes are programmatic (Engine v1.0+)
-
-### Phase 4.5: Methodology Expansion (DONE — 2026-09-27)
-
-Three-scope model: Vivechak now operates at project, decision, and comparison scope levels. Research corpus: 12 sessions (~770KB), audited implementation plan.
-
-| # | Deliverable | Status |
-|---|---|---|
-| **1.1** | `GENERATOR-DECISION.md` — decision-scope generator (R/N/B/X profiling, 4-lane routing, L/C/F roles, 3-session cap) | ✅ |
-| **1.2** | `GENERATOR-COMPARISON.md` & `templates/COMPARISON-SESSION.template.md` — single-prompt WEP generator with SCOPE CHECK guard | ✅ |
-| **1.3** | `FRAMEWORK.md` §9: Multi-Scope Research — Scope × Depth model, 9 invariants (I1-I9), R/N/B/X routing matrix | ✅ |
-| **1.4** | Reposition all public-facing text — "pre-development" → "evidence-grounded research for technical decisions" | ✅ |
-| **1.5** | Evidence grading lineage — "Cochrane/GRADE lineage" → "Admiralty-Code-derived source grading with GRADE-inspired modifiers" | ✅ |
-| **1.6** | Drift prevention — `CORE:BEGIN/END` marker blocks across 3 generators; CONTRIBUTING.md propagation map updated | ✅ |
-| **1.7** | Context engineering note on P1 (addresses PE-01) | ✅ |
-
-### Phase 5: MCP Server — Evidence-Grounded Automation
-
-**Status:** ✅ Completed and Shipped in v0.1.0 (September 2026)
-
-**What was built:** 12 research sessions (~770KB of evidence) investigated how to transform Vivechak from a copy-paste workflow into tooling that agents can invoke directly. The research decisively concluded that an MCP (Model Context Protocol) server is the correct delivery vehicle — not a standalone Engine built on LangGraph, ADK, or CrewAI.
-
-**Key decisions (all locked, evidence-grounded):**
-
-| Decision | Type | Key Evidence |
-|---|---|---|
-| **MCP server replaces standalone Engine** | Locked | MCP 2026-07-28 spec (stateless, universal agent support); compound failure risk of standalone Engine |
-| **Go for server language** | Locked | Single binary distribution, 5–20ms startup, `os.Root` security, Tier 1 SDK |
-| **Guided Worker pattern** | Locked | Server returns guidance in response data; no server-side FSM; no LLM API calls |
-| **10 tools with `vivechak_` prefix** | Locked | Code-level audit dropped `synthesize` (violates Guided Worker), renamed 2 tools, added `amend_session` |
-| **Workspace files as canonical state** | Locked | No `.vivechak/state.json`; research/ directory IS the database; Git-compatible |
-| **3 scope levels (Project / Decision / Comparison)** | Locked | Cochrane, ODNI ICD 203, R-03/R-06 cross-validation |
-| **Binary-first distribution** | Locked | Agent Plugins not universal; PATH truncation on macOS GUI hosts |
-
-**What the MCP server automates:**
-
-```
-Current (Manual):
-  Human → Copy GENERATOR prompt → Paste into AI chat → Get pipeline
-  → Copy each session prompt → Paste into separate chats → Save outputs
-  → Record decisions → Resolve conflicts → Synthesize FAD → Run gate
-
-Automated (MCP Server):
-  Agent → vivechak_init → vivechak_prepare_generator → generate pipeline
-  → vivechak_save_plan → vivechak_next_session → run sessions
-  → vivechak_save_session → vivechak_record_decision
-  → vivechak_run_gate → sealed FAD
-```
-
-**Distribution:** GitHub Releases (GoReleaser, 6 platforms) → shell installers (with `vck` shorthand alias) → `vck setup` / `vck mcp-config` (1-second host configuration + 14 desktop/harness presets) → Homebrew/Scoop/winget → thin Agent Plugin → MCP Registry.
-
-**Evidence base:** 12 research sessions (~770KB evidence corpus) archived in `docs/meta-research/v2/`. Full implementation plan in `docs/meta-research/v2/FINAL-PLAN.md`.
-
-#### Deferred Convenience Items → MCP Tool Targets
-
-These items were evaluated during Phase 4 planning and deferred to the MCP server rather than being implemented as standalone scripts:
-
-| Item | What | Target | Rationale for Deferral |
-|---|---|---|---|
-| Template init script (`vivechak init`) | Automate the 6-template copy + directory creation | `vivechak_init` tool ✅ | Implemented in v0.1.0 |
-| YAML frontmatter validator | Validate ADR schema before synthesis | `vivechak_validate` tool ✅ | Implemented in v0.1.0 |
-| Code-based generator CLI | Replace copy-paste prompt with CLI interface | `vivechak_prepare_generator` tool ✅ | Implemented in v0.1.0 |
-| Blast-radius tracker | Track which decisions affect which components | Post-Phase 5 | Needs 5+ projects with tracked evidence |
-| AI cost tracking | Track token/API costs per session and pipeline | Post-Phase 5 | Only relevant when host agent tracks costs |
-
----
-
-## Future Roadmap
-
-### Phase 6: Research Frontiers (v0.1.x+ and v1.0.0 Milestones)
-
-These require significant accumulated project data from MCP server usage. Each has explicit gate conditions:
-
-| Frontier | Description | Gate Condition |
-|---|---|---|
-| **DSPy Prompt Optimization** | Automated prompt refinement via compile-time optimization | Requires a quantifiable "research quality" metric — needs usage data to define |
-| **Cross-Project Knowledge Graph** | Reusable evidence records across projects | Requires 5+ projects with tracked evidence in a consistent format |
-| **Adaptive Prompt Evolution** | Prompts that improve from session to session within a pipeline | Requires MCP server usage data showing where prompts underperform |
-| **Longitudinal Calibration** | Track prediction accuracy over time (Tetlock-style) | Requires 3+ projects with 6+ months post-FAD development data |
-| **Multi-Agent Debate** | Structured adversarial debate for contested One-Way Doors | Requires understanding of where single-agent research actually fails — needs usage data |
-
----
-
-## Source Material Status
-
-### brain-archive/ — FULLY EXTRACTED ✅
-
-| File | Content | Where It Went |
-|---|---|---|
-| `multi-project-synthesis-history.md` | Lineage of 7 independent project pipelines + common DNA | README.md "Origin & Philosophy" + meta-research (informed pre-validation baseline) |
-| `yugm-inception-transcript-summary.md` | Conversation history that seeded the meta-framework concept | meta-research/RESEARCH-PIPELINE.md (informed the hypothesis list for empirical validation) |
-
-**Verdict:** Both files are historical transcripts. Their content has been:
-1. Synthesized into the pre-validation baseline (commit `77d1f58`)
-2. Tested by the 11 meta-research sessions
-3. Superseded by v1.0's evidence-grounded framework
-
-**Safe to delete from disk.** The information lives in the current framework and meta-research provenance.
-
-### references/ — FULLY EXTRACTED ✅
-
-These are the 8 original project research pipelines (70 files, ~65 MB) that independently discovered the patterns Vivechak consolidated:
-
-| Project | Files | Extraction |
-|---|---|---|
-| project-1/ | 5 pipeline docs | Common patterns → initial principles → tested in meta-research |
-| project-2/ | 1 pipeline doc | Data pipeline patterns → initial principles → tested |
-| project-3/ | 1 pipeline + 16 decisions | Decision registry pattern → D-NNN schema → validated in T2-05 |
-| project-4/ | 2 docs | Module partitioning → initial aspect isolation → refined to P1 Context Architecture |
-| project-5/ | 18 HTML/DOCX files | Strategic vs Technical pipeline → initial tiers → refuted/refined in T2-03 |
-| project-6/ | 11 pipeline + synthesis docs | Tier-based prompts → initial prompt library → replaced by 5-block anatomy |
-| project-7/ | 3 docs | Unbiased cataloging → initial principle → refined in T1-03, T2-06 |
-| project-8/ | 5 docs | 3-tier pipeline → initial topology → refined to DAG in T2-03 |
-
-**Extraction chain:** `references/` → pre-validation baseline → meta-research tests every pattern → v1.0 replaces all patterns with evidence-grounded versions.
-
-**Verdict:** The references served as the raw material for the initial framework, which was then empirically validated/refuted into v1.0. Every pattern from the references has been either:
-- **Validated** and incorporated into FRAMEWORK.md (e.g., decision registries, evidence grading)
-- **Refined** with empirical corrections (e.g., aspect isolation → context architecture)
-- **Refuted** and replaced (e.g., fixed session counts → 4-tier adaptive scaling)
-
-**Safe to delete from disk.** The meta-research/ directory contains the complete audit trail, and FRAMEWORK.md contains the resulting methodology.
+</details>

@@ -106,3 +106,38 @@ func TestEmbeddedFilesMatchRoot(t *testing.T) {
 		}
 	}
 }
+
+func TestCoreMarkersMatchAcrossGenerators(t *testing.T) {
+	generators := []string{"GENERATOR.md", "GENERATOR-DECISION.md", "GENERATOR-COMPARISON.md"}
+	var extractedCores [][]byte
+
+	startMarker := []byte("<!-- CORE:BEGIN")
+	endMarker := []byte("<!-- CORE:END -->")
+
+	for _, name := range generators {
+		data, err := ReadGenerator(name)
+		if err != nil {
+			t.Fatalf("ReadGenerator(%s): %v", name, err)
+		}
+		sIdx := bytes.Index(data, startMarker)
+		if sIdx == -1 {
+			t.Fatalf("%s: missing CORE:BEGIN marker", name)
+		}
+		eIdx := bytes.Index(data[sIdx:], endMarker)
+		if eIdx == -1 {
+			t.Fatalf("%s: missing CORE:END marker", name)
+		}
+		block := data[sIdx : sIdx+eIdx+len(endMarker)]
+		block = bytes.ReplaceAll(block, []byte("\r\n"), []byte("\n"))
+		extractedCores = append(extractedCores, block)
+	}
+
+	for i := 1; i < len(generators); i++ {
+		if !bytes.Equal(extractedCores[0], extractedCores[i]) {
+			t.Errorf("CORE kernel drift between %s and %s:\n--- %s ---\n%s\n--- %s ---\n%s",
+				generators[0], generators[i],
+				generators[0], string(extractedCores[0]),
+				generators[i], string(extractedCores[i]))
+		}
+	}
+}

@@ -285,15 +285,18 @@ This protocol balances research continuity with responsiveness to change — a c
 
 ## 4. Research Prompt Design
 
-### 4.1 The 5-Block Prompt Anatomy
+### 4.1 The 8-Block Prompt Anatomy
 
 | Block | Purpose | Prescriptive or Directional? |
 |---|---|---|
-| **BRIEF** | Goal, target deliverable, audience, decision being informed, required depth | **Prescriptive** — what and why |
+| **DECISION** | What architectural decision this feeds, door type (one-way/two-way), reversal condition | **Prescriptive** — anchors session to purpose |
+| **BRIEF** | Investigation goal, question kind (lookup/causal/evaluative), context, target audience | **Prescriptive** — what and why |
 | **SCOPE** | Boundaries, time window, in/out scope, source priorities, date anchor | **Prescriptive** — boundaries |
-| **APPROACH** | Exploration strategy, effort calibration, epistemic discipline | **Directional** — guide how, don't prescribe |
-| **DELIVERABLE** | Required-coverage checklist, comparison parameters, evidence grading | **Prescriptive** — what to cover |
-| **FORMAT** | Markdown structure, frontmatter schema, artifact delivery | **Prescriptive** — output format |
+| **KNOWN** | Upstream findings slot (`[UPSTREAM_FINDINGS]`) or starting assumptions to stress-test | **Prescriptive** — inherited baseline |
+| **CALIBRATION** | 5 epistemic calibration rules: memory as hypothesis, honest gaps, expert objections | **Directional** — epistemic discipline |
+| **APPROACH** | Exploration strategy (DEEPEN, WIDEN, CORROBORATE, FALSIFY, PIVOT), research depth mandate, iterative guidance, domain probes | **Directional** — guide how, don't prescribe |
+| **DONE** | 3-5 quality-based completion criteria (primary answer, grounded tradeoffs, failure modes, reversal conditions) | **Prescriptive** — definition of done |
+| **FORMAT** | Single complete Markdown file artifact with YAML frontmatter and standard section flow | **Prescriptive** — output structure |
 
 #### What Was Removed and Why
 
@@ -311,12 +314,15 @@ This protocol balances research continuity with responsiveness to change — a c
 ```markdown
 # RESEARCH BRIEF: [Topic Title]
 
+## DECISION
+[Neutral decision question]; informs [D-NNN: Title]. Door: [one-way | two-way]. What would change the recommendation: [reversal condition].
+
 ## BRIEF
-We are investigating [core technical/architectural question].
+We are investigating [core technical/architectural question]. Question type: [lookup | causal | evaluative].
 This research will directly inform Architectural Decision [D-NNN: Title].
 The target audience is a Principal Architect requiring rigorous, production-grade
 technical evaluation with concrete tradeoffs, operational failure modes, and
-verified benchmarks — not high-level introductory summaries.
+verified benchmarks — not high-level introductory summaries. Context (requester-stated, unverified): [context].
 
 ## SCOPE
 - **Temporal Anchor:** Today's date is [YYYY-MM-DD]. Focus on developments within
@@ -324,36 +330,48 @@ verified benchmarks — not high-level introductory summaries.
 - **In Scope:** [Explicit boundary 1], [boundary 2], [boundary 3].
 - **Out of Scope:** [Explicit exclusion 1], [exclusion 2].
 - **Source Priorities:** Prioritize primary sources (official docs, RFCs, source
-  code, peer-reviewed benchmarks) over secondary aggregators and SEO content.
+  code, peer-reviewed benchmarks) over secondary aggregators, blogs, and vendor claims.
+
+## KNOWN
+[UPSTREAM_FINDINGS] — treat inherited claims as assumptions to stress-test, not settled facts.
+Key assumptions this session starts with (requester-stated, unverified): [assumptions].
+
+## CALIBRATION
+1. Treat your memory as a hypothesis to test. Note initial beliefs; report what evidence confirmed, updated, or contradicted.
+2. A significant claim is most valuable when grounded with a verifiable source. "Not found after searching X, Y, Z" is a valid, valued result.
+3. An unsupported claim presented as fact costs more than an honest gap.
+4. Before finishing: state the strongest objections an expert would raise and what evidence you found for or against each.
+5. Distinguish what you found from what you recalled. Mark recalled claims honestly — they are starting points, not conclusions.
 
 ## APPROACH
-- Begin with broad landscape queries, then dynamically formulate targeted queries
-  to investigate specific trade-offs, failure modes, and benchmarks.
-- Scale search effort to discovered complexity. Trace genuine technical
-  contradictions rather than stopping at the first consensus hit.
-- State assumptions explicitly. Surface disagreements rather than smoothing them.
-  Frame inquiries neutrally; actively search for disconfirming evidence.
-- If your research reveals critical concerns, dependencies, risks, or opportunities
-  not listed in the coverage checklist, investigate and include them. The stated
-  scope defines the minimum — not the maximum — of what this session should cover.
-  Justify any scope expansion with evidence.
+Use the research move that fits each question:
+- DEEPEN: trace a claim to its primary source
+- WIDEN: search with different vocabulary or source types
+- CORROBORATE: find independent support for a load-bearing claim
+- FALSIFY: actively search for evidence against your leading answer
+- PIVOT: reframe the question when results suggest the framing is wrong
 
-## DELIVERABLE
-Deliver a structured Markdown document covering:
-1. Executive Summary & Recommendation
-2. Options Evaluation Matrix — if comparing 2+ options, include a weighted
-   scoring matrix per the Weighted Evaluation Protocol (see section 6.4) (project-derived
-   criteria, 1-5 scores with evidence refs, sensitivity check)
-3. Deep Technical Analysis of top 2–3 contenders
-4. Inline evidence grades (A–E with modifiers and verification method)
-5. Open Risks & Reversal Triggers
-6. Discovered Concerns (if research revealed material concerns beyond the
-   stated scope, include a dedicated section — omit if nothing emerged)
+- Do NOT limit yourself to the exact terms in the research question. Use ALLIED TERMS: synonyms, competitor names, failure modes, edge cases.
+- Execute MULTIPLE SEARCH STRATEGIES per finding: Direct, Adversarial, Comparative, Community.
+- Target 8-12 SUBSTANTIVE findings with evidence grades, not 20 shallow bullet points.
+- For every recommendation, search for the STRONGEST ARGUMENT AGAINST it.
+- If your research reveals critical concerns beyond the stated scope, investigate and include them.
+
+## DONE
+This session is complete when:
+1. A recommendation is stated with evidence for the primary question.
+2. Tradeoffs and options are evaluated with verifiable evidence citations.
+3. At least one concrete failure mode per top contender is documented with the strongest disconfirming evidence found.
+4. "What would change this recommendation" is answered with specific reversal triggers.
+5. Discovered Concerns (if research revealed material concerns beyond stated scope).
 
 ## FORMAT
-Deliver as a single, complete Markdown file artifact with YAML frontmatter
-per the Vivechak v0.1.0 session schema.
-**Filename:** `[Session-ID]-[slug].md` (e.g., `T1-01-primary-datastore-selection.md`)
+Single Markdown file with YAML frontmatter (id, title, date, status, topic, tags, informs_decisions, confidence).
+Sections: Prior (pre-research beliefs: 3-5 checkable propositions "I believe [X] because [reasoning]") →
+Research Question → Key Findings (3-7 bullets) → Recommendation (isolated from rejected options) →
+Alternatives Considered → Detailed Findings → Open Questions & Risks →
+Delta (what research changed: table with Prior Belief | Status | Evidence | Impact) → Sources & Evidence Ledger.
+Filename: [Session-ID]-[slug].md
 ```
 
 ### 4.3 Research Output Quality Rubric
@@ -677,7 +695,7 @@ These rules hold at **every** scope level. They are the shared methodology kerne
 |---|---|---|---|
 | **I1** | Bounded Exploration Mandate — stated scope is a coverage floor, not a ceiling | P4 | Verbatim instruction in APPROACH block |
 | **I2** | Evidence grading: A–E base + corroboration/recency/directness modifiers + verification method; recalled capped at Grade D | §5.1–5.4 | Verbatim grading legend in DELIVERABLE block |
-| **I3** | 5-block prompt anatomy: BRIEF → SCOPE → APPROACH → DELIVERABLE → FORMAT | §4.1 | Structural template in every emitted prompt |
+| **I3** | 8-block prompt anatomy: DECISION → BRIEF → SCOPE → KNOWN → CALIBRATION → APPROACH → DONE → FORMAT | §4.1 | Structural template in every emitted prompt |
 | **I4** | Audience framing, not persona assignment — quality bar, not role-play | P4 | BRIEF block: "a principal architect needing production-grade tradeoffs" |
 | **I5** | 7-section output skeleton; Recommendation isolated from Alternatives Considered | P6, §6.2 | FORMAT block |
 | **I6** | Weighted Evaluation Protocol (WEP) for any session comparing 2+ options | §6.4 | DELIVERABLE block in C-role and comparison prompts |

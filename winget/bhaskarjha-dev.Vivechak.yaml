@@ -1,4 +1,4 @@
-# Reference manifest — GoReleaser generates the published version with correct hashes and URLs.
+# Reference manifest for submission to microsoft/winget-pkgs (via wingetcreate or PR).
 # yaml-language-server: $schema=https://aka.ms/winget-manifest.singleton.1.6.0.schema.json
 PackageIdentifier: bhaskarjha-dev.Vivechak
 PackageVersion: 0.1.0
@@ -12,7 +12,7 @@ LicenseUrl: https://github.com/bhaskarjha-dev/vivechak/blob/main/LICENSE
 ShortDescription: Evidence-grounded research for technical decisions — MCP server
 Description: |-
   Vivechak is a meta-framework that generates evidence-grounded research for
-  technical decisions. It works as an MCP server with 10 tools for structured
+  technical decisions. It works as an MCP server with 13 tools for structured
   research pipelines, decision analysis, and option comparison.
 Tags:
   - ai

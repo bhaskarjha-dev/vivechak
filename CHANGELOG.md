@@ -7,43 +7,60 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [Unreleased]
+## [0.1.0] - 2026-10-05
 
-Improvements addressing forensic audits (`temp/audit/`), implementing active epistemic coaching, programmatic Phase 0 Gate verification, single-source ADR compilation, and Windows concurrency safety.
+Comprehensive production release fusing the 18 quality audit findings (`CRIT-01`–`CRIT-04`, `HIGH-01`–`HIGH-06`, `MED-01`–`MED-05`, `LOW-01`–`LOW-03`) with the 12 definitive architecture enhancements (T1–T12).
 
 ### Added
+- **3 New MCP Tools (Tool Roster 10 → 13 Tools):**
+  - `vivechak_challenge` (T1): Passive adversarial red-teaming generating targeted stress-test prompts across three operational modes (`red_team`, `evidence_audit`, `cross_session`).
+  - `vivechak_replan` (T2): Safe mid-flight DAG mutation (`add_session`, `remove_session`, `update_deps`, `update_prompt`) with cycle prevention and round-trip markdown serialization.
+  - `vivechak_visualize` (T3): Interactive pipeline DAG visualization generating Mermaid TD flowcharts (color-coded by execution state) and ASCII status tables.
+- **ADR Supersession Protocol (T4 / `MED-05`):**
+  - Added `supersedes` parameter to `vivechak_record_decision`.
+  - Automatically updates superseded ADR frontmatter (`status: superseded`, `superseded_by: D-NEW`).
+  - Records `supersedes: D-OLD` in the new ADR frontmatter.
+  - Scans `research/sessions/` for completed sessions referencing the old decision, emitting `W-STALE-DECISION-REFERENCE` warnings.
+- **`C-NNN` Comparison Namespace (T5):**
+  - Added `core.SessionPrefix` mapping `ScopeComparison` to `C-` (`C-01`), `ScopeDecision` to `D-`, and `ScopeProject` to `T`.
+  - `vivechak_next_session` dynamically formats comparison session IDs while preserving backward compatibility with `CMP-` and `COMP-`.
+- **Generator Research Depth Mandate (T6):**
+  - Added ALLIED TERMS, MULTIPLE SEARCH STRATEGIES (Direct, Adversarial, Comparative, Community), 8–12 substantive findings quota, and `[UPSTREAM_FINDINGS]` injection slot enforcement in `GENERATOR.md`.
 - **Quality Coaching & Semantic Observation Engine (`ObserveSessionQuality`):** Real-time advisory feedback during `vivechak_save_session` to eliminate research superficiality and confirmation bias without blocking workflow:
-  - **Grade Inflation Scanner:** Emits `Q-EVIDENCE` when Grade A citations exceed 70% of claims, coaching realistic web distributions (~25% A, ~50% B, ~25% C).
+  - **Grade Inflation Scanner:** Emits `Q-EVIDENCE` when Grade A citations exceed 70% of claims.
   - **Grade A URL Verification (`EI-01`):** Requires `http://` or `https://` URLs for all `Grade A ... fetched` citations.
   - **Discovered Concerns Validator:** Emits `Q-CONCERNS` advisory if `## Discovered Concerns` section is missing.
-  - **Confirmation Bias Detector (P8, `SRF-01`):** Inspects the Delta table and emits `Q-BIAS` when 0 prior beliefs are contradicted, refined, or updated.
+  - **Confirmation Bias Detector (P8, `SRF-01`):** Emits `Q-BIAS` when 0 prior beliefs are contradicted, refined, or updated.
   - **Key Findings Depth:** Emits `Q-DEPTH` when a session produces fewer than 3 key findings.
   - **Rejected Alternatives Check:** Emits `Q-RIGOR` when Recommendations lack reference to rejected alternatives.
   - **Stale Date Detection:** Emits `Q-FRESHNESS` on outdated year references while ignoring false positives on port numbers, latencies, and memory sizes.
-- **Automated Phase 0 Gate Evidentiary Engine (`tool_run_gate.go`):**
-  - Programmatic verification of **B3** (Evidentiary Threshold: scans one-way door sessions for low grades C/D/E), **B4** (Verification Integrity: detects ungrounded recalled claims), **B5** (Rejected Alternatives: requires $\ge 30$ chars of documented rejected options), and **B6** (Reversal Triggers: enforces measurable review conditions).
-  - Automated persistence of formatted exit gate checklist to `research/PHASE-0-GATE.md` with timestamps and verdict routing.
-- **Single-Source ADR Compilation (`tool_record_decision.go`):**
-  - Individual `D-*.md` files are the canonical single source of truth; `compileDecisionsRegistry` automatically generates `research/DECISIONS.md` wrapping YAML frontmatter in collapsible `<details>` blocks.
-  - Validation skips `DECISIONS.md` to prevent double-counting ADRs.
-- **Real-Time Mini-Status Progress Embedding:**
-  - `vivechak_save_session` and `vivechak_record_decision` return a `progress` object (`sessions_completed`, `sessions_total`, `decisions_recorded`), eliminating the need for redundant `vivechak_status` polling.
-- **Transitive Downstream Stale Cascades (`tool_amend_session.go`):**
-  - BFS traversal of DAG dependencies identifies completed downstream sessions and emits `W-STALE-DOWNSTREAM` warnings with `potentially_stale_sessions`.
-- **Synthesis Single-Write & Root Copy Mirroring:**
-  - Saving synthesis (`SYN-01`) writes directly to canonical `research/FAD.md` and mirrors byte-for-byte to `FOUNDING-ARCHITECTURE.md` at project root.
-- **6th Embedded Operational Contract:**
-  - Standardized `templates/SESSION.template.md` embedded into binary (`internal/embed/templates/SESSION.template.md`) and scaffolded during `vivechak_init`.
-- **Expanded Server Instructions:**
-  - Expanded `ServerInstructions` to ~1,500 bytes with canonical 4-step workflow, grading definitions, and token economics guidelines.
+- **Documentation & Harness Ecosystem:**
+  - Forward-looking `ROADMAP.md` with Deferred Features registry, Gate Conditions, and BYOK LLM Bridge vision.
+  - `docs/HARNESS-COMPATIBILITY.md` detailing integration across 8 AI harness categories.
+  - `docs/PARALLEL-EXECUTION.md` detailing concurrent subagent execution and lock mechanics.
+  - Complete 13-tool reference in `docs/MCP-TOOLS.md`.
 
 ### Changed
-- **Centralized Research File Filtering:** Replaced fragile scattered blacklist loops with `core.IsSpecialResearchFile`, preventing non-ADR markdown files (`*-plan.md`, `PHASE-0-GATE.md`, `NOTES.md`) from corrupting ADR counts.
+- **8-Block Prompt Anatomy Harmonization (`CRIT-02`):** Synchronized prompt specification across `FRAMEWORK.md` (§4.1, §4.2, §9.2), `README.md`, `CONTRIBUTING.md`, `docs/ARCHITECTURE.md`, `docs/MCP-TOOLS.md`, and `docs/MANUAL-WORKFLOW.md`.
+- **Generator Methodology Kernel Synchronization (`CRIT-04`):** Aligned `<!-- CORE:BEGIN -->` to `<!-- CORE:END -->` across `GENERATOR.md`, `GENERATOR-DECISION.md`, and `GENERATOR-COMPARISON.md`, enforced by CI test `TestCoreMarkersMatchAcrossGenerators`.
+- **Centralized Research File Filtering:** Replaced fragile scattered blacklist loops with `core.IsSpecialResearchFile`, preventing non-ADR markdown files from corrupting ADR counts.
 - **Guided Worker Next-Step Advice:** Dynamic `next_step` prompts advise whether the next task is a One-Way or Two-Way door with corresponding evidence standards.
+- **Single-Source ADR Compilation (`tool_record_decision.go`):** Canonical `D-*.md` files are the single source of truth; `compileDecisionsRegistry` generates `research/DECISIONS.md` wrapping YAML frontmatter in collapsible `<details>` blocks.
 
 ### Fixed
-- **High-Concurrency Windows File Locking:** Added monotonic atomic counter `tmpFileCounter` in `internal/store/atomic.go` to eliminate Windows temporary filename rename collisions under rapid concurrent operations.
-- **Windows File Sharing Violations:** Serialized decision writing and registry compilation under `core.DecisionsFile` lock with exponential backoff retry loops.
+- **Synthesis Findings Bleed (`CRIT-01`, `MED-04`):** In `internal/core/inject.go`, `extractFindings` preserves `## Key Findings` and inline evidence grades during synthesis mode (`isSynthesis == true`) while omitting token-heavy ledger tables, and `safeTruncateMarkdown` closes open triple backtick code fences cleanly.
+- **Recalled Claim Grade C Validation (`MED-03`):** In `internal/core/validate.go`, `recalledHighGradePattern` flags Grade C recalled claims with `W-RECALLED-GRADE-CAP`.
+- **Server Instructions Evidence Tiers (`HIGH-02`):** In `internal/mcp/server.go`, instructions align with `FRAMEWORK.md` §5.1 (Grade C = Vendor/Motivated, Grade D = Secondary/Opinion).
+- **Comparison Scope Gate Verification (`HIGH-03`):** In `tool_run_gate.go`, comparison scope inspects issues for `W-NO-EVIDENCE-GRADES` rather than checking `WarningCount() == 0`.
+- **Recommendation-Scoped Gate Evidentiary Checks (`HIGH-04`):** In `tool_run_gate.go`, B3 and B4 checks scope validation to claims supporting the recommendation, avoiding penalizing rejected alternatives.
+- **Premortem Verification Hardening (`HIGH-01`):** In `tool_run_gate.go`, B7 check rejects unedited template placeholders like `[Risk 1]`.
+- **Doctor Regex Collisions (`MED-01`):** In `cmd/vivechak/doctor.go`, word-boundary regexes `\b` prevent collisions between `D-01` and `D-010`.
+- **Doctor Session Filename Splitting (`LOW-01`):** Splits on both hyphens and underscores.
+- **Case-Insensitive ADR Resolution (`MED-02`):** `resolveDecisionFilename` matches case-insensitively and avoids prefix collisions.
+- **Workspace Template Filtering (`LOW-03`):** Template counting ignores non-markdown files and validates exact scope-required templates.
+- **WinGet Manifest Submission Workflow (`CRIT-03`):** Clarified post-release submission workflow in `winget/bhaskarjha-dev.Vivechak.yaml` and updated tool count.
+- **Native `vck.exe` Installation (`LOW-02`):** In `install.ps1`, prefers native `vck.exe` from extracted archive over overwriting with `vivechak.exe`.
+- **Windows File Renaming Concurrency:** Added monotonic atomic counter `tmpFileCounter` in `internal/store/atomic.go` to eliminate Windows temporary filename rename collisions under rapid concurrent operations.
 
 ---
 

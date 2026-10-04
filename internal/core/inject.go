@@ -200,6 +200,26 @@ func safeTruncateUTF8(s string, maxBytes int) string {
 	return s[:maxBytes]
 }
 
+// safeTruncateMarkdown truncates s to at most maxBytes at a clean line or word boundary
+// without severing multi-byte UTF-8 runes or leaving unclosed code blocks.
+func safeTruncateMarkdown(s string, maxBytes int) string {
+	if len(s) <= maxBytes {
+		return s
+	}
+	if maxBytes <= 0 {
+		return ""
+	}
+	cut := safeTruncateUTF8(s, maxBytes)
+	if lastNL := strings.LastIndex(cut, "\n"); lastNL > len(cut)*8/10 {
+		cut = cut[:lastNL]
+	}
+	fenceCount := strings.Count(cut, "```")
+	if fenceCount%2 != 0 {
+		cut += "\n```"
+	}
+	return cut
+}
+
 // budgetFindings progressively trims findings if total exceeds the byte budget.
 func budgetFindings(findings []string, sessionIDs []string, budget int) []string {
 	total := 0
@@ -219,7 +239,7 @@ func budgetFindings(findings []string, sessionIDs []string, budget int) []string
 			if i < len(sessionIDs) {
 				id = sessionIDs[i]
 			}
-			trimmed[i] = safeTruncateUTF8(f, perSession) + "\n\n... [trimmed for synthesis context budget — see sessions/" + id + ".md for full findings]\n"
+			trimmed[i] = safeTruncateMarkdown(f, perSession) + "\n\n... [trimmed for synthesis context budget — see sessions/" + id + ".md for full findings]\n"
 		}
 	}
 	return trimmed
@@ -481,6 +501,9 @@ func extractFindings(body string, sessionID string, isSynthesis bool) string {
 	inRelevantSection := false
 	inRejectedSection := false
 	inConcernSection := false
+	inSourcesSection := false
+	inKeyFindingsSection := false
+	synthesisFindingsCount := 0
 	inRecPara := false
 	recParaHasText := false
 	fenceLen := 0
@@ -551,10 +574,23 @@ func extractFindings(body string, sessionID string, isSynthesis bool) string {
 			}
 			inRejectedSection = false
 
+			// Sources & Evidence Ledger — track and omit from synthesis/findings extraction
+			if strings.Contains(lower, "source") || strings.Contains(lower, "evidence ledger") {
+				inSourcesSection = true
+				inRelevantSection = false
+				inConcernSection = false
+				inKeyFindingsSection = false
+				inRecPara = false
+				pendingHeadings = nil
+				continue
+			}
+			inSourcesSection = false
+
 			// Check if this is a concern heading — track separately
 			if isConcernHeading(lower) {
 				inConcernSection = true
 				inRelevantSection = false
+				inKeyFindingsSection = false
 				inRecPara = false
 				pendingHeadings = nil
 				// Don't add concern heading to pending — we emit concerns separately
@@ -562,11 +598,22 @@ func extractFindings(body string, sessionID string, isSynthesis bool) string {
 			}
 
 			inConcernSection = false
+			if strings.Contains(lower, "key finding") || (strings.Contains(lower, "finding") && !strings.Contains(lower, "source")) {
+				inKeyFindingsSection = true
+			} else {
+				inKeyFindingsSection = false
+			}
+
 			if isSynthesis {
 				inRelevantSection = strings.Contains(lower, "recommend") ||
+					strings.Contains(lower, "finding") ||
+					strings.Contains(lower, "conclusion") ||
 					strings.Contains(lower, "delta") ||
 					strings.Contains(lower, "alternative") ||
 					strings.Contains(lower, "rejected") ||
+					strings.Contains(lower, "decision") ||
+					strings.Contains(lower, "verdict") ||
+					strings.Contains(lower, "summary") ||
 					strings.Contains(lower, "amend") ||
 					strings.Contains(lower, "post-hoc") ||
 					strings.Contains(lower, "update") ||
@@ -619,7 +666,7 @@ func extractFindings(body string, sessionID string, isSynthesis bool) string {
 			continue
 		}
 
-		if inRejectedSection {
+		if inRejectedSection || inSourcesSection {
 			continue
 		}
 
@@ -637,6 +684,18 @@ func extractFindings(body string, sessionID string, isSynthesis bool) string {
 			}
 		}
 
+		// In synthesis mode, cap key findings at 8 items to protect budget while preserving evidence grades
+		if isSynthesis && inKeyFindingsSection {
+			if strings.HasPrefix(trimmed, "- ") || strings.HasPrefix(trimmed, "* ") || (len(trimmed) > 2 && trimmed[0] >= '0' && trimmed[0] <= '9' && trimmed[1] == '.') {
+				synthesisFindingsCount++
+				if synthesisFindingsCount > 8 {
+					continue
+				}
+			} else if synthesisFindingsCount > 8 {
+				continue
+			}
+		}
+
 		// Concern section content — track separately
 		if inConcernSection && trimmed != "" {
 			if strings.HasPrefix(trimmed, "- ") || strings.HasPrefix(trimmed, "* ") {
@@ -650,7 +709,7 @@ func extractFindings(body string, sessionID string, isSynthesis bool) string {
 		includeLine := false
 		if inRelevantSection && trimmed != "" {
 			includeLine = true
-		} else if !isSynthesis && evidenceGradePattern.MatchString(trimmed) {
+		} else if !inSourcesSection && evidenceGradePattern.MatchString(trimmed) {
 			includeLine = true
 		}
 

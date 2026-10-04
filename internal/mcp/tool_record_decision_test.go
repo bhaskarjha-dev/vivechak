@@ -476,5 +476,133 @@ We chose JSON-RPC over MCP.
 	}
 }
 
+func TestRecordDecision_Supersede(t *testing.T) {
+	tmpDir := t.TempDir()
+	researchDir := filepath.Join(tmpDir, core.ResearchDir)
+	sessionsDir := filepath.Join(tmpDir, core.SessionsDir)
+	if err := os.MkdirAll(researchDir, 0o755); err != nil {
+		t.Fatalf("mkdir research: %v", err)
+	}
+	if err := os.MkdirAll(sessionsDir, 0o755); err != nil {
+		t.Fatalf("mkdir sessions: %v", err)
+	}
+
+	// 1. Create original decision D-001
+	d1Content := `---
+id: D-001
+title: Old Database Engine
+status: accepted
+door_type: two-way
+---
+# D-001: Old Database Engine
+We chose SQLite with WAL mode. Sufficient body text to satisfy validation length requirements.
+`
+	if err := os.WriteFile(filepath.Join(researchDir, "D-001-database.md"), []byte(d1Content), 0o644); err != nil {
+		t.Fatalf("writing D-001: %v", err)
+	}
+
+	// 2. Create a session referencing D-001
+	s1Content := `---
+session_id: T-01
+title: Auth and DB Investigation
+date: 2026-10-01
+status: complete
+---
+## Key Findings
+- Evaluated against D-001 architecture (Grade A · direct docs | official docs).
+`
+	if err := os.WriteFile(filepath.Join(sessionsDir, "T-01.md"), []byte(s1Content), 0o644); err != nil {
+		t.Fatalf("writing session T-01: %v", err)
+	}
+
+	// 3. Test self-supersede error
+	ctx := context.Background()
+	_, envSelf, _ := handleRecordDecision(ctx, nil, RecordDecisionInput{
+		ProjectRoot: tmpDir,
+		DecisionID:  "D-001",
+		Supersedes:  "D-001",
+		Content:     d1Content,
+	})
+	if envSelf.Success {
+		t.Errorf("expected failure when superseding itself")
+	}
+
+	// 4. Test supersede non-existent decision error
+	_, envNonExistent, _ := handleRecordDecision(ctx, nil, RecordDecisionInput{
+		ProjectRoot: tmpDir,
+		DecisionID:  "D-002",
+		Supersedes:  "D-999",
+		Content:     d1Content,
+	})
+	if envNonExistent.Success {
+		t.Errorf("expected failure when superseding non-existent decision")
+	}
+
+	// 5. Successfully supersede D-001 with D-002
+	d2Content := `---
+id: D-002
+title: Embedded DuckDB Migration
+status: accepted
+door_type: two-way
+---
+# D-002: Embedded DuckDB Migration
+Migrated away from SQLite to DuckDB for analytical query performance and embedded vector extension capabilities.
+`
+	_, envSuccess, err := handleRecordDecision(ctx, nil, RecordDecisionInput{
+		ProjectRoot: tmpDir,
+		DecisionID:  "D-002",
+		Supersedes:  "D-001",
+		Content:     d2Content,
+	})
+	if err != nil || !envSuccess.Success {
+		t.Fatalf("handleRecordDecision supersede failed: err=%v, env=%+v", err, envSuccess)
+	}
+
+	// Verify old decision was marked superseded
+	oldData, err := os.ReadFile(filepath.Join(researchDir, "D-001-database.md"))
+	if err != nil {
+		t.Fatalf("reading old decision: %v", err)
+	}
+	oldStr := string(oldData)
+	if !strings.Contains(oldStr, "status: superseded") {
+		t.Errorf("expected old decision status to be superseded, got:\n%s", oldStr)
+	}
+	if !strings.Contains(oldStr, "superseded_by: D-002") {
+		t.Errorf("expected old decision superseded_by: D-002, got:\n%s", oldStr)
+	}
+
+	// Verify new decision has supersedes: D-001 in file
+	newData, err := os.ReadFile(filepath.Join(researchDir, "D-002-decision.md"))
+	if err != nil {
+		t.Fatalf("reading new decision: %v", err)
+	}
+	newStr := string(newData)
+	if !strings.Contains(newStr, "supersedes: D-001") {
+		t.Errorf("expected new decision supersedes: D-001, got:\n%s", newStr)
+	}
+
+	// Verify warnings contain W-STALE-DECISION-REFERENCE for session T-01
+	foundWarning := false
+	for _, w := range envSuccess.Warnings {
+		if strings.Contains(w, "W-STALE-DECISION-REFERENCE") && strings.Contains(w, "T-01") {
+			foundWarning = true
+			break
+		}
+	}
+	if !foundWarning {
+		t.Errorf("expected W-STALE-DECISION-REFERENCE for session T-01, got warnings: %v", envSuccess.Warnings)
+	}
+
+	// Verify DECISIONS.md registry contains both decisions
+	decData, err := os.ReadFile(filepath.Join(researchDir, "DECISIONS.md"))
+	if err != nil {
+		t.Fatalf("reading DECISIONS.md: %v", err)
+	}
+	decStr := string(decData)
+	if !strings.Contains(decStr, "<!-- DECISION: D-001 -->") || !strings.Contains(decStr, "<!-- DECISION: D-002 -->") {
+		t.Errorf("expected both decisions in DECISIONS.md, got:\n%s", decStr)
+	}
+}
+
 
 

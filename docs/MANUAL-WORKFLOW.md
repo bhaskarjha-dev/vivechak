@@ -7,12 +7,12 @@
 
 ## Overview
 
-Vivechak is an evidence-grounded research meta-framework. While it ships with a 10-tool Model Context Protocol (MCP) server for automated agent integration, **the methodology itself is entirely interface-agnostic**. You can execute the full research pipeline by hand using web browser AI chats, your favorite text editor, and standard Markdown files.
+Vivechak is an evidence-grounded research meta-framework. While it ships with a 13-tool Model Context Protocol (MCP) server for automated agent integration, **the methodology itself is entirely interface-agnostic**. You can execute the full research pipeline by hand using web browser AI chats, your favorite text editor, and standard Markdown files.
 
 Whether executed through an automated agent or manually through copy-paste:
 - Every factual claim requires an **Evidence Grade (A–E)** with verification metadata.
 - Every architectural decision is classified as a **One-Way Door** (irreversible) or **Two-Way Door** (reversible).
-- Research sessions are structured with standard **5-Block Prompts** (`BRIEF`, `SCOPE`, `APPROACH`, `DELIVERABLE`, `FORMAT`).
+- Research sessions are structured with standard **8-Block Prompts** (`DECISION`, `BRIEF`, `SCOPE`, `KNOWN`, `CALIBRATION`, `APPROACH`, `DONE`, `FORMAT`).
 - Decisions are locked only after satisfying formal **Phase 0 Exit Gates**.
 
 ### Manual Workflow vs. MCP Server
@@ -389,7 +389,7 @@ ID: D-TEST-RUNNER
 
 ### Step 3: Execute the Generated Research Prompt
 
-The AI returns a `SCOPE CHECK` line and a single 5-block research prompt.
+The AI returns a `SCOPE CHECK` line and a single 8-block research prompt.
 1. Copy the prompt into a fresh AI chat with web search enabled.
 2. Submit the prompt.
 
@@ -428,7 +428,7 @@ For best results, select models with deep research capabilities and fresh search
 
 If a session produces generic summaries, hallucinated benchmarks, or lacks evidence grades:
 1. **Never argue with the AI in a long thread.** Model adherence degrades significantly in long conversational turns.
-2. **Re-anchor with the 5-Block structure:** Check if the prompt lost its `DELIVERABLE` or `FORMAT` block.
+2. **Re-anchor with the 8-Block structure:** Check if the prompt lost its `DONE`, `CALIBRATION`, or `FORMAT` block.
 3. **Split the session:** If an AI produces shallow findings, the scope is likely too broad. Split it into two targeted sub-sessions (e.g., split `T1-01: Storage & Caching` into `T1-01A: Primary Datastore` and `T1-01B: Distributed Caching`).
 4. **Try an alternative engine:** Run the exact same prompt in another frontier model. Comparing outputs frequently reveals where one model took lazy shortcuts.
 

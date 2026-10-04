@@ -909,6 +909,14 @@ And a third paragraph with further justifications and secondary commentary.
 		t.Errorf("expected synthesis extraction < 2048 bytes, got %d bytes:\n%s", len(tight), tight)
 	}
 
+	// Must contain key findings with evidence grades (CRIT-01 fix)
+	if !strings.Contains(tight, "Finding 1: SQLite handles up to 10k QPS") {
+		t.Errorf("synthesis extraction missing key finding 1")
+	}
+	if !strings.Contains(tight, "Finding 2: Pebble requires CGo") {
+		t.Errorf("synthesis extraction missing key finding 2")
+	}
+
 	// Must contain recommendation first paragraph
 	if !strings.Contains(tight, "SQLite in WAL mode is recommended as the embedded database") {
 		t.Errorf("synthesis extraction missing recommendation first paragraph")
