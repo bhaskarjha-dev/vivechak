@@ -168,7 +168,16 @@ func TestIsSystemOrAppDir(t *testing.T) {
 		{`/usr/local/bin`, true},
 		{`/bin`, true},
 		{`/sbin`, true},
-		{`/opt/homebrew`, true},
+		{`/etc`, true},
+		{`/opt`, true},
+		{`/opt/`, true},
+		// Legitimate project & sandbox workspaces MUST NOT be blocked:
+		{`/opt/my-app`, false},
+		{`/opt/company/service`, false},
+		{`/testbed`, false},
+		{`/workspace`, false},
+		{`/workspaces/my-repo`, false},
+		{`/var/www/html`, false},
 		{`d:\dev\lab\personal-finance-dashboard`, false},
 		{`/home/user/projects/my-app`, false},
 		{t.TempDir(), false},
@@ -201,6 +210,38 @@ func TestResolveWorkspace_EnvironmentAndMacroGuard(t *testing.T) {
 		tmpDir := t.TempDir()
 		t.Setenv("VIVECHAK_PROJECT_ROOT", "")
 		t.Setenv("VIVECHAK_DEFAULT_ROOT", tmpDir)
+
+		res, err := ResolveWorkspace("")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if filepath.Clean(res) != filepath.Clean(tmpDir) {
+			t.Errorf("got %q, want %q", res, tmpDir)
+		}
+	})
+
+	t.Run("resolves WORKSPACE standard container environment variable", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		t.Setenv("VIVECHAK_PROJECT_ROOT", "")
+		t.Setenv("VIVECHAK_DEFAULT_ROOT", "")
+		t.Setenv("WORKSPACE", tmpDir)
+		t.Setenv("PROJECT_ROOT", "")
+
+		res, err := ResolveWorkspace("")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if filepath.Clean(res) != filepath.Clean(tmpDir) {
+			t.Errorf("got %q, want %q", res, tmpDir)
+		}
+	})
+
+	t.Run("resolves PROJECT_ROOT container environment variable", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		t.Setenv("VIVECHAK_PROJECT_ROOT", "")
+		t.Setenv("VIVECHAK_DEFAULT_ROOT", "")
+		t.Setenv("WORKSPACE", "")
+		t.Setenv("PROJECT_ROOT", tmpDir)
 
 		res, err := ResolveWorkspace("")
 		if err != nil {

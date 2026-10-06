@@ -81,8 +81,10 @@ func IsSpecialResearchFile(name string) bool {
 	return false
 }
 
-// IsSystemOrAppDir returns true if path appears to be a system, OS, or application binary/program
-// directory (e.g. AppData\Local\Programs, Program Files, /Applications, /usr/bin).
+// IsSystemOrAppDir returns true if path appears to be an operating system binary,
+// program installation, or application directory (e.g. AppData\Local\Programs, Program Files,
+// macOS .app bundles, /usr/bin). It does NOT match valid project locations like
+// /opt/my-app, /var/www, /testbed, or /workspace.
 // Vivechak research workspaces must not be initialized or resolved inside these directories.
 func IsSystemOrAppDir(path string) bool {
 	if path == "" {
@@ -106,22 +108,27 @@ func IsSystemOrAppDir(path string) bool {
 		return true
 	}
 
-	// macOS application and system paths
-	if strings.HasPrefix(checkPath, "/applications") ||
+	// macOS application bundles (*.app or *.app/Contents/...) and system directories
+	if strings.Contains(checkPath, ".app/") || strings.HasSuffix(checkPath, ".app") ||
+		checkPath == "/applications" || checkPath == "/applications/" ||
 		strings.HasPrefix(checkPath, "/system") ||
 		strings.HasPrefix(checkPath, "/library") {
 		return true
 	}
 
-	// Linux / Unix system paths
+	// Linux / Unix system binary and config paths (exact binary directories only)
 	if strings.HasPrefix(checkPath, "/usr/bin") ||
 		strings.HasPrefix(checkPath, "/usr/local/bin") ||
+		strings.HasPrefix(checkPath, "/usr/sbin") ||
 		strings.HasPrefix(checkPath, "/usr/lib") ||
-		strings.HasPrefix(checkPath, "/usr/share") ||
 		strings.HasPrefix(checkPath, "/bin") ||
 		strings.HasPrefix(checkPath, "/sbin") ||
-		strings.HasPrefix(checkPath, "/opt") ||
 		strings.HasPrefix(checkPath, "/etc") {
+		return true
+	}
+
+	// Bare /opt root is a system root, but subdirectories like /opt/my-app are valid project targets
+	if checkPath == "/opt" || checkPath == "/opt/" {
 		return true
 	}
 
@@ -132,7 +139,7 @@ func IsSystemOrAppDir(path string) bool {
 // per FINAL-PLAN.md:
 //
 //  1. Explicit project_root argument (from tool call)
-//  2. VIVECHAK_PROJECT_ROOT environment variable (or VIVECHAK_DEFAULT_ROOT)
+//  2. Environment variables: VIVECHAK_PROJECT_ROOT, VIVECHAK_DEFAULT_ROOT, WORKSPACE, PROJECT_ROOT
 //  3. Discover research/ directory walking up from CWD (skipping system/app dirs)
 //  4. Error
 //
@@ -155,10 +162,16 @@ func ResolveWorkspace(explicit string) (string, error) {
 		return abs, nil
 	}
 
-	// Step 2: Environment variable (VIVECHAK_PROJECT_ROOT or VIVECHAK_DEFAULT_ROOT)
+	// Step 2: Environment variables (VIVECHAK_PROJECT_ROOT, VIVECHAK_DEFAULT_ROOT, WORKSPACE, PROJECT_ROOT)
 	envRoot := os.Getenv("VIVECHAK_PROJECT_ROOT")
 	if envRoot == "" {
 		envRoot = os.Getenv("VIVECHAK_DEFAULT_ROOT")
+	}
+	if envRoot == "" {
+		envRoot = os.Getenv("WORKSPACE")
+	}
+	if envRoot == "" {
+		envRoot = os.Getenv("PROJECT_ROOT")
 	}
 	// Protect against unexpanded IDE macro variables like "${workspaceFolder}"
 	if envRoot != "" && !strings.HasPrefix(envRoot, "${") {

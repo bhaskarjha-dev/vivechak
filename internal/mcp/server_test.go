@@ -2197,10 +2197,12 @@ func TestInit_EnvironmentVariables(t *testing.T) {
 		}
 	})
 
-	t.Run("resolves VIVECHAK_DEFAULT_ROOT when VIVECHAK_PROJECT_ROOT unset", func(t *testing.T) {
+	t.Run("resolves WORKSPACE when others unset", func(t *testing.T) {
 		tmpDir := t.TempDir()
 		t.Setenv("VIVECHAK_PROJECT_ROOT", "")
-		t.Setenv("VIVECHAK_DEFAULT_ROOT", tmpDir)
+		t.Setenv("VIVECHAK_DEFAULT_ROOT", "")
+		t.Setenv("WORKSPACE", tmpDir)
+		t.Setenv("PROJECT_ROOT", "")
 
 		res, err := cs.CallTool(ctx, &mcp.CallToolParams{
 			Name:      "vivechak_init",
@@ -2215,6 +2217,47 @@ func TestInit_EnvironmentVariables(t *testing.T) {
 		}
 		if !core.WorkspaceExists(tmpDir) {
 			t.Errorf("expected workspace to be created at %s", tmpDir)
+		}
+	})
+
+	t.Run("resolves PROJECT_ROOT when others unset", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		t.Setenv("VIVECHAK_PROJECT_ROOT", "")
+		t.Setenv("VIVECHAK_DEFAULT_ROOT", "")
+		t.Setenv("WORKSPACE", "")
+		t.Setenv("PROJECT_ROOT", tmpDir)
+
+		res, err := cs.CallTool(ctx, &mcp.CallToolParams{
+			Name:      "vivechak_init",
+			Arguments: map[string]any{},
+		})
+		if err != nil {
+			t.Fatalf("call error: %v", err)
+		}
+		env := parseEnvelope(t, res)
+		if !env.Success {
+			t.Fatalf("expected success, got error: %s", env.Message)
+		}
+		if !core.WorkspaceExists(tmpDir) {
+			t.Errorf("expected workspace to be created at %s", tmpDir)
+		}
+	})
+
+	t.Run("allows custom sandbox project subfolder path", func(t *testing.T) {
+		sandboxDir := filepath.Join(t.TempDir(), "testbed-sandbox", "my-app")
+		res, err := cs.CallTool(ctx, &mcp.CallToolParams{
+			Name:      "vivechak_init",
+			Arguments: map[string]any{"project_root": sandboxDir},
+		})
+		if err != nil {
+			t.Fatalf("call error: %v", err)
+		}
+		env := parseEnvelope(t, res)
+		if !env.Success {
+			t.Fatalf("expected success for sandbox path %s, got: %s", sandboxDir, env.Message)
+		}
+		if !core.WorkspaceExists(sandboxDir) {
+			t.Errorf("expected workspace created at %s", sandboxDir)
 		}
 	})
 }

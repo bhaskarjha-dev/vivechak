@@ -54,6 +54,10 @@ func handleInit(_ context.Context, req *sdkmcp.CallToolRequest, in InitInput) (*
 			root = env
 		} else if env := os.Getenv("VIVECHAK_DEFAULT_ROOT"); env != "" && !strings.HasPrefix(env, "${") {
 			root = env
+		} else if env := os.Getenv("WORKSPACE"); env != "" && !strings.HasPrefix(env, "${") {
+			root = env
+		} else if env := os.Getenv("PROJECT_ROOT"); env != "" && !strings.HasPrefix(env, "${") {
+			root = env
 		} else {
 			cwd, _ := os.Getwd()
 			root = cwd
