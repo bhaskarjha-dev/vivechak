@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"strings"
@@ -470,6 +471,18 @@ func TestCheckWorkspace_SingleTokenAndCompoundSluggedFilenames(t *testing.T) {
 		t.Fatalf("expected S1 and D-001-S2 slugged filenames not to be marked orphan, got errors: %v", errs)
 	}
 }
+
+func TestRunDoctorWithArgs_RejectsSystemOrAppDir(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	code := runDoctorWithArgs([]string{`C:\Users\air\AppData\Local\Programs\Antigravity IDE`}, &stdout, &stderr)
+	if code == 0 {
+		t.Error("expected runDoctorWithArgs to fail for system/app directory")
+	}
+	if !strings.Contains(stderr.String(), "application or system directory") {
+		t.Errorf("expected error message to mention application or system directory, got: %s", stderr.String())
+	}
+}
+
 
 
 

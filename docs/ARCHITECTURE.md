@@ -83,11 +83,11 @@ Defined in [`internal/core/scope.go`](../internal/core/scope.go#L8-L22), [`Scope
 - [`ScopeComparison`](../internal/core/scope.go#L21) (`"comparison"`): Rapid, bounded comparison of 2–4 options producing a Weighted Evaluation Protocol matrix in a single session.
 
 ### Workspace & Resolution Chain
-Defined in [`internal/core/workspace.go`](../internal/core/workspace.go#L34-L88), [`ResolveWorkspace`](../internal/core/workspace.go#L43) evaluates a deterministic 4-step resolution chain:
+Defined in [`internal/core/workspace.go`](../internal/core/workspace.go), [`ResolveWorkspace`](../internal/core/workspace.go) evaluates a deterministic 4-step resolution chain:
 1. **Explicit argument**: `project_root` passed directly in the MCP tool call or CLI command.
-2. **Environment variable**: Value of `VIVECHAK_PROJECT_ROOT`.
-3. **CWD Directory Traversal**: Walks upwards from the current working directory searching for an existing `research/` directory.
-4. **Fallback error**: Clear diagnostic error instructing the caller to initialize the workspace with [`vivechak_init`](../internal/mcp/tool_init.go#L21-L40).
+2. **Environment variables**: `VIVECHAK_PROJECT_ROOT`, `VIVECHAK_DEFAULT_ROOT`, `WORKSPACE`, or `PROJECT_ROOT` if set (ignoring unexpanded `${workspaceFolder}` macros).
+3. **CWD Directory Traversal**: Walks upwards from the current working directory searching for an existing `research/` directory (safely skipping host IDE application program directories).
+4. **Fallback error**: Clear diagnostic error instructing the caller to initialize the workspace with [`vivechak_init`](../internal/mcp/tool_init.go) or pass `project_root` explicitly.
 
 The workspace layout is standard across all Vivechak projects:
 - `research/` — Workspace root

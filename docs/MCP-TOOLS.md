@@ -77,9 +77,9 @@ This prevents AI agents from getting stuck, drifting into unapproved tasks, or l
 Every tool that interacts with the filesystem resolves the workspace root directory using a 4-step hierarchy via [`ResolveWorkspace()`](../internal/core/workspace.go):
 
 1. **Explicit argument**: `project_root` parameter passed directly to the tool call.
-2. **Environment variable**: `VIVECHAK_PROJECT_ROOT` environment variable if set.
-3. **Directory discovery**: Traversing upward from the current working directory (`CWD`) searching for an existing `research/` directory.
-4. **Resolution Error**: If none succeed, the tool returns an error instructing the user to run `vivechak_init`.
+2. **Environment variables**: `VIVECHAK_PROJECT_ROOT`, `VIVECHAK_DEFAULT_ROOT`, `WORKSPACE`, or `PROJECT_ROOT` if set (ignoring unexpanded `${workspaceFolder}` macros).
+3. **Directory discovery**: Traversing upward from the current working directory (`CWD`) searching for an existing `research/` directory (skipping host IDE application installation folders like `AppData\Local\Programs` or `Program Files`).
+4. **Resolution Error**: If none succeed, the tool returns a descriptive error instructing the user to run `vivechak_init` or pass `project_root` explicitly.
 
 ---
 
@@ -198,7 +198,7 @@ Defined in [`InitInput`](../internal/mcp/tool_init.go):
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
-| `project_root` | `string` | Optional | Workspace root path (optional; uses resolution chain if omitted). |
+| `project_root` | `string` | Optional | Workspace root path. Recommended: pass active project directory explicitly (e.g. `d:/my-project`) to avoid defaulting to host IDE process CWD. |
 | `scope` | `string` | Optional | Research scope: `project` \| `decision` \| `comparison` (default: `project`). |
 
 #### Response (`data` field)
