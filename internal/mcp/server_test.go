@@ -2143,6 +2143,82 @@ func TestInit_HomeDirGuard(t *testing.T) {
 	}
 }
 
+func TestInit_SystemOrAppDirGuard(t *testing.T) {
+	cs := testServer(t)
+	ctx := context.Background()
+
+	testPaths := []string{
+		`C:\Users\air\AppData\Local\Programs\Antigravity IDE`,
+		`C:\Program Files\SomeApp`,
+		`/Applications/Antigravity.app`,
+		`/usr/bin`,
+	}
+
+	for _, p := range testPaths {
+		res, err := cs.CallTool(ctx, &mcp.CallToolParams{
+			Name:      "vivechak_init",
+			Arguments: map[string]any{"project_root": p},
+		})
+		if err != nil {
+			t.Fatalf("unexpected call error for %s: %v", p, err)
+		}
+		env := parseEnvelope(t, res)
+		if env.Success {
+			t.Errorf("expected error when initializing in system/app dir %q, got success", p)
+		}
+		if !strings.Contains(env.Message, "application or system directory") {
+			t.Errorf("expected application or system directory error, got: %s", env.Message)
+		}
+	}
+}
+
+func TestInit_EnvironmentVariables(t *testing.T) {
+	cs := testServer(t)
+	ctx := context.Background()
+
+	t.Run("resolves VIVECHAK_PROJECT_ROOT when project_root omitted", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		t.Setenv("VIVECHAK_PROJECT_ROOT", tmpDir)
+		t.Setenv("VIVECHAK_DEFAULT_ROOT", "")
+
+		res, err := cs.CallTool(ctx, &mcp.CallToolParams{
+			Name:      "vivechak_init",
+			Arguments: map[string]any{},
+		})
+		if err != nil {
+			t.Fatalf("call error: %v", err)
+		}
+		env := parseEnvelope(t, res)
+		if !env.Success {
+			t.Fatalf("expected success, got error: %s", env.Message)
+		}
+		if !core.WorkspaceExists(tmpDir) {
+			t.Errorf("expected workspace to be created at %s", tmpDir)
+		}
+	})
+
+	t.Run("resolves VIVECHAK_DEFAULT_ROOT when VIVECHAK_PROJECT_ROOT unset", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		t.Setenv("VIVECHAK_PROJECT_ROOT", "")
+		t.Setenv("VIVECHAK_DEFAULT_ROOT", tmpDir)
+
+		res, err := cs.CallTool(ctx, &mcp.CallToolParams{
+			Name:      "vivechak_init",
+			Arguments: map[string]any{},
+		})
+		if err != nil {
+			t.Fatalf("call error: %v", err)
+		}
+		env := parseEnvelope(t, res)
+		if !env.Success {
+			t.Fatalf("expected success, got error: %s", env.Message)
+		}
+		if !core.WorkspaceExists(tmpDir) {
+			t.Errorf("expected workspace to be created at %s", tmpDir)
+		}
+	})
+}
+
 func TestStatus_TerminalSynthesisGuidance(t *testing.T) {
 	cs := testServer(t)
 	ctx := context.Background()

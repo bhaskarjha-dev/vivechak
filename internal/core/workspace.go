@@ -81,12 +81,59 @@ func IsSpecialResearchFile(name string) bool {
 	return false
 }
 
+// IsSystemOrAppDir returns true if path appears to be a system, OS, or application binary/program
+// directory (e.g. AppData\Local\Programs, Program Files, /Applications, /usr/bin).
+// Vivechak research workspaces must not be initialized or resolved inside these directories.
+func IsSystemOrAppDir(path string) bool {
+	if path == "" {
+		return false
+	}
+	clean := filepath.Clean(path)
+	normalized := strings.ToLower(filepath.ToSlash(clean))
+
+	// Strip Windows drive letter (e.g. "c:") so root-based paths match uniformly
+	checkPath := normalized
+	if len(checkPath) >= 2 && checkPath[1] == ':' {
+		checkPath = checkPath[2:]
+	}
+
+	// Windows application and system paths
+	if strings.Contains(checkPath, "/appdata/local/programs") ||
+		strings.Contains(checkPath, "/program files") ||
+		strings.Contains(checkPath, "/program files (x86)") ||
+		strings.Contains(checkPath, "/windows/system32") ||
+		strings.HasPrefix(checkPath, "/windows") {
+		return true
+	}
+
+	// macOS application and system paths
+	if strings.HasPrefix(checkPath, "/applications") ||
+		strings.HasPrefix(checkPath, "/system") ||
+		strings.HasPrefix(checkPath, "/library") {
+		return true
+	}
+
+	// Linux / Unix system paths
+	if strings.HasPrefix(checkPath, "/usr/bin") ||
+		strings.HasPrefix(checkPath, "/usr/local/bin") ||
+		strings.HasPrefix(checkPath, "/usr/lib") ||
+		strings.HasPrefix(checkPath, "/usr/share") ||
+		strings.HasPrefix(checkPath, "/bin") ||
+		strings.HasPrefix(checkPath, "/sbin") ||
+		strings.HasPrefix(checkPath, "/opt") ||
+		strings.HasPrefix(checkPath, "/etc") {
+		return true
+	}
+
+	return false
+}
+
 // ResolveWorkspace implements the 4-step workspace resolution chain
 // per FINAL-PLAN.md:
 //
 //  1. Explicit project_root argument (from tool call)
-//  2. VIVECHAK_PROJECT_ROOT environment variable
-//  3. Discover research/ directory walking up from CWD
+//  2. VIVECHAK_PROJECT_ROOT environment variable (or VIVECHAK_DEFAULT_ROOT)
+//  3. Discover research/ directory walking up from CWD (skipping system/app dirs)
 //  4. Error
 //
 // Returns the absolute path to the workspace root.
@@ -108,16 +155,21 @@ func ResolveWorkspace(explicit string) (string, error) {
 		return abs, nil
 	}
 
-	// Step 2: Environment variable
-	if v := os.Getenv("VIVECHAK_PROJECT_ROOT"); v != "" {
-		abs, err := filepath.Abs(v)
+	// Step 2: Environment variable (VIVECHAK_PROJECT_ROOT or VIVECHAK_DEFAULT_ROOT)
+	envRoot := os.Getenv("VIVECHAK_PROJECT_ROOT")
+	if envRoot == "" {
+		envRoot = os.Getenv("VIVECHAK_DEFAULT_ROOT")
+	}
+	// Protect against unexpanded IDE macro variables like "${workspaceFolder}"
+	if envRoot != "" && !strings.HasPrefix(envRoot, "${") {
+		abs, err := filepath.Abs(envRoot)
 		if err != nil {
-			return "", fmt.Errorf("resolving VIVECHAK_PROJECT_ROOT %q: %w", v, err)
+			return "", fmt.Errorf("resolving project root from environment (%q): %w", envRoot, err)
 		}
 		return abs, nil
 	}
 
-	// Step 3: Walk up from CWD looking for research/ directory
+	// Step 3: Walk up from CWD looking for research/ directory (skipping system/app dirs)
 	cwd, err := os.Getwd()
 	if err != nil {
 		return "", fmt.Errorf("getting working directory: %w", err)
@@ -125,9 +177,11 @@ func ResolveWorkspace(explicit string) (string, error) {
 
 	dir := cwd
 	for {
-		researchPath := filepath.Join(dir, ResearchDir)
-		if info, err := os.Stat(researchPath); err == nil && info.IsDir() {
-			return dir, nil
+		if !IsSystemOrAppDir(dir) {
+			researchPath := filepath.Join(dir, ResearchDir)
+			if info, err := os.Stat(researchPath); err == nil && info.IsDir() {
+				return dir, nil
+			}
 		}
 
 		parent := filepath.Dir(dir)

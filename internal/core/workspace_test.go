@@ -151,3 +151,76 @@ func TestInspectWorkspace_ScopePrecedence(t *testing.T) {
 		}
 	})
 }
+
+func TestIsSystemOrAppDir(t *testing.T) {
+	cases := []struct {
+		path     string
+		expected bool
+	}{
+		{`C:\Users\air\AppData\Local\Programs\Antigravity IDE`, true},
+		{`C:\Users\test\AppData\Local\Programs\Cursor`, true},
+		{`C:\Program Files\SomeApp`, true},
+		{`C:\Program Files (x86)\SomeApp`, true},
+		{`C:\Windows\System32`, true},
+		{`/Applications/Antigravity.app`, true},
+		{`/System/Library`, true},
+		{`/usr/bin`, true},
+		{`/usr/local/bin`, true},
+		{`/bin`, true},
+		{`/sbin`, true},
+		{`/opt/homebrew`, true},
+		{`d:\dev\lab\personal-finance-dashboard`, false},
+		{`/home/user/projects/my-app`, false},
+		{t.TempDir(), false},
+	}
+
+	for _, tc := range cases {
+		actual := IsSystemOrAppDir(tc.path)
+		if actual != tc.expected {
+			t.Errorf("IsSystemOrAppDir(%q) = %v; want %v", tc.path, actual, tc.expected)
+		}
+	}
+}
+
+func TestResolveWorkspace_EnvironmentAndMacroGuard(t *testing.T) {
+	t.Run("resolves VIVECHAK_PROJECT_ROOT", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		t.Setenv("VIVECHAK_PROJECT_ROOT", tmpDir)
+		t.Setenv("VIVECHAK_DEFAULT_ROOT", "")
+
+		res, err := ResolveWorkspace("")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if filepath.Clean(res) != filepath.Clean(tmpDir) {
+			t.Errorf("got %q, want %q", res, tmpDir)
+		}
+	})
+
+	t.Run("resolves VIVECHAK_DEFAULT_ROOT as fallback", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		t.Setenv("VIVECHAK_PROJECT_ROOT", "")
+		t.Setenv("VIVECHAK_DEFAULT_ROOT", tmpDir)
+
+		res, err := ResolveWorkspace("")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if filepath.Clean(res) != filepath.Clean(tmpDir) {
+			t.Errorf("got %q, want %q", res, tmpDir)
+		}
+	})
+
+	t.Run("ignores unexpanded macro variable like ${workspaceFolder}", func(t *testing.T) {
+		t.Setenv("VIVECHAK_PROJECT_ROOT", "${workspaceFolder}")
+		t.Setenv("VIVECHAK_DEFAULT_ROOT", "${workspaceRoot}")
+
+		// Should not resolve to ${workspaceFolder}
+		// If in a non-workspace dir, should return error or walk up without matching ${...}
+		res, _ := ResolveWorkspace("")
+		if res == "${workspaceFolder}" || res == "${workspaceRoot}" {
+			t.Errorf("expected macro variable to be ignored, but got %q", res)
+		}
+	})
+}
+

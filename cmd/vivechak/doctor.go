@@ -32,6 +32,11 @@ func runDoctorWithArgs(args []string, stdout, stderr io.Writer) int {
 		return 1
 	}
 
+	if core.IsSystemOrAppDir(workspace) {
+		fmt.Fprintf(stderr, "Error: %q is an application or system directory, not a research workspace.\n", workspace)
+		return 1
+	}
+
 	fmt.Fprintf(stdout, "Checking workspace at %s\n", workspace)
 	hasErrors, successes, errs := checkWorkspace(workspace)
 	for _, s := range successes {

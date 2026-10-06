@@ -17,7 +17,7 @@ import (
 
 // InitInput holds the arguments for vivechak_init.
 type InitInput struct {
-	ProjectRoot string `json:"project_root,omitempty" jsonschema:"workspace root path (optional; uses resolution chain if omitted)"`
+	ProjectRoot string `json:"project_root,omitempty" jsonschema:"workspace root path. Recommended: pass active project directory path explicitly (e.g. 'project_root': 'd:/my-project') to prevent defaulting to host IDE process CWD"`
 	Scope       string `json:"scope,omitempty"         jsonschema:"research scope: project | decision | comparison (default: project)"`
 }
 
@@ -28,6 +28,8 @@ func registerInit(server *sdkmcp.Server) {
 			Title: "Initialize Vivechak Workspace",
 			Description: "Create a Vivechak research workspace in the target directory. " +
 				"Creates research/ directory structure and copies scope-appropriate templates. " +
+				"Pass 'project_root' explicitly with your project directory path (e.g. 'project_root': 'd:/my-project') " +
+				"to ensure artifacts land in your project workspace. " +
 				"Accepts scope parameter to adjust layout: 'project' (full pipeline, all 6 templates), " +
 				"'decision' (single decision, 2 templates), or 'comparison' (bounded comparison, 1 template). " +
 				"Safe to call on an already-initialized workspace — reports existing state without overwriting.",
@@ -45,11 +47,17 @@ func registerInit(server *sdkmcp.Server) {
 func handleInit(_ context.Context, req *sdkmcp.CallToolRequest, in InitInput) (*sdkmcp.CallToolResult, Envelope, error) {
 	const tool = "vivechak_init"
 
-	// Resolve workspace
+	// Resolve workspace: explicit argument -> environment variable -> CWD
 	root := in.ProjectRoot
 	if root == "" {
-		cwd, _ := os.Getwd()
-		root = cwd
+		if env := os.Getenv("VIVECHAK_PROJECT_ROOT"); env != "" && !strings.HasPrefix(env, "${") {
+			root = env
+		} else if env := os.Getenv("VIVECHAK_DEFAULT_ROOT"); env != "" && !strings.HasPrefix(env, "${") {
+			root = env
+		} else {
+			cwd, _ := os.Getwd()
+			root = cwd
+		}
 	}
 	absRoot, err := filepath.Abs(root)
 	if err != nil {
@@ -69,6 +77,12 @@ func handleInit(_ context.Context, req *sdkmcp.CallToolRequest, in InitInput) (*
 			return ErrorResult(tool, fmt.Errorf("refusing to initialize workspace directly in user home directory %q", absRoot),
 				"Provide a dedicated project subdirectory path as project_root, not the root home directory.")
 		}
+	}
+
+	// Guard against unguided initialization in application or system directories (e.g. host IDE CWD inheritance)
+	if core.IsSystemOrAppDir(absRoot) {
+		return ErrorResult(tool, fmt.Errorf("refusing to initialize workspace inside application or system directory %q", absRoot),
+			"The host IDE process spawned Vivechak without setting an active workspace directory. Call vivechak_init with 'project_root' explicitly set to your project folder path (e.g., 'project_root': 'd:/path/to/project').")
 	}
 
 	// Ensure the root directory exists — init is the only tool that creates it

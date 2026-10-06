@@ -10,15 +10,16 @@ import (
 // ServerInstructions describes Vivechak's workflow, grading, sections, and token-efficiency guidelines.
 const ServerInstructions = "Vivechak: Evidence-grounded research for technical decisions.\n\n" +
 	"## Workflow\n" +
-	"1. vivechak_status → orient (or vivechak_init for new workspace)\n" +
+	"1. vivechak_status → orient (or vivechak_init with explicit project_root)\n" +
 	"2. vivechak_prepare_generator → get generator prompt → execute → vivechak_save_plan\n" +
 	"3. Loop: vivechak_next_session → research → vivechak_save_session → vivechak_challenge (optional: stress-test) → vivechak_record_decision\n" +
 	"4. vivechak_run_gate → verify → implement\n\n" +
 	"## Rules\n" +
+	"- Pass project_root explicitly to vivechak_init to target project repo\n" +
 	"- Follow next_step in every response — it guides the workflow\n" +
 	"- ⚡ = parallel sessions; execute concurrently when possible\n" +
-	"- Use vivechak_challenge to generate adversarial stress-tests for key decisions\n" +
-	"- Use vivechak_replan to add/remove sessions mid-flight and vivechak_visualize for DAG status\n" +
+	"- Use vivechak_challenge for adversarial stress-tests on key decisions\n" +
+	"- Use vivechak_replan to modify sessions mid-flight; vivechak_visualize for DAG\n" +
 	"- Pass content as Markdown with YAML frontmatter (---delimited---)\n\n" +
 	"## Evidence Grades (use in session findings)\n" +
 	"Grade A: Primary/Authoritative (official docs/specs, include URL).\n" +
