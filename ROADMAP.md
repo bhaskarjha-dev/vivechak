@@ -24,34 +24,61 @@ Vivechak v0.1.0 delivers a unified, evidence-grounded research methodology power
 
 ---
 
-## 2. Deferred Features (Tracked & Prioritized)
+## 2. Deferred Features & Backlog (Tracked & Prioritized)
 
 Every deferred feature is tracked with its origin, explicit gate condition, and design rationale. We explicitly reject feature creep; features are built only when evidence demonstrates demand.
 
-### Near-Term (Clear Design, Awaiting Demand Signal)
+### 2.1 Near-Term Packaging & Workflows (Awaiting Demand Signal)
 
 | Feature | Description | Origin | Gate Condition | Est. Effort |
 |---|---|---|---|---|
-| **Incremental Session Building** | `vivechak_add_finding` / `vivechak_save_draft` tool endpoints allowing agents to stream findings incrementally rather than writing complete sessions. | Definitive Plan | 3+ user requests showing context window overflow on single session writes | Medium |
-| **`vivechak_export`** | One-command compilation of FAD and ADR registry into self-contained HTML/PDF reports with embedded SVG charts and offline citation snapshots. | Definitive Plan | User demand for stakeholder presentation beyond Markdown | Low |
-| **Post-Save Git Hooks** | Optional auto-commit hook (`vck-git`) that commits completed sessions and compiled ADR registries into git history automatically. | Definitive Plan | Demand from solo developers wanting zero-overhead git tracking | Low |
-| **TUI Dashboard (`vck tui`)** | Interactive terminal dashboard for human architects to monitor parallel agent research progress, view Mermaid DAGs, and review decisions. | Definitive Plan | Demand for terminal-first visual monitoring | Medium |
-| **Cross-Session Field Guide** | Comprehensive operational guide for running 20+ session pipelines across distributed agent sessions. | Audit Backlog | Multi-day project research pipelines in production | Low |
-| **Examiner Calibration Questions** | Pre-generated calibration questions for human architects to probe agent-generated FADs during Phase 0 reviews. | Audit Backlog | Team adoption where human architects review autonomous agent research | Low |
-| **Worked Failed Pipeline Example** | A complete negative example in `examples/FAILED-PIPELINE.md` demonstrating failure recovery, contradictory evidence resolution, and gate rejection. | Audit (OP-02) | Real failure logs harvested from live dogfooding | Low |
+| **Incremental Session Building** | `vivechak_add_finding` / `vivechak_save_draft` tool endpoints allowing agents to stream findings incrementally rather than writing complete sessions. | Definitive Plan / `API-03` | 3+ user requests showing context window overflow on single session writes | Medium |
+| **`vivechak_export`** | One-command compilation of FAD and ADR registry into self-contained HTML/PDF reports with embedded SVG charts and offline citation snapshots. | Definitive Plan / Missing Tools | User demand for stakeholder presentation beyond Markdown | Low |
 | **Thin Agent Plugin Package** | `plugin.json` + `mcp.json` + quick-start skills bundle for IDEs supporting the Agent Plugins standard (Cursor, VS Code extensions). Supplementary to the native binary. | ADR D-014 / Meta-Research R-05 | Demand from users on harnesses with native plugin discovery; or Claude Desktop/Antigravity adding Agent Plugins support | Low |
+| **MCP Registry Listing** | Official `server.json` manifest submission to the canonical Model Context Protocol Registry (`modelcontextprotocol/registry`). | FINAL-PLAN.md Phase 3 | MCP registry open submission window reaches public release | Low |
+| **Claude Desktop Extension (`.mcpb`)** | Anthropic-native `.mcpb` bundle package for one-click extension install without manually editing `claude_desktop_config.json`. | FINAL-PLAN.md Phase 3 | Anthropic stabilizes and documents `.mcpb` distribution specification | Low |
+| **Binary Code Signing** | Apple Developer ID notarization (`gon`) and Windows Authenticode (Azure Trusted Signing) to eliminate SmartScreen/Gatekeeper warnings. | FINAL-PLAN.md Phase 0.4 | Community download volume exceeds 500+ weekly downloads | Medium |
+| **Post-Save Git Hooks** | Optional auto-commit hook (`vck-git`) that commits completed sessions and compiled ADR registries into git history automatically. | Definitive Plan / `SL-03` | Demand from solo developers wanting zero-overhead git tracking | Low |
+| **TUI Dashboard (`vck tui`)** | Interactive terminal dashboard for human architects to monitor parallel agent research progress, view Mermaid DAGs, and review decisions. | Definitive Plan / `Polish 1` | Demand for terminal-first visual monitoring | Medium |
+| **Cross-Session Field Guide** | Comprehensive operational guide for running 20+ session pipelines across distributed agent sessions. | Audit Backlog / `T3-02` | Multi-day project research pipelines in production | Low |
+| **Examiner Calibration Questions** | Pre-generated calibration questions for human architects to probe agent-generated FADs during Phase 0 reviews. | Audit Backlog / `T3-03` | Team adoption where human architects review autonomous agent research | Low |
+| **Worked Failed Pipeline Example** | A complete negative example in `examples/FAILED-PIPELINE.md` demonstrating failure recovery, contradictory evidence resolution, and gate rejection. | Audit (OP-02) | Real failure logs harvested from live dogfooding | Low |
 
-### Future (Data-Gated)
+### 2.2 Enterprise & Ecosystem Extensions (v0.2.x+)
+
+| Feature | Description | Origin | Gate Condition | Est. Effort |
+|---|---|---|---|---|
+| **C4 Architecture & Backstage Export** | Automatically export synthesized FAD architectures into C4 model container/component diagrams and Spotify Backstage `catalog-info.yaml` entities. | Audit Backlog / `Polish 3` | Enterprise adoption requiring architectural portal integration | Medium |
+| **Composable Research Packs (`vck import`)** | Domain-curated technology profiles and evidence packs (e.g. FinTech compliance, Edge IoT, Web3 security) imported directly into new pipelines. | Audit Backlog / `Polish 2` | Demand for reusable domain seed evidence across multiple client teams | Medium |
+| **Modular DAG JSON Architecture** | JSON-based modular representation for massive enterprise pipelines (>30 sessions) replacing single-document markdown DAGs. | Forensic Audit / `TE-01` | Research pipelines scaling beyond 30 DAG-ordered sessions | Medium |
+| **Multi-Currency & Regional Cost Modeling** | Currency-agnostic and region-aware infrastructure pricing models in WEP matrices (EUR, GBP, INR, JPY alongside USD). | Forensic Audit / `EC-02` | Multi-national enterprise teams operating multi-cloud infrastructure | Low |
+| **Calibration Daemon (`vck audit-calibration`)** | Background CI sentinel comparing ADR cost, latency, and throughput predictions against live telemetry and monitoring metrics. | Audit Backlog / `Polish 4` | Production projects with 6+ months post-deployment telemetry | High |
+
+### 2.3 Methodology Evolution & Epistemic Backlog
+
+| Proposal | Description | Origin | Gate Condition |
+|---|---|---|---|
+| **PRISMA-ScR Systematic Review Checklist** | Integrating PRISMA-ScR (Preferred Reporting Items for Systematic Reviews and Meta-Analyses) guidelines into evidence synthesis protocols. | Audit Backlog / `NEW-08` | Academic or safety-critical engineering research pipelines |
+| **Empirical Re-evaluation of P1 (1M+ Context)** | Re-evaluating Principle P1 (Context Architecture Law) in light of 1M–2M context frontier LLMs to measure information loss during large synthesis runs. | Audit Backlog / `NEW-03` | Frontier LLMs establishing reliable 1M+ effective context recall benchmarks |
+| **Empirical Re-evaluation of P7 (Reasoning Models)** | Testing whether test-time compute reasoning models (o1/o3, Flash Thinking) reduce the necessity for multi-model triangulation on One-Way Doors. | Audit Backlog / `NEW-04` | Empirical benchmarks on hallucination rates in frontier reasoning models |
+| **Semantic Circularity & Deduplication Engine** | Detecting circular citations where multiple Grade B/C secondary sources re-cite the same underlying vendor press release. | Forensic Audit / `EI-02` | Agent harness support for scraping citation link graphs |
+| **Tool-Generated Benchmark Verification Tier** | Introducing an explicit "tool-generated" evidence tier (`ES-03`) distinct from "fetched" vs "recalled" for empirical spike runs. | Audit Backlog / `ES-03` | Adoption of the Empirical Sandbox Spike Runner |
+| **Real Options Engineering (Valuation Windows)** | Introducing formal financial real-options framing for `deferred` decisions with explicit valuation expiry dates. | Audit Backlog / `Vision 3` | Teams managing venture-backed technical risk tradeoffs |
+| **Multi-Tier Cognitive Projections** | Auto-generating dual views of the FAD: executive high-level summary for CTO/leadership vs deep technical specification for Staff Engineers. | Audit Backlog / `Vision 4` | Enterprise engineering leadership request for dual-audience deliverables |
+| **Complexity Score Cliff Smoothing** | Refining scoring rubric transitions between Tier 2 (15 pts) and Tier 3 (16 pts) to eliminate sharp session count cliffs. | Audit Backlog / `SM-02` | Usage data across 10+ completed enterprise project pipelines |
+
+### 2.4 Research Frontiers (Data-Gated Phase 6)
 
 | Feature | Description | Origin | Gate Condition |
 |---|---|---|---|
-| **Cross-Project Knowledge Graph** | Reusable evidence ledger and technology profiles indexed across multiple independent projects. | Phase 6 | 5+ production projects with tracked evidence in consistent schema |
-| **Adaptive Prompt Evolution** | Prompts that automatically adapt tone, search strategies, and domain probes based on previous session outcomes within a pipeline. | Phase 6 | Empirical evidence showing prompt underperformance patterns across 10+ pipelines |
-| **Longitudinal Calibration Tracking** | Tetlock-style Brier scoring tracking whether predictions made in ADRs match production outcomes at 3, 6, and 12 months. | Phase 6 | 3+ projects with 6+ months post-FAD production telemetry |
-| **DSPy Prompt Optimization** | Compile-time prompt optimization mathematically tuning prompt tokens for frontier models. | Phase 6 | Quantifiable automated research quality metric defined and validated |
-| **SHA-256 Content Addressing** | Cryptographic hashing of evidence citations and session artifacts to guarantee tamper-proof audit trails for regulated industries. | Phase 6 | Enterprise compliance demand signal (SOC2 / ISO / FDA) |
+| **Cross-Project Knowledge Graph** | Reusable evidence ledger and technology profiles indexed across multiple independent projects. | Phase 6.2 | 5+ production projects with tracked evidence in consistent schema |
+| **Adaptive Prompt Evolution** | Prompts that automatically adapt tone, search strategies, and domain probes based on previous session outcomes within a pipeline. | Phase 6.3 | Empirical evidence showing prompt underperformance patterns across 10+ pipelines |
+| **Longitudinal Calibration Tracking** | Tetlock-style Brier scoring tracking whether predictions made in ADRs match production outcomes at 3, 6, and 12 months. | Phase 6.4 | 3+ projects with 6+ months post-FAD production telemetry |
+| **DSPy Prompt Optimization** | Compile-time prompt optimization mathematically tuning prompt tokens for frontier models. | Phase 6.1 | Quantifiable automated research quality metric defined and validated |
+| **SHA-256 Content Addressing** | Cryptographic hashing of evidence citations and session artifacts to guarantee tamper-proof audit trails for regulated industries. | Phase 6 / `NEW-07` | Enterprise compliance demand signal (SOC2 / ISO / FDA) |
+| **Multi-Agent Structured Debate Protocol** | Automated multi-agent dialectic debate between opposing architectural paradigms for contentious One-Way Doors. | Phase 6.5 | Frontier models supporting asynchronous multi-agent coordination |
 
-### Explicitly Evaluated as Rejected (Out of Scope)
+### 2.5 Explicitly Evaluated as Rejected (Out of Scope)
 
 | Proposal | Why Rejected | Where Handled |
 |---|---|---|
@@ -62,6 +89,13 @@ Every deferred feature is tracked with its origin, explicit gate condition, and 
 | **Structured JSON Tool Inputs** | Breaks Principle P6 (Dual-Audience Artifacts). YAML frontmatter + Markdown body is the standard contract for human and machine consumption. | Principle P6 |
 | **Blocking Minimum Finding Counts** | Refuted by empirical gaming analysis (D-UX-02). Handled via non-blocking advisory quality coaching (`Q-DEPTH` warning) instead of hard errors. | Quality Coaching Engine |
 | **Mandatory Cloud Sync** | Violates workspace-as-database principle. All state must remain local Markdown/Git. | Principle P6 |
+| **HTTP Web Crawling Stack (`vivechak_fetch_source`)** | Host agent harnesses already have built-in web search and retrieval tools. Building an HTTP crawler creates unnecessary bloat. | Principle P4 |
+| **Domain-Based Grade Capping & Diversity Targets** | Refuted by D-UX-02: presence metrics incentivize agents to cite weak, unverified spam to hit quotas, and breaks offline harnesses. | Anti-Gaming Rule |
+| **Blocking Gates on Human Review** | Hard pauses deadlock fully autonomous agent swarms. Implemented as non-blocking advisory warnings. | Guided Worker Pattern |
+| **Consolidation of 30 Files into 3 Files** | Destroys DAG modularity, granular upstream injection, and isolated git diff tracking. | Principle P1 |
+| **Hardcoded Domain Archetype Heuristics** | Prescribing fixed search queries violates Principle P4. Frontier models generate domain probes dynamically. | Principle P4 |
+| **4D Reversibility Tensor** | Unnecessary mathematical over-engineering; binary door classification with R/N/B/X profiling is robust and intuitive. | Simplicity / Pragmatism |
+| **MCP Resources & MCP Prompts (`resources.go`/`prompts.go`)** | Redundant surface. Workspace files are accessible via standard host file tools; prompts are delivered via tool responses. | Lean MCP Surface |
 
 ---
 
