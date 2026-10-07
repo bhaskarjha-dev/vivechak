@@ -22,8 +22,9 @@ vck setup agy                                  # Google Antigravity (IDE, 2.0, C
 # Inside a project with an active host folder (.cursor, .agents, .vscode, .trae, etc.):
 vck setup                                      # Auto-detects workspace host!
 
-# Target any custom JSON file directly:
+# Target any custom JSON file or folder directly (folders auto-target <dir>/mcp.json):
 vck setup /path/to/mcp-settings.json
+vck setup /path/to/my-agent-folder
 
 # Preview changes without modifying files:
 vck setup cursor --dry-run

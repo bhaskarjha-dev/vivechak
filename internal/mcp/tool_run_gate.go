@@ -368,16 +368,11 @@ func handleRunGate(_ context.Context, _ *sdkmcp.CallToolRequest, in RunGateInput
 	var nextStep string
 	switch gateStatus {
 	case "PASS":
-		nextStep = "Gate passed! The research phase is complete. You can now begin implementation. " +
-			"Note: this gate checks structural completeness only — semantic quality " +
-			"(premortem substance, alternative genuineness) is YOUR responsibility."
+		nextStep = "Gate PASSED! The research phase is complete. All architectural decisions and evidence gates satisfied. Proceed to repository implementation and code scaffolding."
 	case "WARN":
-		nextStep = "Structural checks passed but quality indicators have warnings. " +
-			"Review the warnings above. You may proceed if the warnings are acceptable, " +
-			"or address them and re-run the gate."
+		nextStep = "Gate passed with quality advisories. Review the warnings above before proceeding to code scaffolding."
 	case "FAIL":
-		nextStep = "Gate failed — structural issues must be addressed. " +
-			"Fix the issues listed above and re-run vivechak_run_gate."
+		nextStep = "Gate FAILED. All blocking issues must be resolved before proceeding to code. Fix the listed issues and re-run vivechak_run_gate."
 	}
 
 	trackAData := map[string]any{
@@ -662,6 +657,11 @@ func verifyEvidentiaryIntegrity(ws *store.Workspace, info core.WorkspaceInfo) ([
 		if len(strings.TrimSpace(altContent)) < 30 {
 			advisories = append(advisories, fmt.Sprintf(
 				"B5-ALTERNATIVES: One-way door %s lacks documented rejected alternatives section", d.ID))
+		}
+		// B10: ADR stub check (< 200 characters)
+		if len(strings.TrimSpace(bodyStr)) < 200 {
+			advisories = append(advisories, fmt.Sprintf(
+				"B-DECISION-STUB: One-way door %s body is incomplete (%d chars). Requires substantive rationale ≥200 chars.", d.ID, len(strings.TrimSpace(bodyStr))))
 		}
 
 		// Find informing sessions from frontmatter
@@ -953,12 +953,27 @@ func renderGateArtifact(ws *store.Workspace, root, projectName, gateStatus strin
 	tmpl = strings.Replace(tmpl, oldDecisionRows, strings.TrimRight(routingTable.String(), "\n"), 1)
 
 	// 3. Track A section
-	if trackAPass {
+	hasTwoWay := false
+	allTwoWayAccepted := true
+	for _, d := range decisions {
+		if strings.EqualFold(d.DoorType, "two-way") {
+			hasTwoWay = true
+			if !strings.EqualFold(d.Status, "PASS") && !strings.EqualFold(d.Status, "ACCEPTED") {
+				allTwoWayAccepted = false
+			}
+		}
+	}
+
+	if !hasTwoWay {
+		tmpl = strings.Replace(tmpl, "**Track A Result:** `[PASS / FAIL]`", "**Track A Result:** PASS (0 two-way doors)", 1)
+	} else if trackAPass && allTwoWayAccepted {
 		tmpl = strings.Replace(tmpl, "- [ ] Decision logged in ADR", "- [x] Decision logged in ADR", 1)
 		tmpl = strings.Replace(tmpl, "- [ ] Reversibility confirmed", "- [x] Reversibility confirmed", 1)
 		tmpl = strings.Replace(tmpl, "- [ ] At least one corroborated source", "- [x] At least one corroborated source", 1)
+		tmpl = strings.Replace(tmpl, "**Track A Result:** `[PASS / FAIL]`", "**Track A Result:** PASS", 1)
+	} else {
+		tmpl = strings.Replace(tmpl, "**Track A Result:** `[PASS / FAIL]`", "**Track A Result:** FAIL", 1)
 	}
-	tmpl = strings.Replace(tmpl, "**Track A Result:** `[PASS / FAIL]`", fmt.Sprintf("**Track A Result:** %s", trackAResultStr), 1)
 
 	// 4. Track B section
 	if trackBPass {
@@ -981,7 +996,7 @@ func renderGateArtifact(ws *store.Workspace, root, projectName, gateStatus strin
 			if strings.Contains(adv, "B4-VERIFICATION") {
 				hasB4Adv = true
 			}
-			if strings.Contains(adv, "B5-ALTERNATIVES") {
+			if strings.Contains(adv, "B5-ALTERNATIVES") || strings.Contains(adv, "B-DECISION-STUB") {
 				hasB5Adv = true
 			}
 		}

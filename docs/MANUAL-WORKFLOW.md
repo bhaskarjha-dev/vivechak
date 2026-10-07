@@ -295,11 +295,11 @@ Create `research/PHASE-0-GATE.md` and audit every decision:
 flowchart TD
     D[Evaluate Decision] --> Check{Door Type?}
     Check -->|Two-Way Door| TrackA[Track A: Fast-Track Gate]
-    Check -->|One-Way Door| TrackB[Track B: Rigorous 9-Step Gate]
+    Check -->|One-Way Door| TrackB[Track B: Rigorous 10-Step Gate]
     TrackA --> PassA{Reversible & Corroborated?}
     PassA -->|Yes| GatePass[Gate PASS]
     PassA -->|No| FixA[Fix ADR]
-    TrackB --> PassB{All 9 Steps Satisfied?}
+    TrackB --> PassB{All 10 Steps Satisfied?}
     PassB -->|Yes| GatePass
     PassB -->|No| FixB[Resolve Blockers]
 ```
@@ -310,17 +310,18 @@ Check three conditions:
 - [x] Reversibility confirmed (can be swapped without major refactoring).
 - [x] At least one corroborated source supports the choice.
 
-#### Track B: Rigorous 9-Step Gate (One-Way Doors)
-Every irreversible architectural pillar must satisfy all 9 criteria:
+#### Track B: Rigorous 10-Step Gate (One-Way Doors)
+Every irreversible architectural pillar must satisfy all 10 criteria:
 - **B1. DAG Closure:** All dependent research sessions completed in `status: final`.
 - **B2. Contradiction Resolution:** No unresolved conflicting evidence or contested claims.
-- **B3. Evidentiary Threshold:** Zero uncorroborated Grade C/D/E claims under pinning pillars; critical claims backed by Grade A or B.
-- **B4. Verification Integrity:** 100% of critical citations verified as `fetched` or `cached` (zero `recalled` LLM memory citations).
+- **B3. Evidentiary Threshold:** Zero uncorroborated Grade C/D/E claims under pinning pillars; critical claims backed by Grade A or B (≥60%).
+- **B4. Verification Integrity:** 100% of critical citations verified as `fetched` or `cached` with qualified provenance (zero `recalled` LLM memory citations).
 - **B5. Rejected Alternatives Documented:** Causal, evidence-backed rationale for every rejected option.
 - **B6. Decay Triggers Assigned:** Concrete, measurable `review_trigger` condition and date.
 - **B7. Premortem Protocol:** Gary Klein 12-month failure exercise completed with top 3 failure modes and mitigations logged.
 - **B8. Human Architect Review:** Explicit sign-off by a named human engineer (`human_reviewed: true`).
 - **B9. Founding Architecture Document Sealed:** `FAD.md` completed and committed to git.
+- **B10. Substantive ADR Content:** Decision record contains substantive causal rationale, evaluated options, and failure modes (no placeholder stubs).
 
 ### Step 10: What "Passing the Gate" Means
 

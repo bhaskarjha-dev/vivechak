@@ -144,9 +144,13 @@ vivechak/
 │       ├── README.md               ← Provenance index
 │       ├── DECISIONS.md            ← All 14 locked ADRs (D-001–D-014)
 │       ├── RESEARCH-PIPELINE-v1.md ← Initial methodology meta-research DAG
-│       └── v2/                     ← MCP server & multi-scope research evidence
-│           ├── FINAL-PLAN.md       ← 5-phase server implementation plan
-│           └── RESEARCH-PIPELINE-v2.md ← Multi-scope & MCP server research pipeline
+│       ├── v2/                     ← MCP server & multi-scope research evidence
+│       │   ├── FINAL-PLAN.md       ← 5-phase server implementation plan
+│       │   └── RESEARCH-PIPELINE-v2.md ← Multi-scope & MCP server research pipeline
+│       └── v3/                     ← Production dogfooding, CLI ergonomics & UX evidence
+│           ├── D-UX-01-cli-design.md
+│           ├── D-UX-02-validation-depth.md
+│           └── D-UX-03-hybrid-workflow.md
 │
 ├── Formula/ · scoop/ · winget/     ← Package manager manifests
 │
@@ -166,9 +170,9 @@ When modifying Go code in `cmd/` or `internal/`:
 2. **Embed sync:** `internal/embed/generators/` and `internal/embed/templates/` must stay in sync with root-level generators and templates. Verified by `TestEmbeddedFilesMatchRoot` and enforced by CI (`.github/workflows/ci.yml`).
 3. **13 MCP tools:** `vivechak_init`, `vivechak_prepare_generator`, `vivechak_save_plan`, `vivechak_status`, `vivechak_next_session`, `vivechak_save_session`, `vivechak_record_decision`, `vivechak_amend_session`, `vivechak_validate`, `vivechak_run_gate`, `vivechak_challenge`, `vivechak_replan`, `vivechak_visualize`. Each tool is one file in `internal/mcp/tool_*.go`.
 4. **Guided Worker pattern:** Every tool response includes `next_step`. Hard refusals ONLY for impossible operations, never for "wrong order."
-5. **Quality coaching:** `core.ObserveSessionQuality` runs inside `vivechak_save_session`, surfacing real-time non-blocking `Q-*` observations (grade inflation, missing discovered concerns, Delta confirmation bias, low findings count).
+5. **Quality coaching:** `core.ObserveSessionQuality` runs inside `vivechak_save_session`, surfacing real-time non-blocking `Q-*` observations (grade inflation, missing discovered concerns, Delta confirmation bias, low findings count) directly in `next_step`.
 6. **Single-source ADRs:** `vivechak_record_decision` treats individual `D-*.md` files as canonical and compiles the consolidated `research/DECISIONS.md` registry.
-7. **Automated Phase 0 Gate:** `vivechak_run_gate` mechanically evaluates B1–B9 checks (including B3 threshold, B4 verification, B5 rejected alternatives, B6 reversal triggers) and auto-persists `research/PHASE-0-GATE.md`.
+7. **Automated Phase 0 Gate:** `vivechak_run_gate` mechanically evaluates decoupled Track A (reversibility confirmation for Two-Way Doors) and Track B (rigorous checks B1–B10 for One-Way Doors, including B3 threshold, B4 verification, B5 rejected alternatives, B6 reversal triggers, and B10 substantive content) and auto-persists `research/PHASE-0-GATE.md`.
 8. **Concurrency & Atomic I/O:** `store.WriteFileAtomic` employs monotonic `tmpFileCounter` to prevent Windows nanosecond collision races; mutating operations acquire advisory locks.
 9. **Special research files:** Use `core.IsSpecialResearchFile` when scanning `research/` to prevent non-ADR markdown files from corrupting decision registries.
 10. **Testing:** `go test ./...` runs all tests. `internal/mcp/server_test.go` has wire-level integration tests.
@@ -180,6 +184,7 @@ When modifying Go code in `cmd/` or `internal/`:
 - **No legacy dogma:** Do not use 8-section XML prompts, expert personas, hardcoded search queries, minimum search counts, or rigid output skeletons. These are empirically refuted.
 - **Front-load briefs:** Never drip-feed instructions across turns (39% performance drop documented).
 - **Grade everything:** Every factual claim needs an inline evidence grade with modifiers and verification method.
+- **Qualified provenance:** Grade A claims require canonical URLs, domain anchors, RFCs, or specific doc titles. Computing memory (RAM/caching) is never penalized as model recall.
 - **Two-Way Doors move fast:** Don't over-research reversible decisions. Spike or decide by convention.
-- **One-Way Doors move carefully:** Require corroborated Grade A/B evidence, locked ADR, and premortem before commitment.
+- **One-Way Doors move carefully:** Require corroborated Grade A/B evidence with qualified provenance, substantive Discovered Concerns (≥50 chars), red-team challenge before commitment, locked ADR with rejected alternatives, and premortem.
 

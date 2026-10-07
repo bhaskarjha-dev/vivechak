@@ -422,7 +422,11 @@ status: complete
 # Consensus Findings
 
 ## Recommendations
-We recommend Raft with pipelined quorum over TLS. Grade A (formal TLA+ spec)
+We recommend Raft with pipelined quorum over TLS. Grade A (https://raft.github.io/spec | formal TLA+ spec)
+
+## Discovered Concerns & Failure Modes
+- Network partition split-brain during leader election under high packet loss.
+- Disk fsync latency spikes on WAL writes impacting Raft heartbeat timeouts.
 
 ## Delta
 | Prior | Status | Impact |

@@ -1,6 +1,6 @@
 # Server Architecture Guide
 
-> **Last verified against code:** 2026-10-05 (v0.1.0)
+> **Last verified against code:** 2026-10-07 (v0.1.0)
 > If you find discrepancies with the actual code, please file an issue.
 
 Welcome to the internal architecture guide for **Vivechak** (विवेचक). This document is written for Go developers and contributors who want to understand, extend, or maintain the Vivechak MCP server codebase.
@@ -30,9 +30,10 @@ vivechak/
 │   │   ├── scope.go        # Scope definitions (project, decision, comparison)
 │   │   ├── workspace.go    # Workspace layout & 4-step resolution chain
 │   │   ├── dag.go          # Pipeline DAG parsing and dependency resolution
+│   │   ├── draft_decision.go # Automated ADR drafting from session recommendations
 │   │   ├── frontmatter.go  # YAML frontmatter parsing and composition
 │   │   ├── inject.go       # Upstream context injection engine
-│   │   ├── validate.go     # 4-level validation ladder (L1–L4)
+│   │   ├── validate.go     # 4-level validation ladder (L1–L4) and Quality Coaching
 │   │   └── challenge.go    # Adversarial challenge prompt generator
 │   ├── mcp/                # MCP protocol server and tool handlers (package mcputil)
 │   │   ├── server.go       # Server factory and tool registration dispatcher
@@ -118,14 +119,19 @@ Defined in [`internal/core/validate.go`](../internal/core/validate.go#L11-L22), 
 | **L4** | `L4Gate` | Exit gate evaluation across project | Pipeline structural completeness and mechanical quality verification. |
 
 ### Quality Coaching Engine (`core.ObserveSessionQuality`)
-Defined in [`internal/core/validate.go`](../internal/core/validate.go#L552-L655), `ObserveSessionQuality` performs real-time advisory analysis on session outputs during `vivechak_save_session` (and dry-run `vivechak_validate`). It coaches the agent on epistemic rigor without blocking workflow:
+Defined in [`internal/core/validate.go`](../internal/core/validate.go), `ObserveSessionQuality` performs real-time advisory analysis on session outputs during `vivechak_save_session` (and dry-run `vivechak_validate`). It coaches the agent on epistemic rigor without blocking workflow:
 - **Grade Distribution:** Alerts when Grade A citations exceed 70% of claims, prompting primary source verification.
-- **Grade A URL Verification:** Scans for `Grade A ... fetched` citations lacking an HTTP(S) URL.
-- **Key Findings Depth:** Alerts when fewer than 3 key findings are provided.
-- **Discovered Concerns:** Flags sessions lacking an unexpected findings section.
-- **Confirmation Bias Check:** Warns when 100% of prior beliefs in the Delta table are confirmed without contradiction or refinement.
+- **Grade A Qualified Provenance:** Enforces canonical URLs, domain anchors, RFCs, or specific document titles for Grade A claims; ensures computing memory (RAM/caching) is never penalized as model recall.
+- **Key Findings Depth:** Alerts when fewer than 3 key findings are provided (`Q-DEPTH`).
+- **Discovered Concerns (Anti-Confirmation-Bias):** Verifies the session contains substantive unexpected concerns (≥50 characters), preventing token placeholders.
+- **Confirmation Bias Check:** Warns when 100% of prior beliefs in the Delta table are confirmed without contradiction or refinement (`Q-BIAS`).
 - **Rejected Alternatives:** Verifies recommendations cite rejected alternatives.
 - **Date Freshness:** Checks for potentially stale dates while filtering out ports and metrics.
+
+### Phase 0 Gate Engine & Auto-Persistence (`mcputil.handleRunGate`)
+Defined in [`internal/mcp/tool_run_gate.go`](../internal/mcp/tool_run_gate.go), `vivechak_run_gate` evaluates decoupled Track A and Track B criteria and automatically renders and persists `research/PHASE-0-GATE.md`:
+- **Track A (Two-Way Doors):** Fast-track reversibility validation (A1–A3). Reversible decisions pass without blocking deep checks. Workspaces with zero two-way doors are marked as `PASS (0 two-way doors)`, eliminating false-pass anomalies.
+- **Track B (One-Way Doors):** Comprehensive mechanical verification across 10 rigorous checks (B1–B10): DAG closure (B1), contradiction resolution (B2), evidentiary threshold requiring ≥60% Grade A/B evidence (B3), verification integrity with qualified provenance (B4), documented rejected alternatives (B5), concrete decay/reversal triggers (B6), premortem protocol (B7), human architect review sign-off (B8), sealed FAD (B9), and substantive decision content detecting ADR stubs/placeholders (B10).
 
 ### Response Envelope (`mcputil.Envelope`)
 Defined in [`internal/mcp/envelope.go`](../internal/mcp/envelope.go#L24-L44), every tool returns the standard envelope:
@@ -345,6 +351,13 @@ Key wire test suites:
 
 ### 4. Subprocess Live Stdio Integration Tests (`cmd/vivechak/serve_test.go`)
 Spawns the compiled `vivechak serve` binary as a genuine subprocess, connecting via JSON-RPC stdio pipes. Executes a full 17-step end-to-end lifecycle (`init` → `save_plan` → `next_session` → `save_session` → `record_decision` → `validate` → `run_gate`), validating subprocess signal handling, real stdio transport hygiene, and exit gates.
+
+### 5. Massive Live Depth Audit Suite (`cmd/vivechak/massive_live_depth_audit_test.go`)
+Comprehensive 1,000+ line live integration test suite that spawns the Vivechak MCP server and CLI commands as real subprocesses over stdio JSON-RPC. Validates:
+- Every one of the 13 MCP tools end-to-end with realistic inputs and edge cases.
+- Dynamic challenge routing, quality coaching observations (`Q-*`), qualified provenance validation, and Phase 0 Gate decoupled Track A / Track B evaluations.
+- All 4 CLI entry points (`vck setup`, `vck mcp-config`, `vck doctor`, `vck version`).
+- FAD root mirroring, directory target handling in `setup`, and comment anchor deduplication.
 
 ---
 

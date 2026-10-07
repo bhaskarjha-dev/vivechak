@@ -1276,6 +1276,87 @@ Adopt Solution X. Grade A (official docs)
 	}
 }
 
+// TestAmendSession_FADRootCopy verifies that amending SYN-01 mirrors updates to root FOUNDING-ARCHITECTURE.md
+func TestAmendSession_FADRootCopy(t *testing.T) {
+	cs := testServer(t)
+	ctx := context.Background()
+	tmpDir := t.TempDir()
+
+	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "vivechak_init",
+		Arguments: map[string]any{"project_root": tmpDir, "scope": "project"},
+	})
+
+	fadContent := `---
+title: Founding Architecture Document
+date: 2026-10-01
+status: complete
+---
+# Founding Architecture Document
+## Section 1: Executive Summary
+Adopt Solution X. Grade A (https://solutionx.org/docs | fetched)
+`
+
+	_, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_save_session",
+		Arguments: map[string]any{
+			"project_root": tmpDir,
+			"session_id":   "SYN-01",
+			"content":      fadContent,
+		},
+	})
+	if err != nil {
+		t.Fatalf("save_session SYN-01 failed: %v", err)
+	}
+
+	// Now amend SYN-01
+	amendRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_amend_session",
+		Arguments: map[string]any{
+			"project_root": tmpDir,
+			"session_id":   "SYN-01",
+			"amendment":    "Addendum: Disaster recovery failover testing completed successfully.",
+		},
+	})
+	if err != nil {
+		t.Fatalf("amend_session SYN-01 failed: %v", err)
+	}
+	env := parseEnvelope(t, amendRes)
+	if !env.Success {
+		t.Fatalf("amend_session SYN-01 unsuccessful: %s", env.Message)
+	}
+	dataMap, ok := env.Data.(map[string]any)
+	if !ok {
+		t.Fatalf("expected data map, got: %T", env.Data)
+	}
+	if dataMap["root_copy"] != "FOUNDING-ARCHITECTURE.md" {
+		t.Errorf("expected root_copy to be 'FOUNDING-ARCHITECTURE.md', got: %v", dataMap["root_copy"])
+	}
+
+	// 1. Verify research/FAD.md contains amendment
+	internalBytes, err := os.ReadFile(filepath.Join(tmpDir, core.FADFile))
+	if err != nil {
+		t.Fatalf("expected %s to exist: %v", core.FADFile, err)
+	}
+	if !strings.Contains(string(internalBytes), "Disaster recovery failover testing") {
+		t.Errorf("internal FAD does not contain amendment text")
+	}
+
+	// 2. Verify root FOUNDING-ARCHITECTURE.md contains amendment
+	rootBytes, err := os.ReadFile(filepath.Join(tmpDir, "FOUNDING-ARCHITECTURE.md"))
+	if err != nil {
+		t.Fatalf("expected root FOUNDING-ARCHITECTURE.md to exist: %v", err)
+	}
+	if !strings.Contains(string(rootBytes), "Disaster recovery failover testing") {
+		t.Errorf("root FOUNDING-ARCHITECTURE.md does not contain amendment text")
+	}
+
+	// 3. Both are identical
+	if string(internalBytes) != string(rootBytes) {
+		t.Errorf("internal FAD and root FAD mismatch after amendment")
+	}
+}
+
 // TestNextSession_SingleReadySession_NoParallelHint verifies that a single ready session has no parallelism_hint
 func TestNextSession_SingleReadySession_NoParallelHint(t *testing.T) {
 	cs := testServer(t)
@@ -1332,6 +1413,295 @@ Investigate blocked session.
 		t.Errorf("expected no ⚡ prefix when only 1 session is ready, got: %s", env.NextStep)
 	}
 }
+
+// TestWorkspaceValidate_DAGContext verifies that workspace validation enforces one-way door rules from DAG
+func TestWorkspaceValidate_DAGContext(t *testing.T) {
+	cs := testServer(t)
+	ctx := context.Background()
+	tmpDir := t.TempDir()
+
+	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "vivechak_init",
+		Arguments: map[string]any{"project_root": tmpDir, "scope": "project"},
+	})
+
+	pipeline := `# Pipeline
+## Execution DAG
+### Session T1-01: Consensus Protocol
+| Field | Value |
+|---|---|
+| **ID** | T1-01 |
+| **Door Type** | one-way |
+| **Dependencies** | None |
+| **Output File** | sessions/T1-01.md |
+
+` + "```prompt" + `
+Investigate consensus.
+` + "```" + `
+`
+	_ = os.WriteFile(filepath.Join(tmpDir, core.PipelineFile), []byte(pipeline), 0o644)
+
+	// Save session without substantive concerns directly to disk
+	badSession := `---
+session_id: T1-01
+title: Consensus Protocol
+date: 2026-09-29
+status: complete
+---
+## Key Findings
+- Raft protocol is suitable. Grade A (https://raft.github.io)
+
+## Discovered Concerns
+None.
+
+## Sources & Evidence Ledger
+| # | Source | Grade | Modifiers | Verification | Used For |
+|---|---|---|---|---|---|
+| 1 | https://raft.github.io | Grade A | fresh | fetched | Consensus |
+`
+	_ = os.MkdirAll(filepath.Join(tmpDir, core.SessionsDir), 0o755)
+	_ = os.WriteFile(filepath.Join(tmpDir, core.SessionsDir, "T1-01.md"), []byte(badSession), 0o644)
+
+	// Run workspace validate: should detect blocking error because DAG marks T1-01 as one-way
+	res, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "vivechak_validate",
+		Arguments: map[string]any{"project_root": tmpDir},
+	})
+	if err != nil {
+		t.Fatalf("workspace validate failed: %v", err)
+	}
+	env := parseEnvelope(t, res)
+	dataMap := env.Data.(map[string]any)
+	sessMap := dataMap["sessions"].(map[string]any)
+	if int(sessMap["errors"].(float64)) != 1 {
+		t.Errorf("expected 1 session error for missing concerns on one-way door, got: %v", sessMap["errors"])
+	}
+
+	// Fix concerns
+	fixedSession := strings.Replace(badSession, "None.",
+		"Split-brain partitioning during WAN link flaps requires strict majority quorums across three availability zones.", 1)
+	_ = os.WriteFile(filepath.Join(tmpDir, core.SessionsDir, "T1-01.md"), []byte(fixedSession), 0o644)
+
+	res2, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "vivechak_validate",
+		Arguments: map[string]any{"project_root": tmpDir},
+	})
+	if err != nil {
+		t.Fatalf("workspace validate 2 failed: %v", err)
+	}
+	env2 := parseEnvelope(t, res2)
+	dataMap2 := env2.Data.(map[string]any)
+	sessMap2 := dataMap2["sessions"].(map[string]any)
+	if int(sessMap2["errors"].(float64)) != 0 {
+		t.Errorf("expected 0 session errors after fixing concerns, got: %v", sessMap2["errors"])
+	}
+}
+
+// TestWorkspaceValidate_FallbackToDecisionsRegistry verifies fallback parsing of DECISIONS.md
+func TestWorkspaceValidate_FallbackToDecisionsRegistry(t *testing.T) {
+	cs := testServer(t)
+	ctx := context.Background()
+	tmpDir := t.TempDir()
+
+	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "vivechak_init",
+		Arguments: map[string]any{"project_root": tmpDir, "scope": "project"},
+	})
+
+	decisionsMD := `# Architectural Decisions
+
+<!-- DECISION: D-001 -->
+---
+id: D-001
+title: Consensus Engine
+status: accepted
+door_type: two-way
+---
+# D-001: Consensus Engine
+We choose Raft consensus for deterministic state replication. Grade A (https://raft.github.io)
+<!-- /DECISION: D-001 -->
+`
+	_ = os.WriteFile(filepath.Join(tmpDir, core.DecisionsFile), []byte(decisionsMD), 0o644)
+
+	res, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "vivechak_validate",
+		Arguments: map[string]any{"project_root": tmpDir},
+	})
+	if err != nil {
+		t.Fatalf("validate failed: %v", err)
+	}
+	env := parseEnvelope(t, res)
+	dataMap := env.Data.(map[string]any)
+	decMap := dataMap["decisions"].(map[string]any)
+	if int(decMap["valid"].(float64)) != 1 {
+		t.Errorf("expected 1 valid decision from fallback DECISIONS.md parsing, got: %v", decMap["valid"])
+	}
+}
+
+// TestRunGate_ZeroTwoWayDoors_TrackAPasses verifies Track A handles 0 two-way doors cleanly
+func TestRunGate_ZeroTwoWayDoors_TrackAPasses(t *testing.T) {
+	cs := testServer(t)
+	ctx := context.Background()
+	tmpDir := t.TempDir()
+
+	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "vivechak_init",
+		Arguments: map[string]any{"project_root": tmpDir, "scope": "decision"},
+	})
+
+	pipe := `# Pipeline
+#### D-AUTH-S01: Auth Strategy
+| **ID** | D-AUTH-S01 |
+| **Dependencies** | None |
+| **Output File** | sessions/D-AUTH-S01.md |
+` + "```prompt" + `
+Auth prompt
+` + "```" + `
+`
+	_ = os.WriteFile(filepath.Join(tmpDir, core.PipelineFile), []byte(pipe), 0o644)
+
+	sessionContent := `---
+session_id: D-AUTH-S01
+title: Auth Strategy
+date: 2026-09-29
+door_type: one-way
+status: complete
+---
+# Findings
+WebAuthn is standard. Grade A (https://w3.org/TR/webauthn-2)
+
+## Discovered Concerns
+Device registration complexity requires robust fallback credentials.
+
+## Sources
+| # | Source | Grade | Verification |
+|---|---|---|---|
+| 1 | https://w3.org/TR/webauthn-2 | Grade A | fetched |
+`
+	_ = os.MkdirAll(filepath.Join(tmpDir, core.SessionsDir), 0o755)
+	_ = os.WriteFile(filepath.Join(tmpDir, core.SessionsDir, "D-AUTH-S01.md"), []byte(sessionContent), 0o644)
+
+	// Record one-way ADR
+	adrContent := `<!-- DECISION: D-001 -->
+---
+decision_id: D-001
+title: WebAuthn Adoption
+status: accepted
+door_type: one-way
+review_trigger: Passkey adoption drops below 80%
+informing_sessions: [D-AUTH-S01]
+---
+# D-001: WebAuthn Adoption
+
+## Context & Rationale
+We adopt WebAuthn as the primary authentication strategy for enterprise identity assurance.
+This is a critical architectural commitment verified across standards documents and browser implementations. Grade A (https://w3.org/TR/webauthn-2)
+
+## Rejected Alternatives
+1. Password-only authentication: high credential stuffing vulnerability.
+2. SMS 2FA: SIM swapping vulnerabilities documented by NIST SP 800-63B.
+<!-- /DECISION: D-001 -->
+`
+	_ = os.WriteFile(filepath.Join(tmpDir, filepath.Join(core.ResearchDir, "D-001.md")), []byte(adrContent), 0o644)
+	_ = os.WriteFile(filepath.Join(tmpDir, core.DecisionsFile), []byte(adrContent), 0o644)
+
+	res, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "vivechak_run_gate",
+		Arguments: map[string]any{"project_root": tmpDir, "verbose": true},
+	})
+	if err != nil {
+		t.Fatalf("run_gate failed: %v", err)
+	}
+	env := parseEnvelope(t, res)
+	dataMap := env.Data.(map[string]any)
+	if dataMap["gate_status"] != "PASS" {
+		t.Fatalf("expected gate PASS, got: %v (warnings: %v)", dataMap["gate_status"], env.Warnings)
+	}
+
+	gateArtifact, err := os.ReadFile(filepath.Join(tmpDir, filepath.Join(core.ResearchDir, "PHASE-0-GATE.md")))
+	if err != nil {
+		t.Fatalf("reading PHASE-0-GATE.md: %v", err)
+	}
+	gateStr := string(gateArtifact)
+	if !strings.Contains(gateStr, "Track A Result:** PASS (0 two-way doors)") {
+		t.Errorf("expected 'Track A Result: PASS (0 two-way doors)', got in gate artifact:\n%s", gateStr)
+	}
+}
+
+// TestRunGate_ADRStub_AdvisoryWarning verifies B10 stub check triggers advisory on small ADR body
+func TestRunGate_ADRStub_AdvisoryWarning(t *testing.T) {
+	cs := testServer(t)
+	ctx := context.Background()
+	tmpDir := t.TempDir()
+
+	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "vivechak_init",
+		Arguments: map[string]any{"project_root": tmpDir, "scope": "decision"},
+	})
+
+	pipe := `# Pipeline
+#### D-01: Auth
+| **ID** | D-01 |
+| **Dependencies** | None |
+| **Output File** | sessions/D-01.md |
+` + "```prompt" + `
+Auth
+` + "```" + `
+`
+	_ = os.WriteFile(filepath.Join(tmpDir, core.PipelineFile), []byte(pipe), 0o644)
+	_ = os.MkdirAll(filepath.Join(tmpDir, core.SessionsDir), 0o755)
+	_ = os.WriteFile(filepath.Join(tmpDir, core.SessionsDir, "D-01.md"), []byte(`---
+session_id: D-01
+title: Auth
+date: 2026-09-29
+door_type: one-way
+status: complete
+---
+Findings. Grade A (https://example.com)
+## Discovered Concerns
+Significant integration complexity discovered with legacy IdPs.
+## Sources
+| # | Source | Grade | Verification |
+|---|---|---|---|
+| 1 | https://example.com | Grade A | fetched |
+`), 0o644)
+
+	// Short ADR body (< 200 characters)
+	shortADR := `---
+decision_id: D-001
+title: Short Decision
+status: accepted
+door_type: one-way
+review_trigger: Trigger text
+---
+# D-001
+Use tool X. Grade A (https://example.com)
+## Rejected Alternatives
+None.
+`
+	_ = os.WriteFile(filepath.Join(tmpDir, filepath.Join(core.ResearchDir, "D-001.md")), []byte(shortADR), 0o644)
+	_ = os.WriteFile(filepath.Join(tmpDir, core.DecisionsFile), []byte(shortADR), 0o644)
+
+	res, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "vivechak_run_gate",
+		Arguments: map[string]any{"project_root": tmpDir, "verbose": true},
+	})
+	if err != nil {
+		t.Fatalf("run_gate failed: %v", err)
+	}
+	env := parseEnvelope(t, res)
+	foundStub := false
+	for _, w := range env.Warnings {
+		if strings.Contains(w, "B-DECISION-STUB") {
+			foundStub = true
+			break
+		}
+	}
+	if !foundStub {
+		t.Errorf("expected B-DECISION-STUB advisory for < 200 char body, got warnings: %v", env.Warnings)
+	}
+}
+
 
 
 

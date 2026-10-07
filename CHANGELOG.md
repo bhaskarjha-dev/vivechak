@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.1.0] - 2026-10-07 — Enforcement Hardening & Engine Correctness
+
+Unified release delivering the 12 enforcement hardening tasks and quality audit fixes:
+
+### Added
+- **Dynamic Guided Worker Routing (`tool_save_session.go`):** Real-time `[Q-*]` quality advisories surfaced directly in `next_step` instructions; one-way door sessions imperatively route to `vivechak_challenge(mode="red_team")` before recording irreversible decisions.
+- **Research Calibration Prompt Injection (`tool_next_session.go`):** Automated active rule injection (Memory ≠ Evidence, Qualified Provenance, Falsification Required, Honest Gaps) on all non-synthesis session prompts returned by `vivechak_next_session`.
+- **Qualified Provenance Engine (`validate.go`):** Strict verification requirement for Grade A fetched claims against canonical URLs, domain anchors, RFCs, or doc titles (L2Block on one-way doors, L3Warn on two-way doors).
+- **Substantive Discovered Concerns Gate (`validate.go`):** Strict length and non-triviality check (≥50 characters) on one-way doors (`V-OWD-NO-CONCERNS`) while permitting fast two-way door spikes.
+- **ADR Substantive Content Gate B10 (`tool_run_gate.go`):** Requires ≥200 characters and explicit evaluated/rejected alternatives for One-Way Door decisions before Phase 0 Gate exit.
+- **Embedded Contract Parity (`SESSION.template.md`):** Added `## Discovered Concerns` section with 100% embed sync to ensure template users pass validation out of the box.
+
+### Changed
+- **Decoupled Phase 0 Gate (`tool_run_gate.go`):** Fixed Track A/Track B semantic inversion; Track A strictly evaluates reversibility and blast radius bounds for Two-Way Doors, while Track B executes rigorous B1–B10 checks on One-Way Doors.
+- **Documented 9-Section Session Body Skeleton (`FRAMEWORK.md` §6.2):** Aligned methodology specification with runtime templates and validation engine, formally standardizing `Prior`, `Discovered Concerns`, and `Delta` sections.
+- **ADR Door-Type Drafter (`draft_decision.go`):** Contextually infers `two-way` vs `one-way` door classifications from session text rather than defaulting to irreversible.
+
+### Fixed
+- **Workspace OS Boundary Guard Collision (`workspace.go`):** Implemented `isDirOrChild` path boundary matching, eliminating false-positive rejections on Windows paths (`D:\windows-tools`, `C:\binary-tree`) and Unix project folders (`/library-books`, `/bin-project`).
+- **Replanning Data Loss Prevention (`dag.go`):** Retained raw `Preamble` (parameters, complexity scoring, execution notes) and `ExitGate` sections across round-trip serialization in `vivechak_replan`.
+- **Prompt Truncation on Inner Code Fences (`dag.go`):** Enhanced code fence parser to track outer fence length, preventing premature truncation when encountering untagged inner code fences.
+- **Computing Memory False-Positive Penalty (`validate.go`):** Narrowed `recalledHighGradePattern` to model/parametric recall, preventing valid computing memory claims (RAM, caching) from being downgraded.
+- **Split-Brain FAD Desynchronization (`tool_amend_session.go`):** Post-hoc amendments to synthesis sessions atomically mirror changes to root `FOUNDING-ARCHITECTURE.md`.
+- **Scope Auto-Detection on Empty Project Root (`tool_prepare_generator.go`):** Resolves workspace from environment variables or working directory when `project_root` argument is omitted.
+- **Standalone ADR Validation Fallback (`tool_validate.go`):** Correctly parses registered decisions in `research/DECISIONS.md` when standalone `D-*.md` files are not created.
+
+---
+
 ## [0.1.0] - 2026-10-05
 
 Comprehensive production release fusing the 18 quality audit findings (`CRIT-01`–`CRIT-04`, `HIGH-01`–`HIGH-06`, `MED-01`–`MED-05`, `LOW-01`–`LOW-03`) with the 12 definitive architecture enhancements (T1–T12).

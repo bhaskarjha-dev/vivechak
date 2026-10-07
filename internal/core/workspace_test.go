@@ -179,6 +179,11 @@ func TestIsSystemOrAppDir(t *testing.T) {
 		{`/workspaces/my-repo`, false},
 		{`/var/www/html`, false},
 		{`d:\dev\lab\personal-finance-dashboard`, false},
+		{`d:\windows-tools`, false},
+		{`c:\binary-tree`, false},
+		{`/library-books`, false},
+		{`/system-monitor`, false},
+		{`/etc-hosts-manager`, false},
 		{`/home/user/projects/my-app`, false},
 		{t.TempDir(), false},
 	}

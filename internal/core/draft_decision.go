@@ -51,7 +51,15 @@ func DraftDecisionFromSession(sessionContent []byte, decisionID string) (string,
 		b.WriteString("title: \"[Decision Title]\"\n")
 	}
 	b.WriteString("status: proposed\n")
-	b.WriteString("door_type: one-way             # one-way | two-way\n")
+	doorType := "one-way"
+	contentLower := strings.ToLower(bodyStr)
+	if strings.Contains(contentLower, "door: two-way") ||
+		strings.Contains(contentLower, "door_type: two-way") ||
+		strings.Contains(contentLower, "door type: two-way") ||
+		strings.Contains(contentLower, "two-way door") {
+		doorType = "two-way"
+	}
+	fmt.Fprintf(&b, "door_type: %s             # one-way | two-way\n", doorType)
 	fmt.Fprintf(&b, "date: %s\n", time.Now().UTC().Format("2006-01-02"))
 	b.WriteString("confidence: medium             # high | medium | low\n")
 	b.WriteString("evidence_refs: []              # Optional: E-NNN IDs if you maintain a separate evidence ledger\n")

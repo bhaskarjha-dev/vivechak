@@ -99,31 +99,35 @@ func IsSystemOrAppDir(path string) bool {
 		checkPath = checkPath[2:]
 	}
 
+	isDirOrChild := func(checkPath, target string) bool {
+		return checkPath == target || strings.HasPrefix(checkPath, target+"/")
+	}
+
 	// Windows application and system paths
 	if strings.Contains(checkPath, "/appdata/local/programs") ||
-		strings.Contains(checkPath, "/program files") ||
-		strings.Contains(checkPath, "/program files (x86)") ||
-		strings.Contains(checkPath, "/windows/system32") ||
-		strings.HasPrefix(checkPath, "/windows") {
+		isDirOrChild(checkPath, "/program files") ||
+		isDirOrChild(checkPath, "/program files (x86)") ||
+		isDirOrChild(checkPath, "/programdata") ||
+		isDirOrChild(checkPath, "/windows") {
 		return true
 	}
 
 	// macOS application bundles (*.app or *.app/Contents/...) and system directories
 	if strings.Contains(checkPath, ".app/") || strings.HasSuffix(checkPath, ".app") ||
-		checkPath == "/applications" || checkPath == "/applications/" ||
-		strings.HasPrefix(checkPath, "/system") ||
-		strings.HasPrefix(checkPath, "/library") {
+		isDirOrChild(checkPath, "/applications") ||
+		isDirOrChild(checkPath, "/system") ||
+		isDirOrChild(checkPath, "/library") {
 		return true
 	}
 
 	// Linux / Unix system binary and config paths (exact binary directories only)
-	if strings.HasPrefix(checkPath, "/usr/bin") ||
-		strings.HasPrefix(checkPath, "/usr/local/bin") ||
-		strings.HasPrefix(checkPath, "/usr/sbin") ||
-		strings.HasPrefix(checkPath, "/usr/lib") ||
-		strings.HasPrefix(checkPath, "/bin") ||
-		strings.HasPrefix(checkPath, "/sbin") ||
-		strings.HasPrefix(checkPath, "/etc") {
+	if isDirOrChild(checkPath, "/usr/bin") ||
+		isDirOrChild(checkPath, "/usr/local/bin") ||
+		isDirOrChild(checkPath, "/usr/sbin") ||
+		isDirOrChild(checkPath, "/usr/lib") ||
+		isDirOrChild(checkPath, "/bin") ||
+		isDirOrChild(checkPath, "/sbin") ||
+		isDirOrChild(checkPath, "/etc") {
 		return true
 	}
 

@@ -3,6 +3,7 @@ package mcputil
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/bhaskarjha-dev/vivechak/internal/core"
@@ -85,5 +86,64 @@ title: Founding Architecture Document
 	// Verify T1-01 was NOT registered as "T1-01-database" because frontmatter was authoritative
 	if completed["T1-01-database"] {
 		t.Errorf("T1-01-database should not be registered when frontmatter specified T1-01")
+	}
+}
+
+func TestNextSession_CalibrationBlockInjection(t *testing.T) {
+	dag := &core.DAG{
+		Sessions: []core.Session{
+			{ID: "T1-01", Title: "DB Research"},
+			{ID: "SYN-01", Title: "Synthesis"},
+			{ID: "FAD", Title: "Founding Architecture Document"},
+		},
+	}
+
+	// 1. Regular research session gets calibration rules injected
+	_, envT1, err := buildSessionResponse("vivechak_next_session", dag.Sessions[0], "Base prompt for T1-01", map[string]bool{}, dag, false, nil)
+	if err != nil {
+		t.Fatalf("buildSessionResponse for T1-01 failed: %v", err)
+	}
+	dataT1, ok := envT1.Data.(map[string]any)
+	if !ok {
+		t.Fatalf("expected data map, got %T", envT1.Data)
+	}
+	promptT1, ok := dataT1["prompt"].(string)
+	if !ok || !strings.Contains(promptT1, "### RESEARCH CALIBRATION (Active Rules)") {
+		t.Errorf("expected calibration block in T1-01 prompt, got: %s", promptT1)
+	}
+	if !strings.Contains(promptT1, "Qualified Provenance") {
+		t.Errorf("expected qualified provenance rule in T1-01 prompt")
+	}
+
+	// 2. Synthesis session SYN-01 is exempted
+	_, envSyn, err := buildSessionResponse("vivechak_next_session", dag.Sessions[1], "Base synthesis prompt", map[string]bool{}, dag, false, nil)
+	if err != nil {
+		t.Fatalf("buildSessionResponse for SYN-01 failed: %v", err)
+	}
+	dataSyn := envSyn.Data.(map[string]any)
+	promptSyn, _ := dataSyn["prompt"].(string)
+	if strings.Contains(promptSyn, "### RESEARCH CALIBRATION") {
+		t.Errorf("synthesis session SYN-01 should NOT have calibration block injected, got: %s", promptSyn)
+	}
+
+	// 3. Synthesis session FAD is exempted
+	_, envFAD, err := buildSessionResponse("vivechak_next_session", dag.Sessions[2], "Base FAD prompt", map[string]bool{}, dag, false, nil)
+	if err != nil {
+		t.Fatalf("buildSessionResponse for FAD failed: %v", err)
+	}
+	dataFAD := envFAD.Data.(map[string]any)
+	promptFAD, _ := dataFAD["prompt"].(string)
+	if strings.Contains(promptFAD, "### RESEARCH CALIBRATION") {
+		t.Errorf("synthesis session FAD should NOT have calibration block injected, got: %s", promptFAD)
+	}
+
+	// 4. Empty prompt does not inject calibration block
+	_, envEmpty, err := buildSessionResponse("vivechak_next_session", dag.Sessions[0], "", map[string]bool{}, dag, false, nil)
+	if err != nil {
+		t.Fatalf("buildSessionResponse for empty prompt failed: %v", err)
+	}
+	dataEmpty := envEmpty.Data.(map[string]any)
+	if promptEmpty, exists := dataEmpty["prompt"]; exists && promptEmpty != "" {
+		t.Errorf("expected no prompt for empty input, got: %v", promptEmpty)
 	}
 }

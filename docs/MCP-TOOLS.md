@@ -475,7 +475,7 @@ When an actionable session is ready:
 - `total_sessions` (`integer`): Total number of sessions in the pipeline.
 - `completed_sessions` (`integer`): Number of completed sessions.
 - `already_completed` (`boolean`): Whether this specific session was already run.
-- `prompt` (`string`): Assembled 8-block prompt with upstream findings injected.
+- `prompt` (`string`): Assembled prompt with upstream findings injected and active research calibration rules appended (for non-synthesis sessions).
 - `prompt_char_count` (`integer`): Character count.
 - `prompt_approx_tokens` (`integer`): Estimated token count.
 - `other_ready_sessions` (`string[]`, optional): Other unblocked sessions that can execute in parallel.
@@ -602,6 +602,9 @@ Defined in [`SaveSessionInput`](../internal/mcp/tool_save_session.go):
 }
 ```
 
+> [!NOTE]
+> **Dynamic Guided Routing:** When saving a session that informs an irreversible **One-Way Door**, `next_step` imperatively directs the agent to run `vivechak_challenge(session_id="...", mode="red_team")` before recording the decision. If quality observations (`Q-*`) are detected, they are surfaced directly within `next_step` to prevent autonomous agents from bypassing quality coaching.
+
 #### Common Warnings & Quality Observations
 - `[L3-WARN] W-NO-EVIDENCE-GRADES: No inline evidence grades found (expected A-E grades per P3)`
 - `[L3-WARN] W-RECALLED-GRADE-CAP: Recalled knowledge must be capped at Grade D per Principle P3`
@@ -706,7 +709,7 @@ Defined in [`RecordDecisionInput`](../internal/mcp/tool_record_decision.go):
 Append a post-hoc amendment note to an existing session file. Preserves original content while documenting evolved understanding.
 
 #### What It Does
-Appends a formatted amendment section (`## Post-Hoc Amendment (appended by <amending_session_id>)`) with timestamp and content to the specified session file. Use when downstream sessions or reviews reveal that an earlier session's findings require modification or clarification.
+Appends a formatted amendment section (`## Post-Hoc Amendment (appended by <amending_session_id>)`) with timestamp and content to the specified session file. Use when downstream sessions or reviews reveal that an earlier session's findings require modification or clarification. For synthesis sessions (`SYN-01`, `FAD`), the amendment atomically updates both `research/FAD.md` and the human-facing `FOUNDING-ARCHITECTURE.md` mirror at project root.
 
 #### Input Parameters
 Defined in [`AmendSessionInput`](../internal/mcp/tool_amend_session.go):
@@ -722,6 +725,7 @@ Defined in [`AmendSessionInput`](../internal/mcp/tool_amend_session.go):
 - `workspace_root` (`string`): Workspace path.
 - `session_id` (`string`): Session ID.
 - `file_path` (`string`): Relative output file path.
+- `root_copy` (`string`, optional): Relative path of the mirrored human-facing copy (`FOUNDING-ARCHITECTURE.md`) when amending synthesis sessions.
 - `amendment_timestamp` (`string`): RFC3339 timestamp of the amendment.
 - `amending_session_id` (`string`, optional): Source session attribution.
 - `potentially_stale_sessions` (`string[]`, optional): List of completed downstream sessions in the DAG that may depend on the amended findings.
@@ -822,7 +826,7 @@ Execute the Phase 0 exit gate check (Track A + Track B).
 Executes the mechanical verification checks for the Phase 0 Exit Gate, tailored to the workspace scope:
 - **Project Scope:**
   - **Structural Completeness (5 checks):** Confirms presence of `RESEARCH-PIPELINE.md`, all DAG sessions completed, all 6 template files, `DECISIONS.md`, and `research/FAD.md`.
-  - **Quality Indicators (3 checks):** Confirms at least 3 completed sessions for pipeline significance, verifies that `FAD.md` contains valid evidence grades, and mechanically validates ADRs (all decisions accepted, and all one-way doors define explicit reversal triggers).
+  - **Quality Indicators (3 checks):** Confirms at least 3 completed sessions for pipeline significance, verifies that `FAD.md` contains valid evidence grades, and mechanically validates ADRs (all decisions accepted, and all one-way doors define explicit reversal triggers and substantive alternative analysis via check B10).
 - **Decision Scope:**
   - **Structural Completeness (3 checks):** Confirms at least 1 completed session, template directory present, and decision record/ADR exists (`[ID]-[slug].md` or `DECISIONS.md`).
   - **Quality Indicators (2 checks):** Confirms completed decision session, and verifies decision record is substantive (>100 bytes), accepted, with reversal triggers present for one-way doors.
@@ -857,7 +861,7 @@ Defined in [`RunGateInput`](../internal/mcp/tool_run_gate.go):
   - `score` (`string`): Fraction passed (e.g., `"3/3"`).
   - `issues` (`string[]`, when `verbose=true`): List of quality warnings.
 - `track_a` / `track_b` (`object`): Backward-compatible aliases for `structural_checks` and `quality_checks`.
-- `gate_artifact` (`string`, optional): Relative path to the rendered and auto-persisted gate checklist artifact (`research/PHASE-0-GATE.md`).
+- `gate_artifact` (`string`, optional): Relative path to the rendered and auto-persisted gate checklist artifact (`research/PHASE-0-GATE.md`). Evaluates Track A (Two-Way Doors) and Track B (One-Way Doors) with decoupled semantics, avoiding false passes on pipelines without two-way doors.
 - `scope_note` (`string`): Reminder that semantic quality assessment rests with the host agent.
 
 #### Example

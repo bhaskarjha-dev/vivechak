@@ -164,11 +164,114 @@ var evidenceGradePattern = EvidenceGradePattern
 
 // recalledHighGradePattern matches Grade A, B, or C claims that rely on recalled/parametric memory.
 // Per Principle P3 (Evidentiary Grounding), unverified recall must be capped at Grade D.
-var recalledHighGradePattern = regexp.MustCompile(`(?i)(?:\[(?:Grade\s+)?[ABC]\s*[·|:,][^\]\n]*\b(?:recalled|memory)\b[^\]\n]*\]|\((?:Grade\s+)?[ABC]\s*[·|:,][^)\n]*\b(?:recalled|memory)\b[^)\n]*\)|\b(?:Grade\s+)?[ABC]\s*\([^)\n]*\b(?:recalled|memory)\b[^)\n]*\)|\b(?:Grade\s+)?[ABC]\s*\[[^\]\n]*\b(?:recalled|memory)\b[^\]\n]*\]|\[(?:Grade\s+)[ABC][^\]\n]*\b(?:recalled|memory)\b[^\]\n]*\])`)
+var recalledHighGradePattern = regexp.MustCompile(`(?i)(?:\[(?:Grade\s+)?[ABC]\s*[·|:,][^\]\n]*\b(?:recalled|memory|parametric\s+memory|model\s+memory|ai\s+memory)\b[^\]\n]*\]|\((?:Grade\s+)?[ABC]\s*[·|:,][^)\n]*\b(?:recalled|memory|parametric\s+memory|model\s+memory|ai\s+memory)\b[^)\n]*\)|\b(?:Grade\s+)?[ABC]\s*\([^)\n]*\b(?:recalled|memory|parametric\s+memory|model\s+memory|ai\s+memory)\b[^)\n]*\)|\b(?:Grade\s+)?[ABC]\s*\[[^\]\n]*\b(?:recalled|memory|parametric\s+memory|model\s+memory|ai\s+memory)\b[^\]\n]*\]|\[(?:Grade\s+)[ABC][^\]\n]*\b(?:recalled|memory|parametric\s+memory|model\s+memory|ai\s+memory)\b[^\]\n]*\])`)
+
+var (
+	qualifiedSourceRe = regexp.MustCompile(
+		`(?i)(https?://\S+|` + // Canonical URLs
+			`[a-z0-9][-a-z0-9]*\.(?:org|com|io|dev|gov|edu|net|ai)\b|` + // Domain anchors
+			`RFC\s*\d+|ISO\s*\d+|` + // Standard specifications
+			`(?:github|gitlab)\.com/\S+)`, // Repository anchors
+	)
+
+	vagueSourceRe = regexp.MustCompile(
+		`(?i)^(?:official\s*docs?|documentation|online|web|search|` +
+			`the\s*internet|various\s*sources|vendor\s*(?:docs?|website)|` +
+			`primary\s*sources?|community\s*(?:reports?|benchmarks?))$`,
+	)
+)
+
+// ValidateEvidenceProvenance verifies that Grade A fetched claims have qualified provenance anchors.
+func ValidateEvidenceProvenance(bodyStr string, isOneWay bool, result *ValidationResult) {
+	lines := strings.Split(bodyStr, "\n")
+	inSourcesTable := false
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "## Sources") || strings.HasPrefix(trimmed, "## Evidence") {
+			inSourcesTable = true
+			continue
+		}
+		if inSourcesTable && strings.HasPrefix(trimmed, "## ") {
+			inSourcesTable = false
+		}
+
+		if inSourcesTable && strings.HasPrefix(trimmed, "|") && !strings.Contains(trimmed, "---") {
+			parts := strings.Split(trimmed, "|")
+			if len(parts) >= 4 {
+				isGradeA := false
+				isFetched := false
+				var sourceText string
+
+				for idx, part := range parts {
+					cell := strings.TrimSpace(part)
+					cellUpper := strings.ToUpper(cell)
+					if cellUpper == "A" || cellUpper == "GRADE A" || cellUpper == "[A]" || cellUpper == "[GRADE A]" {
+						isGradeA = true
+					}
+					if strings.Contains(strings.ToLower(cell), "fetched") {
+						isFetched = true
+					}
+					if idx == 2 && cell != "" && cellUpper != "SOURCE" && cellUpper != "A" && cellUpper != "GRADE A" {
+						sourceText = cell
+					} else if idx == 1 && cell != "" && cellUpper != "#" && cellUpper != "SOURCE" && cellUpper != "A" && cellUpper != "GRADE A" && sourceText == "" {
+						sourceText = cell
+					}
+				}
+
+				if isGradeA && (isFetched || strings.Contains(strings.ToLower(trimmed), "fetched")) {
+					cleanSource := strings.Trim(strings.TrimSpace(sourceText), "[]()\"'`")
+					isQualified := qualifiedSourceRe.MatchString(cleanSource)
+					isVague := vagueSourceRe.MatchString(cleanSource) || cleanSource == "" || (!isQualified && len(cleanSource) < 15)
+
+					if isVague {
+						if isOneWay {
+							result.AddIssueWithHint(L2Block, "V-OWD-VAGUE-PROVENANCE",
+								fmt.Sprintf("One-way door session has Grade A claim with vague provenance: %q", cleanSource),
+								"Provide a canonical URL, domain anchor (e.g. wails.io), RFC spec, or specific document title")
+						} else {
+							result.AddIssueWithHint(L3Warn, "W-VAGUE-PROVENANCE",
+								fmt.Sprintf("Grade A claim has vague provenance: %q", cleanSource),
+								"Provide a canonical URL, domain anchor, RFC spec, or specific document title")
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+// ValidateDiscoveredConcerns verifies that Discovered Concerns contains substantive analysis on one-way door sessions.
+func ValidateDiscoveredConcerns(bodyStr string, isOneWay bool, result *ValidationResult) {
+	hasHeading := hasSectionHeading(bodyStr, "discovered concerns", "discovered concern")
+	content := extractSection(bodyStr, "discovered concerns", "discovered concern")
+	trimmed := strings.TrimSpace(content)
+
+	isEmpty := !hasHeading || len(trimmed) < 50 ||
+		strings.EqualFold(trimmed, "None.") ||
+		strings.EqualFold(trimmed, "None identified.") ||
+		strings.EqualFold(trimmed, "N/A") ||
+		strings.EqualFold(trimmed, "No additional concerns.")
+
+	if isEmpty && isOneWay {
+		result.AddIssueWithHint(L2Block, "V-OWD-NO-CONCERNS",
+			"One-way door sessions require substantive Discovered Concerns (≥50 chars).",
+			"Document at least one unexpected constraint, trade-off, or failure mode discovered outside the original research scope.")
+	} else if hasHeading && (len(trimmed) == 0 || strings.EqualFold(trimmed, "None.") || strings.EqualFold(trimmed, "N/A") || strings.EqualFold(trimmed, "None identified.")) {
+		result.AddIssueWithHint(L3Warn, "W-NO-CONCERNS",
+			"Discovered Concerns section is empty or trivial.",
+			"Consider documenting unexpected findings, integration risks, or edge cases.")
+	}
+}
 
 // ValidateSession checks a research session output against the validation ladder.
 // Returns issues at levels L1-L3 (L4 is project-wide, not per-session).
 func ValidateSession(data []byte) *ValidationResult {
+	return ValidateSessionWithContext(data, false)
+}
+
+// ValidateSessionWithContext validates a session with explicit one-way door context.
+func ValidateSessionWithContext(data []byte, isOneWay bool) *ValidationResult {
 	result := &ValidationResult{Status: "valid"}
 
 	fm, body, err := ParseFrontmatter(data)
@@ -185,6 +288,10 @@ func ValidateSession(data []byte) *ValidationResult {
 			"Add frontmatter with at least: session_id, title, date, status")
 		result.Status = "draft"
 		return result
+	}
+
+	if fm.Has("door_type") && strings.EqualFold(fm.GetString("door_type"), "one-way") {
+		isOneWay = true
 	}
 
 	// L2: Required frontmatter fields
@@ -233,6 +340,10 @@ func ValidateSession(data []byte) *ValidationResult {
 	// L3: Evidence grades and recalled grade cap checks
 	checkEvidenceGrades(bodyStr, result)
 	checkRecalledGradeCap(bodyStr, result)
+
+	// L2/L3: Provenance and concerns checks
+	ValidateEvidenceProvenance(bodyStr, isOneWay, result)
+	ValidateDiscoveredConcerns(bodyStr, isOneWay, result)
 
 	// L3: Check for status field
 	if !fm.Has("status") {
@@ -532,10 +643,30 @@ func checkEvidenceGrades(bodyStr string, result *ValidationResult) {
 
 // checkRecalledGradeCap verifies that recalled knowledge claims are capped at Grade D per Principle P3.
 func checkRecalledGradeCap(bodyStr string, result *ValidationResult) {
-	if bodyStr != "" && recalledHighGradePattern.MatchString(bodyStr) {
+	if bodyStr == "" {
+		return
+	}
+	matches := recalledHighGradePattern.FindAllString(bodyStr, -1)
+	for _, match := range matches {
+		matchLower := strings.ToLower(match)
+		// If the citation cites documentation, URLs, RFCs, or benchmarks, technical computing memory (RAM, in-memory) must not be flagged
+		if strings.Contains(matchLower, "official") ||
+			strings.Contains(matchLower, "doc") ||
+			strings.Contains(matchLower, "http") ||
+			strings.Contains(matchLower, "rfc") ||
+			strings.Contains(matchLower, "benchmark") ||
+			strings.Contains(matchLower, "in-memory") ||
+			strings.Contains(matchLower, "shared memory") ||
+			strings.Contains(matchLower, "memory safety") {
+			// Check if it explicitly indicates unverified recall
+			if !strings.Contains(matchLower, "recalled") {
+				continue
+			}
+		}
 		result.AddIssueWithHint(L3Warn, "W-RECALLED-GRADE-CAP",
 			"Recalled knowledge must be capped at Grade D per Principle P3",
 			"Downgrade recalled claims to Grade D or corroborate them with live fetched/cached sources")
+		break
 	}
 }
 

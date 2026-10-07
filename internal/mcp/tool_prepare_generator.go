@@ -53,7 +53,7 @@ func handlePrepareGenerator(_ context.Context, _ *sdkmcp.CallToolRequest, in Pre
 				"Use scope 'project', 'decision', or 'comparison'.")
 		}
 		scope = s
-	} else if in.ProjectRoot != "" {
+	} else {
 		if ws, err := core.ResolveWorkspace(in.ProjectRoot); err == nil {
 			info := core.InspectWorkspace(ws)
 			if info.Scope != "" {

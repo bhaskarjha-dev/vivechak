@@ -48,6 +48,12 @@ type DAG struct {
 
 	// Tier is the inferred tier (e.g., "Tier 1 (4-8 Sessions)").
 	Tier string `json:"tier,omitempty"`
+
+	// Preamble stores the document content before the topology table or session definitions.
+	Preamble string `json:"preamble,omitempty"`
+
+	// Epilogue stores document content after all session prompts (e.g., Phase 0 Exit Gate Criteria).
+	Epilogue string `json:"epilogue,omitempty"`
 }
 
 // SessionByID returns the session with the given ID, or nil if not found (case-insensitive).
@@ -244,6 +250,10 @@ func ParsePipeline(data []byte) (*DAG, error) {
 	outerFenceLen := 0
 	inInnerBlock := false
 
+	var preambleLines []string
+	seenMainSection := false
+	lastPromptEndLine := -1
+
 	for i := 0; i < len(lines); i++ {
 		line := lines[i]
 		trimmed := strings.TrimSpace(line)
@@ -264,18 +274,39 @@ func ParsePipeline(data []byte) (*DAG, error) {
 				if numBackticks >= 3 {
 					afterTicks := strings.TrimSpace(trimmed[numBackticks:])
 					if afterTicks != "" {
-						inInnerBlock = true
+						inInnerBlock = !inInnerBlock
 					} else {
 						if inInnerBlock {
 							inInnerBlock = false
 						} else {
-							isClosingFence = true
+							nextIsBoundary := true
+							for k := i + 1; k < len(lines); k++ {
+								kTrim := strings.TrimSpace(lines[k])
+								if kTrim == "" {
+									continue
+								}
+								if strings.HasPrefix(kTrim, "---") ||
+									strings.HasPrefix(kTrim, "###") ||
+									strings.HasPrefix(kTrim, "##") ||
+									promptStartRe.MatchString(kTrim) {
+									nextIsBoundary = true
+								} else {
+									nextIsBoundary = false
+								}
+								break
+							}
+							if nextIsBoundary {
+								isClosingFence = true
+							} else {
+								inInnerBlock = true
+							}
 						}
 					}
 				}
 			}
 
 			if isClosingFence {
+				lastPromptEndLine = i
 				inPrompt = false
 				promptContent := strings.Join(promptLines, "\n")
 				targetSession := currentSession
@@ -324,6 +355,21 @@ func ParsePipeline(data []byte) (*DAG, error) {
 				promptLines = append(promptLines, line)
 			}
 			continue
+		}
+
+		if !seenMainSection {
+			if strings.HasPrefix(trimmed, "## Pipeline Topology") ||
+				strings.HasPrefix(trimmed, "## Topology") ||
+				strings.HasPrefix(trimmed, "## Execution DAG") ||
+				strings.HasPrefix(trimmed, "## Session Prompts") ||
+				strings.HasPrefix(trimmed, "## Research Prompts") ||
+				strings.HasPrefix(trimmed, "## Sessions") ||
+				sessionHeaderRe.MatchString(trimmed) ||
+				promptStartRe.MatchString(trimmed) {
+				seenMainSection = true
+			} else {
+				preambleLines = append(preambleLines, line)
+			}
 		}
 
 		// Check for prompt block start
@@ -483,6 +529,11 @@ func ParsePipeline(data []byte) (*DAG, error) {
 	// Assemble deduplicated sessions in order of appearance
 	for _, id := range sessionOrder {
 		dag.Sessions = append(dag.Sessions, *sessionsByID[id])
+	}
+
+	dag.Preamble = strings.Join(preambleLines, "\n")
+	if lastPromptEndLine >= 0 && lastPromptEndLine+1 < len(lines) {
+		dag.Epilogue = strings.Join(lines[lastPromptEndLine+1:], "\n")
 	}
 
 	if len(dag.Sessions) == 0 {
@@ -664,14 +715,19 @@ func (d *DAG) UpdatePrompt(id string, prompt string) error {
 func (d *DAG) Serialize() []byte {
 	var sb strings.Builder
 
-	title := "Research Pipeline"
-	if d.Archetype != "" {
-		title = fmt.Sprintf("Research Pipeline: %s", d.Archetype)
-	}
-	fmt.Fprintf(&sb, "# %s\n\n", title)
+	if strings.TrimSpace(d.Preamble) != "" {
+		sb.WriteString(strings.TrimRight(d.Preamble, "\n"))
+		sb.WriteString("\n\n")
+	} else {
+		title := "Research Pipeline"
+		if d.Archetype != "" {
+			title = fmt.Sprintf("Research Pipeline: %s", d.Archetype)
+		}
+		fmt.Fprintf(&sb, "# %s\n\n", title)
 
-	if d.Tier != "" || d.ComplexityScore > 0 {
-		fmt.Fprintf(&sb, "> **Tier:** %s · **Complexity Score:** %d\n\n", d.Tier, d.ComplexityScore)
+		if d.Tier != "" || d.ComplexityScore > 0 {
+			fmt.Fprintf(&sb, "> **Tier:** %s · **Complexity Score:** %d\n\n", d.Tier, d.ComplexityScore)
+		}
 	}
 
 	sb.WriteString("## Pipeline Topology\n\n")
@@ -723,15 +779,25 @@ func (d *DAG) Serialize() []byte {
 		sb.WriteString("\n")
 
 		if s.Prompt != "" {
-			sb.WriteString("```prompt\n")
+			sb.WriteString("````prompt\n")
 			sb.WriteString(strings.TrimSpace(s.Prompt))
-			sb.WriteString("\n```\n\n")
+			sb.WriteString("\n````\n\n")
 		} else {
-			sb.WriteString("```prompt\n")
+			sb.WriteString("````prompt\n")
 			fmt.Fprintf(&sb, "# %s: %s\n\nBRIEF:\nConduct research for %s.\n", s.ID, sTitle, sTitle)
-			sb.WriteString("```\n\n")
+			sb.WriteString("````\n\n")
 		}
 		sb.WriteString("---\n\n")
+	}
+
+	if strings.TrimSpace(d.Epilogue) != "" {
+		trimmedEpilogue := strings.TrimSpace(d.Epilogue)
+		trimmedEpilogue = strings.TrimPrefix(trimmedEpilogue, "---")
+		trimmedEpilogue = strings.TrimSpace(trimmedEpilogue)
+		if trimmedEpilogue != "" {
+			sb.WriteString(trimmedEpilogue)
+			sb.WriteString("\n")
+		}
 	}
 
 	return []byte(sb.String())

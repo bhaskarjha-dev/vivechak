@@ -43,6 +43,13 @@ schema_version: "0.1.0"
 |---|---|---|
 | [Risk 1] | [High/Medium/Low] | [How to mitigate] |
 
+## Discovered Concerns
+
+<!-- Document unexpected findings, risks, constraints, or failure modes discovered OUTSIDE
+the original research scope. These are things you didn't expect to find.
+For one-way door sessions, this section must contain substantive analysis (≥50 characters). -->
+- **[Concern Title]**: [Description, potential impact, and suggested follow-up]
+
 ## Delta
 
 | Prior Belief | Status | Evidence | Impact |

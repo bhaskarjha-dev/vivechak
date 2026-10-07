@@ -294,6 +294,12 @@ func handleNextSession(_ context.Context, _ *sdkmcp.CallToolRequest, in NextSess
 	return buildSessionResponse(tool, nextSession, prompt, completedIDs, dag, in.Verbose, injWarnings, otherReady...)
 }
 
+const calibrationBlock = "\n\n---\n### RESEARCH CALIBRATION (Active Rules)\n" +
+	"1. **Memory \u2260 Evidence:** Claims recalled from model weights cap at Grade D. Verify with web search.\n" +
+	"2. **Qualified Provenance:** Grade A claims require canonical URLs, domain anchors, RFCs, or doc titles.\n" +
+	"3. **Falsification Required:** Actively search for failure modes, gotchas, and production incident postmortems.\n" +
+	"4. **Honest Gaps:** Explicitly stating \"searched X and found no evidence\" is valued. Never hallucinate sources.\n"
+
 // buildSessionResponse creates the response envelope for a session.
 func buildSessionResponse(tool string, session core.Session, prompt string, completedIDs map[string]bool, dag *core.DAG, verbose bool, preWarnings []string, otherReady ...string) (*sdkmcp.CallToolResult, Envelope, error) {
 	data := map[string]any{
@@ -307,6 +313,11 @@ func buildSessionResponse(tool string, session core.Session, prompt string, comp
 		"total_sessions":     len(dag.Sessions),
 		"completed_sessions": len(completedIDs),
 		"already_completed":  completedIDs[session.ID],
+	}
+
+	// Inject research calibration rules into non-synthesis session prompts
+	if !core.IsSynthesisSession(session.ID) && prompt != "" && !strings.Contains(prompt, "### RESEARCH CALIBRATION") {
+		prompt += calibrationBlock
 	}
 
 	// Progressive disclosure: truncate if prompt is very large

@@ -503,17 +503,19 @@ Every research artifact combines:
 - **Markdown body** — human-readable narrative with standardized section structure
 - **Strict separation** between `Recommendation` and `Alternatives Considered`
 
-### 6.2 Standardized 7-Section Body Skeleton
+### 6.2 Standardized 9-Section Body Skeleton
 
 | # | Section | Purpose |
 |---|---|---|
-| 1 | `## Research Question` | Precise 1–2 sentence statement |
-| 2 | `## Key Findings` | 3–7 atomic bullet points extractable by synthesis agents |
-| 3 | `## Recommendation` | Explicit guidance (isolated from rejected options) |
-| 4 | `## Alternatives Considered` | Evaluated competing options and rejection rationale |
-| 5 | `## Detailed Findings` | Flexible analytical body |
-| 6 | `## Open Questions & Risks` | Unresolved items and downstream risks |
-| 7 | `## Sources & Evidentiary Ledger` | Numbered citations with composite grade metadata |
+| 1 | `## Prior` | Pre-research assumptions and starting beliefs (mitigates confirmation bias) |
+| 2 | `## Research Question` | Precise 1–2 sentence statement of inquiry |
+| 3 | `## Key Findings` | 3–7 atomic bullet points with inline evidence grades extractable by synthesis agents |
+| 4 | `## Recommendation` | Explicit guidance (isolated from rejected options, referencing evidence) |
+| 5 | `## Alternatives Considered` | Evaluated competing options and rejection rationale |
+| 6 | `## Open Questions & Risks` | Unresolved items, dependencies, and downstream risks |
+| 7 | `## Discovered Concerns` | Unexpected constraints, trade-offs, or failure modes outside initial scope (≥50 chars for one-way doors) |
+| 8 | `## Delta` | Tracking shift from prior beliefs (Confirmed / Contradicted / Updated) |
+| 9 | `## Sources & Evidence Ledger` | Tabular citations with composite grade, verification method, and claimed provenance |
 
 ### 6.3 Map-Reduce Synthesis Workflow
 

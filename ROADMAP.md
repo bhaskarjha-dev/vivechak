@@ -43,6 +43,10 @@ Every deferred feature is tracked with its origin, explicit gate condition, and 
 | **Cross-Session Field Guide** | Comprehensive operational guide for running 20+ session pipelines across distributed agent sessions. | Audit Backlog / `T3-02` | Multi-day project research pipelines in production | Low |
 | **Examiner Calibration Questions** | Pre-generated calibration questions for human architects to probe agent-generated FADs during Phase 0 reviews. | Audit Backlog / `T3-03` | Team adoption where human architects review autonomous agent research | Low |
 | **Worked Failed Pipeline Example** | A complete negative example in `examples/FAILED-PIPELINE.md` demonstrating failure recovery, contradictory evidence resolution, and gate rejection. | Audit (OP-02) | Real failure logs harvested from live dogfooding | Low |
+| **Search Budget Density Tracking** | Density tracking of searches per decision rather than hardcoded quotas (D-UX-02). | Dogfooding Synthesis (F-2) | Live telemetry showing agents continuing to skimp searches despite qualified provenance | Low |
+| **Structured Evidence Receipts** | Cryptographic/structured hash receipts for individual evidence citations. | Dogfooding Synthesis (F-1) | Regulated industry adoption requiring verifiable chain-of-custody | Medium |
+| **Belief Evolution Ledger Injection** | Dynamic injection of historical belief deltas across DAG layers to highlight confirmation bias. | Dogfooding Synthesis (F-3) | Multi-layer pipelines where Q-BIAS advisories fail to curb confirmation drift | Low |
+| **Cumulative Prior Tracker** | Cross-layer tracking of accumulated architectural biases across 5+ session DAGs. | Dogfooding Synthesis (P1-2) | Longitudinal evidence that dynamic routing alone is insufficient | Medium |
 
 ### 2.2 Enterprise & Ecosystem Extensions (v0.2.x+)
 
@@ -96,6 +100,7 @@ Every deferred feature is tracked with its origin, explicit gate condition, and 
 | **Hardcoded Domain Archetype Heuristics** | Prescribing fixed search queries violates Principle P4. Frontier models generate domain probes dynamically. | Principle P4 |
 | **4D Reversibility Tensor** | Unnecessary mathematical over-engineering; binary door classification with R/N/B/X profiling is robust and intuitive. | Simplicity / Pragmatism |
 | **MCP Resources & MCP Prompts (`resources.go`/`prompts.go`)** | Redundant surface. Workspace files are accessible via standard host file tools; prompts are delivered via tool responses. | Lean MCP Surface |
+| **Shadow State Files (`.vivechak-state.json`)** | Violates Principle P6 (Dual-Audience Artifacts). Creates hidden shadow state that desynchronizes from Markdown. All state is derived directly from the filesystem and artifact frontmatter. | Principle P6 & D-UX-02 |
 
 ---
 

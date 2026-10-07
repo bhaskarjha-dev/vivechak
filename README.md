@@ -180,12 +180,12 @@ Vivechak ships as a universal **MCP server** — install the binary, register it
 | `vivechak_prepare_generator` | Return scope-appropriate generator prompt with context filled in |
 | `vivechak_save_plan` | Validate + persist generated research plan and execution DAG |
 | `vivechak_status` | Report workspace progress (DAG completion, blocked sessions) |
-| `vivechak_next_session` | Return next session prompt with upstream findings automatically injected |
+| `vivechak_next_session` | Return next session prompt with upstream findings injected and active research calibration rules |
 | `vivechak_save_session` | Validate + persist completed session output with real-time quality coaching (`Q-*`), mini-status, and FAD root copy mirroring |
 | `vivechak_record_decision` | Save ADR or conflict resolution, handle ADR supersession, and automatically compile consolidated `DECISIONS.md` registry |
-| `vivechak_amend_session` | Append post-hoc amendments with transitive downstream stale alerts (`W-STALE-DOWNSTREAM`) |
+| `vivechak_amend_session` | Append post-hoc amendments with FAD root mirroring and transitive downstream stale alerts (`W-STALE-DOWNSTREAM`) |
 | `vivechak_validate` | Dry-run validation ladder on any research artifact |
-| `vivechak_run_gate` | Phase 0 exit gate (Track A + Track B with automated B1–B9 structural and evidentiary checks, auto-persisting `PHASE-0-GATE.md`) |
+| `vivechak_run_gate` | Phase 0 exit gate (decoupled Track A + Track B with automated B1–B10 checks, auto-persisting `PHASE-0-GATE.md`) |
 | `vivechak_challenge` | Adversarial stress-testing of completed sessions (red-team, evidence audit, cross-session consistency) |
 | `vivechak_replan` | Mid-flight DAG mutation (add/remove sessions, update dependencies/prompts) |
 | `vivechak_visualize` | Render pipeline DAG as Mermaid flowchart or ASCII status table |

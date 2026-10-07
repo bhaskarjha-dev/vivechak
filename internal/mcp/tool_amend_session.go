@@ -155,8 +155,18 @@ func handleAmendSession(ctx context.Context, _ *sdkmcp.CallToolRequest, in Amend
 		dataMap["amending_session_id"] = in.AmendingSessionID
 	}
 
-	// Check for completed downstream sessions that may now be stale
 	var warnings []string
+	if core.IsSynthesisSession(in.SessionID) {
+		rootFAD := "FOUNDING-ARCHITECTURE.md"
+		if cpErr := store.WriteFileAtomic(ws.Root(), rootFAD, newContent, 0o644); cpErr != nil {
+			warnings = append(warnings, fmt.Sprintf(
+				"W-FAD-COPY: could not copy amended FAD to project root: %v", cpErr))
+		} else {
+			dataMap["root_copy"] = rootFAD
+		}
+	}
+
+	// Check for completed downstream sessions that may now be stale
 	if pipelineData, err := ws.ReadFile(core.PipelineFile); err == nil {
 		if dag, err := core.ParsePipeline(pipelineData); err == nil && dag != nil {
 			dependents := dag.TransitiveDependents(in.SessionID)

@@ -87,7 +87,7 @@ Your agent coordinates the 13 tools autonomously:
   ├─ vivechak_save_session   ──> Validates evidence grades (A-E) and saves session output
   └─ vivechak_record_decision ──> Locks ADR with One-Way vs Two-Way Door classification
 [Agent: vivechak_run_gate]
-  └─ Evaluates Phase 0 exit gate (Track A fast-track or Track B 9-step check)
+  └─ Evaluates Phase 0 exit gate (Track A fast-track or Track B 10-step check)
 ```
 
 See the [MCP Tools Reference](MCP-TOOLS.md) for full tool schemas, parameter specs, and error handling.

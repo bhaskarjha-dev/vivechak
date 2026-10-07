@@ -318,6 +318,26 @@ func TestPrepareGenerator_ScopeAutoDetect(t *testing.T) {
 	if !strings.Contains(prompt, "Choose between PostgreSQL and DynamoDB") {
 		t.Errorf("prompt does not contain injected context")
 	}
+
+	// Call prepare_generator without scope or project_root, using env var
+	t.Setenv("VIVECHAK_PROJECT_ROOT", tmpDir)
+	resultEnv, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_prepare_generator",
+		Arguments: map[string]any{
+			"context": "Choose between Redis and Memcached",
+		},
+	})
+	if err != nil {
+		t.Fatalf("vivechak_prepare_generator with env var: %v", err)
+	}
+	envFromVar := parseEnvelope(t, resultEnv)
+	if !envFromVar.Success {
+		t.Fatalf("prepare_generator failed: %s", envFromVar.Message)
+	}
+	dataEnv, _ := envFromVar.Data.(map[string]any)
+	if dataEnv["scope"] != "decision" {
+		t.Errorf("expected scope 'decision' auto-detected from env var workspace, got %v", dataEnv["scope"])
+	}
 }
 
 // TestSaveSessionValidation tests the validation ladder on session save.

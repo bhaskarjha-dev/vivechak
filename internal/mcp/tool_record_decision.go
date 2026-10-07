@@ -528,8 +528,18 @@ func updateOrAppendDecision(existing []byte, decisionID string, content string) 
 // into a collapsible <details> block with a YAML code fence inside.
 // This prevents markdown renderers from treating mid-file --- as horizontal rules.
 func wrapFrontmatterForRegistry(content string) string {
-	// Check if content starts with YAML frontmatter
 	trimmed := strings.TrimSpace(content)
+	if strings.HasPrefix(trimmed, "<!-- DECISION:") {
+		if endIdx := strings.Index(trimmed, "-->"); endIdx != -1 {
+			trimmed = strings.TrimSpace(trimmed[endIdx+3:])
+		}
+	}
+	if strings.HasSuffix(trimmed, "-->") {
+		if startIdx := strings.LastIndex(trimmed, "<!-- /DECISION:"); startIdx != -1 {
+			trimmed = strings.TrimSpace(trimmed[:startIdx])
+		}
+	}
+	// Check if content starts with YAML frontmatter
 	if !strings.HasPrefix(trimmed, "---") {
 		return content
 	}

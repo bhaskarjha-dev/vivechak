@@ -633,8 +633,12 @@ func runSetupWithArgs(args []string, stdout, stderr io.Writer) int {
 		}
 		configPath = resolvedPath
 	} else if strings.Contains(target, "/") || strings.Contains(target, "\\") || strings.HasSuffix(target, ".json") || strings.HasSuffix(target, ".jsonc") {
-		configPath = target
-		hostName = filepath.Base(target)
+		if fi, err := os.Stat(target); err == nil && fi.IsDir() {
+			configPath = filepath.Join(target, "mcp.json")
+		} else {
+			configPath = target
+		}
+		hostName = filepath.Base(configPath)
 	} else {
 		fmt.Fprintf(stderr, "Error: unrecognized host preset or file path: %q\n", target)
 		fmt.Fprintf(stderr, "Available presets: %s\n", desktopShortcutsList)

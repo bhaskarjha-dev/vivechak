@@ -888,6 +888,128 @@ func TestDAG_CaseInsensitiveOperations(t *testing.T) {
 	}
 }
 
+func TestDAG_SerializeRoundTrip(t *testing.T) {
+	inputPipeline := `# Research Pipeline: Katha Interactive Platform
+### Project Parameters
+Archetype: Interactive Web App
+Constraints: Low Latency LLM Streaming
+
+## Pipeline Topology
+
+| ID | Topic | Dependencies | Output File |
+|---|---|---|---|
+| S1 | Persistence Landscape | none | sessions/S1.md |
+| S2 | Real-time Sync | S1 | sessions/S2.md |
+
+---
+
+## Session Prompts
+
+### Session S1: Persistence Landscape
+
+| **Field** | **Value** |
+|---|---|
+| **ID** | S1 |
+| **Layer** | 0 |
+| **Dependencies** | none |
+| **Output** | sessions/S1.md |
+| **Door Type** | one-way |
+
+` + "````prompt" + `
+# RESEARCH BRIEF: S1
+Investigate database options.
+` + "````" + `
+
+---
+
+### Session S2: Real-time Sync
+
+| **Field** | **Value** |
+|---|---|
+| **ID** | S2 |
+| **Layer** | 1 |
+| **Dependencies** | S1 |
+| **Output** | sessions/S2.md |
+| **Door Type** | two-way |
+
+` + "````prompt" + `
+# RESEARCH BRIEF: S2
+Investigate synchronization options.
+` + "````" + `
+
+---
+
+## Phase 0 Exit Gate Criteria
+- [ ] B1: Staged Triangulation
+- [ ] B2: Falsification Record
+`
+
+	dag, err := ParsePipeline([]byte(inputPipeline))
+	if err != nil {
+		t.Fatalf("ParsePipeline failed: %v", err)
+	}
+
+	if len(dag.Sessions) != 2 {
+		t.Fatalf("expected 2 sessions, got %d", len(dag.Sessions))
+	}
+	if !strings.Contains(dag.Preamble, "Archetype: Interactive Web App") {
+		t.Errorf("expected Preamble to retain project parameters, got: %q", dag.Preamble)
+	}
+	if !strings.Contains(dag.Epilogue, "Phase 0 Exit Gate Criteria") {
+		t.Errorf("expected Epilogue to retain exit gate criteria, got: %q", dag.Epilogue)
+	}
+
+	serialized := string(dag.Serialize())
+	if !strings.Contains(serialized, "Archetype: Interactive Web App") {
+		t.Errorf("serialized output lost project parameters")
+	}
+	if !strings.Contains(serialized, "Phase 0 Exit Gate Criteria") {
+		t.Errorf("serialized output lost exit gate criteria")
+	}
+	if !strings.Contains(serialized, "````prompt") {
+		t.Errorf("serialized output should use 4-backtick code fences")
+	}
+}
+
+func TestDAG_ParsePipeline_UntaggedInnerCodeFence(t *testing.T) {
+	input := `# Pipeline
+
+## Session Prompts
+
+### Session S1: Test
+
+| **Field** | **Value** |
+|---|---|
+| **ID** | S1 |
+
+` + "```prompt" + `
+# Prompt Brief
+
+Here is an example code block:
+` + "```\n" + `
+foo := 123
+bar := 456
+` + "```\n" + `
+This instruction must not be truncated!
+` + "```" + `
+
+---
+`
+
+	dag, err := ParsePipeline([]byte(input))
+	if err != nil {
+		t.Fatalf("ParsePipeline failed: %v", err)
+	}
+	s := dag.SessionByID("S1")
+	if s == nil {
+		t.Fatalf("session S1 not found")
+	}
+	if !strings.Contains(s.Prompt, "This instruction must not be truncated!") {
+		t.Errorf("inner untagged code fence caused prompt truncation. Prompt was:\n%s", s.Prompt)
+	}
+}
+
+
 
 
 

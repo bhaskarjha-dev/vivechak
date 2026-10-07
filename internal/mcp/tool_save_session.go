@@ -71,22 +71,34 @@ func handleSaveSession(ctx context.Context, _ *sdkmcp.CallToolRequest, in SaveSe
 	// FAD (Founding Architecture Document) writes to research/FAD.md
 	isSynthesis := core.IsSynthesisSession(in.SessionID)
 
-	// Validate the session content (use ValidateFAD for FAD/synthesis sessions)
-	var validation *core.ValidationResult
-	if isSynthesis {
-		validation = core.ValidateFAD([]byte(in.Content))
-	} else {
-		validation = core.ValidateSession([]byte(in.Content))
-	}
-
-	// Determine filename
-	filename := in.SessionID + ".md"
-
 	ws, err := store.OpenWorkspace(root)
 	if err != nil {
 		return ErrorResult(tool, fmt.Errorf("opening workspace: %w", err), "Provide a valid workspace.")
 	}
 	defer ws.Close()
+
+	// Load DAG if available to inspect session door type
+	var dag *core.DAG
+	isOneWay := false
+	if pipeData, err := ws.ReadFile(core.PipelineFile); err == nil {
+		if parsedDAG, err := core.ParsePipeline(pipeData); err == nil {
+			dag = parsedDAG
+			if s := dag.SessionByID(in.SessionID); s != nil {
+				isOneWay = strings.EqualFold(s.DoorType, "one-way")
+			}
+		}
+	}
+
+	// Validate the session content (use ValidateFAD for FAD/synthesis sessions)
+	var validation *core.ValidationResult
+	if isSynthesis {
+		validation = core.ValidateFAD([]byte(in.Content))
+	} else {
+		validation = core.ValidateSessionWithContext([]byte(in.Content), isOneWay)
+	}
+
+	// Determine filename
+	filename := in.SessionID + ".md"
 
 	// Ensure sessions directory exists
 	if err := ws.MkdirAll(core.SessionsDir, 0o755); err != nil {
@@ -125,14 +137,17 @@ func handleSaveSession(ctx context.Context, _ *sdkmcp.CallToolRequest, in SaveSe
 		warnings = append(warnings, issue.String())
 	}
 
-	var nextStep string
-	if errorCount > 0 {
-		nextStep = fmt.Sprintf("Session saved as draft (%d blocking issues). Fix the issues and re-save, "+
-			"or run vivechak_validate for a dry-run check.", errorCount)
-	} else {
-		nextStep = "Run vivechak_next_session for the next session, or " +
-			"vivechak_record_decision to record decisions from this session's findings."
+	var observations []core.QualityObservation
+	if !isSynthesis {
+		observations = core.ObserveSessionQuality([]byte(in.Content))
+		for _, o := range observations {
+			if o.Severity == "consideration" || o.Severity == "suggestion" {
+				warnings = append(warnings, fmt.Sprintf("Q-%s: %s", strings.ToUpper(o.Category), o.Message))
+			}
+		}
 	}
+
+	nextStep := buildNextStep(in.SessionID, errorCount, observations, dag)
 
 	dataMap := map[string]any{
 		"workspace_root":    root,
@@ -155,23 +170,16 @@ func handleSaveSession(ctx context.Context, _ *sdkmcp.CallToolRequest, in SaveSe
 	}
 
 	// Quality observations (advisory, never blocking)
-	if !isSynthesis {
-		observations := core.ObserveSessionQuality([]byte(in.Content))
-		if len(observations) > 0 {
-			obsData := make([]map[string]string, len(observations))
-			for i, o := range observations {
-				obsData[i] = map[string]string{
-					"category": o.Category,
-					"message":  o.Message,
-					"severity": o.Severity,
-				}
-				// Surface as warnings for maximum visibility
-				if o.Severity == "consideration" || o.Severity == "suggestion" {
-					warnings = append(warnings, fmt.Sprintf("Q-%s: %s", strings.ToUpper(o.Category), o.Message))
-				}
+	if !isSynthesis && len(observations) > 0 {
+		obsData := make([]map[string]string, len(observations))
+		for i, o := range observations {
+			obsData[i] = map[string]string{
+				"category": o.Category,
+				"message":  o.Message,
+				"severity": o.Severity,
 			}
-			dataMap["quality_observations"] = obsData
 		}
+		dataMap["quality_observations"] = obsData
 	}
 
 	// Mini-status (eliminates need for separate status calls)
@@ -201,3 +209,47 @@ func handleSaveSession(ctx context.Context, _ *sdkmcp.CallToolRequest, in SaveSe
 	}
 	return env.ToResult()
 }
+
+func buildNextStep(sessionID string, errorCount int, observations []core.QualityObservation, dag *core.DAG) string {
+	if errorCount > 0 {
+		return fmt.Sprintf("Session saved as draft (%d blocking issues). Fix the issues and re-save, "+
+			"or run vivechak_validate for a dry-run check.", errorCount)
+	}
+
+	var parts []string
+
+	// 1. Surface quality advisories directly in next_step
+	var advisories []string
+	for _, obs := range observations {
+		if obs.Severity == "consideration" || obs.Severity == "suggestion" {
+			advisories = append(advisories, fmt.Sprintf("[Q-%s] %s", strings.ToUpper(obs.Category), obs.Message))
+		}
+	}
+	if len(advisories) > 0 {
+		parts = append(parts, "⚠️ QUALITY ADVISORIES: "+strings.Join(advisories, " | "))
+	}
+
+	// 2. Door type check from DAG
+	isOneWay := false
+	if dag != nil {
+		if s := dag.SessionByID(sessionID); s != nil {
+			isOneWay = strings.EqualFold(s.DoorType, "one-way")
+		}
+	}
+
+	// 3. Route based on door type
+	if isOneWay {
+		parts = append(parts, fmt.Sprintf(
+			"🛑 ONE-WAY DOOR: Session '%s' informs an irreversible decision. "+
+				"Run 'vivechak_challenge(session_id=\"%s\", mode=\"red_team\")' to stress-test "+
+				"your findings before recording the decision. Amend with challenge results "+
+				"via vivechak_amend_session.",
+			sessionID, sessionID))
+	} else {
+		parts = append(parts, "Run vivechak_next_session for the next session, or "+
+			"vivechak_record_decision to record decisions from this session's findings.")
+	}
+
+	return strings.Join(parts, "\n\n")
+}
+

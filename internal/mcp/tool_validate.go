@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/bhaskarjha-dev/vivechak/internal/core"
@@ -140,6 +141,10 @@ func handleWorkspaceValidate(tool string, projectRoot string) (*sdkmcp.CallToolR
 	sessionsValid := 0
 	sessionsWarnings := 0
 	sessionsErrors := 0
+	var dag *core.DAG
+	if pipeData, err := ws.ReadFile(core.PipelineFile); err == nil {
+		dag, _ = core.ParsePipeline(pipeData)
+	}
 	if entries, err := ws.ListDir(core.SessionsDir); err == nil {
 		for _, e := range entries {
 			if e.IsDir() || filepath.Ext(e.Name()) != ".md" {
@@ -151,7 +156,21 @@ func handleWorkspaceValidate(tool string, projectRoot string) (*sdkmcp.CallToolR
 			}
 			relPath := filepath.Join(core.SessionsDir, e.Name())
 			if data, err := ws.ReadFile(relPath); err == nil {
-				v := core.ValidateSession(data)
+				sessionID := stem
+				if fm, _, err := core.ParseFrontmatter(data); err == nil && fm != nil {
+					if id := fm.GetString("session_id"); id != "" {
+						sessionID = id
+					} else if id := fm.GetString("id"); id != "" {
+						sessionID = id
+					}
+				}
+				isOneWay := false
+				if dag != nil {
+					if s := dag.SessionByID(sessionID); s != nil {
+						isOneWay = strings.EqualFold(s.DoorType, "one-way")
+					}
+				}
+				v := core.ValidateSessionWithContext(data, isOneWay)
 				if v.HasBlocking() {
 					sessionsErrors++
 					for _, issue := range v.BlockingIssues() {
@@ -215,6 +234,28 @@ func handleWorkspaceValidate(tool string, projectRoot string) (*sdkmcp.CallToolR
 			}
 		}
 	}
+
+	// Fallback to DECISIONS.md anchored blocks if no standalone decision files exist
+	if decisionsValid == 0 && decisionsWarnings == 0 && decisionsErrors == 0 {
+		if data, err := ws.ReadFile(core.DecisionsFile); err == nil && len(data) > 0 {
+			anchoredRe := regexp.MustCompile(`(?s)<!-- DECISION:\s*([A-Za-z0-9_-]+)\s*-->\s*(.*?)\s*<!-- /DECISION:\s*[A-Za-z0-9_-]+\s*-->`)
+			matches := anchoredRe.FindAllSubmatch(data, -1)
+			for _, m := range matches {
+				v := core.ValidateDecision(m[2])
+				if v.HasBlocking() {
+					decisionsErrors++
+					for _, issue := range v.BlockingIssues() {
+						allWarnings = append(allWarnings, fmt.Sprintf("DECISION %s: %s", string(m[1]), issue.String()))
+					}
+				} else if v.WarningCount() > 0 {
+					decisionsWarnings++
+				} else {
+					decisionsValid++
+				}
+			}
+		}
+	}
+
 	results["decisions"] = map[string]any{
 		"valid":    decisionsValid,
 		"warnings": decisionsWarnings,

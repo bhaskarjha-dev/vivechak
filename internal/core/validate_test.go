@@ -1,6 +1,7 @@
 package core
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -617,4 +618,201 @@ func TestValidateSession_TemplateFile(t *testing.T) {
 		t.Errorf("filled SESSION.template.md produced validation errors (%d): %v", res.ErrorCount(), res.Issues)
 	}
 }
+
+func TestValidateSession_TechnicalMemoryNotRecalled(t *testing.T) {
+	content := `---
+session_id: T1-01
+title: Cache Selection
+date: 2026-09-29
+status: complete
+---
+# Key Findings
+- Redis provides microsecond in-memory performance. Grade A (official docs: in-memory caching)
+- Shared memory buffer limits are documented in RFC 9110. Grade A (RFC 9110: shared memory)
+`
+	res := ValidateSession([]byte(content))
+	for _, iss := range res.Issues {
+		if iss.Code == "W-RECALLED-GRADE-CAP" {
+			t.Errorf("technical computing memory was falsely flagged with W-RECALLED-GRADE-CAP: %v", iss)
+		}
+	}
+}
+
+func TestValidateSession_QualifiedProvenance(t *testing.T) {
+	vagueOneWay := `---
+session_id: T1-01
+title: Database Selection
+date: 2026-09-29
+door_type: one-way
+status: complete
+---
+## Key Findings
+- PostgreSQL has JSONB support. Grade A (fetched)
+
+## Discovered Concerns
+- High write amplification in heavy OLTP workloads could degrade NVMe SSD lifespan significantly.
+
+## Sources & Evidence Ledger
+| # | Source | Grade | Modifiers | Verification | Used For |
+|---|---|---|---|---|---|
+| 1 | official docs | Grade A | fresh | fetched | JSONB support |
+`
+	res := ValidateSessionWithContext([]byte(vagueOneWay), true)
+	foundBlock := false
+	for _, iss := range res.Issues {
+		if iss.Code == "V-OWD-VAGUE-PROVENANCE" && iss.Level == L2Block {
+			foundBlock = true
+			break
+		}
+	}
+	if !foundBlock {
+		t.Errorf("expected V-OWD-VAGUE-PROVENANCE block for one-way door with vague source, got issues: %v", res.Issues)
+	}
+
+	// Two-way door should produce warning, not block
+	vagueTwoWay := strings.Replace(vagueOneWay, "door_type: one-way", "door_type: two-way", 1)
+	resTwoWay := ValidateSessionWithContext([]byte(vagueTwoWay), false)
+	foundWarn := false
+	for _, iss := range resTwoWay.Issues {
+		if iss.Code == "W-VAGUE-PROVENANCE" && iss.Level == L3Warn {
+			foundWarn = true
+			break
+		}
+	}
+	if !foundWarn {
+		t.Errorf("expected W-VAGUE-PROVENANCE warning for two-way door with vague source, got: %v", resTwoWay.Issues)
+	}
+}
+
+func TestValidateSession_DiscoveredConcerns(t *testing.T) {
+	trivialConcerns := `---
+session_id: T1-01
+title: Auth Selection
+date: 2026-09-29
+door_type: one-way
+status: complete
+---
+## Key Findings
+- Keycloak supports OIDC. Grade A (https://keycloak.org/docs)
+
+## Discovered Concerns
+None.
+
+## Sources & Evidence Ledger
+| # | Source | Grade | Modifiers | Verification | Used For |
+|---|---|---|---|---|---|
+| 1 | https://keycloak.org/docs | Grade A | fresh | fetched | OIDC support |
+`
+	res := ValidateSessionWithContext([]byte(trivialConcerns), true)
+	foundBlock := false
+	for _, iss := range res.Issues {
+		if iss.Code == "V-OWD-NO-CONCERNS" && iss.Level == L2Block {
+			foundBlock = true
+			break
+		}
+	}
+	if !foundBlock {
+		t.Errorf("expected V-OWD-NO-CONCERNS block for one-way door with trivial concerns, got: %v", res.Issues)
+	}
+}
+
+func TestValidateEvidenceProvenance_QualifiedTypes(t *testing.T) {
+	qualifiedSources := []string{
+		"https://w3.org/TR/webauthn-2",
+		"wails.io documentation",
+		"RFC 9110 HTTP Semantics",
+		"ISO 27001 standard",
+		"github.com/mattn/go-sqlite3",
+		"gitlab.com/group/repo",
+	}
+
+	for _, src := range qualifiedSources {
+		session := fmt.Sprintf(`---
+session_id: T1-01
+title: Auth Selection
+date: 2026-09-29
+door_type: one-way
+status: complete
+---
+## Key Findings
+- Finding supported. Grade A (fetched)
+
+## Discovered Concerns
+- High computational overhead under sustained burst load conditions.
+
+## Sources & Evidence Ledger
+| # | Source | Grade | Modifiers | Verification | Used For |
+|---|---|---|---|---|---|
+| 1 | %s | Grade A | fresh | fetched | Auth analysis |
+`, src)
+
+		res := ValidateSessionWithContext([]byte(session), true)
+		for _, iss := range res.Issues {
+			if iss.Code == "V-OWD-VAGUE-PROVENANCE" || iss.Code == "W-VAGUE-PROVENANCE" {
+				t.Errorf("source %q was falsely flagged as vague: %v", src, iss)
+			}
+		}
+	}
+}
+
+func TestValidateDiscoveredConcerns_LengthBoundary(t *testing.T) {
+	// 49 characters: below 50 char threshold
+	shortConcerns := `---
+session_id: T1-01
+title: Auth Selection
+date: 2026-09-29
+door_type: one-way
+status: complete
+---
+## Key Findings
+- Finding text. Grade A (https://example.com)
+
+## Discovered Concerns
+1234567890123456789012345678901234567890123456789
+
+## Sources & Evidence Ledger
+| # | Source | Grade | Modifiers | Verification | Used For |
+|---|---|---|---|---|---|
+| 1 | https://example.com | Grade A | fresh | fetched | Auth analysis |
+`
+	resShort := ValidateSessionWithContext([]byte(shortConcerns), true)
+	foundBlock := false
+	for _, iss := range resShort.Issues {
+		if iss.Code == "V-OWD-NO-CONCERNS" {
+			foundBlock = true
+			break
+		}
+	}
+	if !foundBlock {
+		t.Errorf("expected V-OWD-NO-CONCERNS for 49 characters, got: %v", resShort.Issues)
+	}
+
+	// 50 characters: meets threshold
+	validConcerns := strings.Replace(shortConcerns,
+		"1234567890123456789012345678901234567890123456789",
+		"12345678901234567890123456789012345678901234567890", 1)
+	resValid := ValidateSessionWithContext([]byte(validConcerns), true)
+	for _, iss := range resValid.Issues {
+		if iss.Code == "V-OWD-NO-CONCERNS" {
+			t.Errorf("50 characters was falsely blocked: %v", iss)
+		}
+	}
+
+	// Two-way door with trivial concerns triggers W-NO-CONCERNS warning
+	twoWayTrivial := strings.Replace(shortConcerns, "door_type: one-way", "door_type: two-way", 1)
+	twoWayTrivial = strings.Replace(twoWayTrivial, "1234567890123456789012345678901234567890123456789", "None.", 1)
+	resTwoWay := ValidateSessionWithContext([]byte(twoWayTrivial), false)
+	foundWarn := false
+	for _, iss := range resTwoWay.Issues {
+		if iss.Code == "W-NO-CONCERNS" && iss.Level == L3Warn {
+			foundWarn = true
+			break
+		}
+	}
+	if !foundWarn {
+		t.Errorf("expected W-NO-CONCERNS warning for two-way door with trivial concerns, got: %v", resTwoWay.Issues)
+	}
+}
+
+
 
