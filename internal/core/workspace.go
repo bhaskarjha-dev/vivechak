@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 )
@@ -81,26 +82,9 @@ func IsSpecialResearchFile(name string) bool {
 	return false
 }
 
-// IsSystemOrAppDir returns true if path appears to be an operating system binary,
-// program installation, or application directory (e.g. AppData\Local\Programs, Program Files,
-// macOS .app bundles, /usr/bin). It does NOT match valid project locations like
-// /opt/my-app, /var/www, /testbed, or /workspace.
-// Vivechak research workspaces must not be initialized or resolved inside these directories.
-func IsSystemOrAppDir(path string) bool {
-	if path == "" {
-		return false
-	}
-	clean := filepath.Clean(path)
-	normalized := strings.ToLower(filepath.ToSlash(clean))
-
-	// Strip Windows drive letter (e.g. "c:") so root-based paths match uniformly
-	checkPath := normalized
-	if len(checkPath) >= 2 && checkPath[1] == ':' {
-		checkPath = checkPath[2:]
-	}
-
-	isDirOrChild := func(checkPath, target string) bool {
-		return checkPath == target || strings.HasPrefix(checkPath, target+"/")
+func isSystemOrAppDirNormalized(checkPath string) bool {
+	isDirOrChild := func(p, target string) bool {
+		return p == target || strings.HasPrefix(p, target+"/")
 	}
 
 	// Windows application and system paths
@@ -134,6 +118,45 @@ func IsSystemOrAppDir(path string) bool {
 	// Bare /opt root is a system root, but subdirectories like /opt/my-app are valid project targets
 	if checkPath == "/opt" || checkPath == "/opt/" {
 		return true
+	}
+
+	return false
+}
+
+// IsSystemOrAppDir returns true if dirPath appears to be an operating system binary,
+// program installation, or application directory (e.g. AppData\Local\Programs, Program Files,
+// macOS .app bundles, /usr/bin). It does NOT match valid project locations like
+// /opt/my-app, /var/www, /testbed, or /workspace.
+// Vivechak research workspaces must not be initialized or resolved inside these directories.
+func IsSystemOrAppDir(dirPath string) bool {
+	if dirPath == "" {
+		return false
+	}
+	// Always normalize backslashes to forward slashes across all platforms
+	normalized := strings.ToLower(strings.ReplaceAll(dirPath, "\\", "/"))
+	normalized = path.Clean(normalized)
+
+	// Direct check
+	if isSystemOrAppDirNormalized(normalized) {
+		return true
+	}
+
+	// Strip Windows drive letter (e.g. "c:") so root-based paths match uniformly
+	checkPath := normalized
+	if len(checkPath) >= 2 && checkPath[1] == ':' && checkPath[0] >= 'a' && checkPath[0] <= 'z' {
+		checkPath = checkPath[2:]
+		if isSystemOrAppDirNormalized(checkPath) {
+			return true
+		}
+	}
+
+	// If a Windows path with drive letter was prepended by CWD on non-Windows platforms
+	// (e.g. "/path/to/cwd/c:/program files/someapp"), check the Windows path portion:
+	if idx := strings.Index(normalized, ":/"); idx >= 1 {
+		sub := normalized[idx+1:]
+		if isSystemOrAppDirNormalized(sub) {
+			return true
+		}
 	}
 
 	return false

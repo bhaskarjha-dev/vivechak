@@ -26,6 +26,11 @@ func runDoctorWithArgs(args []string, stdout, stderr io.Writer) int {
 		explicit = args[0]
 	}
 
+	if explicit != "" && core.IsSystemOrAppDir(explicit) {
+		fmt.Fprintf(stderr, "Error: %q is an application or system directory, not a research workspace.\n", explicit)
+		return 1
+	}
+
 	workspace, err := core.ResolveWorkspace(explicit)
 	if err != nil {
 		fmt.Fprintf(stderr, "Workspace resolution failed: %v\n", err)

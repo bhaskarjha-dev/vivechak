@@ -84,7 +84,7 @@ func handleInit(_ context.Context, req *sdkmcp.CallToolRequest, in InitInput) (*
 	}
 
 	// Guard against unguided initialization in application or system directories (e.g. host IDE CWD inheritance)
-	if core.IsSystemOrAppDir(absRoot) {
+	if core.IsSystemOrAppDir(root) || core.IsSystemOrAppDir(absRoot) {
 		return ErrorResult(tool, fmt.Errorf("refusing to initialize workspace inside application or system directory %q", absRoot),
 			"The host IDE process spawned Vivechak without setting an active workspace directory. Call vivechak_init with 'project_root' explicitly set to your project folder path (e.g., 'project_root': 'd:/path/to/project').")
 	}

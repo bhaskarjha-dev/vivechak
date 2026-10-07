@@ -171,6 +171,10 @@ func TestIsSystemOrAppDir(t *testing.T) {
 		{`/etc`, true},
 		{`/opt`, true},
 		{`/opt/`, true},
+		// Linux runners where filepath.Abs prepends CWD to Windows paths:
+		{`/home/runner/work/vivechak/vivechak/internal/mcp/C:\Users\air\AppData\Local\Programs\Antigravity IDE`, true},
+		{`/home/runner/work/vivechak/vivechak/internal/mcp/C:\Program Files\SomeApp`, true},
+		{`/home/runner/work/vivechak/vivechak/internal/mcp/C:/Program Files/SomeApp`, true},
 		// Legitimate project & sandbox workspaces MUST NOT be blocked:
 		{`/opt/my-app`, false},
 		{`/opt/company/service`, false},
