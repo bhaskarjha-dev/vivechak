@@ -317,8 +317,14 @@ human_reviewed: true
 review_trigger: "Event replay latency exceeds 100ms"
 review_date: 2026-12-01
 ---
+# Context
+Distributed core domain requirements with audit trail.
+
 # Decision
 We adopt event sourcing. Grade A (formal proof)
+
+## Rejected Alternatives
+- CRUD State Mutation: Rejected due to inability to audit historic entity mutations.
 `
 	envD1 := callAndParse("vivechak_record_decision", map[string]any{
 		"project_root": projectDir,
@@ -905,8 +911,14 @@ human_reviewed: true
 review_trigger: "WAN partition query latency > 500ms"
 review_date: 2026-12-01
 ---
+# Context
+Multi-region SQL consistency requirements.
+
 # Decision
 We adopt CockroachDB. Grade A (benchmark)
+
+## Rejected Alternatives
+- Spanner: Rejected due to proprietary cloud lock-in constraints.
 `
 		envRec := callAndParse("vivechak_record_decision", map[string]any{
 			"project_root": dDir,

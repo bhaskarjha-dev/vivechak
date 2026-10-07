@@ -207,7 +207,7 @@ The agent calls these tools in sequence. The server handles context injection, D
 | **8-Block Prompts** | DECISION, BRIEF, SCOPE, KNOWN, CALIBRATION, APPROACH, DONE, FORMAT — no personas, no hardcoded queries |
 | **Staged Triangulation** | Single-model default → multi-model only for contested one-way doors |
 | **GRADE-Aligned Evidence** | A–E grades + modifiers (corroboration, recency, directness) + verification |
-| **Two-Track Gate** | Fast-track for reversible decisions; 9-step + premortem for irreversible |
+| **Two-Track Gate** | Fast-track for reversible decisions; 10-step + premortem for irreversible |
 
 ---
 

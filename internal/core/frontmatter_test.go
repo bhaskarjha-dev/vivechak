@@ -681,4 +681,33 @@ We selected PostgreSQL for relational persistence.
 	}
 }
 
+func TestParseFrontmatter_LeadingMarkdownTitle(t *testing.T) {
+	input := `# Architectural Decision: Database Engine
+---
+id: D-001
+door_type: one-way
+status: accepted
+---
+
+## Context
+We evaluated relational database engines for transaction persistence.
+`
+	fm, body, err := ParseFrontmatter([]byte(input))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if fm == nil {
+		t.Fatalf("expected non-nil frontmatter when preceded by markdown title")
+	}
+	if fm.GetString("id") != "D-001" {
+		t.Errorf("expected id D-001, got %q", fm.GetString("id"))
+	}
+	if fm.GetString("door_type") != "one-way" {
+		t.Errorf("expected door_type one-way, got %q", fm.GetString("door_type"))
+	}
+	if !strings.Contains(string(body), "Context") {
+		t.Errorf("expected body to contain Context, got: %s", string(body))
+	}
+}
+
 

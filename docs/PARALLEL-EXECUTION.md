@@ -65,10 +65,10 @@ Vivechak enforces file-level concurrency safety through advisory locks and atomi
 
 | Operation | Lock Target | Lock Timeout | Behavior Under Contention |
 |---|---|---|---|
-| `vivechak_save_session` | `research/sessions/[ID].md` | 5 seconds | Exponential backoff. Overwrites safe via atomic rename. |
+| `vivechak_save_session` | `research/sessions/[ID].md` (+ root `FOUNDING-ARCHITECTURE.md` on synthesis) | 5 seconds | Exponential backoff. Overwrites safe via atomic rename. |
 | `vivechak_record_decision` | Target `D-*.md` + `research/DECISIONS.md` | 10 seconds | Registry compilation is serialized. Decisions sort naturally. |
-| `vivechak_amend_session` | Target session file | 5 seconds | Stale downstream notifications computed from DAG. |
-| `vivechak_replan` | `research/RESEARCH-PIPELINE.md` | 5 seconds | Graph mutation verified before serialization. |
+| `vivechak_amend_session` | Target session file (+ root `FOUNDING-ARCHITECTURE.md` on synthesis) | 5 seconds | Stale downstream notifications computed from DAG. |
+| `vivechak_replan` | `research/RESEARCH-PIPELINE.md` | 5 seconds | Eager mutex acquired before DAG read; graph mutation verified before serialization. |
 
 ### Windows Handle Collision Avoidance
 On Windows, high-concurrency subagents writing in the same millisecond can experience file-locking collisions. Vivechak utilizes a monotonic process-wide counter (`tmpFileCounter`) in `store.WriteFileAtomic` to ensure temporary write files never collide, even under parallel subagent load.

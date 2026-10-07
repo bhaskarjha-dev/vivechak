@@ -349,6 +349,9 @@ We need a robust embedded KV store for financial ledger records.
 # Decision
 We adopt RocksDB. Grade A (empirical benchmark v8.1)
 
+## Rejected Alternatives
+- SQLite: Rejected due to write lock contention under multi-threaded ingest.
+
 # Consequences
 High write throughput achieved. Dynamic level base size used for compaction.
 `

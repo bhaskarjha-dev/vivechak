@@ -326,6 +326,8 @@ reversal_triggers:
 We need storage.
 # Decision
 RocksDB. A (benchmark)
+## Rejected Alternatives
+- SQLite: Rejected due to write contention under high-frequency writes.
 # Consequences
 Fast writes.
 `,

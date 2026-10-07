@@ -43,7 +43,7 @@ PROJECT VISION
 ┌─────────────────────────────────────────────────────┐
 │  TWO-TRACK PHASE 0 GATE                             │
 │  Track A: Fast-track for Two-Way Doors              │
-│  Track B: 9-step gate + premortem for One-Way Doors │
+│  Track B: 10-step gate + premortem for One-Way Doors │
 └───────────────────────┬─────────────────────────────┘
                         │
                         ▼
@@ -612,19 +612,20 @@ For any session that evaluates 2+ competing options:
 | Track | Applies To | Requirements | Speed |
 |---|---|---|---|
 | **Track A: Fast-Track** | Two-Way Door decisions | Decision logged, reversibility confirmed, single corroborated source | Minutes |
-| **Track B: Rigorous Gate** | One-Way Door decisions | Full 9-step checklist below + Gary Klein Premortem | Hours–Days |
+| **Track B: Rigorous Gate** | One-Way Door decisions | Full 10-step checklist below + Gary Klein Premortem | Hours–Days |
 
-### 7.2 Track B: 9-Step Pre-Codebase Exit Checklist
+### 7.2 Track B: 10-Step Pre-Codebase Exit Checklist
 
 1. **DAG Closure** — All required dependency paths terminated in `status: final`
 2. **Contradiction Resolution** — All divergences explicitly resolved
 3. **Evidentiary Threshold** — Zero uncorroborated Grade C/D/E claims underpin irreversible pillars
-4. **Verification Integrity** — 100% of critical citations carry `fetched` or `cached`
+4. **Verification Integrity** — 100% of critical citations carry `fetched` or `cached` with qualified provenance
 5. **Rejected Alternatives Documented** — Every ADR includes evaluated and rejected options
 6. **Decay Triggers Assigned** — Every ADR contains explicit `review_trigger`
 7. **Premortem Protocol** — Gary Klein prospective hindsight: *"Assume catastrophic failure in 12 months. What caused it?"*
-8. **Human Review** — Named Principal Architect signature on all One-Way Door ADRs
+8. **Human Review** — Named Principal Architect signature on all One-Way Door ADRs (`human_reviewed: true`)
 9. **FAD Sealed** — Founding Architecture Document compiled, committed, ready for scaffolding
+10. **Substantive ADR Content** — Decision record contains substantive causal rationale, evaluated options, and failure modes (no placeholder stubs)
 
 ---
 

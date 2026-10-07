@@ -43,13 +43,13 @@ func TestObserveSessionQuality_FewGrades(t *testing.T) {
 	}
 }
 
-// TestObserveSessionQuality_ManyGrades verifies no evidence observation when 3+ grades present.
+// TestObserveSessionQuality_ManyGrades verifies no evidence observation when 3+ grades present with proper anchors.
 func TestObserveSessionQuality_ManyGrades(t *testing.T) {
 	content := []byte(`
-Grade A (official docs) for stability claim.
+Grade A (official docs: https://docs.example.com) for stability claim.
 Grade B (benchmarks) for performance claim.
 Grade C (vendor claims) for scalability.
-Grade A (peer-reviewed) for security.
+Grade A (RFC 7636) for security.
 `)
 	obs := ObserveSessionQuality(content)
 
@@ -399,53 +399,50 @@ func TestIsLikelyYearReference_EdgeCases(t *testing.T) {
 	}
 }
 
-func TestObserveSessionQuality_GradeDistribution(t *testing.T) {
-	// >70% Grade A with >=4 grades triggers warning
-	contentSkewed := []byte(`
+func TestObserveSessionQuality_ProvenanceVerification(t *testing.T) {
+	// Grade A claims without URL/RFC anchors trigger unanchored provenance warning
+	contentUnanchored := []byte(`
 ## Prior
 Initial assumption.
 ## Key Findings
-- Finding 1 [Grade A]
-- Finding 2 [Grade A]
-- Finding 3 [Grade A]
-- Finding 4 [Grade A]
-- Finding 5 [Grade B]
+- Finding 1 [Grade A] — unanchored claim without source
+- Finding 2 [Grade A] — another unanchored claim
+- Finding 3 [Grade B] — benchmarks
 ## Discovered Concerns
 None major.
 ## Delta
 Contradicted old belief.
 `)
-	obs := ObserveSessionQuality(contentSkewed)
-	foundDist := false
+	obs := ObserveSessionQuality(contentUnanchored)
+	foundProv := false
 	for _, o := range obs {
-		if o.Category == "evidence" && strings.Contains(o.Message, "Grade distribution") {
-			foundDist = true
+		if o.Category == "evidence" && strings.Contains(o.Message, "lack canonical URL or RFC provenance anchors") {
+			foundProv = true
 			break
 		}
 	}
-	if !foundDist {
-		t.Error("expected grade distribution warning when Grade A > 70%")
+	if !foundProv {
+		t.Error("expected provenance warning when Grade A claims lack URL/RFC anchors")
 	}
 
-	// Balanced distribution does not trigger warning
-	contentBalanced := []byte(`
+	// 100% Grade A claims with valid URL or RFC anchors do NOT trigger warning (ADR D-UX-02)
+	contentAnchored := []byte(`
 ## Prior
 Initial assumption.
 ## Key Findings
-- Finding 1 [Grade A]
-- Finding 2 [Grade A]
-- Finding 3 [Grade B]
-- Finding 4 [Grade B]
-- Finding 5 [Grade C]
+- Finding 1 [Grade A] https://tools.ietf.org/html/rfc7636
+- Finding 2 [Grade A] https://www.sqlite.org/wal.html
+- Finding 3 [Grade A] RFC 7519 JWT Specification
+- Finding 4 [Grade A] doi:10.1145/3318464.3389700
 ## Discovered Concerns
 None major.
 ## Delta
 Contradicted old belief.
 `)
-	obs2 := ObserveSessionQuality(contentBalanced)
+	obs2 := ObserveSessionQuality(contentAnchored)
 	for _, o := range obs2 {
-		if o.Category == "evidence" && strings.Contains(o.Message, "Grade distribution") {
-			t.Errorf("unexpected grade distribution warning on balanced grades: %v", o)
+		if o.Category == "evidence" && strings.Contains(o.Message, "lack canonical URL or RFC provenance anchors") {
+			t.Errorf("unexpected provenance warning when Grade A claims are properly anchored: %v", o)
 		}
 	}
 }

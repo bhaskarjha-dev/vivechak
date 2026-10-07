@@ -5,19 +5,23 @@
 
 ## 1. Current State: v0.1.0 (October 2026)
 
-**Status:** Shipped, battle-tested, and automated via Model Context Protocol (MCP).
+**Status:** Hardened Core, battle-tested, and automated via Model Context Protocol (MCP).
 
-Vivechak v0.1.0 delivers a unified, evidence-grounded research methodology powered by an autonomous, single-binary Go MCP server and multi-scope generators. It operates across three distinct scope levels (Project → FAD, Decision → ADR, Comparison → WEP matrix) while maintaining a strict Guided Worker pattern with zero LLM API dependencies.
+Vivechak delivers a unified, evidence-grounded research methodology powered by an autonomous, single-binary Go MCP server and multi-scope generators. It operates across three distinct scope levels (Project → FAD, Decision → ADR, Comparison → WEP matrix) while maintaining a strict Guided Worker pattern with zero LLM API dependencies.
 
-### What v0.1.0 Delivers
+### What Vivechak Delivers
 
 | Component | State | Description |
 |---|---|---|
 | **13 Atomic MCP Tools** | ✅ Shipped | Full lifecycle support: `init`, `prepare_generator`, `save_plan`, `status`, `next_session`, `save_session`, `record_decision` (with ADR supersession), `amend_session`, `validate`, `run_gate`, `challenge` (adversarial red-teaming), `replan` (in-flight DAG mutation), and `visualize` (Mermaid graph + status table) |
-| **Multi-Scope Generators** | ✅ Shipped | `GENERATOR.md` (Project), `GENERATOR-DECISION.md` (Decision), `GENERATOR-COMPARISON.md` (Comparison) with synchronized `CORE:BEGIN/END` methodology kernels and Research Depth Mandates |
+| **Multi-Scope Generators** | ✅ Shipped | `GENERATOR.md` (Project), `GENERATOR-DECISION.md` (Decision), `GENERATOR-COMPARISON.md` (Comparison) with synchronized `CORE:BEGIN/END` methodology kernels, Research Depth Mandates, and token-optimized execution guidance |
+| **Unified AST-Aware Markdown Parser** | ✅ Shipped | CommonMark heading-level extraction for recommendations, alternatives, and frontmatters; eliminates sibling truncation and parser fragility |
+| **Strict Decoupled Phase 0 Exit Gate** | ✅ Shipped | Non-negotiable blocking on One-Way Door evidentiary defects (B3), verification gaps (B4), and missing alternatives (B5), preventing Potemkin passes while preserving fast spikes for Two-Way Doors |
+| **Permissive Frontmatter & ADR Supersession** | ✅ Shipped | Zero-crash frontmatter extraction for documents starting with `# Heading` or blank lines; robust non-destructive ADR supersession |
+| **Eager Concurrency Locks** | ✅ Shipped | Mutual exclusion across mid-flight replans (anti-TOCTOU) and workspace root FAD mirror synthesis |
 | **Namespaces & Protocols** | ✅ Shipped | `C-NNN` comparison namespace, `T-NNN` project tasks, `D-NNN` ADRs; ADR supersession protocol with transitive stale-reference detection |
 | **CLI & Diagnostics** | ✅ Shipped | `vck` shorthand alias, `vck setup` (1-second host configuration + 14 presets), `vck mcp-config` (universal JSON config), and `vck doctor` workspace integrity checker |
-| **FRAMEWORK.md** | ✅ Shipped | Complete standalone specification (8 principles, evidence grading A–E, 8-block prompt anatomy, Weighted Evaluation Protocol, Phase 0 Gate) |
+| **FRAMEWORK.md** | ✅ Shipped | Complete standalone specification (8 principles, evidence grading A–E, prompt anatomy, Weighted Evaluation Protocol, Phase 0 Gate) |
 | **6 Operational Templates** | ✅ Shipped | `DECISIONS.template.md`, `CONFLICT-RESOLUTION.template.md`, `COMPARISON-SESSION.template.md`, `FOUNDING-ARCHITECTURE.template.md`, `PHASE-0-GATE.template.md`, `SESSION.template.md` (`schema_version: "0.1.0"`) |
 | **Distribution & Packages** | ✅ Shipped | Single-binary cross-compilation (6 platforms via GoReleaser), Homebrew, Scoop, WinGet, shell installers (`install.sh`, `install.ps1`) |
 | **meta-research/** | ✅ Sealed | 14 locked ADRs (D-001–D-014), 27 research artifacts, empirical evidence base validating every design decision |
@@ -27,6 +31,23 @@ Vivechak v0.1.0 delivers a unified, evidence-grounded research methodology power
 ## 2. Deferred Features & Backlog (Tracked & Prioritized)
 
 Every deferred feature is tracked with its origin, explicit gate condition, and design rationale. We explicitly reject feature creep; features are built only when evidence demonstrates demand.
+
+### 2.0 Pre-Release Hardening Wave (October 2026)
+
+Forensic audit and real-world multi-agent dogfooding telemetry uncovered 14 concrete anomalies that were resolved prior to initial public release:
+
+| Issue | Category | Root Cause & Resolution | Status |
+|---|---|---|---|
+| **E-01** | Parsers | **Permissive Frontmatter Normalizer:** Frontmatter parser crashed (`V-MISSING-FRONTMATTER`) when markdown documents began with a leading `# Heading\n---`. Updated `skipLeadingWhitespaceAndComments` to skip leading markdown headers when immediately followed by `---`. | ✅ Resolved |
+| **E-02** | ADRs | **Supersession Double-Frontmatter Corruption:** `tool_record_decision.go` relied on naive `bytes.HasPrefix("---")`, prepending duplicate frontmatter blocks to superseded ADRs that began with titles. Dynamically isolates existing frontmatter boundaries. | ✅ Resolved |
+| **E-03** | Parsers | **Unified CommonMark Section Extractor:** Ad-hoc regex heading matchers truncated sections at sub-headings (e.g. H3 inside H2), triggering false `Q-RIGOR` and missing alternative warnings. Unified section extraction across `validate.go`, `draft_decision.go`, and `tool_run_gate.go`. | ✅ Resolved |
+| **E-04** | Gate | **Strict Phase 0 Gate Enforcement for One-Way Doors:** Gate appended evidentiary (`B3`), verification (`B4`), and alternative (`B5`) defects to non-blocking advisories, allowing One-Way Doors to falsely pass Track B. Promoted to fatal blocking defects for One-Way Doors. | ✅ Resolved |
+| **E-05** | Gate | **Gate Recommendation Regex Fallback Bleed:** When recommendation extraction returned <20 chars, fallback scanned the entire session markdown including `## Sources`, causing secondary bibliography links to fail `B3` checks. Isolated recommendation and key findings without bibliography bleed. | ✅ Resolved |
+| **E-06** | DAG | **Unicode & ASCII Arrow Tolerance in DAG Complexity Parser:** `scoreRegex` strictly required Unicode `→` (U+2192), silently dropping complexity scores to 0 on ASCII arrows (`->`, `-->`, `=>`). Regex updated to tolerate all standard arrow variants. | ✅ Resolved |
+| **E-07** | DAG | **Standalone Uppercase Session Header Support:** `sessHeaderRegex` required hyphens or digits, dropping headers like `### FAD: Founding Architecture` or `### SYNTHESIS: Architecture Synthesis`. Expanded regex to match standalone uppercase tokens. | ✅ Resolved |
+| **E-08** | Concurrency | **Anti-TOCTOU Eager Lock Acquisition in `replan`:** `handleReplan` read and parsed `RESEARCH-PIPELINE.md` before acquiring advisory locks, creating race conditions under concurrent agent replans. Lock acquisition made eager before initial disk read. | ✅ Resolved |
+| **E-09** | Concurrency | **Advisory Locking for Workspace Root FAD Mirror Copy:** Root `FOUNDING-ARCHITECTURE.md` mirror write called `WriteRootFileAtomic` without holding an advisory lock on `fad_root`. Wrapped in advisory mutual exclusion. | ✅ Resolved |
+| **E-10** | Ergonomics | **Prompt Token Optimization (Eliminating Disk Template Reads):** Generator prompts instructed agents to read static template files from disk on every session, burning ~30 tool calls and ~60k tokens per run. Switched to MCP tool-native instructions where the server injects briefs and validates schemas automatically. | ✅ Resolved |
 
 ### 2.1 Near-Term Packaging & Workflows (Awaiting Demand Signal)
 
@@ -101,6 +122,8 @@ Every deferred feature is tracked with its origin, explicit gate condition, and 
 | **4D Reversibility Tensor** | Unnecessary mathematical over-engineering; binary door classification with R/N/B/X profiling is robust and intuitive. | Simplicity / Pragmatism |
 | **MCP Resources & MCP Prompts (`resources.go`/`prompts.go`)** | Redundant surface. Workspace files are accessible via standard host file tools; prompts are delivered via tool responses. | Lean MCP Surface |
 | **Shadow State Files (`.vivechak-state.json`)** | Violates Principle P6 (Dual-Audience Artifacts). Creates hidden shadow state that desynchronizes from Markdown. All state is derived directly from the filesystem and artifact frontmatter. | Principle P6 & D-UX-02 |
+| **Lexical Grade-Distribution Bell Curves (e.g. >70% Grade A Cap)** | Violates ADR D-UX-02 and empirical systematic review methodologies (Jüni et al. JAMA 1999, AMSTAR 2 BMJ 2017). Distribution quotas penalize rigorous primary specification citation (RFCs, official docs) and incentivize agents to cite low-quality secondary blogs to hit distribution targets. | Provenance Anchor Verification |
+| **Arbitrary ADR Character Length Thresholds (e.g. <200 chars)** | Violates ADR D-UX-02. Raw character counts reward verbosity and boilerplate while penalizing dense, high-information architectural rationale. | Structural Presence Checks (Context, Options, Rationale, Triggers) |
 
 ---
 

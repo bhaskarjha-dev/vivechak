@@ -1,6 +1,7 @@
 package core
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -1006,6 +1007,55 @@ This instruction must not be truncated!
 	}
 	if !strings.Contains(s.Prompt, "This instruction must not be truncated!") {
 		t.Errorf("inner untagged code fence caused prompt truncation. Prompt was:\n%s", s.Prompt)
+	}
+}
+
+func TestParsePipeline_ArrowVariants(t *testing.T) {
+	variants := []string{
+		"**Complexity Score:** 18/25 → Tier 3 (12 sessions)",
+		"**Complexity Score:** 18/25 -> Tier 3 (12 sessions)",
+		"**Complexity Score:** 18/25 --> Tier 3 (12 sessions)",
+		"**Complexity Score:** 18/25 => Tier 3 (12 sessions)",
+	}
+
+	for _, v := range variants {
+		input := fmt.Sprintf("# Pipeline\n\n%s\n\n### S-01: Session 1\n| **ID** | S-01 |\n", v)
+		dag, err := ParsePipeline([]byte(input))
+		if err != nil {
+			t.Fatalf("ParsePipeline failed on %q: %v", v, err)
+		}
+		if dag.ComplexityScore != 18 {
+			t.Errorf("expected ComplexityScore 18 for %q, got %d", v, dag.ComplexityScore)
+		}
+		if !strings.HasPrefix(dag.Tier, "Tier 3") {
+			t.Errorf("expected Tier to start with Tier 3 for %q, got %q", v, dag.Tier)
+		}
+	}
+}
+
+func TestParsePipeline_StandaloneIdentifiers(t *testing.T) {
+	input := `# Pipeline
+
+### FAD: Founding Architecture Document
+| **ID** | FAD |
+| **Dependencies** | None |
+
+### SYNTHESIS: Final System Synthesis
+| **ID** | SYNTHESIS |
+| **Dependencies** | FAD |
+`
+	dag, err := ParsePipeline([]byte(input))
+	if err != nil {
+		t.Fatalf("ParsePipeline failed: %v", err)
+	}
+	if len(dag.Sessions) != 2 {
+		t.Fatalf("expected 2 sessions, got %d", len(dag.Sessions))
+	}
+	if dag.Sessions[0].ID != "FAD" || dag.Sessions[0].Title != "Founding Architecture Document" {
+		t.Errorf("unexpected session 0: %+v", dag.Sessions[0])
+	}
+	if dag.Sessions[1].ID != "SYNTHESIS" || dag.Sessions[1].Title != "Final System Synthesis" {
+		t.Errorf("unexpected session 1: %+v", dag.Sessions[1])
 	}
 }
 

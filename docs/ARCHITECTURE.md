@@ -120,18 +120,18 @@ Defined in [`internal/core/validate.go`](../internal/core/validate.go#L11-L22), 
 
 ### Quality Coaching Engine (`core.ObserveSessionQuality`)
 Defined in [`internal/core/validate.go`](../internal/core/validate.go), `ObserveSessionQuality` performs real-time advisory analysis on session outputs during `vivechak_save_session` (and dry-run `vivechak_validate`). It coaches the agent on epistemic rigor without blocking workflow:
-- **Grade Distribution:** Alerts when Grade A citations exceed 70% of claims, prompting primary source verification.
-- **Grade A Qualified Provenance:** Enforces canonical URLs, domain anchors, RFCs, or specific document titles for Grade A claims; ensures computing memory (RAM/caching) is never penalized as model recall.
-- **Key Findings Depth:** Alerts when fewer than 3 key findings are provided (`Q-DEPTH`).
+- **Grade A Qualified Provenance:** Enforces canonical URLs, domain anchors, RFCs, or DOI anchors for Grade A claims, prompting primary source verification or downgrade to Grade B; ensures computing memory (RAM/caching) is never penalized as model recall.
+- **Citation Diversity (`Q-DENSITY`):** Advises when substantive research sessions (>1000 characters) cite fewer than 2 distinct external sources to strengthen independent evidentiary grounding.
+- **Key Findings Depth (`Q-DEPTH`):** Alerts when fewer than 3 key findings are provided.
 - **Discovered Concerns (Anti-Confirmation-Bias):** Verifies the session contains substantive unexpected concerns (≥50 characters), preventing token placeholders.
-- **Confirmation Bias Check:** Warns when 100% of prior beliefs in the Delta table are confirmed without contradiction or refinement (`Q-BIAS`).
+- **Confirmation Bias Check (`Q-BIAS`):** Warns when 100% of prior beliefs in the Delta table are confirmed without contradiction, refinement, or overturn, specifically detecting when priors merely start from 'Unknown'.
 - **Rejected Alternatives:** Verifies recommendations cite rejected alternatives.
-- **Date Freshness:** Checks for potentially stale dates while filtering out ports and metrics.
+- **Date Freshness:** Checks for potentially stale dates while filtering out ports, latencies, throughput metrics, and versions.
 
 ### Phase 0 Gate Engine & Auto-Persistence (`mcputil.handleRunGate`)
 Defined in [`internal/mcp/tool_run_gate.go`](../internal/mcp/tool_run_gate.go), `vivechak_run_gate` evaluates decoupled Track A and Track B criteria and automatically renders and persists `research/PHASE-0-GATE.md`:
 - **Track A (Two-Way Doors):** Fast-track reversibility validation (A1–A3). Reversible decisions pass without blocking deep checks. Workspaces with zero two-way doors are marked as `PASS (0 two-way doors)`, eliminating false-pass anomalies.
-- **Track B (One-Way Doors):** Comprehensive mechanical verification across 10 rigorous checks (B1–B10): DAG closure (B1), contradiction resolution (B2), evidentiary threshold requiring ≥60% Grade A/B evidence (B3), verification integrity with qualified provenance (B4), documented rejected alternatives (B5), concrete decay/reversal triggers (B6), premortem protocol (B7), human architect review sign-off (B8), sealed FAD (B9), and substantive decision content detecting ADR stubs/placeholders (B10).
+- **Track B (One-Way Doors):** Comprehensive mechanical verification across 10 rigorous checks (B1–B10): DAG closure (B1), contradiction resolution (B2), evidentiary threshold requiring ≥60% Grade A/B evidence (B3), verification integrity with qualified provenance (B4), documented rejected alternatives (B5), concrete decay/reversal triggers (B6), premortem protocol (B7), human architect review sign-off (B8), sealed FAD (B9), and substantive decision content detecting ADR stubs/placeholders (B10). Strict promotion enforces blocking failures for B3, B4, and B5 on One-Way Doors.
 
 ### Response Envelope (`mcputil.Envelope`)
 Defined in [`internal/mcp/envelope.go`](../internal/mcp/envelope.go#L24-L44), every tool returns the standard envelope:

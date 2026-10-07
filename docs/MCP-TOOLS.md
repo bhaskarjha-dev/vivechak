@@ -607,11 +607,11 @@ Defined in [`SaveSessionInput`](../internal/mcp/tool_save_session.go):
 
 #### Common Warnings & Quality Observations
 - `[L3-WARN] W-NO-EVIDENCE-GRADES: No inline evidence grades found (expected A-E grades per P3)`
-- `[L3-WARN] W-RECALLED-GRADE-CAP: Recalled knowledge must be capped at Grade D per Principle P3`
-- `Q-EVIDENCE: Grade distribution is 4 A / 0 B / 0 C+ (100% Grade A). Web-based research typically produces ~25% A, ~50% B, ~25% C. Verify Grade A citations include URLs to primary sources.`
+- `Q-EVIDENCE: 2 Grade A claim(s) lack canonical URL or RFC provenance anchors. Primary evidence requires verifiable sources.`
 - `Q-EVIDENCE: 1 Grade A 'fetched' citation(s) lack URLs. Grade A requires verifiable access to primary sources — include the source URL or downgrade to Grade B.`
+- `Q-DENSITY: Session cites fewer than 2 distinct external sources. Citing multiple independent primary/secondary sources strengthens evidentiary grounding (Principle P3).`
 - `Q-CONCERNS: No Discovered Concerns section found. Every research session should uncover at least one unexpected finding beyond the stated scope.`
-- `Q-BIAS: Delta section has no contradicted or updated beliefs. If every prior was confirmed, consider whether the research genuinely challenged initial assumptions (P8).`
+- `Q-BIAS: Delta section has no contradicted or updated beliefs. If every prior was confirmed or started from 'Unknown', consider whether the research genuinely challenged initial assumptions (P8).`
 - `Q-DEPTH: Only 2 key finding(s). Sessions typically benefit from 4-7 graded findings for adequate decision support.`
 - `[L2-BLOCK] V-MISSING-FIELD: Required frontmatter field "date" is missing`
 - `[L2-BLOCK] V-MISSING-FRONTMATTER: Session output has no YAML frontmatter`
@@ -1083,14 +1083,15 @@ Vivechak organizes all artifact validation into a 4-level validation ladder defi
 | `W-STALE-DECISION-REFERENCE` | L3 | `record_decision` | Superseded decision is referenced by existing completed sessions. |
 | `W-TEMPLATE-MISSING` | L3 | `init` | A template file could not be read from embedded binary assets. |
 | `GATE-STRUCTURAL: <check>` | L4 | `run_gate` | Structural completeness check failed (missing pipeline, FAD, templates, or uncompleted DAG sessions). |
-| `GATE-QUALITY: <check>` | L4 | `run_gate` | Mechanical quality check failed (<3 sessions, un-graded FAD, or unfinalized decisions / missing reversal triggers). |
-| `GATE-ADVISORY: <check>` | L4 | `run_gate` | Evidentiary integrity advisory (B3 evidence threshold, B4 verification method, B5 rejected alternatives, human review). |
-| `Q-EVIDENCE` | Advisory | `save_session` | Grade distribution skewed (>70% Grade A) or Grade A "fetched" citation lacks URL. |
+| `GATE-QUALITY: <check>` | L4 | `run_gate` | Mechanical quality check failed (<3 sessions, un-graded FAD, unfinalized decisions / missing reversal triggers, or One-Way Door B3/B4/B5 defects). |
+| `GATE-ADVISORY: <check>` | L4 | `run_gate` | Non-blocking observations (e.g. human review recommendation, structural ADR shape). |
+| `Q-EVIDENCE` | Advisory | `save_session` | Grade A claims lack canonical URL or RFC provenance anchors, or Grade A "fetched" citation lacks URL. |
 | `Q-CONCERNS` | Advisory | `save_session` | Missing `## Discovered Concerns` section. Research should uncover unexpected findings beyond stated scope. |
 | `Q-DEPTH` | Advisory | `save_session` | Fewer than 3 key findings in session output. Sessions typically benefit from 4-7 findings. |
-| `Q-BIAS` | Advisory | `save_session` | Delta section has 0 contradicted, refined, or updated prior beliefs (P8 confirmation bias warning). |
+| `Q-BIAS` | Advisory | `save_session` | Delta section has 0 contradicted, refined, or updated prior beliefs, or deltas start exclusively from "Unknown" (P8 confirmation bias warning). |
 | `Q-RIGOR` | Advisory | `save_session` | Recommendation lacks explicit reference to rejected alternatives. |
 | `Q-FRESHNESS` | Advisory | `save_session` | References to potentially stale dates detected (with exclusion of port numbers, latencies, RAM). |
+| `Q-DENSITY` | Advisory | `save_session` | Substantive session cites fewer than 2 distinct external sources (Principle P3 citation diversity). |
 
 ---
 

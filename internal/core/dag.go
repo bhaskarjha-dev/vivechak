@@ -210,7 +210,8 @@ var (
 	// - ### Session S1: Spike
 	// - #### S1: Landscape
 	// - #### D-001-S1 — Spike
-	sessionHeaderRe = regexp.MustCompile(`^#{1,4}\s+(?:(?:Session\s+([A-Za-z0-9]+(?:[-_][A-Za-z0-9]+)*))|([A-Za-z0-9]+(?:-[A-Za-z0-9]+)+)|([A-Za-z]+\d+))\s*[:—\-]\s*(.*)`)
+	// - ### FAD: Founding Architecture Document
+	sessionHeaderRe = regexp.MustCompile(`^#{1,4}\s+(?:(?:Session\s+([A-Za-z0-9]+(?:[-_][A-Za-z0-9]+)*))|([A-Za-z0-9]+(?:-[A-Za-z0-9]+)+)|([A-Za-z]+\d+|[A-Z]{2,10}))\s*[:—\-]\s*(.*)`)
 
 	// Matches metadata table rows like: | **ID** | T1-01 |
 	metaFieldRe = regexp.MustCompile(`\|\s*\*\*([^*]+)\*\*\s*\|\s*(.+?)\s*\|`)
@@ -461,17 +462,20 @@ func ParsePipeline(data []byte) (*DAG, error) {
 			continue
 		}
 
-		// Parse complexity score
-		if strings.Contains(trimmed, "Complexity Score") && strings.Contains(trimmed, "→") {
-			// Extract score and tier
-			if idx := strings.Index(trimmed, "→"); idx > 0 {
-				dag.Tier = strings.TrimSpace(trimmed[idx+len("→"):])
-				beforeArrow := trimmed[:idx]
-				re := regexp.MustCompile(`(\d+)(?:\s*/\s*\d+)?`)
-				if matches := re.FindStringSubmatch(beforeArrow); len(matches) > 1 {
-					if score, err := strconv.Atoi(matches[1]); err == nil {
-						dag.ComplexityScore = score
+		// Parse complexity score (tolerates both Unicode → and ASCII ->, -->, =>)
+		if strings.Contains(trimmed, "Complexity Score") {
+			arrowVariants := []string{"→", "-->", "->", "=>"}
+			for _, arrow := range arrowVariants {
+				if idx := strings.Index(trimmed, arrow); idx > 0 {
+					dag.Tier = strings.TrimSpace(trimmed[idx+len(arrow):])
+					beforeArrow := trimmed[:idx]
+					re := regexp.MustCompile(`(\d+)(?:\s*/\s*\d+)?`)
+					if matches := re.FindStringSubmatch(beforeArrow); len(matches) > 1 {
+						if score, err := strconv.Atoi(matches[1]); err == nil {
+							dag.ComplexityScore = score
+						}
 					}
+					break
 				}
 			}
 		}

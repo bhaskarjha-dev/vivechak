@@ -711,6 +711,9 @@ High compliance audit requirements.
 
 ## Decision
 Implement event sourcing with EventStoreDB.
+
+## Rejected Alternatives
+- Kafka Event Streams: Rejected due to operational complexity of managing consumer group offsets and state stores.
 `
 		callAndParse("vivechak_record_decision", map[string]any{
 			"project_root": projDir,

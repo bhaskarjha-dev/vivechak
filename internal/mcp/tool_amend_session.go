@@ -158,6 +158,9 @@ func handleAmendSession(ctx context.Context, _ *sdkmcp.CallToolRequest, in Amend
 	var warnings []string
 	if core.IsSynthesisSession(in.SessionID) {
 		rootFAD := "FOUNDING-ARCHITECTURE.md"
+		if unlockRoot, lockErr := store.LockFile(ctx, filepath.Join(root, rootFAD), 5*time.Second); lockErr == nil {
+			defer func() { _ = unlockRoot() }()
+		}
 		if cpErr := store.WriteFileAtomic(ws.Root(), rootFAD, newContent, 0o644); cpErr != nil {
 			warnings = append(warnings, fmt.Sprintf(
 				"W-FAD-COPY: could not copy amended FAD to project root: %v", cpErr))

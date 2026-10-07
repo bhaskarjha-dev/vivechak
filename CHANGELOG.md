@@ -7,11 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [0.1.0] - 2026-10-07 — Enforcement Hardening & Engine Correctness
+## [0.1.0] - 2026-10-07 — Hardened Pre-Release & Engine Correctness
 
-Unified release delivering the 12 enforcement hardening tasks and quality audit fixes:
+Unified release delivering the 12 enforcement hardening tasks, quality audit fixes, and complete pre-release hardening wave across engine parsers, concurrency locks, gate strictness, and cognitive quality coaching:
 
 ### Added
+- **Unified AST-Aware Section Extractor (`markdown.go`):** CommonMark heading-level extraction (`ExtractSection`) across `validate.go`, `draft_decision.go`, and `tool_run_gate.go`; preserves H3 subsections within H2 sections and eliminates sibling heading truncation.
+- **Strict Track B Phase 0 Gate (`tool_run_gate.go`):** Promotes One-Way Door `B3` (evidentiary threshold), `B4` (verification method), and `B5` (rejected alternatives) defects from non-blocking advisories to fatal blocking issues, preventing Potemkin passes.
+- **Canonical Provenance Anchor Verification (`validate.go`):** Verifies Grade A claims against canonical URL (`http://`, `https://`), RFC (`rfc `), or DOI (`doi:`) anchors; eliminated arbitrary lexical `>70% Grade A` bell curve cap per ADR `D-UX-02` and systematic review gold standards.
+- **Structural ADR Shape Gate (`tool_run_gate.go`):** Validates the structural presence of Context, Rationale, and Reversal Triggers instead of naive 200-character byte counting.
+- **Anti-Goodhart Belief Delta Quality Coaching (`validate.go`):** Identifies performative deltas that start exclusively from "Unknown" to evade `Q-BIAS`, prompting validation against Principle P8 (Structured Falsification).
+- **Evidence Citation Diversity Quality Coaching (`validate.go`):** Advisory `Q-DENSITY` coaching ensuring substantive research sessions cite $\ge 2$ distinct independent sources.
+- **Eager Advisory Mutex Locking in `replan` (`tool_replan.go`):** Acquires `pipeline` lock before reading or parsing `RESEARCH-PIPELINE.md`, eliminating TOCTOU race conditions during concurrent multi-agent replans.
+- **Advisory Mutex on Root FAD Mirror Write (`tool_save_session.go`):** Locks `fad_root` before atomic copy of `FOUNDING-ARCHITECTURE.md` to workspace root.
 - **Dynamic Guided Worker Routing (`tool_save_session.go`):** Real-time `[Q-*]` quality advisories surfaced directly in `next_step` instructions; one-way door sessions imperatively route to `vivechak_challenge(mode="red_team")` before recording irreversible decisions.
 - **Research Calibration Prompt Injection (`tool_next_session.go`):** Automated active rule injection (Memory ≠ Evidence, Qualified Provenance, Falsification Required, Honest Gaps) on all non-synthesis session prompts returned by `vivechak_next_session`.
 - **Qualified Provenance Engine (`validate.go`):** Strict verification requirement for Grade A fetched claims against canonical URLs, domain anchors, RFCs, or doc titles (L2Block on one-way doors, L3Warn on two-way doors).
@@ -20,11 +28,18 @@ Unified release delivering the 12 enforcement hardening tasks and quality audit 
 - **Embedded Contract Parity (`SESSION.template.md`):** Added `## Discovered Concerns` section with 100% embed sync to ensure template users pass validation out of the box.
 
 ### Changed
+- **Token-Optimized Generator Instructions (`GENERATOR.md`):** Updated execution guidance to instruct MCP-enabled agents to receive briefs directly from `vivechak_next_session` without redundant manual `view_file` calls to static templates, saving ~60k tokens and 30 tool calls per pipeline run.
+- **Embed Parity Synchronization (`internal/embed/generators/`):** 100% byte-for-byte synchronization across embedded and root generators.
 - **Decoupled Phase 0 Gate (`tool_run_gate.go`):** Fixed Track A/Track B semantic inversion; Track A strictly evaluates reversibility and blast radius bounds for Two-Way Doors, while Track B executes rigorous B1–B10 checks on One-Way Doors.
 - **Documented 9-Section Session Body Skeleton (`FRAMEWORK.md` §6.2):** Aligned methodology specification with runtime templates and validation engine, formally standardizing `Prior`, `Discovered Concerns`, and `Delta` sections.
 - **ADR Door-Type Drafter (`draft_decision.go`):** Contextually infers `two-way` vs `one-way` door classifications from session text rather than defaulting to irreversible.
 
 ### Fixed
+- **Leading Markdown Title Frontmatter Crash (`frontmatter.go`):** `skipLeadingWhitespaceAndComments` now skips markdown titles preceding frontmatter delimiters, fixing `V-MISSING-FRONTMATTER` crashes.
+- **ADR Supersession Duplicate Frontmatter (`tool_record_decision.go`):** Dynamically isolates existing YAML frontmatter boundaries, preventing duplicate frontmatter blocks on superseded ADRs.
+- **ASCII Arrow Tolerance in DAG Complexity Parser (`dag.go`):** Regex accepts `->`, `-->`, and `=>` in addition to Unicode `→`, preventing silent complexity score zeroing.
+- **Standalone Uppercase Session ID Omission (`dag.go`):** Supported standalone uppercase identifiers such as `### FAD:` and `### SYNTHESIS:`.
+- **Gate Recommendation Fallback Bibliography Bleed (`tool_run_gate.go`):** Strips `## Sources`, `## References`, and `## Evidence Ledger` from recommendation fallback text, preventing secondary bibliography links from triggering false evidentiary rejections.
 - **Workspace OS Boundary Guard Collision (`workspace.go`):** Implemented `isDirOrChild` path boundary matching, eliminating false-positive rejections on Windows paths (`D:\windows-tools`, `C:\binary-tree`) and Unix project folders (`/library-books`, `/bin-project`).
 - **Replanning Data Loss Prevention (`dag.go`):** Retained raw `Preamble` (parameters, complexity scoring, execution notes) and `ExitGate` sections across round-trip serialization in `vivechak_replan`.
 - **Prompt Truncation on Inner Code Fences (`dag.go`):** Enhanced code fence parser to track outer fence length, preventing premature truncation when encountering untagged inner code fences.
@@ -55,7 +70,8 @@ Comprehensive production release fusing the 18 quality audit findings (`CRIT-01`
 - **Generator Research Depth Mandate (T6):**
   - Added ALLIED TERMS, MULTIPLE SEARCH STRATEGIES (Direct, Adversarial, Comparative, Community), 8–12 substantive findings quota, and `[UPSTREAM_FINDINGS]` injection slot enforcement in `GENERATOR.md`.
 - **Quality Coaching & Semantic Observation Engine (`ObserveSessionQuality`):** Real-time advisory feedback during `vivechak_save_session` to eliminate research superficiality and confirmation bias without blocking workflow:
-  - **Grade Inflation Scanner:** Emits `Q-EVIDENCE` when Grade A citations exceed 70% of claims.
+  - **Canonical Provenance Scanner:** Emits `Q-EVIDENCE` when Grade A claims lack canonical URL, RFC, or DOI anchors.
+  - **Citation Diversity Scanner (`Q-DENSITY`):** Emits advisory when substantive research sessions cite fewer than 2 distinct external sources.
   - **Grade A URL Verification (`EI-01`):** Requires `http://` or `https://` URLs for all `Grade A ... fetched` citations.
   - **Discovered Concerns Validator:** Emits `Q-CONCERNS` advisory if `## Discovered Concerns` section is missing.
   - **Confirmation Bias Detector (P8, `SRF-01`):** Emits `Q-BIAS` when 0 prior beliefs are contradicted, refined, or updated.

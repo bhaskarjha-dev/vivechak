@@ -891,6 +891,9 @@ We need a database. A (official documentation)
 
 ## Decision
 Use PostgreSQL 16. B (benchmark comparison)
+
+## Evaluated Alternatives
+We evaluated MySQL and MongoDB; rejected due to lack of native vector indexing support.
 `
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_record_decision",
@@ -1881,6 +1884,8 @@ review_trigger: "Throughput exceeds 50k ops"
 ---
 # Decision
 Use SQLite in WAL mode. A (docs)
+## Evaluated Alternatives
+We evaluated DuckDB and PostgreSQL; rejected due to client-side embedded deployment requirements.
 <!-- /DECISION: D-001 -->
 `
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
@@ -2024,7 +2029,9 @@ door_type: one-way
 review_trigger: 6 months or major breaking RFC change
 ---
 # D-001: Auth Strategy
-Accepted OAuth2 with PKCE.`
+Accepted OAuth2 with PKCE.
+## Evaluated Alternatives
+We evaluated basic auth and API tokens; rejected due to security considerations.`
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_record_decision",
 		Arguments: map[string]any{
@@ -2992,6 +2999,76 @@ Recommended Option A.
 	}
 	if dataMap["session_id"] != "T0-02" {
 		t.Errorf("expected next ready session to be T0-02, got %v", dataMap["session_id"])
+	}
+}
+
+func TestRunGate_OneWayDoor_MissingAlternatives_FailsTrackB(t *testing.T) {
+	ctx := context.Background()
+	cs := testServer(t)
+	tmpDir := t.TempDir()
+
+	// Initialize decision-scope workspace
+	_, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_init",
+		Arguments: map[string]any{
+			"project_root": tmpDir,
+			"scope":        "decision",
+		},
+	})
+	if err != nil {
+		t.Fatalf("init: %v", err)
+	}
+
+	// Record a One-Way Door ADR that deliberately lacks an alternatives section
+	incompleteADR := `---
+id: D-001
+title: Core Architecture
+status: accepted
+door_type: one-way
+review_trigger: 6 months
+human_reviewed: true
+---
+# D-001: Core Architecture
+## Context
+We are deciding the core database layer.
+## Decision
+We select PostgreSQL. Grade A (RFC docs)
+`
+	_, err = cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_record_decision",
+		Arguments: map[string]any{
+			"project_root": tmpDir,
+			"decision_id":  "D-001",
+			"content":      incompleteADR,
+		},
+	})
+	if err != nil {
+		t.Fatalf("record_decision: %v", err)
+	}
+
+	// Run gate: must NOT be PASS! Must fail Track B due to missing B5 alternatives.
+	resGate, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "vivechak_run_gate",
+		Arguments: map[string]any{"project_root": tmpDir, "verbose": true},
+	})
+	if err != nil {
+		t.Fatalf("run_gate: %v", err)
+	}
+	envGate := parseEnvelope(t, resGate)
+	gateData := envGate.Data.(map[string]any)
+	if gateData["gate_status"] == "PASS" || gateData["gate_passed"] == true {
+		t.Fatalf("expected gate to FAIL or WARN on One-Way Door with missing alternatives, got PASS!")
+	}
+
+	foundB5 := false
+	for _, w := range envGate.Warnings {
+		if strings.Contains(w, "B5-ALTERNATIVES") {
+			foundB5 = true
+			break
+		}
+	}
+	if !foundB5 {
+		t.Errorf("expected B5-ALTERNATIVES in gate warnings, got: %v", envGate.Warnings)
 	}
 }
 

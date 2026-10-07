@@ -725,32 +725,71 @@ func resolveDecisionFilename(ws *store.Workspace, decisionID string, slug string
 }
 
 // updateFrontmatterFields modifies or adds key-value pairs in YAML frontmatter,
-// preserving all existing comments, indentation, and markdown body.
+// preserving all existing comments, indentation, leading headings, and markdown body.
 func updateFrontmatterFields(content []byte, updates map[string]string) ([]byte, error) {
-	trimmed := strings.TrimSpace(string(content))
-	if !strings.HasPrefix(trimmed, "---") {
+	s := string(content)
+
+	// Locate opening ---
+	openIdx := -1
+	trimmed := strings.TrimLeft(s, " \t\r\n")
+	if strings.HasPrefix(trimmed, "---") {
+		leadOffset := len(s) - len(trimmed)
+		openIdx = leadOffset
+	} else {
+		// Look for \n--- or \r\n---
+		if idx := strings.Index(s, "\n---"); idx != -1 {
+			openIdx = idx + 1
+		} else if idx := strings.Index(s, "\r\n---"); idx != -1 {
+			openIdx = idx + 2
+		}
+	}
+
+	if openIdx == -1 {
+		// Genuinely has no frontmatter
 		var b strings.Builder
 		b.WriteString("---\n")
 		for k, v := range updates {
 			fmt.Fprintf(&b, "%s: %s\n", k, v)
 		}
 		b.WriteString("---\n\n")
-		b.WriteString(trimmed)
+		b.WriteString(strings.TrimSpace(s))
 		return []byte(b.String()), nil
 	}
 
-	lines := strings.SplitN(trimmed, "\n", 2)
-	if len(lines) < 2 {
+	prefix := s[:openIdx]
+	afterOpen := s[openIdx+3:] // after opening ---
+	nlIdx := strings.IndexByte(afterOpen, '\n')
+	if nlIdx == -1 {
 		return content, nil
 	}
-	rest := lines[1]
-	endIdx := strings.Index(rest, "\n---")
-	if endIdx < 0 {
+	yamlStart := openIdx + 3 + nlIdx + 1
+
+	// Scan for closing --- on a line by itself
+	closingRel := -1
+	rest := s[yamlStart:]
+	lines := strings.Split(rest, "\n")
+	currOffset := 0
+	for _, l := range lines {
+		lTrim := strings.TrimRight(l, " \t\r")
+		if lTrim == "---" {
+			closingRel = currOffset
+			break
+		}
+		currOffset += len(l) + 1
+	}
+
+	if closingRel == -1 {
 		return content, nil
 	}
 
-	yamlBlock := rest[:endIdx]
-	afterFrontmatter := rest[endIdx+4:] // after \n---
+	yamlBlock := rest[:closingRel]
+	// after closing --- line
+	afterClosingLine := rest[closingRel:]
+	closeNL := strings.IndexByte(afterClosingLine, '\n')
+	var afterFrontmatter string
+	if closeNL != -1 {
+		afterFrontmatter = afterClosingLine[closeNL+1:]
+	}
 
 	yamlLines := strings.Split(yamlBlock, "\n")
 	applied := make(map[string]bool)
@@ -781,9 +820,13 @@ func updateFrontmatterFields(content []byte, updates map[string]string) ([]byte,
 	}
 
 	var res strings.Builder
+	res.WriteString(prefix)
 	res.WriteString("---\n")
 	res.WriteString(strings.Join(newYamlLines, "\n"))
-	res.WriteString("\n---")
+	if len(newYamlLines) > 0 && !strings.HasSuffix(newYamlLines[len(newYamlLines)-1], "\n") {
+		res.WriteString("\n")
+	}
+	res.WriteString("---\n")
 	res.WriteString(afterFrontmatter)
 	return []byte(res.String()), nil
 }

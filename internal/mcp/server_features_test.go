@@ -531,15 +531,15 @@ date: 2026-09-29
 Should we use PostgreSQL or MySQL?
 
 ## Key Findings
-- PostgreSQL handles JSON natively. Grade A (official docs)
+- PostgreSQL handles JSON natively. Grade A (https://www.postgresql.org/docs/current/datatype-json.html)
 - MySQL lacks recursive CTEs. Grade B (benchmarks)
-- PostgreSQL has better indexing. Grade A (peer-reviewed)
+- PostgreSQL has better indexing. Grade A (RFC 7636)
 - Connection pooling needed. Grade C (vendor docs)
 
 ## Delta
 | Prior Belief | Status | Evidence | Impact |
 |---|---|---|---|
-| PostgreSQL best for JSON | Confirmed | Grade A (docs) | high |
+| PostgreSQL best for JSON | Confirmed | Grade A (https://www.postgresql.org/docs/) | high |
 `
 
 	result, err := cs.CallTool(ctx, &mcp.CallToolParams{

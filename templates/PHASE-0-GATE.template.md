@@ -45,7 +45,7 @@ For each Two-Way Door decision:
 
 ---
 
-## Track B: Rigorous 9-Step Gate (One-Way Door Decisions)
+## Track B: Rigorous 10-Step Gate (One-Way Door Decisions)
 
 For each One-Way Door decision:
 
@@ -62,7 +62,7 @@ For each One-Way Door decision:
 - [ ] All critical claims backed by Grade A or B evidence
 
 ### B4. Verification Integrity
-- [ ] 100% of critical citations carry `verification_method: fetched` or `cached`
+- [ ] 100% of critical citations carry `verification_method: fetched` or `cached` with qualified provenance
 - [ ] Zero `recalled` citations support any One-Way Door decision
 
 ### B5. Rejected Alternatives Documented
@@ -88,6 +88,9 @@ For each One-Way Door decision:
 - [ ] FAD compiled with full traceability matrix
 - [ ] FAD committed to repository root
 - [ ] Repository scaffolding ready to generate
+
+### B10. Substantive ADR Content
+- [ ] Decision record contains substantive causal rationale, evaluated options, and failure modes (no placeholder stubs)
 
 **Track B Result:** `[PASS / FAIL]`
 

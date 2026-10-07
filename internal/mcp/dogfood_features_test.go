@@ -1164,6 +1164,8 @@ human_reviewed: true
 We need a secure authentication architecture for the platform.
 ## Decision
 We select OAuth2 with PKCE. Grade A (RFC 7636)
+## Evaluated Alternatives
+We evaluated API keys and session cookies; rejected due to lack of PKCE security for mobile clients.
 ## Consequences
 Provides robust security with zero client secret exposure.
 `,

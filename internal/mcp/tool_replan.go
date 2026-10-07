@@ -77,19 +77,14 @@ func handleReplan(ctx context.Context, _ *sdkmcp.CallToolRequest, in ReplanInput
 	defer ws.Close()
 
 	pipelineFile := core.PipelineFile
-	pipelineData, err := ws.ReadFile(pipelineFile)
-	if err != nil {
-		// Check for decision or comparison plan files in research/
+	if _, statErr := ws.Stat(pipelineFile); statErr != nil {
 		found := false
 		if entries, lErr := ws.ListDir(core.ResearchDir); lErr == nil {
 			for _, e := range entries {
 				if strings.HasSuffix(e.Name(), "-plan.md") {
 					pipelineFile = filepath.Join(core.ResearchDir, e.Name())
-					pipelineData, err = ws.ReadFile(pipelineFile)
-					if err == nil {
-						found = true
-						break
-					}
+					found = true
+					break
 				}
 			}
 		}
@@ -97,6 +92,19 @@ func handleReplan(ctx context.Context, _ *sdkmcp.CallToolRequest, in ReplanInput
 			return ErrorResult(tool, fmt.Errorf("pipeline file %s not found", core.PipelineFile),
 				"Save a plan first using vivechak_save_plan before mutating it.")
 		}
+	}
+
+	// Acquire lock eagerly before reading and mutating pipeline to prevent TOCTOU races
+	unlock, lockErr := store.LockFile(ctx, filepath.Join(root, pipelineFile), 5*time.Second)
+	if lockErr != nil {
+		return ErrorResult(tool, fmt.Errorf("acquiring lock on %s: %w", pipelineFile, lockErr), "Another process may be writing. Try again.")
+	}
+	defer func() { _ = unlock() }()
+
+	pipelineData, err := ws.ReadFile(pipelineFile)
+	if err != nil {
+		return ErrorResult(tool, fmt.Errorf("reading pipeline file %s: %w", pipelineFile, err),
+			"Check file permissions.")
 	}
 
 	dag, err := core.ParsePipeline(pipelineData)
@@ -211,14 +219,8 @@ func handleReplan(ctx context.Context, _ *sdkmcp.CallToolRequest, in ReplanInput
 			"Supported operations: 'add_session', 'remove_session', 'update_deps', 'update_prompt'.")
 	}
 
-	// Re-serialize and atomically save with lock
+	// Re-serialize and atomically save
 	newPipelineContent := dag.Serialize()
-	unlock, lockErr := store.LockFile(ctx, filepath.Join(root, pipelineFile), 5*time.Second)
-	if lockErr != nil {
-		return ErrorResult(tool, fmt.Errorf("acquiring lock on %s: %w", pipelineFile, lockErr), "Another process may be writing. Try again.")
-	}
-	defer func() { _ = unlock() }()
-
 	if err := store.WriteFileAtomic(ws.Root(), pipelineFile, newPipelineContent, 0o644); err != nil {
 		return ErrorResult(tool, fmt.Errorf("saving mutated pipeline: %w", err),
 			"Retry the operation.")

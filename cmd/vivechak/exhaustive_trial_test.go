@@ -513,6 +513,9 @@ We need a robust embedded KV store.
 # Decision
 We adopt RocksDB. A (Benchmark v8.1)
 
+## Rejected Alternatives
+- SQLite: Rejected due to write throughput limitations under sustained concurrent load.
+
 # Consequences
 High write throughput achieved.
 `,
@@ -547,6 +550,9 @@ We need a robust embedded KV store.
 
 # Decision
 We adopt RocksDB with tuned block cache. A (Benchmark v8.1)
+
+## Rejected Alternatives
+- SQLite: Rejected due to write throughput limitations under sustained concurrent load.
 
 # Consequences
 High write throughput achieved with zero compaction stalls.
@@ -980,8 +986,14 @@ door_type: one-way
 reversal_triggers:
   - Tenant count exceeds 10,000 tables
 ---
+# Context
+High volume multi-tenant data segmentation requirements.
+
 # Decision
 Adopt Native Partitioning. A (Benchmarked)
+
+## Rejected Alternatives
+- Application Sharding: Rejected due to query routing complexity and cross-shard transaction overhead.
 `,
 			},
 		})

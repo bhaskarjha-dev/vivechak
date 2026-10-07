@@ -333,10 +333,10 @@ func handleRunGate(_ context.Context, _ *sdkmcp.CallToolRequest, in RunGateInput
 		}
 	}
 
-	// Evidence integrity checks (B3/B4/B5) — advisory, not blocking
+	// Evidence integrity checks (B3/B4/B5) — strict blocking for One-Way Doors
 	if info.Scope == core.ScopeProject || info.Scope == core.ScopeDecision {
-		eiWarns, eiAdvisories := verifyEvidentiaryIntegrity(ws, info)
-		gateAdvisories = append(gateAdvisories, eiWarns...)
+		eiBlocking, eiAdvisories := verifyEvidentiaryIntegrity(ws, info)
+		trackBIssues = append(trackBIssues, eiBlocking...)
 		gateAdvisories = append(gateAdvisories, eiAdvisories...)
 	}
 
@@ -606,9 +606,10 @@ func verifyDecisionsMechanical(ws *store.Workspace, info core.WorkspaceInfo) (bo
 // recalledCitationRe matches explicit recalled verification methods, avoiding false positives on general memory topics (RAM, heap).
 var recalledCitationRe = regexp.MustCompile(`(?i)(?:\[[^\]\n]*\b(?:recalled|parametric)\b[^\]\n]*\]|\([^)\n]*\b(?:recalled|parametric)\b[^)\n]*\)|\brecalled\s+memory\b|\|\s*recalled\s*\|)`)
 
-// verifyEvidentiaryIntegrity checks B3 (evidence threshold), B4 (verification integrity), and B5 (rejected alternatives).
+// verifyEvidentiaryIntegrity checks B3 (evidence threshold), B4 (verification integrity), B5 (rejected alternatives), and ADR structural shape.
+// Returns (blockingIssues, advisories).
 func verifyEvidentiaryIntegrity(ws *store.Workspace, info core.WorkspaceInfo) ([]string, []string) {
-	var warnings []string
+	var blocking []string
 	var advisories []string
 
 	decisions := collectGateDecisions(ws)
@@ -655,13 +656,19 @@ func verifyEvidentiaryIntegrity(ws *store.Workspace, info core.WorkspaceInfo) ([
 		// B5: Check rejected alternatives section (>30 characters of content)
 		altContent := core.ExtractSection(bodyStr, "alternative", "rejected")
 		if len(strings.TrimSpace(altContent)) < 30 {
-			advisories = append(advisories, fmt.Sprintf(
-				"B5-ALTERNATIVES: One-way door %s lacks documented rejected alternatives section", d.ID))
+			blocking = append(blocking, fmt.Sprintf(
+				"B5-ALTERNATIVES: One-way door %s lacks documented rejected alternatives section (minimum 30 chars required)", d.ID))
 		}
-		// B10: ADR stub check (< 200 characters)
-		if len(strings.TrimSpace(bodyStr)) < 200 {
+
+		// B-DECISION-STUB: Structural check replacing naive character volume check (advisory)
+		lowerBody := strings.ToLower(bodyStr)
+		hasContext := strings.Contains(lowerBody, "context") || strings.Contains(lowerBody, "problem")
+		hasRationale := strings.Contains(lowerBody, "rationale") || strings.Contains(lowerBody, "decision") || strings.Contains(lowerBody, "verdict")
+		hasTriggers := strings.Contains(lowerBody, "trigger") || strings.Contains(lowerBody, "reversal") || (fm != nil && fm.GetString("review_trigger") != "")
+
+		if !hasContext || !hasRationale || !hasTriggers {
 			advisories = append(advisories, fmt.Sprintf(
-				"B-DECISION-STUB: One-way door %s body is incomplete (%d chars). Requires substantive rationale ≥200 chars.", d.ID, len(strings.TrimSpace(bodyStr))))
+				"B-DECISION-STUB: One-way door %s lacks mandatory structural sections (Context, Rationale, or Reversal Trigger)", d.ID))
 		}
 
 		// Find informing sessions from frontmatter
@@ -710,13 +717,15 @@ func verifyEvidentiaryIntegrity(ws *store.Workspace, info core.WorkspaceInfo) ([
 			sessStr := string(sData)
 			checkStr := extractRecommendationText(sessStr)
 			if len(strings.TrimSpace(checkStr)) < 20 {
-				checkStr = sessStr
+				advisories = append(advisories, fmt.Sprintf(
+					"W-GATE-SECTION: Session %s recommendation section could not be isolated for evidentiary audit; bibliography scan omitted to prevent false B3 failure.", sid))
+				continue
 			}
 
 			// B3: Check evidence grades supporting the recommendation
 			lowGrades := len(lowGradeRe.FindAllString(checkStr, -1))
 			if lowGrades > 0 {
-				advisories = append(advisories, fmt.Sprintf(
+				blocking = append(blocking, fmt.Sprintf(
 					"B3-EVIDENTIARY: Session %s informs one-way door %s but recommendation has %d Grade C/D/E citation(s). One-way decisions require Grade A/B evidence.",
 					sid, d.ID, lowGrades))
 			}
@@ -724,13 +733,13 @@ func verifyEvidentiaryIntegrity(ws *store.Workspace, info core.WorkspaceInfo) ([
 			// B4: Check recalled verification supporting the recommendation
 			recalledCount := len(recalledCitationRe.FindAllString(checkStr, -1))
 			if recalledCount > 0 {
-				advisories = append(advisories, fmt.Sprintf(
+				blocking = append(blocking, fmt.Sprintf(
 					"B4-VERIFICATION: Session %s informs one-way door %s but recommendation has %d 'recalled' citation(s). One-way decisions require fetched/cached verification.",
 					sid, d.ID, recalledCount))
 			}
 		}
 	}
-	return warnings, advisories
+	return blocking, advisories
 }
 
 type gateDecisionItem struct {
@@ -1082,28 +1091,38 @@ func renderGateArtifact(ws *store.Workspace, root, projectName, gateStatus strin
 	return []byte(tmpl)
 }
 
-// extractRecommendationText extracts text under the Recommendation heading in a session
-// to allow evidentiary checks to focus on what supports the chosen decision rather than rejected options.
+// extractRecommendationText extracts text under Recommendation/Verdict/Findings in a session,
+// or the session body excluding Sources/Bibliography/Ledger to avoid flagging secondary links.
 func extractRecommendationText(content string) string {
+	rec := core.ExtractSection(content, "recommend", "verdict", "decision")
+	if len(strings.TrimSpace(rec)) >= 20 {
+		return rec
+	}
+	findings := core.ExtractSection(content, "key finding", "finding")
+	if len(strings.TrimSpace(findings)) >= 20 {
+		return findings
+	}
+	// Fallback: use body but strip Sources / Bibliography / Evidence Ledger
 	lines := strings.Split(content, "\n")
-	inRec := false
-	var recLines []string
+	var kept []string
+	inSources := false
 	for _, l := range lines {
 		trimmed := strings.TrimSpace(l)
-		if strings.HasPrefix(trimmed, "## ") {
+		if strings.HasPrefix(trimmed, "#") {
 			lower := strings.ToLower(trimmed)
-			if strings.Contains(lower, "recommend") {
-				inRec = true
+			if strings.Contains(lower, "source") || strings.Contains(lower, "reference") ||
+				strings.Contains(lower, "bibliography") || strings.Contains(lower, "evidence ledger") {
+				inSources = true
 				continue
-			} else if inRec {
-				break
+			} else if inSources && strings.HasPrefix(trimmed, "## ") {
+				inSources = false
 			}
 		}
-		if inRec {
-			recLines = append(recLines, l)
+		if !inSources {
+			kept = append(kept, l)
 		}
 	}
-	return strings.Join(recLines, "\n")
+	return strings.Join(kept, "\n")
 }
 
 

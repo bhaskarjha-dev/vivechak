@@ -458,7 +458,8 @@ func EnsureFrontmatterField(data []byte, key, value string) []byte {
 	return res.Bytes()
 }
 
-// skipLeadingWhitespaceAndComments skips leading whitespace and HTML comments (e.g. <!-- DECISION: D-001 -->).
+// skipLeadingWhitespaceAndComments skips leading whitespace, HTML comments (e.g. <!-- DECISION: D-001 -->),
+// and optional leading markdown headings (e.g. # Document Title) before frontmatter.
 func skipLeadingWhitespaceAndComments(d []byte) int {
 	start := 0
 	for {
@@ -470,6 +471,35 @@ func skipLeadingWhitespaceAndComments(d []byte) int {
 			if endComment != -1 {
 				start += endComment + 3
 				continue
+			}
+		}
+		// Skip top-level Markdown title before frontmatter if followed by ---
+		if start < len(d) && d[start] == '#' {
+			lineEnd := bytes.IndexByte(d[start:], '\n')
+			if lineEnd != -1 {
+				rest := d[start+lineEnd+1:]
+				trimmedRest := bytes.TrimLeft(rest, " \t\r\n")
+				if bytes.HasPrefix(trimmedRest, []byte("---")) {
+					start += lineEnd + 1
+					continue
+				}
+				// Look ahead: check if subsequent heading lines lead to ---
+				lines := bytes.Split(rest, []byte("\n"))
+				hasFM := false
+				for _, l := range lines {
+					tl := bytes.TrimSpace(l)
+					if len(tl) == 0 || (len(tl) > 0 && tl[0] == '#') || bytes.HasPrefix(tl, []byte("<!--")) {
+						continue
+					}
+					if bytes.Equal(tl, []byte("---")) {
+						hasFM = true
+					}
+					break
+				}
+				if hasFM {
+					start += lineEnd + 1
+					continue
+				}
 			}
 		}
 		break

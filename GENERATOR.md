@@ -344,10 +344,14 @@ Requirements:
   the `[UPSTREAM_FINDINGS]` placeholder; the final grand synthesis prompt
   (`SYN-01`) must include the `[ALL_SESSION_FINDINGS]` placeholder
 - Sessions must be ordered by layer (Layer 0 -> Layer 1 -> Layer 2 -> Sink)
-- The Pipeline Overview section must include a "How to Execute" guide
-  referencing: templates/DECISIONS.template.md, templates/CONFLICT-RESOLUTION.template.md,
-  templates/COMPARISON-SESSION.template.md, templates/FOUNDING-ARCHITECTURE.template.md,
-  templates/PHASE-0-GATE.template.md, and templates/SESSION.template.md.
+- The Pipeline Overview section must include a "How to Execute" guide:
+  - **With Vivechak MCP Server (Recommended):** Orchestrate sessions sequentially
+    or concurrently using `vivechak_next_session`, `vivechak_save_session`, `vivechak_record_decision`,
+    and `vivechak_run_gate`. The server automatically injects context and validates schemas;
+    agents should NOT manually read template files from disk.
+  - **Manual Execution (Without MCP):** Reference the contract templates in `templates/`
+    (DECISIONS.template.md, CONFLICT-RESOLUTION.template.md, COMPARISON-SESSION.template.md,
+    FOUNDING-ARCHITECTURE.template.md, PHASE-0-GATE.template.md, and SESSION.template.md).
   The guide must also include:
   - **Session normalization note:** A session is one independent deep
     research execution (a single prompt sent to a frontier AI's deep
@@ -456,9 +460,27 @@ See the generated RESEARCH-PIPELINE.md for the complete execution guide, or foll
 
 ---
 
-## Using with AI Agents (Antigravity, Claude Code, etc.)
+## Using with AI Agents (Antigravity, Claude Code, Cursor, etc.)
 
-With templates in your workspace, you can delegate research steps directly to an AI agent:
+### With Vivechak MCP Server (Recommended)
+
+When using an MCP-enabled agent, orchestrate via Vivechak tools for maximum token efficiency and schema enforcement without disk template reading:
+
+**Execute a research session:**
+> *Run `vivechak_next_session` to get the next prioritized research brief. Execute the deep research with web search, grade all evidence, and save using `vivechak_save_session`. Do not read template files from disk — Vivechak automatically validates schemas and injects format requirements.*
+
+**Record a decision:**
+> *Formulate the decision from session findings and record it using `vivechak_record_decision`. The server validates required fields and compiles `research/DECISIONS.md` automatically.*
+
+**Compile the FAD:**
+> *Synthesize all finalized sessions into `SYN-01` and save using `vivechak_save_session(session_id='SYN-01')`. The tool automatically saves `research/FAD.md` as the canonical Founding Architecture Document and mirrors a human-facing copy to `FOUNDING-ARCHITECTURE.md` at the project root.*
+
+**Run the gate:**
+> *Execute `vivechak_run_gate`. The server mechanically evaluates Track A and Track B exit criteria, conducts the One-Way Door premortem checks, and generates `research/PHASE-0-GATE.md`.*
+
+### Manual Execution (Without MCP)
+
+With the 6 templates copied into your workspace (`research/templates/`), you can delegate research steps directly to an agent:
 
 **Execute a research session:**
 > *Read session T2-01 from `research/RESEARCH-PIPELINE.md`. Copy the research prompt and run the deep research with web search. Grade all evidence and save the result to `research/sessions/T2-01-datastore-selection.md`.*
@@ -467,10 +489,10 @@ With templates in your workspace, you can delegate research steps directly to an
 > *Read `research/sessions/T2-01-datastore-selection.md`. Formulate the verdict for D-001 following `research/templates/DECISIONS.template.md` and record it in `research/DECISIONS.md`.*
 
 **Compile the FAD:**
-> *Read all finalized sessions in `research/sessions/` and all locked decisions. Synthesize them following `research/templates/FOUNDING-ARCHITECTURE.template.md`. Save using `vivechak_save_session` with `session_id='SYN-01'`. The tool automatically saves the output to `research/FAD.md` as the canonical Founding Architecture Document and mirrors a human-facing copy to `FOUNDING-ARCHITECTURE.md` at the project root. Do NOT manually create additional copies.*
+> *Read all finalized sessions in `research/sessions/` and all locked decisions. Synthesize them following `research/templates/FOUNDING-ARCHITECTURE.template.md` and save to `research/FAD.md`.*
 
 **Run the gate:**
-> *Audit `FAD.md` and all decisions against `research/templates/PHASE-0-GATE.template.md`. Conduct the premortem for all One-Way Doors and emit `PHASE-0-GATE.md`.*
+> *Audit `research/FAD.md` and all decisions against `research/templates/PHASE-0-GATE.template.md`. Conduct the premortem for all One-Way Doors and emit `research/PHASE-0-GATE.md`.*
 
 ---
 

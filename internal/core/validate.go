@@ -718,16 +718,37 @@ func ObserveSessionQuality(content []byte) []QualityObservation {
 			gradeCPlusCount++
 		}
 	}
-	if gradeCount >= 4 && gradeACount > int(float64(gradeCount)*0.7) {
+	// Verify Grade A claims have explicit URL or canonical RFC anchors (Task 4.2 / ADR D-UX-02)
+	gradeALines := findLinesWithGradeA(bodyStr)
+	unanchoredGradeA := 0
+	for _, l := range gradeALines {
+		lower := strings.ToLower(l)
+		if !strings.Contains(lower, "http://") &&
+			!strings.Contains(lower, "https://") &&
+			!strings.Contains(lower, "rfc ") &&
+			!strings.Contains(lower, "rfc-") &&
+			!strings.Contains(lower, "doi:") {
+			unanchoredGradeA++
+		}
+	}
+	if unanchoredGradeA > 0 {
 		observations = append(observations, QualityObservation{
 			Category: "evidence",
-			Message: fmt.Sprintf("Grade distribution is %d A / %d B / %d C+ (%d%% Grade A). "+
-				"Web-based research typically produces ~25%% A, ~50%% B, ~25%% C. "+
-				"Verify Grade A citations include URLs to primary sources.",
-				gradeACount, gradeBCount, gradeCPlusCount,
-				gradeACount*100/gradeCount),
+			Message: fmt.Sprintf("%d Grade A claim(s) lack canonical URL or RFC provenance anchors. Primary evidence requires verifiable sources.", unanchoredGradeA),
 			Severity: "consideration",
 		})
+	}
+
+	// Citation diversity check for substantive research sessions (Task 4.5)
+	if len(bodyStr) > 1000 {
+		urlCount := countDistinctURLs(bodyStr)
+		if urlCount < 2 {
+			observations = append(observations, QualityObservation{
+				Category: "evidence",
+				Message:  "Session cites fewer than 2 distinct external sources. Citing multiple independent primary/secondary sources strengthens evidentiary grounding (Principle P3).",
+				Severity: "consideration",
+			})
+		}
 	}
 
 	// Discovered Concerns check
@@ -806,33 +827,37 @@ func ObserveSessionQuality(content []byte) []QualityObservation {
 		deltaSection := extractSection(bodyStr, "delta")
 		lowerDelta := strings.ToLower(deltaSection)
 		hasContradiction := strings.Contains(lowerDelta, "contradict") ||
-			strings.Contains(lowerDelta, "updated") ||
 			strings.Contains(lowerDelta, "revised") ||
-			strings.Contains(lowerDelta, "overturned")
+			strings.Contains(lowerDelta, "overturned") ||
+			strings.Contains(lowerDelta, "falsified") ||
+			strings.Contains(lowerDelta, "disproved") ||
+			(strings.Contains(lowerDelta, "updated") && !strings.Contains(lowerDelta, "unknown"))
 		if !hasContradiction {
 			observations = append(observations, QualityObservation{
 				Category: "bias",
-				Message:  "Delta section has no contradicted or updated beliefs. If every prior was confirmed, consider whether the research genuinely challenged initial assumptions (P8).",
+				Message:  "Delta section has no contradicted or updated beliefs. If every prior was confirmed or started from 'Unknown', consider whether the research genuinely challenged initial assumptions (P8).",
 				Severity: "consideration",
 			})
 		}
 	}
 
-	// Recommendation alternatives check
-	recSection := extractSection(bodyStr, "recommend")
-	if recSection != "" {
-		lowerRec := strings.ToLower(recSection)
-		hasAlternatives := strings.Contains(lowerRec, "alternative") ||
-			strings.Contains(lowerRec, "rejected") ||
-			strings.Contains(lowerRec, "instead of") ||
-			strings.Contains(lowerRec, "over ")
-		if !hasAlternatives {
-			observations = append(observations, QualityObservation{
-				Category: "rigor",
-				Message:  "Recommendation doesn't reference rejected alternatives. Stating why alternatives were rejected strengthens the decision rationale.",
-				Severity: "suggestion",
-			})
-		}
+	// Recommendation & alternatives rigor check
+	recSection := extractSection(bodyStr, "recommend", "verdict")
+	altSection := extractSection(bodyStr, "alternative", "evaluated option", "rejected option")
+
+	combinedRationale := strings.ToLower(recSection + "\n" + altSection)
+	hasAlternatives := strings.Contains(combinedRationale, "alternative") ||
+		strings.Contains(combinedRationale, "rejected") ||
+		strings.Contains(combinedRationale, "instead of") ||
+		strings.Contains(combinedRationale, "over ") ||
+		len(strings.TrimSpace(altSection)) >= 30
+
+	if recSection != "" && !hasAlternatives {
+		observations = append(observations, QualityObservation{
+			Category: "rigor",
+			Message:  "Recommendation doesn't reference rejected alternatives. Stating why alternatives were rejected strengthens the decision rationale.",
+			Severity: "suggestion",
+		})
 	}
 
 	// Check for stale date references (refined to avoid false positives on ports, latencies, QPS)
@@ -910,6 +935,31 @@ func hasSectionHeading(body string, keywords ...string) bool {
 		}
 	}
 	return false
+}
+
+var gradeALineRe = regexp.MustCompile(`(?i)(?:\[(?:Grade\s+)?A[^\]\n]*\]|\((?:Grade\s+)?A[^)\n]*\)|\bGrade\s+A\b|\bGrade:A\b)`)
+
+func findLinesWithGradeA(text string) []string {
+	lines := strings.Split(text, "\n")
+	var res []string
+	for _, l := range lines {
+		if gradeALineRe.MatchString(l) {
+			res = append(res, l)
+		}
+	}
+	return res
+}
+
+func countDistinctURLs(text string) int {
+	matches := urlPattern.FindAllString(text, -1)
+	if len(matches) == 0 {
+		return 0
+	}
+	seen := make(map[string]bool)
+	for _, m := range matches {
+		seen[strings.ToLower(m)] = true
+	}
+	return len(seen)
 }
 
 

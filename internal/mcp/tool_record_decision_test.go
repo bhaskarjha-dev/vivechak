@@ -604,5 +604,75 @@ Migrated away from SQLite to DuckDB for analytical query performance and embedde
 	}
 }
 
+func TestRecordDecision_Supersede_LeadingHeadingADR(t *testing.T) {
+	tmpDir := t.TempDir()
+	researchDir := filepath.Join(tmpDir, core.ResearchDir)
+	if err := os.MkdirAll(researchDir, 0o755); err != nil {
+		t.Fatalf("mkdir research: %v", err)
+	}
+
+	// Create original decision D-001 with leading markdown header
+	d1Content := `# Architectural Decision: D-001
+---
+id: D-001
+title: Old Engine
+status: accepted
+door_type: two-way
+---
+
+## Context
+Initial decision on engine selection with ample rationale to meet requirements.
+`
+	if err := os.WriteFile(filepath.Join(researchDir, "D-001.md"), []byte(d1Content), 0o644); err != nil {
+		t.Fatalf("writing D-001: %v", err)
+	}
+
+	d2Content := `---
+id: D-002
+title: New Engine
+status: accepted
+door_type: two-way
+---
+
+## Context
+Upgraded engine rationale and alternatives considered.
+`
+	ctx := context.Background()
+	_, envSuccess, err := handleRecordDecision(ctx, nil, RecordDecisionInput{
+		ProjectRoot: tmpDir,
+		DecisionID:  "D-002",
+		Supersedes:  "D-001",
+		Content:     d2Content,
+	})
+	if err != nil || !envSuccess.Success {
+		t.Fatalf("supersede failed: %v, env: %+v", err, envSuccess)
+	}
+
+	oldData, err := os.ReadFile(filepath.Join(researchDir, "D-001.md"))
+	if err != nil {
+		t.Fatalf("reading old decision: %v", err)
+	}
+	oldStr := string(oldData)
+
+	// Verify leading header is preserved
+	if !strings.HasPrefix(oldStr, "# Architectural Decision: D-001") {
+		t.Errorf("expected leading header preserved, got:\n%s", oldStr)
+	}
+
+	// Verify NO duplicate frontmatter delimiters (must have exactly 2 '---')
+	fenceCount := strings.Count(oldStr, "---")
+	if fenceCount != 2 {
+		t.Errorf("expected exactly 2 '---' delimiters (no duplicate frontmatter), got %d:\n%s", fenceCount, oldStr)
+	}
+
+	// Verify status updated and superseded_by recorded
+	if !strings.Contains(oldStr, "status: superseded") {
+		t.Errorf("expected status: superseded, got:\n%s", oldStr)
+	}
+	if !strings.Contains(oldStr, "superseded_by: D-002") {
+		t.Errorf("expected superseded_by: D-002, got:\n%s", oldStr)
+	}
+}
+
 
 

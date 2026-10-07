@@ -118,7 +118,7 @@ The agent executes the research using web search and tool capabilities, producin
 ```json
 {
   "session_id": "T1-01",
-  "content": "---\\nsession_id: T1-01\\ntitle: Graph Persistence Landscape\\ndate: 2026-09-01\\nstatus: complete\\n---\\n\\n# T1-01: Graph Persistence Landscape\\n\\n## Findings\\nPostgreSQL 16 + recursive CTEs handles graph traversal up to ~50k nodes at <50ms p95. Dedicated Graph DB operational overhead is unnecessary at this scale.\\n## Evidence\\n- [Grade A] PostgreSQL 16 Docs\\n- [Grade B] Internal PGBench runs..."
+  "content": "---\\nsession_id: T1-01\\ntitle: Graph Persistence Landscape\\ndate: 2026-09-01\\nstatus: complete\\n---\\n\\n# T1-01: Graph Persistence Landscape\\n\\n## Key Findings\\n- [Grade A] https://www.postgresql.org/docs/16/queries-with.html PostgreSQL 16 recursive CTEs handle graph traversal up to ~50k nodes at <50ms p95.\\n- [Grade B] Internal PGBench runs show minimal CPU overhead with indexed foreign keys.\\n- [Grade B] pgvector supports co-located vector search without external index sync.\\n\\n## Discovered Concerns\\nRecursive CTE performance degrades beyond 10 traversal hops without depth limiting.\\n\\n## Delta\\nContradicted initial assumption that dedicated graph database was required.\\n\\n## Recommendation\\nAdopt PostgreSQL 16 with pgvector over Neo4j. Dedicated Graph DB operational overhead is unnecessary at this scale."
 }
 ```
 
@@ -138,7 +138,7 @@ The agent records the primary datastore decision.
 {
   "decision_id": "D-001",
   "artifact_type": "decision",
-  "content": "---\nid: D-001\ntitle: Primary Datastore - PostgreSQL 16 with pgvector and Recursive CTEs\nstatus: accepted\ndoor_type: one-way\ndate: 2026-09-01\nevidence_refs: [E-001, E-002]\nreview_trigger: Re-evaluate if graph traversal exceeds 200ms p95 or graph > 500k edges\n---\n\n## Decision\n\nAdopt PostgreSQL 16 with pgvector extension and recursive CTEs for Katha's story graph persistence.\n\n## Evidence\n\n- [Grade A] PostgreSQL 16 Official Documentation\n- [Grade B] PGBench graph traversal benchmarks at 50k nodes"
+  "content": "---\\nid: D-001\\ntitle: Primary Datastore - PostgreSQL 16 with pgvector and Recursive CTEs\\nstatus: accepted\\ndoor_type: one-way\\ndate: 2026-09-01\\nhuman_reviewed: true\\nevidence_refs: [E-001, E-002]\\nreview_trigger: Re-evaluate if graph traversal exceeds 200ms p95 or graph > 500k edges\\n---\\n\\n## Context\\nStory graph persistence requires low latency node retrieval with relational metadata.\\n\\n## Decision\\nAdopt PostgreSQL 16 with pgvector extension and recursive CTEs for Katha's story graph persistence. Grade A (https://www.postgresql.org/docs/16/queries-with.html)\\n\\n## Rejected Alternatives\\n- Neo4j: Operational overhead of maintaining a separate cluster with specialized backup procedures is unjustified at 50k nodes.\\n- DynamoDB: Multi-hop graph traversals require client-side join logic and costly fan-out queries.\\n\\n## Evidence\\n- [Grade A] https://www.postgresql.org/docs/16/queries-with.html\\n- [Grade B] PGBench graph traversal benchmarks at 50k nodes"
 }
 ```
 

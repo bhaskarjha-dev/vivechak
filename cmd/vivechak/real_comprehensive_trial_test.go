@@ -466,6 +466,8 @@ review_trigger: "Database file size exceeds 50 GB"
 Local-first application requires embedded datastore with at-rest encryption.
 ## Decision
 We choose SQLite WAL mode with SQLCipher. Grade A (benchmark)
+## Rejected Alternatives
+- LevelDB: Rejected due to lack of SQL query interface and complex schema migration.
 ## Consequences
 Requires strict serialization of write transactions.
 `,
