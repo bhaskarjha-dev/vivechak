@@ -1,0 +1,568 @@
+package core
+
+import (
+	"encoding/json"
+	"fmt"
+	"io/fs"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+)
+
+type testWorkspaceFS struct {
+	root string
+}
+
+func (tfs *testWorkspaceFS) ReadFile(path string) ([]byte, error) {
+	return os.ReadFile(filepath.Join(tfs.root, path))
+}
+
+func (tfs *testWorkspaceFS) ListDir(path string) ([]fs.DirEntry, error) {
+	return os.ReadDir(filepath.Join(tfs.root, path))
+}
+
+func (tfs *testWorkspaceFS) Stat(path string) (fs.FileInfo, error) {
+	return os.Stat(filepath.Join(tfs.root, path))
+}
+
+func setupTestWorkspace(t *testing.T, scope Scope) (string, *testWorkspaceFS) {
+	t.Helper()
+	dir := t.TempDir()
+	rDir := filepath.Join(dir, ResearchDir)
+	sDir := filepath.Join(rDir, "sessions")
+	tDir := filepath.Join(rDir, "templates")
+
+	if err := os.MkdirAll(sDir, 0o755); err != nil {
+		t.Fatalf("mkdir sessions: %v", err)
+	}
+	if err := os.MkdirAll(tDir, 0o755); err != nil {
+		t.Fatalf("mkdir templates: %v", err)
+	}
+
+	meta := WorkspaceMeta{Scope: scope}
+	metaBytes, _ := json.Marshal(meta)
+	_ = os.WriteFile(filepath.Join(dir, MetadataFile), metaBytes, 0o644)
+
+	// Populate templates
+	for _, tmpl := range TemplatesForScope(scope) {
+		_ = os.WriteFile(filepath.Join(tDir, tmpl), []byte("# Template "+tmpl), 0o644)
+	}
+
+	return dir, &testWorkspaceFS{root: dir}
+}
+
+func TestEvaluateGate_ScopeProject_Empty(t *testing.T) {
+	dir := t.TempDir()
+	ws := &testWorkspaceFS{root: dir}
+	info := InspectWorkspace(dir)
+
+	res := EvaluateGate(ws, info, dir)
+	if res.Passed {
+		t.Errorf("expected empty project to fail gate, got passed=true")
+	}
+	if res.Status != "FAIL" {
+		t.Errorf("expected FAIL, got %s", res.Status)
+	}
+	if res.StructuralChecks.Passed {
+		t.Errorf("expected structural checks to fail")
+	}
+	if len(res.StructuralChecks.Issues) == 0 {
+		t.Errorf("expected structural check issues")
+	}
+}
+
+func TestEvaluateGate_ScopeProject_FullPass(t *testing.T) {
+	dir, ws := setupTestWorkspace(t, ScopeProject)
+
+	pipelineContent := `# Research Pipeline: MyProject
+
+### T1-01: Session 1
+| Field | Value |
+|---|---|
+| **ID** | T1-01 |
+| **Output File** | ` + "`research/sessions/T1-01.md`" + ` |
+
+### SYN-01: Synthesis
+| Field | Value |
+|---|---|
+| **ID** | SYN-01 |
+| **Output File** | ` + "`research/FAD.md`" + ` |
+`
+	if err := os.WriteFile(filepath.Join(dir, PipelineFile), []byte(pipelineContent), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Session 1
+	s1Content := `---
+session_id: T1-01
+status: complete
+completed_at: "2026-10-13T00:00:00Z"
+---
+# Session Findings
+Claim A [Grade A: verified by RFC 7519 https://tools.ietf.org/html/rfc7519]
+`
+	if err := os.WriteFile(filepath.Join(dir, "research", "sessions", "T1-01.md"), []byte(s1Content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Session 2
+	s2Content := `---
+session_id: T1-02
+status: complete
+completed_at: "2026-10-13T00:00:00Z"
+---
+# Session Findings 2
+Claim B [Grade B: benchmark tests conducted locally]
+`
+	if err := os.WriteFile(filepath.Join(dir, "research", "sessions", "T1-02.md"), []byte(s2Content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Session 3
+	s3Content := `---
+session_id: T1-03
+status: complete
+completed_at: "2026-10-13T00:00:00Z"
+---
+# Session Findings 3
+Claim C [Grade B: vendor documentation]
+`
+	if err := os.WriteFile(filepath.Join(dir, "research", "sessions", "T1-03.md"), []byte(s3Content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// FAD
+	fadContent := `---
+id: FAD-001
+title: Founding Architecture Document
+synthesis_date: "2026-10-13"
+status: complete
+---
+# Founding Architecture Document
+This comprehensive architectural blueprint synthesizes all session findings into a cohesive system design.
+All major subsystems, data boundaries, and protocols are rigorously specified [Grade A: official docs https://golang.org/doc].
+`
+	if err := os.WriteFile(filepath.Join(dir, FADFile), []byte(fadContent), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Two-Way Door decision
+	decContent := `---
+decision_id: D-001
+door_type: two-way
+status: accepted
+review_trigger: "Latency exceeds 50ms"
+---
+# D-001: Cache Strategy
+Decision details.
+## Reversal Triggers
+- Latency > 50ms
+`
+	if err := os.WriteFile(filepath.Join(dir, "research", "D-001.md"), []byte(decContent), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// Consolidated registry
+	if err := os.WriteFile(filepath.Join(dir, DecisionsFile), []byte(decContent), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	info := InspectWorkspace(dir)
+	res := EvaluateGate(ws, info, dir)
+
+	if !res.Passed {
+		t.Fatalf("expected gate to pass, issues:\nStructural: %v\nQuality: %v", res.StructuralChecks.Issues, res.QualityChecks.Issues)
+	}
+	if res.Status != "PASS" {
+		t.Errorf("expected status PASS, got %s", res.Status)
+	}
+}
+
+func setupOneWayDoorFixture(dir string) {
+	fadContent := `---
+id: FAD-001
+title: Founding Architecture Document
+synthesis_date: "2026-10-13"
+status: complete
+---
+# Founding Architecture Document
+This architectural blueprint synthesizes all session findings into an unified system design.
+All major subsystems, interfaces, data layers, and security controls are specified with inline evidence grades [Grade A: official docs https://golang.org/doc].
+`
+	_ = os.WriteFile(filepath.Join(dir, PipelineFile), []byte("# Pipeline: TestApp"), 0o644)
+	_ = os.WriteFile(filepath.Join(dir, FADFile), []byte(fadContent), 0o644)
+
+	for i := 1; i <= 3; i++ {
+		sContent := fmt.Sprintf(`---
+session_id: S-0%d
+status: complete
+---
+# Session Findings
+Factual claim verified by tests [Grade A: official documentation https://example.com/spec%d].
+`, i, i)
+		_ = os.WriteFile(filepath.Join(dir, "research", "sessions", fmt.Sprintf("S-0%d.md", i)), []byte(sContent), 0o644)
+	}
+}
+
+func TestEvaluateGate_ScopeProject_OneWayDoorRigor(t *testing.T) {
+	t.Run("fails when One-Way Door lacks rejected alternatives (B5)", func(t *testing.T) {
+		dir, ws := setupTestWorkspace(t, ScopeProject)
+		setupOneWayDoorFixture(dir)
+
+		// D-001 is One-Way door with short/missing Rejected Alternatives
+		dContent := `---
+decision_id: D-001
+door_type: one-way
+status: accepted
+review_trigger: "Storage cost exceeds budget by 50%"
+---
+# D-001: Storage Engine
+## Context
+Selecting the datastore.
+## Decision Rationale
+PostgreSQL is selected based on evaluation.
+## Rejected Alternatives
+None
+## Reversal Triggers
+- Storage cost exceeds budget by 50%
+`
+		_ = os.WriteFile(filepath.Join(dir, "research", "D-001.md"), []byte(dContent), 0o644)
+		_ = os.WriteFile(filepath.Join(dir, DecisionsFile), []byte(dContent), 0o644)
+
+		info := InspectWorkspace(dir)
+		res := EvaluateGate(ws, info, dir)
+
+		foundB5 := false
+		for _, issue := range res.QualityChecks.Issues {
+			if strings.Contains(issue, "B5-ALTERNATIVES") {
+				foundB5 = true
+				break
+			}
+		}
+		if !foundB5 {
+			t.Errorf("expected failure for B5-ALTERNATIVES, got issues: %v", res.QualityChecks.Issues)
+		}
+	})
+
+	t.Run("fails when informing session has recalled verification for one-way door (B4)", func(t *testing.T) {
+		dir, ws := setupTestWorkspace(t, ScopeProject)
+		setupOneWayDoorFixture(dir)
+
+		// S-01 informs D-001 and uses recalled verification in recommendation
+		sContent := `---
+session_id: S-01
+status: complete
+informs_decisions: ["D-001"]
+---
+# Session Findings
+## Recommendation
+We strongly recommend PostgreSQL based on parametric memory [Grade A: recalled].
+`
+		_ = os.WriteFile(filepath.Join(dir, "research", "sessions", "S-01.md"), []byte(sContent), 0o644)
+
+		dContent := `---
+decision_id: D-001
+door_type: one-way
+status: accepted
+review_trigger: "Storage write latency exceeds 200ms"
+informed_by_sessions: ["S-01"]
+---
+# D-001: Storage Engine
+## Context
+Selecting the primary relational engine for persistence.
+## Decision Rationale
+PostgreSQL is selected for compliance and reliability.
+## Rejected Alternatives
+- SQLite: does not provide the required multi-writer throughput under concurrent transaction load.
+## Reversal Triggers
+- Storage write latency exceeds 200ms at p99 for 3 consecutive days.
+`
+		_ = os.WriteFile(filepath.Join(dir, "research", "D-001.md"), []byte(dContent), 0o644)
+		_ = os.WriteFile(filepath.Join(dir, DecisionsFile), []byte(dContent), 0o644)
+
+		info := InspectWorkspace(dir)
+		res := EvaluateGate(ws, info, dir)
+
+		foundB4 := false
+		for _, issue := range res.QualityChecks.Issues {
+			if strings.Contains(issue, "B4-VERIFICATION") {
+				foundB4 = true
+				break
+			}
+		}
+		if !foundB4 {
+			t.Errorf("expected failure for B4-VERIFICATION, got issues: %v", res.QualityChecks.Issues)
+		}
+	})
+
+	t.Run("fails when informing session has Grade D citations for one-way door (B3)", func(t *testing.T) {
+		dir, ws := setupTestWorkspace(t, ScopeProject)
+		setupOneWayDoorFixture(dir)
+
+		// S-01 informs D-001 and uses Grade D citation in recommendation
+		sContent := `---
+session_id: S-01
+status: complete
+informs_decisions: ["D-001"]
+---
+# Session Findings
+## Recommendation
+We recommend SQLite based on blog speculation [Grade D: personal blog].
+`
+		_ = os.WriteFile(filepath.Join(dir, "research", "sessions", "S-01.md"), []byte(sContent), 0o644)
+
+		dContent := `---
+decision_id: D-001
+door_type: one-way
+status: accepted
+review_trigger: "Storage write latency exceeds 200ms"
+informed_by_sessions: ["S-01"]
+---
+# D-001: Storage Engine
+## Context
+Selecting the primary relational engine.
+## Decision Rationale
+PostgreSQL is chosen.
+## Rejected Alternatives
+- SQLite: does not provide the required multi-writer throughput under concurrent transaction load.
+## Reversal Triggers
+- Storage write latency exceeds 200ms at p99 for 3 consecutive days.
+`
+		_ = os.WriteFile(filepath.Join(dir, "research", "D-001.md"), []byte(dContent), 0o644)
+		_ = os.WriteFile(filepath.Join(dir, DecisionsFile), []byte(dContent), 0o644)
+
+		info := InspectWorkspace(dir)
+		res := EvaluateGate(ws, info, dir)
+
+		foundB3 := false
+		for _, issue := range res.QualityChecks.Issues {
+			if strings.Contains(issue, "B3-EVIDENTIARY") {
+				foundB3 = true
+				break
+			}
+		}
+		if !foundB3 {
+			t.Errorf("expected failure for B3-EVIDENTIARY, got issues: %v", res.QualityChecks.Issues)
+		}
+	})
+}
+
+func TestEvaluateGate_ScopeDecision(t *testing.T) {
+	dir, ws := setupTestWorkspace(t, ScopeDecision)
+
+	// Decision plan
+	_ = os.WriteFile(filepath.Join(dir, "research", "D-001-plan.md"), []byte("# Decision Plan"), 0o644)
+
+	// Session
+	sContent := `---
+session_id: D-001-S01
+status: complete
+---
+# Findings
+Evaluation of choices [Grade A: https://tools.ietf.org/rfc/rfc1234].
+`
+	_ = os.WriteFile(filepath.Join(dir, "research", "sessions", "D-001-S01.md"), []byte(sContent), 0o644)
+
+	// Decision
+	dContent := `---
+decision_id: D-001
+door_type: two-way
+status: accepted
+review_trigger: "Library deprecation"
+---
+# D-001: Auth
+Details.
+## Reversal Triggers
+- Library deprecation
+`
+	_ = os.WriteFile(filepath.Join(dir, "research", "D-001.md"), []byte(dContent), 0o644)
+
+	info := InspectWorkspace(dir)
+	res := EvaluateGate(ws, info, dir)
+
+	if !res.Passed {
+		t.Fatalf("expected decision scope gate to pass, got issues: %v", res.StructuralChecks.Issues)
+	}
+}
+
+func TestEvaluateGate_ScopeComparison(t *testing.T) {
+	dir, ws := setupTestWorkspace(t, ScopeComparison)
+
+	// Comparison plan
+	_ = os.WriteFile(filepath.Join(dir, "research", "C-001-plan.md"), []byte("# Comparison Plan"), 0o644)
+
+	// Session
+	sContent := `---
+session_id: C-001-S01
+status: complete
+---
+# Comparison Matrix
+Option A vs Option B [Grade B: benchmark results].
+`
+	_ = os.WriteFile(filepath.Join(dir, "research", "sessions", "C-001-S01.md"), []byte(sContent), 0o644)
+
+	info := InspectWorkspace(dir)
+	res := EvaluateGate(ws, info, dir)
+
+	if !res.Passed {
+		t.Fatalf("expected comparison scope gate to pass, got issues: %v", res.StructuralChecks.Issues)
+	}
+}
+
+func TestDetectProjectName(t *testing.T) {
+	t.Run("from frontmatter", func(t *testing.T) {
+		dir := t.TempDir()
+		ws := &testWorkspaceFS{root: dir}
+		_ = os.MkdirAll(filepath.Join(dir, ResearchDir), 0o755)
+		_ = os.WriteFile(filepath.Join(dir, PipelineFile), []byte("---\nproject: QuantumCore\n---\n# Pipeline"), 0o644)
+
+		name := DetectProjectName(ws, dir)
+		if name != "QuantumCore" {
+			t.Errorf("expected QuantumCore, got %s", name)
+		}
+	})
+
+	t.Run("from heading with colon", func(t *testing.T) {
+		dir := t.TempDir()
+		ws := &testWorkspaceFS{root: dir}
+		_ = os.MkdirAll(filepath.Join(dir, ResearchDir), 0o755)
+		_ = os.WriteFile(filepath.Join(dir, PipelineFile), []byte("# Research Pipeline: Aurora Engine\nDetails"), 0o644)
+
+		name := DetectProjectName(ws, dir)
+		if name != "Aurora Engine" {
+			t.Errorf("expected Aurora Engine, got %s", name)
+		}
+	})
+
+	t.Run("fallback to folder name", func(t *testing.T) {
+		dir := t.TempDir()
+		ws := &testWorkspaceFS{root: dir}
+		name := DetectProjectName(ws, dir)
+		base := filepath.Base(dir)
+		if name != base {
+			t.Errorf("expected %s, got %s", base, name)
+		}
+	})
+}
+
+func TestRenderGateArtifact(t *testing.T) {
+	dir := t.TempDir()
+	ws := &testWorkspaceFS{root: dir}
+
+	tmpl := `---
+project: "[Project Name]"
+date: "[YYYY-MM-DD]"
+verdict: "[PENDING | PASS | FAIL]"
+track_a_result: "[PENDING | PASS | FAIL]"
+track_b_result: "[PENDING | PASS | FAIL]"
+---
+
+## Project: ` + "`[Project Name]`" + `
+**Gate Date:** ` + "`[YYYY-MM-DD]`" + `
+
+### Decision Routing Summary
+
+| D-001 | ` + "`[Title]`" + ` | ` + "`[1-way/2-way]`" + ` | ` + "`[A/B]`" + ` | ` + "`[PASS/FAIL/PENDING]`" + ` |
+| D-002 | ` + "`[Title]`" + ` | ` + "`[1-way/2-way]`" + ` | ` + "`[A/B]`" + ` | ` + "`[PASS/FAIL/PENDING]`" + ` |
+| D-NNN | ` + "`[Title]`" + ` | ` + "`[1-way/2-way]`" + ` | ` + "`[A/B]`" + ` | ` + "`[PASS/FAIL/PENDING]`" + ` |
+
+**Track A Result:** ` + "`[PASS / FAIL]`" + `
+- [ ] Decision logged in ADR
+- [ ] Reversibility confirmed
+- [ ] At least one corroborated source
+
+**Track B Result:** ` + "`[PASS / FAIL]`" + `
+
+### Blocking Issues
+- ` + "`[None — all checks passed]`" + `
+`
+
+	decisions := []GateDecisionItem{
+		{
+			ID:       "D-001",
+			Title:    "PostgreSQL Database",
+			DoorType: "two-way",
+			Track:    "A",
+			Status:   "PASS",
+		},
+	}
+
+	rendered := RenderGateArtifact(
+		ws,
+		[]byte(tmpl),
+		dir,
+		"TestApp",
+		"PASS",
+		true,
+		true,
+		nil,
+		nil,
+		decisions,
+	)
+
+	out := string(rendered)
+	if !strings.Contains(out, `project: "TestApp"`) {
+		t.Errorf("missing rendered project in frontmatter")
+	}
+	if !strings.Contains(out, `verdict: "PASS"`) {
+		t.Errorf("missing PASS verdict")
+	}
+	if !strings.Contains(out, `| D-001 | PostgreSQL Database | two-way | Track A | PASS |`) {
+		t.Errorf("missing decision table entry:\n%s", out)
+	}
+	if !strings.Contains(out, "- [x] Decision logged in ADR") {
+		t.Errorf("missing checked box for Track A")
+	}
+}
+
+func TestWorkspace_ScanAndCollect(t *testing.T) {
+	dir, ws := setupTestWorkspace(t, ScopeProject)
+
+	// Write 2 completed sessions
+	s1 := `---
+session_id: T1-01
+status: complete
+completed_at: "2026-10-12T10:00:00Z"
+---
+# Content 1
+`
+	s2 := `---
+session_id: T1-02
+status: complete
+completed_at: "2026-10-12T11:00:00Z"
+---
+# Content 2
+`
+	_ = os.WriteFile(filepath.Join(dir, "research", "sessions", "T1-01.md"), []byte(s1), 0o644)
+	_ = os.WriteFile(filepath.Join(dir, "research", "sessions", "T1-02.md"), []byte(s2), 0o644)
+
+	completed, err := ScanCompletedSessions(ws)
+	if err != nil {
+		t.Fatalf("ScanCompletedSessions failed: %v", err)
+	}
+	if len(completed) < 2 {
+		t.Errorf("expected at least 2 completed sessions, got %d", len(completed))
+	}
+	if !completed["T1-01"] || !completed["T1-02"] {
+		t.Errorf("expected sessions T1-01 and T1-02 in completed map, got %v", completed)
+	}
+
+	// Write decision files
+	d1 := `---
+decision_id: D-001
+title: Auth Choice
+door_type: one-way
+status: accepted
+---
+# D-001
+`
+	_ = os.WriteFile(filepath.Join(dir, "research", "D-001.md"), []byte(d1), 0o644)
+
+	decs := CollectGateDecisions(ws)
+	if len(decs) != 1 {
+		t.Fatalf("expected 1 decision, got %d", len(decs))
+	}
+	if decs[0].ID != "D-001" || decs[0].Track != "B" {
+		t.Errorf("unexpected decision: %+v", decs[0])
+	}
+}

@@ -183,7 +183,7 @@ Final notes.
 `
 
 	t.Run("extracts options with child and grandchild headings", func(t *testing.T) {
-		options := extractSection(doc, "option", "evaluated")
+		options := ExtractSection(doc, "option", "evaluated")
 		if !strings.Contains(options, "Overview of options.") {
 			t.Errorf("missing section overview: %s", options)
 		}
@@ -203,7 +203,7 @@ Final notes.
 	})
 
 	t.Run("extracts recommendations section terminated by another sibling", func(t *testing.T) {
-		recs := extractSection(doc, "recommend")
+		recs := ExtractSection(doc, "recommend")
 		if !strings.Contains(recs, "Final verdict is Option 1.") {
 			t.Errorf("missing recommendation content: %s", recs)
 		}
@@ -213,16 +213,25 @@ Final notes.
 	})
 
 	t.Run("returns empty string when no keyword matches", func(t *testing.T) {
-		res := extractSection(doc, "nonexistent-keyword")
+		res := ExtractSection(doc, "nonexistent-keyword")
 		if res != "" {
 			t.Errorf("expected empty string, got: %q", res)
 		}
 	})
 
 	t.Run("returns empty string on empty body", func(t *testing.T) {
-		res := extractSection("", "option")
+		res := ExtractSection("", "option")
 		if res != "" {
 			t.Errorf("expected empty string on empty body, got: %q", res)
+		}
+	})
+
+	t.Run("preserves internal blank lines within section", func(t *testing.T) {
+		multiPara := "## Details\nParagraph 1.\n\nParagraph 2.\n\n- Bullet 1\n- Bullet 2\n\n## Next\nOther."
+		extracted := ExtractSection(multiPara, "details")
+		expected := "Paragraph 1.\n\nParagraph 2.\n\n- Bullet 1\n- Bullet 2"
+		if extracted != expected {
+			t.Errorf("expected %q, got %q", expected, extracted)
 		}
 	})
 }

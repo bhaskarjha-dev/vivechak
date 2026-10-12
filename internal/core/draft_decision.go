@@ -33,9 +33,9 @@ func DraftDecisionFromSession(sessionContent []byte, decisionID string) (string,
 	}
 
 	// Extract sections from session body
-	recommendation := extractSection(bodyStr, "recommend", "decision outcome", "chosen", "verdict")
-	alternatives := extractSection(bodyStr, "evaluated option", "alternatives", "candidate", "shortlist", "option")
-	concerns := extractSection(bodyStr, "concern", "failure", "risk", "premortem", "reversal")
+	recommendation := ExtractSection(bodyStr, "recommend", "decision outcome", "chosen", "verdict")
+	alternatives := ExtractSection(bodyStr, "evaluated option", "alternatives", "candidate", "shortlist", "option")
+	concerns := ExtractSection(bodyStr, "concern", "failure", "risk", "premortem", "reversal")
 	evidenceRefs := extractEvidenceGrades(bodyStr)
 
 	// Build the draft

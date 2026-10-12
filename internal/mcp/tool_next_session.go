@@ -3,7 +3,6 @@ package mcputil
 import (
 	"context"
 	"fmt"
-	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -423,81 +422,9 @@ func buildSessionResponse(tool string, session core.Session, prompt string, comp
 	return env.ToResult()
 }
 
-var sessionIDPrefixRe = regexp.MustCompile(`^(?i)(T\d+-\d+|S\d+-\d+|D-[A-Za-z0-9_-]+-S\d+|SYN-\d+|C\d+-\d+|COMP-\d+|FAD)(?:[-_].*)?$`)
-
-// scanCompletedSessions reads the sessions directory and FAD file using workspace confinement,
-// returning completed IDs. Authoritative IDs come from YAML frontmatter (session_id or id fields), falling back to filename stem.
-// If frontmatter lacks an ID, session ID prefixes from filename stems (e.g. T1-01 from T1-01-database.md) are recognized to prevent DAG deadlocks.
+// scanCompletedSessions forwards to core.ScanCompletedSessions.
 func scanCompletedSessions(ws *store.Workspace, knownIDs ...string) (map[string]bool, error) {
-	completed := map[string]bool{}
-	entries, err := ws.ListDir(core.SessionsDir)
-	if err != nil {
-		if !os.IsNotExist(err) {
-			return nil, fmt.Errorf("reading sessions directory: %w", err)
-		}
-		// Sessions dir not yet created — expected on fresh workspace
-	} else {
-		for _, e := range entries {
-			if e.IsDir() || filepath.Ext(e.Name()) != ".md" {
-				continue
-			}
-
-			relPath := filepath.Join(core.SessionsDir, e.Name())
-			var fm core.Frontmatter
-			if data, err := ws.ReadFile(relPath); err == nil {
-				if parsed, _, err := core.ParseFrontmatter(data); err == nil {
-					fm = parsed
-				}
-			}
-
-			hasExplicitFMID := fm != nil && (fm.GetString("session_id") != "" || fm.GetString("id") != "")
-			id := core.ExtractSessionID(e.Name(), fm)
-			if id != "" {
-				completed[id] = true
-				completed[strings.ToUpper(id)] = true
-			}
-
-			// If no explicit frontmatter session ID was present, also match session ID prefix
-			// to avoid deadlocking the DAG when files are saved with title slugs (e.g. T1-01-database.md)
-			if !hasExplicitFMID {
-				stem := strings.TrimSuffix(e.Name(), ".md")
-				lowerStem := strings.ToLower(stem)
-				for _, kid := range knownIDs {
-					lowerKid := strings.ToLower(kid)
-					if lowerStem == lowerKid || strings.HasPrefix(lowerStem, lowerKid+"-") || strings.HasPrefix(lowerStem, lowerKid+"_") {
-						completed[kid] = true
-						completed[strings.ToUpper(kid)] = true
-					}
-				}
-				if sub := sessionIDPrefixRe.FindStringSubmatch(stem); len(sub) > 1 {
-					completed[sub[1]] = true
-					completed[strings.ToUpper(sub[1])] = true
-				}
-			}
-		}
-	}
-
-	// Also check for FAD at the research root
-	if data, err := ws.ReadFile(core.FADFile); err == nil {
-		var fm core.Frontmatter
-		if parsed, _, err := core.ParseFrontmatter(data); err == nil {
-			fm = parsed
-		}
-		id := core.ExtractSessionID(filepath.Base(core.FADFile), fm)
-		if id != "" {
-			completed[id] = true
-		}
-		completed["FAD"] = true
-		completed["SYN-01"] = true
-		completed["SYN"] = true
-		for _, kid := range knownIDs {
-			if core.IsSynthesisSession(kid) {
-				completed[kid] = true
-			}
-		}
-	}
-
-	return completed, nil
+	return core.ScanCompletedSessions(ws, knownIDs...)
 }
 
 // sessionIDList returns a comma-separated list of session IDs in the DAG.

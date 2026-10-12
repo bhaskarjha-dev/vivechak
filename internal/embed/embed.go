@@ -16,7 +16,7 @@ import (
 //go:embed generators/*.md
 var Generators embed.FS
 
-// Templates embeds the five output template files.
+// Templates embeds the six output template files.
 //
 //go:embed templates/*.md
 var Templates embed.FS
@@ -34,7 +34,7 @@ func ReadGenerator(name string) ([]byte, error) {
 // ReadTemplate returns the contents of a template file by name.
 // Valid names: "DECISIONS.template.md", "CONFLICT-RESOLUTION.template.md",
 // "COMPARISON-SESSION.template.md", "FOUNDING-ARCHITECTURE.template.md",
-// "PHASE-0-GATE.template.md"
+// "PHASE-0-GATE.template.md", "SESSION.template.md"
 func ReadTemplate(name string) ([]byte, error) {
 	data, err := fs.ReadFile(Templates, "templates/"+name)
 	if err != nil {

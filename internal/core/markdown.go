@@ -47,15 +47,10 @@ func ExtractSection(body string, keywords ...string) string {
 			}
 		}
 
-		if inSection && trimmed != "" {
+		if inSection {
 			result.WriteString(line + "\n")
 		}
 	}
 
 	return strings.TrimSpace(result.String())
-}
-
-// extractSection is an unexported package alias for ExtractSection.
-func extractSection(body string, keywords ...string) string {
-	return ExtractSection(body, keywords...)
 }

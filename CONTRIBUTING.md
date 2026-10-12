@@ -56,15 +56,19 @@ golangci-lint run ./...
 ### Verifying Embed Sync
 The embedded generators and templates in `internal/embed/` must stay synchronized with root-level files:
 ```bash
-# Verify generator sync
-diff GENERATOR.md internal/embed/generators/GENERATOR.md
-diff GENERATOR-DECISION.md internal/embed/generators/GENERATOR-DECISION.md
-diff GENERATOR-COMPARISON.md internal/embed/generators/GENERATOR-COMPARISON.md
+make embed-sync
+```
 
-# Verify template sync
-for f in templates/*.md; do
-  diff "$f" "internal/embed/templates/$(basename "$f")"
-done
+### Makefile Shortcuts
+Common development targets are available via the root `Makefile`:
+```bash
+make build         # Compile binary
+make test          # Run tests
+make test-race     # Run tests with race detector
+make vet           # Run go vet
+make lint          # Run golangci-lint
+make embed-sync    # Verify embedded assets match root
+make release-check # Run vet, lint, test, embed-sync
 ```
 
 ---

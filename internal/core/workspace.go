@@ -6,8 +6,16 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strings"
 )
+
+// WorkspaceFS provides an abstract read-only interface for inspecting workspace files and directories.
+type WorkspaceFS interface {
+	ReadFile(relPath string) ([]byte, error)
+	ListDir(relPath string) ([]os.DirEntry, error)
+	Stat(relPath string) (os.FileInfo, error)
+}
 
 // WorkspaceLayout describes the directory structure of a Vivechak research workspace.
 const (
@@ -389,4 +397,225 @@ func InspectWorkspace(root string) WorkspaceInfo {
 	}
 
 	return info
+}
+
+var sessionIDPrefixRe = regexp.MustCompile(`^(?i)(T\d+-\d+|S\d+-\d+|D-[A-Za-z0-9_-]+-S\d+|SYN-\d+|C\d+-\d+|COMP-\d+|FAD)(?:[-_].*)?$`)
+
+// ScanCompletedSessions reads the sessions directory and FAD file using workspace confinement,
+// returning completed IDs. Authoritative IDs come from YAML frontmatter (session_id or id fields), falling back to filename stem.
+// If frontmatter lacks an ID, session ID prefixes from filename stems (e.g. T1-01 from T1-01-database.md) are recognized to prevent DAG deadlocks.
+func ScanCompletedSessions(ws WorkspaceFS, knownIDs ...string) (map[string]bool, error) {
+	completed := map[string]bool{}
+	entries, err := ws.ListDir(SessionsDir)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			return nil, fmt.Errorf("reading sessions directory: %w", err)
+		}
+		// Sessions dir not yet created — expected on fresh workspace
+	} else {
+		for _, e := range entries {
+			if e.IsDir() || filepath.Ext(e.Name()) != ".md" {
+				continue
+			}
+
+			relPath := filepath.Join(SessionsDir, e.Name())
+			var fm Frontmatter
+			if data, err := ws.ReadFile(relPath); err == nil {
+				if parsed, _, err := ParseFrontmatter(data); err == nil {
+					fm = parsed
+				}
+			}
+
+			hasExplicitFMID := fm != nil && (fm.GetString("session_id") != "" || fm.GetString("id") != "")
+			id := ExtractSessionID(e.Name(), fm)
+			if id != "" {
+				completed[id] = true
+				completed[strings.ToUpper(id)] = true
+			}
+
+			// If no explicit frontmatter session ID was present, also match session ID prefix
+			// to avoid deadlocking the DAG when files are saved with title slugs (e.g. T1-01-database.md)
+			if !hasExplicitFMID {
+				stem := strings.TrimSuffix(e.Name(), ".md")
+				lowerStem := strings.ToLower(stem)
+				for _, kid := range knownIDs {
+					lowerKid := strings.ToLower(kid)
+					if lowerStem == lowerKid || strings.HasPrefix(lowerStem, lowerKid+"-") || strings.HasPrefix(lowerStem, lowerKid+"_") {
+						completed[kid] = true
+						completed[strings.ToUpper(kid)] = true
+					}
+				}
+				if sub := sessionIDPrefixRe.FindStringSubmatch(stem); len(sub) > 1 {
+					completed[sub[1]] = true
+					completed[strings.ToUpper(sub[1])] = true
+				}
+			}
+		}
+	}
+
+	// Also check for FAD at the research root
+	if data, err := ws.ReadFile(FADFile); err == nil {
+		var fm Frontmatter
+		if parsed, _, err := ParseFrontmatter(data); err == nil {
+			fm = parsed
+		}
+		id := ExtractSessionID(filepath.Base(FADFile), fm)
+		if id != "" {
+			completed[id] = true
+		}
+		completed["FAD"] = true
+		completed["SYN-01"] = true
+		completed["SYN"] = true
+		for _, kid := range knownIDs {
+			if IsSynthesisSession(kid) {
+				completed[kid] = true
+			}
+		}
+	}
+
+	return completed, nil
+}
+
+// GateDecisionItem represents an architectural decision record evaluated at the gate.
+type GateDecisionItem struct {
+	ID            string `json:"id"`
+	Title         string `json:"title"`
+	DoorType      string `json:"door_type"`
+	Track         string `json:"track"`
+	Status        string `json:"status"`
+	HumanReviewed bool   `json:"human_reviewed"`
+}
+
+// CollectGateDecisions collects all recorded decisions from ADR files and DECISIONS.md.
+func CollectGateDecisions(ws WorkspaceFS) []GateDecisionItem {
+	type decisionSource struct {
+		file string
+		data []byte
+	}
+	var sources []decisionSource
+
+	if entries, err := ws.ListDir(ResearchDir); err == nil {
+		for _, e := range entries {
+			name := e.Name()
+			if e.IsDir() || !strings.HasSuffix(name, ".md") {
+				continue
+			}
+			if IsSpecialResearchFile(name) {
+				continue
+			}
+			relPath := filepath.Join(ResearchDir, name)
+			isCandidate := strings.HasPrefix(strings.ToUpper(name), "D-")
+			dData, err := ws.ReadFile(relPath)
+			if err != nil || len(dData) == 0 {
+				continue
+			}
+			if !isCandidate {
+				if fm, _, err := ParseFrontmatter(dData); err == nil && fm != nil {
+					if !fm.Has("door_type") {
+						continue
+					}
+				} else {
+					continue
+				}
+			}
+			sources = append(sources, decisionSource{file: relPath, data: dData})
+		}
+	}
+
+	if len(sources) == 0 {
+		if decData, err := ws.ReadFile(DecisionsFile); err == nil && len(decData) > 0 {
+			sources = append(sources, decisionSource{file: DecisionsFile, data: decData})
+		}
+	}
+
+	var decisions []GateDecisionItem
+	processedIDs := make(map[string]bool)
+
+	checkDecisionFM := func(fm Frontmatter) {
+		if fm == nil || (!fm.Has("id") && !fm.Has("decision_id")) {
+			return
+		}
+		id := fm.GetString("id")
+		if id == "" {
+			id = fm.GetString("decision_id")
+		}
+		if id == "" || strings.HasPrefix(strings.ToUpper(id), "CHK-") || fm.Has("conflicting_sources") {
+			return
+		}
+		if processedIDs[id] {
+			return
+		}
+		processedIDs[id] = true
+
+		title := fm.GetString("title")
+		if title == "" {
+			title = id
+		}
+		doorType := fm.GetString("door_type")
+		if doorType == "" {
+			doorType = "two-way"
+		}
+		track := "A"
+		if strings.EqualFold(doorType, "one-way") {
+			track = "B"
+		}
+		status := strings.ToUpper(strings.TrimSpace(fm.GetString("status")))
+		switch status {
+		case "ACCEPTED":
+			status = "PASS"
+		case "":
+			status = "PENDING"
+		}
+
+		reviewed := strings.EqualFold(strings.TrimSpace(fm.GetString("human_reviewed")), "true")
+
+		decisions = append(decisions, GateDecisionItem{
+			ID:            id,
+			Title:         title,
+			DoorType:      doorType,
+			Track:         track,
+			Status:        status,
+			HumanReviewed: reviewed,
+		})
+	}
+
+	anchoredRe := regexp.MustCompile(`(?s)<!-- DECISION:\s*([A-Za-z0-9_-]+)\s*-->\s*(.*?)\s*<!-- /DECISION:\s*[A-Za-z0-9_-]+\s*-->`)
+	unanchoredRe := regexp.MustCompile(`(?ms)^---\s*\n(.*?)\n---`)
+
+	for _, src := range sources {
+		chunk := src.data
+		parsedAny := false
+
+		for _, m := range anchoredRe.FindAllSubmatch(chunk, -1) {
+			if fm, _, err := ParseFrontmatter(m[2]); err == nil && fm != nil {
+				if !fm.Has("id") && !fm.Has("decision_id") {
+					fm["id"] = string(m[1])
+				}
+				checkDecisionFM(fm)
+				parsedAny = true
+			}
+		}
+
+		if !parsedAny {
+			if matches := unanchoredRe.FindAllSubmatch(chunk, -1); len(matches) > 0 {
+				for _, m := range matches {
+					block := fmt.Sprintf("---\n%s\n---", string(m[1]))
+					if fm, _, err := ParseFrontmatter([]byte(block)); err == nil && fm != nil {
+						if fm.Has("id") || fm.Has("decision_id") || fm.Has("door_type") {
+							checkDecisionFM(fm)
+							parsedAny = true
+						}
+					}
+				}
+			}
+		}
+
+		if !parsedAny {
+			if fm, _, err := ParseFrontmatter(chunk); err == nil && fm != nil {
+				checkDecisionFM(fm)
+			}
+		}
+	}
+
+	return decisions
 }

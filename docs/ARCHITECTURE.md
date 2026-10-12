@@ -26,14 +26,19 @@ vivechak/
 │       ├── config.go       # "setup" and "mcp-config" host configuration & 14 presets
 │       └── doctor.go       # "doctor" workspace integrity verification
 ├── internal/
-│   ├── core/               # Pure business logic (DAG, validation, injection, scopes, challenge)
+│   ├── core/               # Pure business logic (DAG, gate, validation, quality, scopes)
 │   │   ├── scope.go        # Scope definitions (project, decision, comparison)
-│   │   ├── workspace.go    # Workspace layout & 4-step resolution chain
+│   │   ├── workspace.go    # Workspace layout, WorkspaceFS, & 4-step resolution chain
 │   │   ├── dag.go          # Pipeline DAG parsing and dependency resolution
+│   │   ├── gate.go         # Phase 0 Exit Gate evaluation engine
+│   │   ├── gate_render.go  # Gate markdown artifact rendering
 │   │   ├── draft_decision.go # Automated ADR drafting from session recommendations
 │   │   ├── frontmatter.go  # YAML frontmatter parsing and composition
 │   │   ├── inject.go       # Upstream context injection engine
-│   │   ├── validate.go     # 4-level validation ladder (L1–L4) and Quality Coaching
+│   │   ├── markdown.go     # Resilient section extraction
+│   │   ├── validate.go     # Structural validation ladder (L1–L4)
+│   │   ├── validate_evidence.go # Evidence grade & qualified provenance rules
+│   │   ├── quality.go      # Advisory quality coaching (Q-*) & dynamic freshness
 │   │   └── challenge.go    # Adversarial challenge prompt generator
 │   ├── mcp/                # MCP protocol server and tool handlers (package mcputil)
 │   │   ├── server.go       # Server factory and tool registration dispatcher
@@ -318,6 +323,8 @@ Testing Pyramid:
 
 ### 1. Core Domain Unit Tests
 - [`internal/core/dag_test.go`](../internal/core/dag_test.go): Tests pipeline parsing, dependency resolution, topological ordering, parallel branch discovery, and metadata parsing.
+- [`internal/core/gate_test.go`](../internal/core/gate_test.go): Tests Phase 0 Gate mechanical checks, Track A / Track B decoupled evaluation, One-Way Door evidentiary thresholds (B3, B4, B5, B10), and markdown artifact generation.
+- [`internal/core/validate_test.go`](../internal/core/validate_test.go) & [`validate_quality_test.go`](../internal/core/validate_quality_test.go): Tests validation ladder (L1–L4), dynamic date patterns, URL extraction, and advisory coaching heuristics.
 - [`internal/core/frontmatter_test.go`](../internal/core/frontmatter_test.go): Tests YAML frontmatter extraction, round-trip serialization, missing delimiters, empty documents, and type casting.
 - [`internal/core/inject_test.go`](../internal/core/inject_test.go): Tests context gathering from dependency session files, synthesis extraction (`[ALL_SESSION_FINDINGS]`), heading and evidence grade filtering, and prompt slot injection.
 
@@ -352,12 +359,18 @@ Key wire test suites:
 ### 4. Subprocess Live Stdio Integration Tests (`cmd/vivechak/serve_test.go`)
 Spawns the compiled `vivechak serve` binary as a genuine subprocess, connecting via JSON-RPC stdio pipes. Executes a full 17-step end-to-end lifecycle (`init` → `save_plan` → `next_session` → `save_session` → `record_decision` → `validate` → `run_gate`), validating subprocess signal handling, real stdio transport hygiene, and exit gates.
 
-### 5. Massive Live Depth Audit Suite (`cmd/vivechak/massive_live_depth_audit_test.go`)
+### 5. Massive Live Depth Audit Suite (`cmd/vivechak/live_depth_audit_test.go`)
 Comprehensive 1,000+ line live integration test suite that spawns the Vivechak MCP server and CLI commands as real subprocesses over stdio JSON-RPC. Validates:
 - Every one of the 13 MCP tools end-to-end with realistic inputs and edge cases.
 - Dynamic challenge routing, quality coaching observations (`Q-*`), qualified provenance validation, and Phase 0 Gate decoupled Track A / Track B evaluations.
 - All 4 CLI entry points (`vck setup`, `vck mcp-config`, `vck doctor`, `vck version`).
 - FAD root mirroring, directory target handling in `setup`, and comment anchor deduplication.
+
+### 6. Subprocess Concurrency & Lifecycle Verification Suites (`cmd/vivechak/*_test.go`)
+- [`cmd/vivechak/e2e_test.go`](../cmd/vivechak/e2e_test.go) & [`real_e2e_massive_verification_test.go`](../cmd/vivechak/real_e2e_massive_verification_test.go): Full end-to-end multi-vector subprocess testing across all 13 tools, verifying live stdio JSON-RPC lifecycle, exit gates, and CLI commands (`version`, `doctor`, `mcp-config`).
+- [`cmd/vivechak/concurrency_test.go`](../cmd/vivechak/concurrency_test.go): High-concurrency subagent stress testing verifying atomic write locks, collision-free temporary file creation under rapid iteration, and race-free multi-agent decision recording.
+- [`cmd/vivechak/workspace_resolution_test.go`](../cmd/vivechak/workspace_resolution_test.go): Verifies 4-step workspace resolution chain across explicit `project_root`, ancestor directory traversal, OS program folder boundary guards, and environment variables.
+- [`cmd/vivechak/live_features_test.go`](../cmd/vivechak/live_features_test.go), [`live_scenarios_test.go`](../cmd/vivechak/live_scenarios_test.go), & [`live_tools_test.go`](../cmd/vivechak/live_tools_test.go): Scenario matrices covering multi-scope generators, dynamic DAG replanning, and adversarial challenge stress testing.
 
 ---
 

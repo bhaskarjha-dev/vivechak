@@ -165,6 +165,7 @@ vivechak/
 ├── AGENTS.md                       ← AI agent operating manual
 ├── ROADMAP.md · CHANGELOG.md       ← Project history
 ├── CONTRIBUTING.md · LICENSE        ← MIT License
+├── Makefile                        ← Standard build, test, lint & embed-sync targets
 └── go.mod · go.sum                 ← Go 1.25+ module
 ```
 

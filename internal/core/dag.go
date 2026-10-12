@@ -309,48 +309,7 @@ func ParsePipeline(data []byte) (*DAG, error) {
 			if isClosingFence {
 				lastPromptEndLine = i
 				inPrompt = false
-				promptContent := strings.Join(promptLines, "\n")
-				targetSession := currentSession
-
-				// Check if prompt header mentions a specific session ID
-				nonEmptyLines := 0
-				for _, pLine := range promptLines {
-					pTrim := strings.TrimSpace(pLine)
-					if pTrim == "" {
-						continue
-					}
-					nonEmptyLines++
-					if strings.HasPrefix(pTrim, "#") {
-						found := false
-						for _, match := range briefIDRe.FindAllString(pTrim, -1) {
-							if s, ok := sessionsByID[match]; ok {
-								targetSession = s
-								found = true
-								break
-							}
-						}
-						if found {
-							break
-						}
-					}
-					if nonEmptyLines >= 5 {
-						break
-					}
-				}
-
-				// If target has a prompt already, assign to next unprompted session
-				if targetSession == nil || targetSession.Prompt != "" {
-					for _, id := range sessionOrder {
-						if sessionsByID[id].Prompt == "" {
-							targetSession = sessionsByID[id]
-							break
-						}
-					}
-				}
-
-				if targetSession != nil {
-					targetSession.Prompt = promptContent
-				}
+				assignPromptToSession(promptLines, currentSession, sessionsByID, sessionOrder)
 				promptLines = nil
 			} else {
 				promptLines = append(promptLines, line)
@@ -491,43 +450,7 @@ func ParsePipeline(data []byte) (*DAG, error) {
 
 	// Handle unclosed prompt block at EOF
 	if inPrompt && len(promptLines) > 0 {
-		promptContent := strings.Join(promptLines, "\n")
-		targetSession := currentSession
-		nonEmptyLines := 0
-		for _, pLine := range promptLines {
-			pTrim := strings.TrimSpace(pLine)
-			if pTrim == "" {
-				continue
-			}
-			nonEmptyLines++
-			if strings.HasPrefix(pTrim, "#") {
-				found := false
-				for _, match := range briefIDRe.FindAllString(pTrim, -1) {
-					if s, ok := sessionsByID[match]; ok {
-						targetSession = s
-						found = true
-						break
-					}
-				}
-				if found {
-					break
-				}
-			}
-			if nonEmptyLines >= 5 {
-				break
-			}
-		}
-		if targetSession == nil || targetSession.Prompt != "" {
-			for _, id := range sessionOrder {
-				if sessionsByID[id].Prompt == "" {
-					targetSession = sessionsByID[id]
-					break
-				}
-			}
-		}
-		if targetSession != nil {
-			targetSession.Prompt = promptContent
-		}
+		assignPromptToSession(promptLines, currentSession, sessionsByID, sessionOrder)
 	}
 
 	// Assemble deduplicated sessions in order of appearance
@@ -545,6 +468,57 @@ func ParsePipeline(data []byte) (*DAG, error) {
 	}
 
 	return dag, nil
+}
+
+// assignPromptToSession resolves which session should receive the given prompt content.
+// It scans prompt headings for session IDs, falls back to the next unprompted session
+// in DAG order, and assigns the prompt. Returns the target session (or nil).
+func assignPromptToSession(
+	promptLines []string,
+	currentSession *Session,
+	sessionsByID map[string]*Session,
+	sessionOrder []string,
+) *Session {
+	targetSession := currentSession
+
+	nonEmptyLines := 0
+	for _, pLine := range promptLines {
+		pTrim := strings.TrimSpace(pLine)
+		if pTrim == "" {
+			continue
+		}
+		nonEmptyLines++
+		if strings.HasPrefix(pTrim, "#") {
+			found := false
+			for _, match := range briefIDRe.FindAllString(pTrim, -1) {
+				if s, ok := sessionsByID[match]; ok {
+					targetSession = s
+					found = true
+					break
+				}
+			}
+			if found {
+				break
+			}
+		}
+		if nonEmptyLines >= 5 {
+			break
+		}
+	}
+
+	if targetSession == nil || targetSession.Prompt != "" {
+		for _, id := range sessionOrder {
+			if sessionsByID[id].Prompt == "" {
+				targetSession = sessionsByID[id]
+				break
+			}
+		}
+	}
+
+	if targetSession != nil {
+		targetSession.Prompt = strings.Join(promptLines, "\n")
+	}
+	return targetSession
 }
 
 // Session IDs are used exactly as they appear in the pipeline.

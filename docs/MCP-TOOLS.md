@@ -817,7 +817,7 @@ Defined in [`ValidateInput`](../internal/mcp/tool_validate.go):
 
 ### 10. `vivechak_run_gate`
 **Title:** Run Phase 0 Gate  
-**Annotations:** Read-Only: `true` | Idempotent: `true` | Destructive: `false` | Open-World: `false`
+**Annotations:** Read-Only: `false` | Idempotent: `true` | Destructive: `false` | Open-World: `false`
 
 #### Description
 Execute the Phase 0 exit gate check (Track A + Track B).

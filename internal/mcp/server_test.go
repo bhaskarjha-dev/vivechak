@@ -116,7 +116,6 @@ func TestAnnotations(t *testing.T) {
 		"vivechak_status":            true,
 		"vivechak_next_session":      true,
 		"vivechak_validate":          true,
-		"vivechak_run_gate":          true,
 		"vivechak_challenge":         true,
 		"vivechak_visualize":         true,
 	}
