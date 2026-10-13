@@ -585,5 +585,12 @@ func TestHasSectionHeading(t *testing.T) {
 	}
 }
 
+func TestBuildStaleDatePattern_EmptyYears(t *testing.T) {
+	re := buildStaleDatePattern(2005)
+	if re.MatchString("2005") || re.MatchString("anything") || re.MatchString("") {
+		t.Errorf("expected empty pattern to match nothing")
+	}
+}
+
 
 

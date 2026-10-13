@@ -22,7 +22,7 @@ func buildStaleDatePattern(cutoffYear int) *regexp.Regexp {
 		years = append(years, strconv.Itoa(y))
 	}
 	if len(years) == 0 {
-		return regexp.MustCompile(`(?!)`) // matches nothing
+		return regexp.MustCompile(`[^\s\S]`) // matches nothing
 	}
 	return regexp.MustCompile(`\b(?:` + strings.Join(years, "|") + `)\b`)
 }
