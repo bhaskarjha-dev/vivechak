@@ -1,4 +1,4 @@
-.PHONY: build test test-race lint vet embed-sync release-check
+.PHONY: build test test-race bench lint vet embed-sync release-check
 
 build:
 	go build ./cmd/vivechak/
@@ -8,6 +8,9 @@ test:
 
 test-race:
 	go test -count=1 -race ./...
+
+bench:
+	go test -bench Benchmark -benchmem ./internal/core
 
 vet:
 	go vet ./...

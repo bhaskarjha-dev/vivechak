@@ -19,6 +19,8 @@
 
 > **Transform technical decisions from gut-feel and cached training data into structured, evidence-graded research — whether you're architecting a whole project, researching a single decision, or comparing specific options.**
 
+> **What you're installing:** A single standalone Go binary (`vck`) with **zero runtime dependencies**, **zero cloud phone-home**, and **zero telemetry**. It runs 100% locally on your machine as both a developer CLI (`vck doctor`, `vck setup`) and an orchestration MCP server (`vck serve`) for AI coding agents.
+
 ---
 
 ## Install
@@ -157,6 +159,7 @@ vivechak/
 ├── GENERATOR-COMPARISON.md         ← Comparison-scope generator (1 session → WEP matrix)
 ├── FRAMEWORK.md                    ← Deep methodology reference
 ├── docs/HOST-SETUP.md              ← Universal MCP setup & desktop shortcuts
+├── docs/TROUBLESHOOTING.md        ← Diagnostic guides & error code catalog
 │
 ├── templates/                      ← 6 operational contracts (copy to projects)
 ├── examples/                       ← Concrete adoption walkthroughs
@@ -164,8 +167,8 @@ vivechak/
 │
 ├── AGENTS.md                       ← AI agent operating manual
 ├── ROADMAP.md · CHANGELOG.md       ← Project history
-├── CONTRIBUTING.md · LICENSE        ← MIT License
-├── Makefile                        ← Standard build, test, lint & embed-sync targets
+├── CONTRIBUTING.md · SECURITY.md   ← Contribution & security policies
+├── LICENSE · Makefile              ← MIT License · Developer shortcuts
 └── go.mod · go.sum                 ← Go 1.25+ module
 ```
 

@@ -101,7 +101,7 @@ vivechak/
 ├── AGENTS.md                       ← This file
 ├── ROADMAP.md                      ← Project history + future plans
 ├── CHANGELOG.md                    ← Release history
-├── CONTRIBUTING.md                 ← Evidence-grounding contribution rules
+├── CONTRIBUTING.md · SECURITY.md   ← Contribution & security policies
 ├── CODE_OF_CONDUCT.md · LICENSE    ← Contributor Covenant v2.1 · MIT License
 ├── go.mod · go.sum                 ← Go 1.25+ module
 ├── Makefile                        ← Standard build, test, lint & embed-sync targets
@@ -134,6 +134,7 @@ vivechak/
 │   ├── QUICKSTART.md               ← Vivechak in 5 Minutes
 │   ├── MANUAL-WORKFLOW.md          ← Complete manual copy-paste guide
 │   ├── HOST-SETUP.md               ← Universal MCP setup & desktop shortcuts
+│   ├── TROUBLESHOOTING.md          ← Diagnostic guides & error code catalog
 │   ├── MCP-TOOLS.md                ← 13-tool reference with examples
 │   ├── ARCHITECTURE.md             ← Server internals for contributors
 │   ├── BRAND.md                    ← Brand identity, geometry & design tokens

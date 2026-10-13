@@ -36,7 +36,7 @@ func ExtractSection(body string, keywords ...string) string {
 			}
 
 			for _, kw := range keywords {
-				if strings.Contains(lower, kw) {
+				if strings.Contains(lower, strings.ToLower(kw)) {
 					inSection = true
 					sectionLevel = level
 					break

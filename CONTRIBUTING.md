@@ -65,6 +65,7 @@ Common development targets are available via the root `Makefile`:
 make build         # Compile binary
 make test          # Run tests
 make test-race     # Run tests with race detector
+make bench         # Run microbenchmarks
 make vet           # Run go vet
 make lint          # Run golangci-lint
 make embed-sync    # Verify embedded assets match root
