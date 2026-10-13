@@ -515,6 +515,72 @@ track_b_result: "[PENDING | PASS | FAIL]"
 	}
 }
 
+func TestRenderGateArtifact_B10_B11(t *testing.T) {
+	dir := t.TempDir()
+	ws := &testWorkspaceFS{root: dir}
+
+	tmpl := `---
+project: "[Project Name]"
+date: "[YYYY-MM-DD]"
+verdict: "[PENDING | PASS | FAIL]"
+track_a_result: "[PENDING | PASS | FAIL]"
+track_b_result: "[PENDING | PASS | FAIL]"
+---
+
+### B10. Substantive ADR Content
+- [ ] Decision record contains substantive causal rationale, evaluated options, and failure modes (no placeholder stubs)
+
+### B11. Adversarial Red-Team Challenge
+- [ ] One-Way Door decisions subjected to adversarial challenge (` + "`" + `vivechak_challenge` + "`" + ` red-team probe or disconfirming evidence search)
+
+**Track B Result:** ` + "`[PASS / FAIL]`" + `
+`
+
+	// Case 1: Track B passes with zero advisories -> both should be checked [x]
+	renderedPass := RenderGateArtifact(
+		ws,
+		[]byte(tmpl),
+		dir,
+		"TestApp",
+		"PASS",
+		true,
+		true,
+		nil,
+		nil,
+		nil,
+	)
+	outPass := string(renderedPass)
+	if !strings.Contains(outPass, "- [x] Decision record contains substantive causal rationale") {
+		t.Errorf("expected B10 to be checked [x], got:\n%s", outPass)
+	}
+	if !strings.Contains(outPass, "- [x] One-Way Door decisions subjected to adversarial challenge") {
+		t.Errorf("expected B11 to be checked [x], got:\n%s", outPass)
+	}
+
+	// Case 2: Advisories emitted for B10 and B11 -> checkboxes should remain [ ]
+	renderedWithAdv := RenderGateArtifact(
+		ws,
+		[]byte(tmpl),
+		dir,
+		"TestApp",
+		"PASS",
+		true,
+		true,
+		nil,
+		nil,
+		nil,
+		"B-DECISION-STUB: One-way door D-001 lacks mandatory structural sections",
+		"W-OWD-NO-CHALLENGE: One-Way Door decision D-001 was not subjected to adversarial red-team challenge",
+	)
+	outAdv := string(renderedWithAdv)
+	if !strings.Contains(outAdv, "- [ ] Decision record contains substantive causal rationale") {
+		t.Errorf("expected B10 to remain unchecked [ ], got:\n%s", outAdv)
+	}
+	if !strings.Contains(outAdv, "- [ ] One-Way Door decisions subjected to adversarial challenge") {
+		t.Errorf("expected B11 to remain unchecked [ ], got:\n%s", outAdv)
+	}
+}
+
 func TestWorkspace_ScanAndCollect(t *testing.T) {
 	dir, ws := setupTestWorkspace(t, ScopeProject)
 

@@ -26,13 +26,18 @@ Unified release delivering the 12 enforcement hardening tasks, quality audit fix
 - **Substantive Discovered Concerns Gate (`validate.go`):** Strict length and non-triviality check (≥50 characters) on one-way doors (`V-OWD-NO-CONCERNS`) while permitting fast two-way door spikes.
 - **ADR Substantive Content Gate B10 (`tool_run_gate.go`):** Requires ≥200 characters and explicit evaluated/rejected alternatives for One-Way Door decisions before Phase 0 Gate exit.
 - **Embedded Contract Parity (`SESSION.template.md`):** Added `## Discovered Concerns` section with 100% embed sync to ensure template users pass validation out of the box.
+- **Topology vs Session Parity Guard (`dag.go`, `validate.go`):** Detects declared sessions in pipeline topologies or Mermaid diagrams that lack corresponding prompt blocks, emitting `W-PARSER-SESSION-MISMATCH`.
+- **Synthesis Terminal Sink Guard (`dag.go`):** Enforces in `NextSessions` that synthesis sessions (`SYN-*`, `FAD`) are strictly held back until all non-synthesis research sessions are complete.
+- **In-Process Workspace Session Memory (`workspace.go`):** Caches the most recently resolved workspace path during an active stdio connection, eliminating tool failure loops when desktop IDEs omit `project_root`.
 
 ### Changed
 - **Token-Optimized Generator Instructions (`GENERATOR.md`):** Updated execution guidance to instruct MCP-enabled agents to receive briefs directly from `vivechak_next_session` without redundant manual `view_file` calls to static templates, saving ~60k tokens and 30 tool calls per pipeline run.
 - **Embed Parity Synchronization (`internal/embed/generators/`):** 100% byte-for-byte synchronization across embedded and root generators.
-- **Decoupled Phase 0 Gate (`tool_run_gate.go`):** Fixed Track A/Track B semantic inversion; Track A strictly evaluates reversibility and blast radius bounds for Two-Way Doors, while Track B executes rigorous B1–B10 checks on One-Way Doors.
+- **Decoupled Phase 0 Gate (`tool_run_gate.go`):** Fixed Track A/Track B semantic inversion; Track A strictly evaluates reversibility and blast radius bounds for Two-Way Doors, while Track B executes rigorous B1–B11 checks on One-Way Doors (including B11 adversarial red-team challenge).
 - **Documented 9-Section Session Body Skeleton (`FRAMEWORK.md` §6.2):** Aligned methodology specification with runtime templates and validation engine, formally standardizing `Prior`, `Discovered Concerns`, and `Delta` sections.
 - **ADR Door-Type Drafter (`draft_decision.go`):** Contextually infers `two-way` vs `one-way` door classifications from session text rather than defaulting to irreversible.
+- **Unambiguous Phase 0 Gate Framing (`tool_run_gate.go`):** Replaced polite completion phrasing with explicit failure stop-signals (`❌ PHASE 0 GATE FAILED`, `⛔ DO NOT PROCEED TO CODE`) when Track B requirements are not met.
+- **One-Way Door Challenge Mandate (`GENERATOR.md`, `DECISIONS.template.md`):** Removed all "(optional)" qualifiers from `vivechak_challenge` for irreversible decisions.
 
 ### Fixed
 - **RE2 Stale Date Regex Parsing (`quality.go`):** Replaced Perl-style lookahead `(?!)` with RE2-compliant character class negation `[^\s\S]`, resolving staticcheck `SA1000` lint failures.

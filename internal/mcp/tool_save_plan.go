@@ -246,13 +246,23 @@ func handleSavePlan(ctx context.Context, _ *sdkmcp.CallToolRequest, in SavePlanI
 		dataMap["decisions_validation"] = decValidation
 	}
 
+	nextStep := "Run vivechak_next_session to get the first research session prompt. " +
+		"Execute it in a fresh AI session with web search, then save the output with vivechak_save_session."
+	for _, issue := range planValidation.Issues {
+		if issue.Code == "W-PARSER-SESSION-MISMATCH" {
+			nextStep = fmt.Sprintf("⚠️ INCOMPLETE PIPELINE DETECTED: %s. "+
+				"Generate the missing prompt blocks before proceeding, or run vivechak_next_session for available sessions.",
+				issue.Message)
+			break
+		}
+	}
+
 	env := Envelope{
 		Success: true,
 		Message: fmt.Sprintf("Saved %s plan (%d files) at %s", scope, len(savedFiles), root),
 		Data:    dataMap,
 		Warnings: warnings,
-		NextStep: fmt.Sprintf("Run vivechak_next_session to get the first research session prompt. "+
-			"Execute it in a fresh AI session with web search, then save the output with vivechak_save_session."),
+		NextStep: nextStep,
 		Meta: NewMeta(tool),
 	}
 	return env.ToResult()

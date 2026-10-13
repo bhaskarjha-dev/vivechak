@@ -28,7 +28,7 @@ vivechak/
 ├── internal/
 │   ├── core/               # Pure business logic (DAG, gate, validation, quality, scopes)
 │   │   ├── scope.go        # Scope definitions (project, decision, comparison)
-│   │   ├── workspace.go    # Workspace layout, WorkspaceFS, & 4-step resolution chain
+│   │   ├── workspace.go    # Workspace layout, WorkspaceFS, & 5-step resolution chain
 │   │   ├── dag.go          # Pipeline DAG parsing and dependency resolution
 │   │   ├── gate.go         # Phase 0 Exit Gate evaluation engine
 │   │   ├── gate_render.go  # Gate markdown artifact rendering
@@ -89,11 +89,12 @@ Defined in [`internal/core/scope.go`](../internal/core/scope.go#L8-L22), [`Scope
 - [`ScopeComparison`](../internal/core/scope.go#L21) (`"comparison"`): Rapid, bounded comparison of 2–4 options producing a Weighted Evaluation Protocol matrix in a single session.
 
 ### Workspace & Resolution Chain
-Defined in [`internal/core/workspace.go`](../internal/core/workspace.go), [`ResolveWorkspace`](../internal/core/workspace.go) evaluates a deterministic 4-step resolution chain:
+Defined in [`internal/core/workspace.go`](../internal/core/workspace.go), [`ResolveWorkspace`](../internal/core/workspace.go) evaluates a deterministic 5-step resolution chain:
 1. **Explicit argument**: `project_root` passed directly in the MCP tool call or CLI command.
 2. **Environment variables**: `VIVECHAK_PROJECT_ROOT`, `VIVECHAK_DEFAULT_ROOT`, `WORKSPACE`, or `PROJECT_ROOT` if set (ignoring unexpanded `${workspaceFolder}` macros).
 3. **CWD Directory Traversal**: Walks upwards from the current working directory searching for an existing `research/` directory (safely skipping host IDE application program directories).
-4. **Fallback error**: Clear diagnostic error instructing the caller to initialize the workspace with [`vivechak_init`](../internal/mcp/tool_init.go) or pass `project_root` explicitly.
+4. **In-process session memory**: Fallback to the last successfully resolved workspace with existing `research/` within the current server process, eliminating repetitive parameter passing in long agent sessions.
+5. **Fallback error**: Clear diagnostic error instructing the caller to initialize the workspace with [`vivechak_init`](../internal/mcp/tool_init.go) or pass `project_root` explicitly.
 
 The workspace layout is standard across all Vivechak projects:
 - `research/` — Workspace root
@@ -136,7 +137,7 @@ Defined in [`internal/core/validate.go`](../internal/core/validate.go), `Observe
 ### Phase 0 Gate Engine & Auto-Persistence (`mcputil.handleRunGate`)
 Defined in [`internal/mcp/tool_run_gate.go`](../internal/mcp/tool_run_gate.go), `vivechak_run_gate` evaluates decoupled Track A and Track B criteria and automatically renders and persists `research/PHASE-0-GATE.md`:
 - **Track A (Two-Way Doors):** Fast-track reversibility validation (A1–A3). Reversible decisions pass without blocking deep checks. Workspaces with zero two-way doors are marked as `PASS (0 two-way doors)`, eliminating false-pass anomalies.
-- **Track B (One-Way Doors):** Comprehensive mechanical verification across 10 rigorous checks (B1–B10): DAG closure (B1), contradiction resolution (B2), evidentiary threshold requiring ≥60% Grade A/B evidence (B3), verification integrity with qualified provenance (B4), documented rejected alternatives (B5), concrete decay/reversal triggers (B6), premortem protocol (B7), human architect review sign-off (B8), sealed FAD (B9), and substantive decision content detecting ADR stubs/placeholders (B10). Strict promotion enforces blocking failures for B3, B4, and B5 on One-Way Doors.
+- **Track B (One-Way Doors):** Comprehensive mechanical verification across 11 rigorous checks (B1–B11): DAG closure (B1), contradiction resolution (B2), evidentiary threshold requiring ≥60% Grade A/B evidence (B3), verification integrity with qualified provenance (B4), documented rejected alternatives (B5), concrete decay/reversal triggers (B6), premortem protocol (B7), human architect review sign-off (B8), sealed FAD (B9), substantive decision content detecting ADR stubs/placeholders (B10), and adversarial red-team challenge verification (`vivechak_challenge` red-team probe or disconfirming evidence search) before commitment (B11). Strict promotion enforces blocking failures for B3, B4, and B5 on One-Way Doors.
 
 ### Response Envelope (`mcputil.Envelope`)
 Defined in [`internal/mcp/envelope.go`](../internal/mcp/envelope.go#L24-L44), every tool returns the standard envelope:
@@ -323,7 +324,7 @@ Testing Pyramid:
 
 ### 1. Core Domain Unit Tests
 - [`internal/core/dag_test.go`](../internal/core/dag_test.go): Tests pipeline parsing, dependency resolution, topological ordering, parallel branch discovery, and metadata parsing.
-- [`internal/core/gate_test.go`](../internal/core/gate_test.go): Tests Phase 0 Gate mechanical checks, Track A / Track B decoupled evaluation, One-Way Door evidentiary thresholds (B3, B4, B5, B10), and markdown artifact generation.
+- [`internal/core/gate_test.go`](../internal/core/gate_test.go): Tests Phase 0 Gate mechanical checks, Track A / Track B decoupled evaluation, One-Way Door evidentiary thresholds (B3, B4, B5, B10, B11), and markdown artifact generation.
 - [`internal/core/validate_test.go`](../internal/core/validate_test.go) & [`validate_quality_test.go`](../internal/core/validate_quality_test.go): Tests validation ladder (L1–L4), dynamic date patterns, URL extraction, and advisory coaching heuristics.
 - [`internal/core/frontmatter_test.go`](../internal/core/frontmatter_test.go): Tests YAML frontmatter extraction, round-trip serialization, missing delimiters, empty documents, and type casting.
 - [`internal/core/inject_test.go`](../internal/core/inject_test.go): Tests context gathering from dependency session files, synthesis extraction (`[ALL_SESSION_FINDINGS]`), heading and evidence grade filtering, and prompt slot injection.
@@ -369,7 +370,7 @@ Comprehensive 1,000+ line live integration test suite that spawns the Vivechak M
 ### 6. Subprocess Concurrency & Lifecycle Verification Suites (`cmd/vivechak/*_test.go`)
 - [`cmd/vivechak/e2e_test.go`](../cmd/vivechak/e2e_test.go) & [`real_e2e_massive_verification_test.go`](../cmd/vivechak/real_e2e_massive_verification_test.go): Full end-to-end multi-vector subprocess testing across all 13 tools, verifying live stdio JSON-RPC lifecycle, exit gates, and CLI commands (`version`, `doctor`, `mcp-config`).
 - [`cmd/vivechak/concurrency_test.go`](../cmd/vivechak/concurrency_test.go): High-concurrency subagent stress testing verifying atomic write locks, collision-free temporary file creation under rapid iteration, and race-free multi-agent decision recording.
-- [`cmd/vivechak/workspace_resolution_test.go`](../cmd/vivechak/workspace_resolution_test.go): Verifies 4-step workspace resolution chain across explicit `project_root`, ancestor directory traversal, OS program folder boundary guards, and environment variables.
+- [`cmd/vivechak/workspace_resolution_test.go`](../cmd/vivechak/workspace_resolution_test.go): Verifies 5-step workspace resolution chain across explicit `project_root`, ancestor directory traversal, in-process session memory, OS program folder boundary guards, and environment variables.
 - [`cmd/vivechak/live_features_test.go`](../cmd/vivechak/live_features_test.go), [`live_scenarios_test.go`](../cmd/vivechak/live_scenarios_test.go), & [`live_tools_test.go`](../cmd/vivechak/live_tools_test.go): Scenario matrices covering multi-scope generators, dynamic DAG replanning, and adversarial challenge stress testing.
 
 ---

@@ -45,7 +45,7 @@ For each Two-Way Door decision:
 
 ---
 
-## Track B: Rigorous 10-Step Gate (One-Way Door Decisions)
+## Track B: Rigorous 11-Step Gate (One-Way Door Decisions)
 
 For each One-Way Door decision:
 
@@ -91,6 +91,9 @@ For each One-Way Door decision:
 
 ### B10. Substantive ADR Content
 - [ ] Decision record contains substantive causal rationale, evaluated options, and failure modes (no placeholder stubs)
+
+### B11. Adversarial Red-Team Challenge
+- [ ] One-Way Door decisions subjected to adversarial challenge (`vivechak_challenge` red-team probe or disconfirming evidence search)
 
 **Track B Result:** `[PASS / FAIL]`
 

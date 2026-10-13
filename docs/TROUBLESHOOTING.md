@@ -55,6 +55,14 @@ Vivechak employs a 4-level validation ladder (**L1–L4**). Below are the common
 - **Cause:** An ADR was marked as superseded via `vivechak_record_decision(supersedes="D-001")`, but an existing session references the old `D-001` decision.
 - **Resolution:** Update references in downstream sessions to the new superseding decision ID (`D-NEW`), or verify that the historical citation is intentional.
 
+### `W-PARSER-SESSION-MISMATCH` (Level 3 Advisory Warning)
+- **Cause:** Declared sessions in the pipeline overview table/topology are missing parsed prompt specification blocks in `RESEARCH-PIPELINE.md`. This typically occurs when an LLM generator encounters token output limits while generating large Tier 2 (9–16 sessions) or Tier 3 (17–30 sessions) pipelines.
+- **Resolution:** Use phased prompting. Prompt the LLM in a fresh turn to emit the prompt blocks for the remaining layers, and append the missing `### Session ID: ...` sections into `research/RESEARCH-PIPELINE.md`.
+
+### `W-OWD-NO-CHALLENGE` (Level 3 Advisory Warning)
+- **Cause:** Track B Check B11 detected that an irreversible One-Way Door decision was not subjected to adversarial red-team stress testing prior to commitment.
+- **Resolution:** Execute `vivechak_challenge(session_id="...", mode="red_team")` on the informing session, search for disconfirming evidence, and record findings in the decision record under `## Challenge Findings & Red-Team Stress Test`.
+
 ---
 
 ## 3. Cognitive Quality Coaching Advisories (`Q-*`)
@@ -115,3 +123,4 @@ Issues:
 2. **Verification Method (Check B4):** Ensure factual claims are marked as `fetched` or `cached`. Model parametric memory (`recalled`) is capped at Grade D and cannot anchor irreversible decisions.
 3. **Rejected Alternatives (Check B5 & B10):** Ensure the ADR includes a `## Rejected Alternatives & Tradeoffs` section explaining why candidates were dismissed, with at least 200 characters of substantive rationale.
 4. **Reversal Triggers (Check B6):** Ensure frontmatter defines a measurable `review_trigger` (e.g. `"Throughput exceeds 50k req/sec or p99 latency > 200ms"`) and scheduled `review_date`.
+5. **Adversarial Red-Team Challenge (Check B11):** Run `vivechak_challenge(session_id="...", mode="red_team")` on the informing session to stress-test your conclusions. Document the disconfirming search results, edge case probes, and mitigations in a dedicated `## Challenge Findings & Red-Team Stress Test` section in the ADR.

@@ -78,6 +78,9 @@ We recommend starting with SimpleFIN for prototype velocity while maintaining an
 		if !strings.Contains(bodyStr, "Normalization burden") {
 			t.Errorf("missing concerns content in body: %s", bodyStr)
 		}
+		if !strings.Contains(bodyStr, "## Challenge Findings & Red-Team Stress Test") {
+			t.Errorf("missing challenge findings section in body: %s", bodyStr)
+		}
 		if !strings.Contains(bodyStr, "## Evidence Summary (from session)") {
 			t.Errorf("missing evidence summary section: %s", bodyStr)
 		}

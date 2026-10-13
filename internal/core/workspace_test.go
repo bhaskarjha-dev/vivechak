@@ -274,3 +274,55 @@ func TestResolveWorkspace_EnvironmentAndMacroGuard(t *testing.T) {
 	})
 }
 
+func TestResolveWorkspace_LastResolvedMemory(t *testing.T) {
+	wsDir := t.TempDir()
+	researchDir := filepath.Join(wsDir, ResearchDir)
+	if err := os.MkdirAll(researchDir, 0o755); err != nil {
+		t.Fatalf("mkdir research failed: %v", err)
+	}
+
+	// 1. Resolve explicitly to prime in-process memory
+	resolved, err := ResolveWorkspace(wsDir)
+	if err != nil {
+		t.Fatalf("ResolveWorkspace explicit: %v", err)
+	}
+	if filepath.Clean(resolved) != filepath.Clean(wsDir) {
+		t.Fatalf("got %s, want %s", resolved, wsDir)
+	}
+
+	// 2. Switch CWD to an outside directory with no research/ dir
+	outsideDir := t.TempDir()
+	origCwd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(outsideDir); err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		_ = os.Chdir(origCwd)
+		SetLastResolvedWorkspace("")
+	}()
+
+	t.Setenv("VIVECHAK_PROJECT_ROOT", "")
+	t.Setenv("VIVECHAK_DEFAULT_ROOT", "")
+	t.Setenv("WORKSPACE", "")
+	t.Setenv("PROJECT_ROOT", "")
+
+	// 3. Resolve with empty string from outside CWD -> should hit in-process memory
+	resFromMemory, err := ResolveWorkspace("")
+	if err != nil {
+		t.Fatalf("expected ResolveWorkspace to succeed via in-process memory, got error: %v", err)
+	}
+	if filepath.Clean(resFromMemory) != filepath.Clean(wsDir) {
+		t.Errorf("expected %s from in-process memory, got %s", wsDir, resFromMemory)
+	}
+
+	// 4. When in-process memory is cleared, resolution should fail
+	SetLastResolvedWorkspace("")
+	_, err = ResolveWorkspace("")
+	if err == nil {
+		t.Errorf("expected error after clearing session memory when CWD is outside workspace")
+	}
+}
+

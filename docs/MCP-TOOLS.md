@@ -74,12 +74,13 @@ This prevents AI agents from getting stuck, drifting into unapproved tasks, or l
 
 ### Workspace Resolution Chain
 
-Every tool that interacts with the filesystem resolves the workspace root directory using a 4-step hierarchy via [`ResolveWorkspace()`](../internal/core/workspace.go):
+Every tool that interacts with the filesystem resolves the workspace root directory using a 5-step hierarchy via [`ResolveWorkspace()`](../internal/core/workspace.go):
 
 1. **Explicit argument**: `project_root` parameter passed directly to the tool call.
 2. **Environment variables**: `VIVECHAK_PROJECT_ROOT`, `VIVECHAK_DEFAULT_ROOT`, `WORKSPACE`, or `PROJECT_ROOT` if set (ignoring unexpanded `${workspaceFolder}` macros).
 3. **Directory discovery**: Traversing upward from the current working directory (`CWD`) searching for an existing `research/` directory (skipping host IDE application installation folders like `AppData\Local\Programs` or `Program Files`).
-4. **Resolution Error**: If none succeed, the tool returns a descriptive error instructing the user to run `vivechak_init` or pass `project_root` explicitly.
+4. **In-process session memory**: Fallback to the last successfully resolved workspace with existing `research/` within the current server process, eliminating repetitive parameter passing across consecutive tool calls.
+5. **Resolution Error**: If none succeed, the tool returns a descriptive error instructing the user to run `vivechak_init` or pass `project_root` explicitly.
 
 ---
 
@@ -375,6 +376,7 @@ Defined in [`SavePlanInput`](../internal/mcp/tool_save_plan.go):
 #### Common Warnings
 - Returns an error if `decision_id` is omitted when `scope` is `decision` or `comparison`.
 - Returns an error if the file lock cannot be acquired within 5 seconds (`"could not acquire lock: another process may be writing"`).
+- Emits advisory warning `W-PARSER-SESSION-MISMATCH` if sessions declared in the pipeline topology or DAG diagram lack a parsed section with a complete prompt block.
 
 ---
 
@@ -826,7 +828,7 @@ Execute the Phase 0 exit gate check (Track A + Track B).
 Executes the mechanical verification checks for the Phase 0 Exit Gate, tailored to the workspace scope:
 - **Project Scope:**
   - **Structural Completeness (5 checks):** Confirms presence of `RESEARCH-PIPELINE.md`, all DAG sessions completed, all 6 template files, `DECISIONS.md`, and `research/FAD.md`.
-  - **Quality Indicators (3 checks):** Confirms at least 3 completed sessions for pipeline significance, verifies that `FAD.md` contains valid evidence grades, and mechanically validates ADRs (all decisions accepted, and all one-way doors define explicit reversal triggers and substantive alternative analysis via check B10).
+  - **Quality Indicators (3 checks):** Confirms at least 3 completed sessions for pipeline significance, verifies that `FAD.md` contains valid evidence grades, and mechanically validates ADRs (all decisions accepted, all one-way doors define explicit reversal triggers, substantive alternative analysis via check B10, and red-team challenge verification via check B11).
 - **Decision Scope:**
   - **Structural Completeness (3 checks):** Confirms at least 1 completed session, template directory present, and decision record/ADR exists (`[ID]-[slug].md` or `DECISIONS.md`).
   - **Quality Indicators (2 checks):** Confirms completed decision session, and verifies decision record is substantive (>100 bytes), accepted, with reversal triggers present for one-way doors.
@@ -940,6 +942,7 @@ Defined in [`RunGateInput`](../internal/mcp/tool_run_gate.go):
 - `GATE-ADVISORY: B3-EVIDENTIARY: Session T0-01 informs one-way door D-001 but has Grade C/D/E citation(s)`
 - `GATE-ADVISORY: B4-VERIFICATION: Session T0-01 informs one-way door D-001 but has 'recalled' citation(s)`
 - `GATE-ADVISORY: B5-ALTERNATIVES: One-way door D-001 lacks documented rejected alternatives section`
+- `W-OWD-NO-CHALLENGE: One-Way Door decision D-001 was not subjected to adversarial red-team challenge before commitment`
 
 ---
 

@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 )
 
 // WorkspaceFS provides an abstract read-only interface for inspecting workspace files and directories.
@@ -170,13 +171,32 @@ func IsSystemOrAppDir(dirPath string) bool {
 	return false
 }
 
-// ResolveWorkspace implements the 4-step workspace resolution chain
-// per FINAL-PLAN.md:
+var (
+	lastResolvedWorkspaceMu sync.RWMutex
+	lastResolvedWorkspace   string
+)
+
+// SetLastResolvedWorkspace records the most recently resolved workspace root in memory.
+func SetLastResolvedWorkspace(ws string) {
+	lastResolvedWorkspaceMu.Lock()
+	defer lastResolvedWorkspaceMu.Unlock()
+	lastResolvedWorkspace = ws
+}
+
+// GetLastResolvedWorkspace returns the in-memory cached workspace root, if any.
+func GetLastResolvedWorkspace() string {
+	lastResolvedWorkspaceMu.RLock()
+	defer lastResolvedWorkspaceMu.RUnlock()
+	return lastResolvedWorkspace
+}
+
+// ResolveWorkspace implements the 5-step workspace resolution chain:
 //
 //  1. Explicit project_root argument (from tool call)
 //  2. Environment variables: VIVECHAK_PROJECT_ROOT, VIVECHAK_DEFAULT_ROOT, WORKSPACE, PROJECT_ROOT
 //  3. Discover research/ directory walking up from CWD (skipping system/app dirs)
-//  4. Error
+//  4. Fall back to in-process session memory (last resolved workspace with existing research/)
+//  5. Error
 //
 // Returns the absolute path to the workspace root.
 func ResolveWorkspace(explicit string) (string, error) {
@@ -194,6 +214,7 @@ func ResolveWorkspace(explicit string) (string, error) {
 				}
 			}
 		}
+		SetLastResolvedWorkspace(abs)
 		return abs, nil
 	}
 
@@ -211,10 +232,10 @@ func ResolveWorkspace(explicit string) (string, error) {
 	// Protect against unexpanded IDE macro variables like "${workspaceFolder}"
 	if envRoot != "" && !strings.HasPrefix(envRoot, "${") {
 		abs, err := filepath.Abs(envRoot)
-		if err != nil {
-			return "", fmt.Errorf("resolving project root from environment (%q): %w", envRoot, err)
+		if err == nil {
+			SetLastResolvedWorkspace(abs)
+			return abs, nil
 		}
-		return abs, nil
 	}
 
 	// Step 3: Walk up from CWD looking for research/ directory (skipping system/app dirs)
@@ -228,6 +249,7 @@ func ResolveWorkspace(explicit string) (string, error) {
 		if !IsSystemOrAppDir(dir) {
 			researchPath := filepath.Join(dir, ResearchDir)
 			if info, err := os.Stat(researchPath); err == nil && info.IsDir() {
+				SetLastResolvedWorkspace(dir)
 				return dir, nil
 			}
 		}
@@ -240,10 +262,18 @@ func ResolveWorkspace(explicit string) (string, error) {
 		dir = parent
 	}
 
-	// Step 4: Error
+	// Step 4: Fall back to in-process session memory
+	if cached := GetLastResolvedWorkspace(); cached != "" {
+		researchPath := filepath.Join(cached, ResearchDir)
+		if info, err := os.Stat(researchPath); err == nil && info.IsDir() {
+			return cached, nil
+		}
+	}
+
+	// Step 5: Error
 	return "", fmt.Errorf(
 		"could not resolve workspace: no explicit path, VIVECHAK_PROJECT_ROOT not set, "+
-			"and no research/ directory found walking up from %s. "+
+			"research/ not found walking up from %s, and no prior workspace initialized in this session. "+
 			"Run vivechak_init first or pass project_root explicitly", cwd)
 }
 

@@ -12,7 +12,7 @@ const ServerInstructions = "Vivechak: Evidence-grounded research for technical d
 	"## Workflow\n" +
 	"1. vivechak_status → orient (or vivechak_init with explicit project_root)\n" +
 	"2. vivechak_prepare_generator → get generator prompt → execute → vivechak_save_plan\n" +
-	"3. Loop: vivechak_next_session → research → vivechak_save_session → vivechak_challenge (optional: stress-test) → vivechak_record_decision\n" +
+	"3. Loop: vivechak_next_session → research → vivechak_save_session → vivechak_challenge (required for one-way doors: mode='red_team') → vivechak_record_decision\n" +
 	"4. vivechak_run_gate → verify → implement\n\n" +
 	"## Rules\n" +
 	"- Pass project_root explicitly to vivechak_init to target project repo\n" +

@@ -530,6 +530,20 @@ func ValidatePlan(data []byte) *ValidationResult {
 					"Include an execution prompt block for each session")
 			}
 		}
+
+		// Cross-check declared topology sessions against parsed sessions
+		declared := ExtractDeclaredSessionIDs(string(data))
+		parsedMap := make(map[string]bool)
+		for _, s := range dag.Sessions {
+			parsedMap[strings.ToUpper(s.ID)] = true
+		}
+		for _, declID := range declared {
+			if !parsedMap[declID] {
+				result.AddIssueWithHint(L3Warn, "W-PARSER-SESSION-MISMATCH",
+					fmt.Sprintf("Session %s is declared in pipeline topology or DAG diagram, but lacks a parsed session entry with prompt block", declID),
+					"Ensure every declared session has a '### [ID]: [Title]' header and a complete '```prompt' block")
+			}
+		}
 	} else {
 		// Decision-level, comparison, or generic plan without full DAG sessions
 		if len(trimmed) < 100 {

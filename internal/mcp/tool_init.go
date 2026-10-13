@@ -102,6 +102,8 @@ func handleInit(_ context.Context, req *sdkmcp.CallToolRequest, in InitInput) (*
 	}
 	defer ws.Close()
 
+	core.SetLastResolvedWorkspace(absRoot)
+
 
 	// Parse scope
 	scope := core.ScopeProject

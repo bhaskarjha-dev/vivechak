@@ -143,6 +143,24 @@ func (d *DAG) ValidateDAG() error {
 	return nil
 }
 
+// ExtractDeclaredSessionIDs extracts all candidate session IDs mentioned in
+// Markdown tables, Mermaid diagrams, or layer lists.
+func ExtractDeclaredSessionIDs(content string) []string {
+	// Matches session IDs like T0-01, T1-02, D-001, SYN-01, C-01, FAD
+	idRe := regexp.MustCompile(`\b([TCD]\d+[-_]\d+|SYN[-_]\d+|FAD)\b`)
+	matches := idRe.FindAllString(content, -1)
+	seen := make(map[string]bool)
+	var declared []string
+	for _, m := range matches {
+		upper := strings.ToUpper(m)
+		if !seen[upper] {
+			seen[upper] = true
+			declared = append(declared, upper)
+		}
+	}
+	return declared
+}
+
 // NextSessions returns sessions whose dependencies are all satisfied.
 // completedIDs is the set of session IDs that have been completed.
 func (d *DAG) NextSessions(completedIDs map[string]bool) []Session {
@@ -163,6 +181,22 @@ func (d *DAG) NextSessions(completedIDs map[string]bool) []Session {
 		}
 
 		if allDeps {
+			// Terminal Synthesis Guard: A synthesis session (FAD / SYN-*) is ONLY actionable
+			// when ALL non-synthesis sessions in the DAG have been completed.
+			if IsSynthesisSession(s.ID) {
+				allNonSynthesisDone := true
+				for _, other := range d.Sessions {
+					if !IsSynthesisSession(other.ID) {
+						if !completedIDs[other.ID] && !completedIDs[strings.ToUpper(other.ID)] && !completedIDs[strings.ToLower(other.ID)] {
+							allNonSynthesisDone = false
+							break
+						}
+					}
+				}
+				if !allNonSynthesisDone {
+					continue // Hold back synthesis session until all research sessions complete
+				}
+			}
 			ready = append(ready, s)
 		}
 	}

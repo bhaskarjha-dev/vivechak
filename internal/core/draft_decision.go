@@ -107,6 +107,11 @@ func DraftDecisionFromSession(sessionContent []byte, decisionID string) (string,
 	b.WriteString("## Rejected Alternatives & Tradeoffs\n\n")
 	b.WriteString("[Review session findings and document why alternatives were rejected.]\n\n")
 
+	// Challenge Findings & Red-Team Stress Test
+	b.WriteString("## Challenge Findings & Red-Team Stress Test\n\n")
+	b.WriteString("> Required for One-Way Doors: run `vivechak_challenge(session_id=\"...\", mode=\"red_team\")` before commitment.\n")
+	b.WriteString("[Document disconfirming search results, premortem failure modes, and adversarial stress-test findings.]\n\n")
+
 	// Failure Modes & Reversal Triggers
 	b.WriteString("## Failure Modes & Reversal Triggers\n\n")
 	if concerns != "" {

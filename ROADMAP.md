@@ -34,7 +34,7 @@ Every deferred feature is tracked with its origin, explicit gate condition, and 
 
 ### 2.0 Pre-Release Hardening Wave (October 2026)
 
-Forensic audit and real-world multi-agent dogfooding telemetry uncovered 14 concrete anomalies that were resolved prior to initial public release:
+Forensic audit and real-world multi-agent dogfooding telemetry uncovered 15 concrete anomalies that were resolved prior to initial public release:
 
 | Issue | Category | Root Cause & Resolution | Status |
 |---|---|---|---|
@@ -48,6 +48,11 @@ Forensic audit and real-world multi-agent dogfooding telemetry uncovered 14 conc
 | **E-08** | Concurrency | **Anti-TOCTOU Eager Lock Acquisition in `replan`:** `handleReplan` read and parsed `RESEARCH-PIPELINE.md` before acquiring advisory locks, creating race conditions under concurrent agent replans. Lock acquisition made eager before initial disk read. | ✅ Resolved |
 | **E-09** | Concurrency | **Advisory Locking for Workspace Root FAD Mirror Copy:** Root `FOUNDING-ARCHITECTURE.md` mirror write called `WriteRootFileAtomic` without holding an advisory lock on `fad_root`. Wrapped in advisory mutual exclusion. | ✅ Resolved |
 | **E-10** | Ergonomics | **Prompt Token Optimization (Eliminating Disk Template Reads):** Generator prompts instructed agents to read static template files from disk on every session, burning ~30 tool calls and ~60k tokens per run. Switched to MCP tool-native instructions where the server injects briefs and validates schemas automatically. | ✅ Resolved |
+| **E-11** | DAG / Parser | **Topology vs Session Parity Guard (`dag.go`, `validate.go`):** Generator models hit single-turn output token ceilings on Tier 2/3 pipelines, causing them to omit prompt blocks for later layers. Added `ExtractDeclaredSessionIDs` cross-check emitting `W-PARSER-SESSION-MISMATCH` when declared sessions lack prompt blocks. | ✅ Resolved |
+| **E-12** | DAG / Execution | **Synthesis Terminal Sink Guard (`dag.go`):** Incomplete or loosely dependent pipelines returned `SYN-01` (Synthesis) as actionable as soon as Layer 0 completed. `NextSessions` updated to hold back synthesis sessions until 100% of non-synthesis research sessions are complete. | ✅ Resolved |
+| **E-13** | Workspace | **In-Process Workspace Session Memory (`workspace.go`):** Desktop IDEs (Kiro, Cursor) run stdio MCP servers in `~` or IDE root, failing workspace resolution when `project_root` is omitted from subsequent calls. Added thread-safe `lastResolvedWorkspace` session cache. | ✅ Resolved |
+| **E-14** | Exit Gate | **Unambiguous Phase 0 Gate Stop-Signal (`tool_run_gate.go`):** Replaced polite envelope messaging (`"Gate evaluation complete"`) on Track B failure with unmistakable stop-signals (`❌ PHASE 0 GATE FAILED`, `⛔ DO NOT PROCEED TO CODE`) to prevent model sycophancy from claiming false completion. | ✅ Resolved |
+| **E-15** | Epistemics | **Elimination of "Optional" Escape Hatches for One-Way Doors:** Removed all "(optional)" references to `vivechak_challenge`. Mandated red-team challenge verification on One-Way Doors before final ADR locking. | ✅ Resolved |
 
 ### 2.1 Near-Term Packaging & Workflows (Awaiting Demand Signal)
 
@@ -124,6 +129,8 @@ Forensic audit and real-world multi-agent dogfooding telemetry uncovered 14 conc
 | **Shadow State Files (`.vivechak-state.json`)** | Violates Principle P6 (Dual-Audience Artifacts). Creates hidden shadow state that desynchronizes from Markdown. All state is derived directly from the filesystem and artifact frontmatter. | Principle P6 & D-UX-02 |
 | **Lexical Grade-Distribution Bell Curves (e.g. >70% Grade A Cap)** | Violates ADR D-UX-02 and empirical systematic review methodologies (Jüni et al. JAMA 1999, AMSTAR 2 BMJ 2017). Distribution quotas penalize rigorous primary specification citation (RFCs, official docs) and incentivize agents to cite low-quality secondary blogs to hit distribution targets. | Provenance Anchor Verification |
 | **Arbitrary ADR Character Length Thresholds (e.g. <200 chars)** | Violates ADR D-UX-02. Raw character counts reward verbosity and boilerplate while penalizing dense, high-information architectural rationale. | Structural Presence Checks (Context, Options, Rationale, Triggers) |
+| **Sequential State Machine Wizard (`StateResearch` → `StateGateCheck`)** | Violates ADR D-001 (Stateless Engine Law) and ADR D-010 (Guided Worker Pattern). Rigid state machines cause tool deadlocks during mid-flight replans, retroactive session amendments, and human overrides. | Guided Worker Pattern |
+| **Demoting Recalled Knowledge to Grade E** | Violates Principle P3 (Evidentiary Grounding). Grade E is reserved for unverifiable speculation; Grade D represents plausible heuristic recalled knowledge. Gate check B3 already prohibits Grade D from supporting One-Way Doors without corrupting the 5-tier scientific scale. | Evidentiary Grounding (P3) |
 
 ---
 
@@ -145,7 +152,7 @@ In future releases, an optional **BYOK (Bring-Your-Own-Key) LLM Bridge** may be 
 │  - Workspace resolution & OS confinement (os.Root)     │
 │  - DAG dependency resolution & topological sorting     │
 │  - Frontmatter parsing & template validation           │
-│  - Evidentiary grounding & B1–B9 Phase 0 exit gate     │
+│  - Evidentiary grounding & B1–B11 Phase 0 exit gate    │
 └──────────────────────────┬─────────────────────────────┘
                            │ (Optional BYOK Hook)
 ┌──────────────────────────▼─────────────────────────────┐

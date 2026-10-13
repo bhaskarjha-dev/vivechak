@@ -1,6 +1,7 @@
 ---
 # Architectural Decision Record Template — Vivechak v0.1.0
 # Usage: Add one entry per decision to your project's DECISIONS.md registry file.
+# Challenge findings (required for One-Way Doors): vivechak_challenge(session_id, mode='red_team')
 # For projects with many decisions, individual files (research/D-NNN-[slug].md) may be used instead.
 id: D-NNN
 title: "[Decision Title]"
@@ -50,6 +51,11 @@ constraints, not generic superiority claims.]
 
 - **[Option Name]:** Rejected because [specific causal reason with evidence reference].
 - **[Option Name]:** Rejected because [specific causal reason with evidence reference].
+
+## Challenge Findings & Red-Team Stress Test
+
+> Required for One-Way Doors: run `vivechak_challenge(session_id="...", mode="red_team")` before commitment.
+[Document disconfirming search results, premortem failure modes, and adversarial stress-test findings.]
 
 ## Failure Modes & Reversal Triggers
 

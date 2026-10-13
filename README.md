@@ -189,7 +189,7 @@ Vivechak ships as a universal **MCP server** — install the binary, register it
 | `vivechak_record_decision` | Save ADR or conflict resolution, handle ADR supersession, and automatically compile consolidated `DECISIONS.md` registry |
 | `vivechak_amend_session` | Append post-hoc amendments with FAD root mirroring and transitive downstream stale alerts (`W-STALE-DOWNSTREAM`) |
 | `vivechak_validate` | Dry-run validation ladder on any research artifact |
-| `vivechak_run_gate` | Phase 0 exit gate (decoupled Track A + Track B with automated B1–B10 checks, auto-persisting `PHASE-0-GATE.md`) |
+| `vivechak_run_gate` | Phase 0 exit gate (decoupled Track A + Track B with automated B1–B11 checks, auto-persisting `PHASE-0-GATE.md`) |
 | `vivechak_challenge` | Adversarial stress-testing of completed sessions (red-team, evidence audit, cross-session consistency) |
 | `vivechak_replan` | Mid-flight DAG mutation (add/remove sessions, update dependencies/prompts) |
 | `vivechak_visualize` | Render pipeline DAG as Mermaid flowchart or ASCII status table |
@@ -211,7 +211,7 @@ The agent calls these tools in sequence. The server handles context injection, D
 | **8-Block Prompts** | DECISION, BRIEF, SCOPE, KNOWN, CALIBRATION, APPROACH, DONE, FORMAT — no personas, no hardcoded queries |
 | **Staged Triangulation** | Single-model default → multi-model only for contested one-way doors |
 | **GRADE-Aligned Evidence** | A–E grades + modifiers (corroboration, recency, directness) + verification |
-| **Two-Track Gate** | Fast-track for reversible decisions; 10-step + premortem for irreversible |
+| **Two-Track Gate** | Fast-track for reversible decisions; 11-step + premortem for irreversible |
 
 ---
 

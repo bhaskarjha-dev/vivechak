@@ -182,6 +182,30 @@ func RenderGateArtifact(ws WorkspaceFS, tmplBytes []byte, root, projectName, gat
 			tmpl = strings.Replace(tmpl, "- [ ] FAD committed to repository root", "- [x] FAD committed to repository root", 1)
 			tmpl = strings.Replace(tmpl, "- [ ] Repository scaffolding ready to generate", "- [x] Repository scaffolding ready to generate", 1)
 		}
+
+		// B10: Substantive ADR Content
+		hasB10Adv := false
+		for _, adv := range advisories {
+			if strings.Contains(adv, "B-DECISION-STUB") {
+				hasB10Adv = true
+				break
+			}
+		}
+		if !hasB10Adv {
+			tmpl = strings.Replace(tmpl, "- [ ] Decision record contains substantive causal rationale", "- [x] Decision record contains substantive causal rationale", 1)
+		}
+
+		// B11: Adversarial Red-Team Challenge
+		hasB11Adv := false
+		for _, adv := range advisories {
+			if strings.Contains(adv, "W-OWD-NO-CHALLENGE") {
+				hasB11Adv = true
+				break
+			}
+		}
+		if !hasB11Adv {
+			tmpl = strings.Replace(tmpl, "- [ ] One-Way Door decisions subjected to adversarial challenge", "- [x] One-Way Door decisions subjected to adversarial challenge", 1)
+		}
 	}
 	tmpl = strings.Replace(tmpl, "**Track B Result:** `[PASS / FAIL]`", fmt.Sprintf("**Track B Result:** %s", trackBResultStr), 1)
 

@@ -1059,6 +1059,126 @@ func TestParsePipeline_StandaloneIdentifiers(t *testing.T) {
 	}
 }
 
+func TestExtractDeclaredSessionIDs(t *testing.T) {
+	content := `# Research Pipeline
+
+## Pipeline Topology
+
+| Session | Layer | Focus | Dependencies | Est. Calls |
+|---|---|---|---|---|
+| T0-01 | 0 | Storage Landscape | None | 3 |
+| T0-02 | 0 | Auth Landscape | None | 3 |
+| T1-01 | 1 | SQLite Engine | T0-01 | 5 |
+| SYN-01 | 2 | Architecture Synthesis | T1-01 | 4 |
+
+## Execution DAG
+
+` + "```mermaid" + `
+graph TD
+    T0-01 --> T1-01
+    T0-02 --> T1-01
+    T1-01 --> SYN-01
+    SYN-01 --> FAD
+` + "```" + `
+
+### D-001: Architectural Decision Ref (not a session)
+`
+
+	declared := ExtractDeclaredSessionIDs(content)
+	expected := map[string]bool{
+		"T0-01":  true,
+		"T0-02":  true,
+		"T1-01":  true,
+		"SYN-01": true,
+		"FAD":    true,
+	}
+
+	for _, id := range declared {
+		if !expected[id] {
+			t.Errorf("unexpected extracted session ID: %s", id)
+		}
+	}
+	for id := range expected {
+		found := false
+		for _, decl := range declared {
+			if decl == id {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("expected session ID %s was not extracted", id)
+		}
+	}
+
+	// Verify ValidatePlan catches missing sessions (W-PARSER-SESSION-MISMATCH)
+	pipelineWithMissingPrompt := content + `
+### T0-01: Storage Landscape
+| **ID** | T0-01 |
+
+` + "```prompt" + `
+# T0-01 Brief
+` + "```" + `
+`
+	res := ValidatePlan([]byte(pipelineWithMissingPrompt))
+	hasMismatch := false
+	for _, issue := range res.Issues {
+		if issue.Code == "W-PARSER-SESSION-MISMATCH" {
+			hasMismatch = true
+			break
+		}
+	}
+	if !hasMismatch {
+		t.Errorf("expected W-PARSER-SESSION-MISMATCH for sessions declared without prompt blocks")
+	}
+}
+
+func TestNextSessions_TerminalSynthesisGuard(t *testing.T) {
+	dag := &DAG{
+		Sessions: []Session{
+			{ID: "T0-01", Title: "Discovery", Dependencies: nil},
+			{ID: "T1-01", Title: "Database Choice", Dependencies: []string{"T0-01"}},
+			{ID: "SYN-01", Title: "System Synthesis", Dependencies: []string{"T0-01"}}, // Note: artificially weak dependency on T0-01
+		},
+	}
+
+	// Case 1: Nothing completed -> only T0-01 ready
+	ready1 := dag.NextSessions(map[string]bool{})
+	if len(ready1) != 1 || ready1[0].ID != "T0-01" {
+		t.Fatalf("expected only T0-01 ready, got %+v", ready1)
+	}
+
+	// Case 2: T0-01 completed -> T1-01 ready, but SYN-01 MUST be held back
+	// because T1-01 (a non-synthesis research session) is not completed!
+	ready2 := dag.NextSessions(map[string]bool{"T0-01": true})
+	for _, s := range ready2 {
+		if s.ID == "SYN-01" {
+			t.Fatalf("SYN-01 should NOT be actionable while T1-01 remains uncompleted!")
+		}
+	}
+	foundT1 := false
+	for _, s := range ready2 {
+		if s.ID == "T1-01" {
+			foundT1 = true
+		}
+	}
+	if !foundT1 {
+		t.Fatalf("expected T1-01 to be actionable once T0-01 is complete")
+	}
+
+	// Case 3: Both T0-01 and T1-01 completed -> SYN-01 is now actionable
+	ready3 := dag.NextSessions(map[string]bool{"T0-01": true, "T1-01": true})
+	foundSYN := false
+	for _, s := range ready3 {
+		if s.ID == "SYN-01" {
+			foundSYN = true
+		}
+	}
+	if !foundSYN {
+		t.Fatalf("expected SYN-01 to be actionable once all non-synthesis sessions are completed")
+	}
+}
+
 
 
 

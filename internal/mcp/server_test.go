@@ -3059,6 +3059,13 @@ We select PostgreSQL. Grade A (RFC docs)
 		t.Fatalf("expected gate to FAIL or WARN on One-Way Door with missing alternatives, got PASS!")
 	}
 
+	if !strings.Contains(envGate.Message, "❌ PHASE 0 GATE FAILED") {
+		t.Errorf("expected failure message stop-signal '❌ PHASE 0 GATE FAILED', got: %s", envGate.Message)
+	}
+	if !strings.Contains(envGate.NextStep, "⛔ DO NOT PROCEED TO CODE") {
+		t.Errorf("expected failure next_step stop-signal '⛔ DO NOT PROCEED TO CODE', got: %s", envGate.NextStep)
+	}
+
 	foundB5 := false
 	for _, w := range envGate.Warnings {
 		if strings.Contains(w, "B5-ALTERNATIVES") {
@@ -3068,6 +3075,86 @@ We select PostgreSQL. Grade A (RFC docs)
 	}
 	if !foundB5 {
 		t.Errorf("expected B5-ALTERNATIVES in gate warnings, got: %v", envGate.Warnings)
+	}
+
+	foundChallengeWarn := false
+	for _, w := range envGate.Warnings {
+		if strings.Contains(w, "W-OWD-NO-CHALLENGE") {
+			foundChallengeWarn = true
+			break
+		}
+	}
+	if !foundChallengeWarn {
+		t.Errorf("expected W-OWD-NO-CHALLENGE in gate warnings for unchallenged One-Way Door, got: %v", envGate.Warnings)
+	}
+}
+
+func TestRunGate_ChallengeWarning_Resolved(t *testing.T) {
+	ctx := context.Background()
+	cs := testServer(t)
+	tmpDir := t.TempDir()
+
+	// Initialize decision-scope workspace
+	_, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_init",
+		Arguments: map[string]any{
+			"project_root": tmpDir,
+			"scope":        "decision",
+		},
+	})
+	if err != nil {
+		t.Fatalf("init: %v", err)
+	}
+
+	// Record a One-Way Door ADR that includes Challenge Findings
+	adrWithChallenge := `---
+id: D-001
+title: Core Storage Engine
+status: accepted
+door_type: one-way
+review_trigger: 6 months
+human_reviewed: true
+---
+# D-001: Core Storage Engine
+## Context
+We are choosing an embedded transactional datastore.
+## Evaluated Options
+- SQLite
+- DuckDB
+## Decision Outcome
+We select SQLite. Grade A (https://sqlite.org)
+## Rejected Alternatives & Tradeoffs
+- DuckDB: Rejected due to OLTP transaction locks.
+## Challenge Findings & Red-Team Stress Test
+Adversarial red-team probe confirms concurrency limit at 1 writer per database file.
+## Failure Modes & Reversal Triggers
+Review if write transactions exceed 500 ops/sec.
+`
+	_, err = cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_record_decision",
+		Arguments: map[string]any{
+			"project_root": tmpDir,
+			"decision_id":  "D-001",
+			"content":      adrWithChallenge,
+		},
+	})
+	if err != nil {
+		t.Fatalf("record_decision: %v", err)
+	}
+
+	// Run gate: W-OWD-NO-CHALLENGE should NOT be emitted
+	resGate, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "vivechak_run_gate",
+		Arguments: map[string]any{"project_root": tmpDir, "verbose": true},
+	})
+	if err != nil {
+		t.Fatalf("run_gate: %v", err)
+	}
+	envGate := parseEnvelope(t, resGate)
+	for _, w := range envGate.Warnings {
+		if strings.Contains(w, "W-OWD-NO-CHALLENGE") {
+			t.Errorf("unexpected W-OWD-NO-CHALLENGE warning when Challenge Findings section is present: %s", w)
+		}
 	}
 }
 

@@ -110,6 +110,8 @@ For each architectural decision the project requires:
    | **Reversible (two-way)** | SKIP — decide by convention | FAST SPIKE — 1 session |
    | **Irreversible (one-way)** | CONFIRM & COMMIT — 1 session + ADR | DEEP RESEARCH — 2–5 sessions + ADR + premortem |
 
+   One-Way Door decisions MUST undergo adversarial red-teaming via `vivechak_challenge(mode='red_team')` before the ADR is locked.
+
 3. Organize sessions as a DAG (Directed Acyclic Graph):
    - Layer 0: Landscape & Discovery (fully parallel, no dependencies)
    - Layer 1: Architectural Decisions (sparse dependencies on Layer 0)
@@ -346,7 +348,7 @@ Requirements:
 - Sessions must be ordered by layer (Layer 0 -> Layer 1 -> Layer 2 -> Sink)
 - The Pipeline Overview section must include a "How to Execute" guide:
   - **With Vivechak MCP Server (Recommended):** Orchestrate sessions sequentially
-    or concurrently using `vivechak_next_session`, `vivechak_save_session`, `vivechak_record_decision`,
+    or concurrently using `vivechak_next_session`, `vivechak_save_session`, `vivechak_challenge(session_id, mode='red_team')` (required for One-Way Doors), `vivechak_record_decision`,
     and `vivechak_run_gate`. The server automatically injects context and validates schemas;
     agents should NOT manually read template files from disk.
   - **Manual Execution (Without MCP):** Reference the contract templates in `templates/`
@@ -366,6 +368,7 @@ Requirements:
   decisions are NOT recorded inline -- they live in DECISIONS.md
 - Output filenames for each session must follow the convention:
   sessions/[Session-ID]-[slug].md
+- **Phased Prompting for Tier 2 & Tier 3 Pipelines:** When generating large pipelines (Tier 2 with 9–16 sessions or Tier 3 with 17–30 sessions), generator models must NOT truncate or omit prompt blocks due to output token limits. If approaching single-turn output token ceilings, emit the complete pipeline topology and all Layer 0 / Layer 1 session prompts first, then instruct the user to request remaining layers (e.g. 'Please generate Layer 2 and Synthesis prompts'). Every session ID declared in the topology table or execution DAG MUST have a corresponding '### [ID]: [Title]' section with a complete '```prompt' code block.
 
 ### 2. DECISIONS.md
 
@@ -468,6 +471,9 @@ When using an MCP-enabled agent, orchestrate via Vivechak tools for maximum toke
 
 **Execute a research session:**
 > *Run `vivechak_next_session` to get the next prioritized research brief. Execute the deep research with web search, grade all evidence, and save using `vivechak_save_session`. Do not read template files from disk — Vivechak automatically validates schemas and injects format requirements.*
+
+**Challenge findings (required for One-Way Doors):**
+> *Run `vivechak_challenge(session_id="...", mode="red_team")` to adversarially stress-test findings before locking the decision. One-Way Door decisions MUST undergo adversarial red-teaming via `vivechak_challenge(mode='red_team')` before the ADR is locked.*
 
 **Record a decision:**
 > *Formulate the decision from session findings and record it using `vivechak_record_decision`. The server validates required fields and compiles `research/DECISIONS.md` automatically.*

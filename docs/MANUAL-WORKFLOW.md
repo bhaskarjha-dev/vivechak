@@ -295,11 +295,11 @@ Create `research/PHASE-0-GATE.md` and audit every decision:
 flowchart TD
     D[Evaluate Decision] --> Check{Door Type?}
     Check -->|Two-Way Door| TrackA[Track A: Fast-Track Gate]
-    Check -->|One-Way Door| TrackB[Track B: Rigorous 10-Step Gate]
+    Check -->|One-Way Door| TrackB[Track B: Rigorous 11-Step Gate]
     TrackA --> PassA{Reversible & Corroborated?}
     PassA -->|Yes| GatePass[Gate PASS]
     PassA -->|No| FixA[Fix ADR]
-    TrackB --> PassB{All 10 Steps Satisfied?}
+    TrackB --> PassB{All 11 Steps Satisfied?}
     PassB -->|Yes| GatePass
     PassB -->|No| FixB[Resolve Blockers]
 ```
@@ -310,8 +310,8 @@ Check three conditions:
 - [x] Reversibility confirmed (can be swapped without major refactoring).
 - [x] At least one corroborated source supports the choice.
 
-#### Track B: Rigorous 10-Step Gate (One-Way Doors)
-Every irreversible architectural pillar must satisfy all 10 criteria:
+#### Track B: Rigorous 11-Step Gate (One-Way Doors)
+Every irreversible architectural pillar must satisfy all 11 criteria:
 - **B1. DAG Closure:** All dependent research sessions completed in `status: final`.
 - **B2. Contradiction Resolution:** No unresolved conflicting evidence or contested claims.
 - **B3. Evidentiary Threshold:** Zero uncorroborated Grade C/D/E claims under pinning pillars; critical claims backed by Grade A or B (≥60%).
@@ -322,6 +322,7 @@ Every irreversible architectural pillar must satisfy all 10 criteria:
 - **B8. Human Architect Review:** Explicit sign-off by a named human engineer (`human_reviewed: true`).
 - **B9. Founding Architecture Document Sealed:** `FAD.md` completed and committed to git.
 - **B10. Substantive ADR Content:** Decision record contains substantive causal rationale, evaluated options, and failure modes (no placeholder stubs).
+- **B11. Adversarial Red-Team Challenge:** Mandatory challenge findings, red-team probe, or disconfirming evidence search for One-Way Doors before commitment.
 
 ### Step 10: What "Passing the Gate" Means
 
