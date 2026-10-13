@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [0.1.0] - 2026-10-07 — Hardened Pre-Release & Engine Correctness
+## [0.1.0] - 2026-10-13 — Hardened Initial Release & MCP Server
 
 Unified release delivering the 12 enforcement hardening tasks, quality audit fixes, and complete pre-release hardening wave across engine parsers, concurrency locks, gate strictness, and cognitive quality coaching:
 
@@ -35,6 +35,7 @@ Unified release delivering the 12 enforcement hardening tasks, quality audit fix
 - **ADR Door-Type Drafter (`draft_decision.go`):** Contextually infers `two-way` vs `one-way` door classifications from session text rather than defaulting to irreversible.
 
 ### Fixed
+- **RE2 Stale Date Regex Parsing (`quality.go`):** Replaced Perl-style lookahead `(?!)` with RE2-compliant character class negation `[^\s\S]`, resolving staticcheck `SA1000` lint failures.
 - **Leading Markdown Title Frontmatter Crash (`frontmatter.go`):** `skipLeadingWhitespaceAndComments` now skips markdown titles preceding frontmatter delimiters, fixing `V-MISSING-FRONTMATTER` crashes.
 - **ADR Supersession Duplicate Frontmatter (`tool_record_decision.go`):** Dynamically isolates existing YAML frontmatter boundaries, preventing duplicate frontmatter blocks on superseded ADRs.
 - **ASCII Arrow Tolerance in DAG Complexity Parser (`dag.go`):** Regex accepts `->`, `-->`, and `=>` in addition to Unicode `→`, preventing silent complexity score zeroing.
@@ -50,7 +51,7 @@ Unified release delivering the 12 enforcement hardening tasks, quality audit fix
 
 ---
 
-## [0.1.0] - 2026-10-05
+## [0.1.0-beta.1] - 2026-10-05 — Quality Audit Hardening & MCP Tool Expansion
 
 Comprehensive production release fusing the 18 quality audit findings (`CRIT-01`–`CRIT-04`, `HIGH-01`–`HIGH-06`, `MED-01`–`MED-05`, `LOW-01`–`LOW-03`) with the 12 definitive architecture enhancements (T1–T12).
 
@@ -190,3 +191,9 @@ Foundational meta-research and methodology specification (formerly drafted as v1
 
 ### Added
 - Initial pre-development research patterns and aspect isolation experiments discovered across 8 independent project pipelines.
+
+[0.1.0]: https://github.com/bhaskarjha-dev/vivechak/releases/tag/v0.1.0
+[0.1.0-beta.1]: https://github.com/bhaskarjha-dev/vivechak/releases/tag/v0.1.0-beta.1
+[0.1.0-alpha.2]: https://github.com/bhaskarjha-dev/vivechak/releases/tag/v0.1.0-alpha.2
+[0.1.0-alpha.1]: https://github.com/bhaskarjha-dev/vivechak/releases/tag/v0.1.0-alpha.1
+[0.0.1-incubating]: https://github.com/bhaskarjha-dev/vivechak/tree/main
