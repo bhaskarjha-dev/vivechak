@@ -26,7 +26,7 @@ import (
 // version is set at build time via ldflags, e.g. -ldflags "-X main.version=vX.Y.Z".
 // During development (go run/go build without ldflags), this default is used.
 // During release, GoReleaser injects the git tag version via ldflags.
-var version = "0.1.0-dev"
+var version = "0.1.0"
 
 func printUsage(w io.Writer) {
 	fmt.Fprintf(w, "vivechak (vck) %s\n\n", version)
