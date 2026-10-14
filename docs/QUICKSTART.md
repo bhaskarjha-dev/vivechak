@@ -60,7 +60,7 @@ vck setup                                    # auto-detect host in current works
 # Or output universal MCP JSON configuration:
 vck mcp-config
 ```
-*(For all 14 presets, terminal harnesses, or manual configs, see the [Host Setup Guide](HOST-SETUP.md).)*
+*(For all 21 presets, terminal harnesses, or manual configs, see the [Host Setup Guide](HOST-SETUP.md).)*
 
 ### 3. Prompt Your AI Agent
 

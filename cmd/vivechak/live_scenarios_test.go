@@ -75,7 +75,8 @@ func TestExhaustive_AllFeatures_AllScenarios(t *testing.T) {
 
 	t.Run("CLI_MCP_Config_AllPresets", func(t *testing.T) {
 		presets := []string{
-			"claude-desktop", "claude", "vscode", "code", "cursor", "windsurf", "zed", "antigravity", "agy", "kiro",
+			"claude-desktop", "claude", "claude-code", "mcp", "opencode", "copilot", "void", "continue", "goose",
+			"vscode", "code", "cursor", "windsurf", "zed", "antigravity", "agy", "kiro",
 			"trae", "omp", "openhands", "droid", "cline", "roo", "devin",
 		}
 		for _, preset := range presets {

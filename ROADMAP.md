@@ -20,7 +20,7 @@ Vivechak delivers a unified, evidence-grounded research methodology powered by a
 | **Permissive Frontmatter & ADR Supersession** | ✅ Shipped | Zero-crash frontmatter extraction for documents starting with `# Heading` or blank lines; robust non-destructive ADR supersession |
 | **Eager Concurrency Locks** | ✅ Shipped | Mutual exclusion across mid-flight replans (anti-TOCTOU) and workspace root FAD mirror synthesis |
 | **Namespaces & Protocols** | ✅ Shipped | `C-NNN` comparison namespace, `T-NNN` project tasks, `D-NNN` ADRs; ADR supersession protocol with transitive stale-reference detection |
-| **CLI & Diagnostics** | ✅ Shipped | `vck` shorthand alias, `vck setup` (1-second host configuration + 14 presets), `vck mcp-config` (universal JSON config), and `vck doctor` workspace integrity checker |
+| **CLI & Diagnostics** | ✅ Shipped | `vck` shorthand alias, `vck setup` (1-second host configuration + 21 presets), `vck mcp-config` (universal JSON config), and `vck doctor` workspace integrity checker |
 | **FRAMEWORK.md** | ✅ Shipped | Complete standalone specification (8 principles, evidence grading A–E, prompt anatomy, Weighted Evaluation Protocol, Phase 0 Gate) |
 | **6 Operational Templates** | ✅ Shipped | `DECISIONS.template.md`, `CONFLICT-RESOLUTION.template.md`, `COMPARISON-SESSION.template.md`, `FOUNDING-ARCHITECTURE.template.md`, `PHASE-0-GATE.template.md`, `SESSION.template.md` (`schema_version: "0.1.0"`) |
 | **Distribution & Packages** | ✅ Shipped | Single-binary cross-compilation (6 platforms via GoReleaser), Homebrew, Scoop, WinGet, shell installers (`install.sh`, `install.ps1`) |
@@ -204,7 +204,7 @@ Vivechak is intentionally harness-agnostic. By speaking standard MCP over `stdio
 
 | Category | Environments | Integration Mode | Status |
 |---|---|---|---|
-| **IDE AI Harnesses** | Cursor, VS Code (Copilot/Cline), Claude Desktop, Google Antigravity, Windsurf | MCP stdio via `vck setup` (14 presets) | ✅ Production |
+| **IDE AI Harnesses** | Cursor, VS Code (Copilot/Cline), Claude Desktop, Google Antigravity, Windsurf | MCP stdio via `vck setup` (21 presets) | ✅ Production |
 | **CLI Agent Harnesses** | Claude Code, `agy` CLI, OpenHands, Aider | MCP stdio or headless CLI | ✅ Production |
 | **Cloud Agent Platforms** | Devin, Factory Droid, GitHub Workspaces | Pre-installed binary via `install.sh` / `vck mcp-config` | ✅ Production |
 | **Parallel Agent Swarms** | Subagent spawning (Antigravity, CrewAI, LangGraph) | Multi-process concurrent access with advisory file locking | ✅ Production |

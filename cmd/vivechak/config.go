@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-const desktopShortcutsList = "cursor, vscode, claude-desktop (or claude), windsurf, antigravity (or agy), zed, kiro, trae, omp, openhands, droid, cline, roo, devin"
+const desktopShortcutsList = "cursor, vscode, claude-desktop (or claude), claude-code, mcp (or portable), opencode, copilot, void, continue, goose, windsurf, antigravity (or agy), zed, kiro, trae, omp, openhands, droid, cline, roo, devin"
 
 func runMCPConfigWithArgs(args []string, stdout, stderr io.Writer) int {
 	var host string
@@ -76,10 +76,7 @@ func runMCPConfigWithArgs(args []string, stdout, stderr io.Writer) int {
 
 	configObj := map[string]any{
 		serverKey: map[string]any{
-			"vivechak": map[string]any{
-				"command": exePath,
-				"args":    []string{"serve"},
-			},
+			"vivechak": buildServerConfig(serverKey, exePath),
 		},
 	}
 
@@ -118,41 +115,46 @@ func runMCPConfigWithArgs(args []string, stdout, stderr io.Writer) int {
 
 	// merge with existing
 	var out []byte
-	b, err := os.ReadFile(configPath)
-	if err == nil {
-		// If existing file is valid JSON/JSONC, check its existing key
-		if len(bytes.TrimSpace(b)) > 0 {
-			var existing map[string]any
-			cleaned := stripJSONComments(b)
-			dec := json.NewDecoder(bytes.NewReader(cleaned))
-			if dec.Decode(&existing) == nil {
-				targetKey = determineServerKey(host, configPath, existing)
+	if strings.HasSuffix(configPath, ".yaml") || strings.HasSuffix(configPath, ".yml") {
+		b, _ := os.ReadFile(configPath)
+		out = mergeGooseYAML(b, exePath)
+	} else {
+		b, err := os.ReadFile(configPath)
+		if err == nil {
+			// If existing file is valid JSON/JSONC, check its existing key
+			if len(bytes.TrimSpace(b)) > 0 {
+				var existing map[string]any
+				cleaned := stripJSONComments(b)
+				dec := json.NewDecoder(bytes.NewReader(cleaned))
+				if dec.Decode(&existing) == nil {
+					targetKey = determineServerKey(host, configPath, existing)
+				}
 			}
-		}
 
-		merged, mergeErr := mergeConfig(b, exePath, targetKey)
-		if mergeErr != nil {
-			fmt.Fprintf(stderr, "Warning: %v\n", mergeErr)
-			fmt.Fprintf(stderr, "Creating backup at %s.bak and writing fresh config\n", configPath)
-			if backupErr := os.WriteFile(configPath+".bak", b, 0644); backupErr != nil {
-				fmt.Fprintf(stderr, "Warning: could not create backup: %v\n", backupErr)
+			merged, mergeErr := mergeConfig(b, exePath, targetKey)
+			if mergeErr != nil {
+				fmt.Fprintf(stderr, "Warning: %v\n", mergeErr)
+				fmt.Fprintf(stderr, "Creating backup at %s.bak and writing fresh config\n", configPath)
+				if backupErr := os.WriteFile(configPath+".bak", b, 0644); backupErr != nil {
+					fmt.Fprintf(stderr, "Warning: could not create backup: %v\n", backupErr)
+				}
+				fresh, freshErr := mergeConfig(nil, exePath, targetKey)
+				if freshErr != nil {
+					fmt.Fprintf(stderr, "failed to create fresh config: %v\n", freshErr)
+					return 1
+				}
+				out = fresh
+			} else {
+				out = merged
 			}
+		} else {
 			fresh, freshErr := mergeConfig(nil, exePath, targetKey)
 			if freshErr != nil {
 				fmt.Fprintf(stderr, "failed to create fresh config: %v\n", freshErr)
 				return 1
 			}
 			out = fresh
-		} else {
-			out = merged
 		}
-	} else {
-		fresh, freshErr := mergeConfig(nil, exePath, targetKey)
-		if freshErr != nil {
-			fmt.Fprintf(stderr, "failed to create fresh config: %v\n", freshErr)
-			return 1
-		}
-		out = fresh
 	}
 
 	if err := writeConfigFile(configPath, out); err != nil {
@@ -164,8 +166,14 @@ func runMCPConfigWithArgs(args []string, stdout, stderr io.Writer) int {
 	return 0
 }
 
-// determineServerKey returns the appropriate top-level JSON key ("servers", "context_servers", or "mcpServers").
+// determineServerKey returns the appropriate top-level JSON key ("servers", "context_servers", "mcp", "extensions", or "mcpServers").
 func determineServerKey(host, configPath string, existing map[string]any) string {
+	if host == "opencode" || strings.Contains(strings.ToLower(configPath), "opencode") {
+		return "mcp"
+	}
+	if host == "goose" || strings.Contains(strings.ToLower(configPath), "goose") {
+		return "extensions"
+	}
 	if host == "vscode" || host == "code" {
 		if existing != nil && existing["mcpServers"] != nil && existing["servers"] == nil {
 			return "mcpServers"
@@ -177,6 +185,12 @@ func determineServerKey(host, configPath string, existing map[string]any) string
 	}
 
 	if existing != nil {
+		if existing["mcp"] != nil && existing["mcpServers"] == nil {
+			return "mcp"
+		}
+		if existing["extensions"] != nil && existing["mcpServers"] == nil {
+			return "extensions"
+		}
 		if existing["servers"] != nil && existing["mcpServers"] == nil {
 			return "servers"
 		}
@@ -194,9 +208,114 @@ func determineServerKey(host, configPath string, existing map[string]any) string
 		if base == "zed" || base == ".zed" {
 			return "context_servers"
 		}
+		if base == "opencode" || base == ".opencode" {
+			return "mcp"
+		}
+		if base == "goose" || base == ".goose" {
+			return "extensions"
+		}
 	}
 
 	return "mcpServers"
+}
+
+// buildServerConfig returns the appropriate configuration object for the given server key.
+func buildServerConfig(serverKey, exePath string) map[string]any {
+	switch serverKey {
+	case "mcp":
+		return map[string]any{
+			"type":    "local",
+			"command": []string{exePath, "serve"},
+			"enabled": true,
+		}
+	case "extensions":
+		return map[string]any{
+			"name":    "vivechak",
+			"type":    "stdio",
+			"cmd":     exePath,
+			"args":    []string{"serve"},
+			"enabled": true,
+			"timeout": 300,
+		}
+	default:
+		return map[string]any{
+			"command": exePath,
+			"args":    []string{"serve"},
+		}
+	}
+}
+
+// mergeGooseYAML merges the vivechak extension into a Goose YAML configuration file.
+func mergeGooseYAML(existingBytes []byte, exePath string) []byte {
+	cleanExisting := strings.TrimSpace(string(existingBytes))
+	vivechakBlock := fmt.Sprintf("  vivechak:\n    name: vivechak\n    type: stdio\n    cmd: %q\n    args:\n      - serve\n    enabled: true\n    timeout: 300", exePath)
+
+	if cleanExisting == "" {
+		return []byte(fmt.Sprintf("extensions:\n%s\n", vivechakBlock))
+	}
+
+	lines := strings.Split(cleanExisting, "\n")
+	extensionsIdx := -1
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "extensions:" || strings.HasPrefix(trimmed, "extensions:") {
+			extensionsIdx = i
+			break
+		}
+	}
+
+	if extensionsIdx == -1 {
+		// No extensions: key found, append at the end
+		return []byte(fmt.Sprintf("%s\n\nextensions:\n%s\n", cleanExisting, vivechakBlock))
+	}
+
+	// extensions: found, check if vivechak: already exists under it
+	vivechakStart := -1
+	vivechakEnd := -1
+
+	for i := extensionsIdx + 1; i < len(lines); i++ {
+		line := lines[i]
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
+			continue
+		}
+		// If line has no indentation, it is a new top-level section
+		if len(line) > 0 && line[0] != ' ' && line[0] != '\t' {
+			break
+		}
+		if trimmed == "vivechak:" || strings.HasPrefix(trimmed, "vivechak:") {
+			vivechakStart = i
+			vivechakEnd = len(lines)
+			for j := i + 1; j < len(lines); j++ {
+				jTrimmed := strings.TrimSpace(lines[j])
+				if jTrimmed == "" {
+					continue
+				}
+				// If a sibling key (2-space indent) or top-level key (0-space indent)
+				if (len(lines[j]) >= 2 && lines[j][0] == ' ' && lines[j][1] == ' ' && lines[j][2] != ' ' && lines[j][2] != '\t') || (lines[j][0] != ' ' && lines[j][0] != '\t') {
+					vivechakEnd = j
+					break
+				}
+			}
+			break
+		}
+	}
+
+	if vivechakStart >= 0 && vivechakEnd > vivechakStart {
+		// Replace existing vivechak block
+		var newLines []string
+		newLines = append(newLines, lines[:vivechakStart]...)
+		newLines = append(newLines, vivechakBlock)
+		newLines = append(newLines, lines[vivechakEnd:]...)
+		return []byte(strings.Join(newLines, "\n") + "\n")
+	}
+
+	// Insert right after extensions: line
+	var newLines []string
+	newLines = append(newLines, lines[:extensionsIdx+1]...)
+	newLines = append(newLines, vivechakBlock)
+	newLines = append(newLines, lines[extensionsIdx+1:]...)
+	return []byte(strings.Join(newLines, "\n") + "\n")
 }
 
 // stripJSONComments removes C-style single-line (//) and multi-line (/* */) comments
@@ -335,10 +454,7 @@ func mergeConfig(existingBytes []byte, exePath string, preferredKey ...string) (
 		return nil, fmt.Errorf("%s in config is not a JSON object", key)
 	}
 
-	servers["vivechak"] = map[string]any{
-		"command": exePath,
-		"args":    []string{"serve"},
-	}
+	servers["vivechak"] = buildServerConfig(key, exePath)
 
 	out, err := json.MarshalIndent(existing, "", "  ")
 	if err != nil {
@@ -624,6 +740,115 @@ var hostPresets = []HostPreset{
 			return filepath.Join(cwd, ".devin", "mcp_config.local.json"), nil
 		},
 	},
+	{
+		Name:        "mcp",
+		DisplayName: "Universal Portable (.mcp.json)",
+		Aliases:     []string{"portable", "universal"},
+		ServerKey:   "mcpServers",
+		ResolvePath: func(homeDir, appData, cwd, goos string) (string, error) {
+			return filepath.Join(cwd, ".mcp.json"), nil
+		},
+	},
+	{
+		Name:        "claude-code",
+		DisplayName: "Claude Code CLI",
+		Aliases:     []string{"claudecode"},
+		ServerKey:   "mcpServers",
+		ResolvePath: func(homeDir, appData, cwd, goos string) (string, error) {
+			// If repository has .mcp.json, prioritize project config
+			if _, err := os.Stat(filepath.Join(cwd, ".mcp.json")); err == nil {
+				return filepath.Join(cwd, ".mcp.json"), nil
+			}
+			if homeDir == "" {
+				return "", fmt.Errorf("could not determine home dir for claude-code")
+			}
+			return filepath.Join(homeDir, ".claude.json"), nil
+		},
+	},
+	{
+		Name:        "opencode",
+		DisplayName: "OpenCode",
+		Aliases:     []string{"open-code"},
+		ServerKey:   "mcp",
+		ResolvePath: func(homeDir, appData, cwd, goos string) (string, error) {
+			if _, err := os.Stat(filepath.Join(cwd, "opencode.json")); err == nil {
+				return filepath.Join(cwd, "opencode.json"), nil
+			}
+			if _, err := os.Stat(filepath.Join(cwd, ".opencode")); err == nil {
+				return filepath.Join(cwd, ".opencode", "opencode.json"), nil
+			}
+			if homeDir == "" {
+				return "", fmt.Errorf("could not determine home dir for opencode")
+			}
+			return filepath.Join(homeDir, ".config", "opencode", "opencode.json"), nil
+		},
+	},
+	{
+		Name:        "copilot",
+		DisplayName: "GitHub Copilot",
+		Aliases:     []string{"github-copilot"},
+		ServerKey:   "mcpServers",
+		ResolvePath: func(homeDir, appData, cwd, goos string) (string, error) {
+			if envHome := os.Getenv("COPILOT_HOME"); envHome != "" {
+				return filepath.Join(envHome, "mcp-config.json"), nil
+			}
+			if homeDir == "" {
+				return "", fmt.Errorf("could not determine home dir for copilot")
+			}
+			return filepath.Join(homeDir, ".copilot", "mcp-config.json"), nil
+		},
+	},
+	{
+		Name:        "void",
+		DisplayName: "Void Editor",
+		Aliases:     []string{"void-editor"},
+		ServerKey:   "mcpServers",
+		ResolvePath: func(homeDir, appData, cwd, goos string) (string, error) {
+			if _, err := os.Stat(filepath.Join(cwd, ".void")); err == nil {
+				return filepath.Join(cwd, ".void", "mcp.json"), nil
+			}
+			if homeDir == "" {
+				return "", fmt.Errorf("could not determine home dir for void")
+			}
+			return filepath.Join(homeDir, ".void-editor", "mcp.json"), nil
+		},
+	},
+	{
+		Name:        "continue",
+		DisplayName: "Continue.dev",
+		Aliases:     []string{"continuedev"},
+		ServerKey:   "mcpServers",
+		ResolvePath: func(homeDir, appData, cwd, goos string) (string, error) {
+			if _, err := os.Stat(filepath.Join(cwd, ".continue")); err == nil {
+				return filepath.Join(cwd, ".continue", "mcpServers", "vivechak.json"), nil
+			}
+			if homeDir == "" {
+				return "", fmt.Errorf("could not determine home dir for continue")
+			}
+			return filepath.Join(homeDir, ".continue", "mcpServers", "vivechak.json"), nil
+		},
+	},
+	{
+		Name:        "goose",
+		DisplayName: "Block Goose",
+		Aliases:     []string{"block-goose"},
+		ServerKey:   "extensions",
+		ResolvePath: func(homeDir, appData, cwd, goos string) (string, error) {
+			if goos == "windows" {
+				if appData == "" && homeDir != "" {
+					appData = filepath.Join(homeDir, "AppData", "Roaming")
+				}
+				if appData == "" {
+					return "", fmt.Errorf("could not determine AppData path for goose")
+				}
+				return filepath.Join(appData, "Block", "goose", "config", "config.yaml"), nil
+			}
+			if homeDir == "" {
+				return "", fmt.Errorf("could not determine home dir for goose")
+			}
+			return filepath.Join(homeDir, ".config", "goose", "config.yaml"), nil
+		},
+	},
 }
 
 // findPreset locates a HostPreset by name or alias (case-insensitive).
@@ -742,7 +967,7 @@ func runSetupWithArgs(args []string, stdout, stderr io.Writer) int {
 			return 1
 		}
 		configPath = resolvedPath
-	} else if strings.Contains(target, "/") || strings.Contains(target, "\\") || strings.HasSuffix(target, ".json") || strings.HasSuffix(target, ".jsonc") {
+	} else if strings.Contains(target, "/") || strings.Contains(target, "\\") || strings.HasSuffix(target, ".json") || strings.HasSuffix(target, ".jsonc") || strings.HasSuffix(target, ".yaml") || strings.HasSuffix(target, ".yml") {
 		if fi, err := os.Stat(target); err == nil && fi.IsDir() {
 			configPath = filepath.Join(target, "mcp.json")
 		} else {
@@ -759,31 +984,36 @@ func runSetupWithArgs(args []string, stdout, stderr io.Writer) int {
 	targetKey := determineServerKey(target, configPath, nil)
 
 	var out []byte
-	b, err := os.ReadFile(configPath)
-	if err == nil {
-		if len(bytes.TrimSpace(b)) > 0 {
-			var existing map[string]any
-			cleaned := stripJSONComments(b)
-			dec := json.NewDecoder(bytes.NewReader(cleaned))
-			if dec.Decode(&existing) == nil {
-				targetKey = determineServerKey(target, configPath, existing)
-			}
-		}
-		merged, mergeErr := mergeConfig(b, exePath, targetKey)
-		if mergeErr != nil {
-			fmt.Fprintf(stderr, "Error: could not merge Vivechak into existing configuration at %s: %v\n", configPath, mergeErr)
-			fmt.Fprintf(stderr, "To protect your existing settings, Vivechak will not overwrite this file.\n")
-			fmt.Fprintf(stderr, "Please verify the configuration file syntax or configure manually using 'vck mcp-config'.\n")
-			return 1
-		}
-		out = merged
+	if strings.HasSuffix(configPath, ".yaml") || strings.HasSuffix(configPath, ".yml") {
+		b, _ := os.ReadFile(configPath)
+		out = mergeGooseYAML(b, exePath)
 	} else {
-		fresh, freshErr := mergeConfig(nil, exePath, targetKey)
-		if freshErr != nil {
-			fmt.Fprintf(stderr, "failed to create fresh config: %v\n", freshErr)
-			return 1
+		b, err := os.ReadFile(configPath)
+		if err == nil {
+			if len(bytes.TrimSpace(b)) > 0 {
+				var existing map[string]any
+				cleaned := stripJSONComments(b)
+				dec := json.NewDecoder(bytes.NewReader(cleaned))
+				if dec.Decode(&existing) == nil {
+					targetKey = determineServerKey(target, configPath, existing)
+				}
+			}
+			merged, mergeErr := mergeConfig(b, exePath, targetKey)
+			if mergeErr != nil {
+				fmt.Fprintf(stderr, "Error: could not merge Vivechak into existing configuration at %s: %v\n", configPath, mergeErr)
+				fmt.Fprintf(stderr, "To protect your existing settings, Vivechak will not overwrite this file.\n")
+				fmt.Fprintf(stderr, "Please verify the configuration file syntax or configure manually using 'vck mcp-config'.\n")
+				return 1
+			}
+			out = merged
+		} else {
+			fresh, freshErr := mergeConfig(nil, exePath, targetKey)
+			if freshErr != nil {
+				fmt.Fprintf(stderr, "failed to create fresh config: %v\n", freshErr)
+				return 1
+			}
+			out = fresh
 		}
-		out = fresh
 	}
 
 	if dryRun {
@@ -807,23 +1037,37 @@ func detectWorkspaceHost(cwd string) string {
 		return ""
 	}
 	checks := []struct {
-		dir  string
-		host string
+		target string
+		host   string
+		isFile bool
 	}{
-		{".cursor", "cursor"},
-		{".agents", "antigravity"},
-		{".vscode", "vscode"},
-		{".trae", "trae"},
-		{".omp", "omp"},
-		{".factory", "droid"},
-		{".kiro", "kiro"},
-		{".devin", "devin"},
-		{".cline", "cline"},
-		{".roo", "roo"},
+		{target: ".cursor", host: "cursor"},
+		{target: ".agents", host: "antigravity"},
+		{target: ".vscode", host: "vscode"},
+		{target: ".mcp.json", host: "mcp", isFile: true},
+		{target: "opencode.json", host: "opencode", isFile: true},
+		{target: ".opencode", host: "opencode"},
+		{target: ".void", host: "void"},
+		{target: ".continue", host: "continue"},
+		{target: ".goose", host: "goose"},
+		{target: ".copilot", host: "copilot"},
+		{target: ".trae", host: "trae"},
+		{target: ".omp", host: "omp"},
+		{target: ".factory", host: "droid"},
+		{target: ".kiro", host: "kiro"},
+		{target: ".devin", host: "devin"},
+		{target: ".cline", host: "cline"},
+		{target: ".roo", host: "roo"},
 	}
 	for _, c := range checks {
-		if fi, err := os.Stat(filepath.Join(cwd, c.dir)); err == nil && fi.IsDir() {
-			return c.host
+		fi, err := os.Stat(filepath.Join(cwd, c.target))
+		if err == nil {
+			if c.isFile && !fi.IsDir() {
+				return c.host
+			}
+			if !c.isFile && fi.IsDir() {
+				return c.host
+			}
 		}
 	}
 	return ""

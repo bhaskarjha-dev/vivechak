@@ -51,9 +51,14 @@ go install github.com/bhaskarjha-dev/vivechak/cmd/vivechak@latest
 **Then configure your AI host:**
 Vivechak installs the official 3-letter shorthand **`vck`** alongside `vivechak`. Configure your AI host in 1 second:
 ```sh
-# Fast host setup (auto-resolves config paths and merges cleanly):
+# Fast host setup (auto-resolves config paths and merges cleanly across 21 presets):
 vck setup cursor                             # Cursor IDE
 vck setup vscode                             # VS Code (Copilot Agent mode)
+vck setup claude-code                        # Claude Code CLI (~/.claude.json or .mcp.json)
+vck setup mcp                                # Universal portable standard (.mcp.json)
+vck setup opencode                           # OpenCode terminal agent
+vck setup continue                           # Continue.dev (.continue/mcpServers/)
+vck setup goose                              # Block Goose (config.yaml)
 vck setup claude                             # Claude Desktop
 vck setup agy                                # Google Antigravity
 vck setup                                    # auto-detect host in current workspace
@@ -62,7 +67,7 @@ vck setup                                    # auto-detect host in current works
 vck mcp-config
 ```
 
-Done. Your agent now has 13 MCP tools for evidence-grounded research. See [Host Setup Guide](docs/HOST-SETUP.md) for harness instructions, desktop shortcuts, and manual setup details.
+Done. Your agent now has 13 MCP tools for evidence-grounded research. See [Host Setup Guide](docs/HOST-SETUP.md) for harness instructions, 21 desktop shortcuts, and manual setup details.
 
 ---
 
@@ -134,7 +139,7 @@ Compile all findings into a Founding Architecture Document using `templates/FOUN
 vivechak/
 ├── cmd/vivechak/                   ← MCP server + CLI entry point
 │   ├── main.go                     ← Entry point (serve, setup, mcp-config, doctor, version)
-│   ├── config.go                   ← setup & mcp-config (auto-detection + 14 presets)
+│   ├── config.go                   ← setup & mcp-config (auto-detection + 21 presets)
 │   └── doctor.go                   ← Workspace integrity checker
 │
 ├── internal/                       ← Server implementation

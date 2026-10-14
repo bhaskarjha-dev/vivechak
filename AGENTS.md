@@ -110,7 +110,7 @@ vivechak/
 │
 ├── cmd/vivechak/                   ← MCP server + CLI entry point (vck alias)
 │   ├── main.go                     ← Entry point (serve, setup, mcp-config, doctor, version)
-│   ├── config.go                   ← setup & mcp-config (auto-detection + 14 presets)
+│   ├── config.go                   ← setup & mcp-config (auto-detection + 21 presets)
 │   └── doctor.go                   ← Workspace integrity checker
 │
 ├── internal/                       ← Server implementation (Go)

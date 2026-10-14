@@ -493,8 +493,10 @@ func TestWriteConfigFile(t *testing.T) {
 
 func TestIsSupportedPreset(t *testing.T) {
 	valid := []string{
-		"cursor", "vscode", "code", "claude-desktop", "claude", "windsurf", "antigravity", "agy", "zed", "kiro",
-		"trae", "omp", "openhands", "droid", "cline", "roo", "devin",
+		"cursor", "vscode", "code", "claude-desktop", "claude", "claude-code", "claudecode",
+		"mcp", "portable", "universal", "opencode", "open-code", "copilot", "github-copilot",
+		"void", "void-editor", "continue", "continuedev", "goose", "block-goose",
+		"windsurf", "antigravity", "agy", "zed", "kiro", "trae", "omp", "openhands", "droid", "cline", "roo", "devin",
 	}
 	for _, v := range valid {
 		if !isSupportedPreset(v) {
@@ -516,8 +518,10 @@ func TestPresetAndClientCompatibility(t *testing.T) {
 	cwd := "/test/cwd"
 
 	presets := []string{
-		"cursor", "vscode", "code", "claude-desktop", "claude", "windsurf", "antigravity", "agy", "zed", "kiro",
-		"trae", "omp", "openhands", "droid", "cline", "roo", "devin",
+		"cursor", "vscode", "code", "claude-desktop", "claude", "claude-code", "claudecode",
+		"mcp", "portable", "universal", "opencode", "open-code", "copilot", "github-copilot",
+		"void", "void-editor", "continue", "continuedev", "goose", "block-goose",
+		"windsurf", "antigravity", "agy", "zed", "kiro", "trae", "omp", "openhands", "droid", "cline", "roo", "devin",
 	}
 	for _, p := range presets {
 		pathFromPreset, err1 := resolveConfigPath(p, home, appData, cwd, "linux")
@@ -677,6 +681,13 @@ func TestFormatHostName(t *testing.T) {
 		"code":            "VS Code",
 		"claude-desktop":  "Claude Desktop",
 		"claude":          "Claude Desktop",
+		"claude-code":     "Claude Code CLI",
+		"mcp":             "Universal Portable (.mcp.json)",
+		"opencode":        "OpenCode",
+		"copilot":         "GitHub Copilot",
+		"void":            "Void Editor",
+		"continue":        "Continue.dev",
+		"goose":           "Block Goose",
 		"antigravity":     "Google Antigravity",
 		"agy":             "Google Antigravity",
 		"zed":             "Zed",
@@ -718,5 +729,341 @@ func TestRunSetupWithArgs_CorruptConfigFailsFastWithoutOverwrite(t *testing.T) {
 	}
 	if string(after) != corruptContent {
 		t.Errorf("corrupt file was overwritten! got: %s, want: %s", string(after), corruptContent)
+	}
+}
+
+func TestResolveConfigPath_ExpandedHarnesses(t *testing.T) {
+	homeDir := "/home/testuser"
+	cwd := "/workspace/testproject"
+	appData := "C:\\Users\\testuser\\AppData\\Roaming"
+
+	// 1. Universal Portable .mcp.json
+	p, err := resolveConfigPath("mcp", homeDir, appData, cwd, "linux")
+	if err != nil {
+		t.Fatalf("mcp: %v", err)
+	}
+	if p != filepath.Join(cwd, ".mcp.json") {
+		t.Errorf("mcp got %s, want %s", p, filepath.Join(cwd, ".mcp.json"))
+	}
+
+	// 2. Claude Code (global default when no .mcp.json in cwd)
+	p, err = resolveConfigPath("claude-code", homeDir, appData, cwd, "linux")
+	if err != nil {
+		t.Fatalf("claude-code: %v", err)
+	}
+	if p != filepath.Join(homeDir, ".claude.json") {
+		t.Errorf("claude-code got %s, want %s", p, filepath.Join(homeDir, ".claude.json"))
+	}
+
+	// Claude Code (project when .mcp.json exists in cwd)
+	tempClaudeWS := t.TempDir()
+	_ = os.WriteFile(filepath.Join(tempClaudeWS, ".mcp.json"), []byte("{}"), 0o644)
+	p, err = resolveConfigPath("claude-code", homeDir, appData, tempClaudeWS, "linux")
+	if err != nil {
+		t.Fatalf("claude-code project: %v", err)
+	}
+	if p != filepath.Join(tempClaudeWS, ".mcp.json") {
+		t.Errorf("claude-code project got %s, want %s", p, filepath.Join(tempClaudeWS, ".mcp.json"))
+	}
+
+	// 3. OpenCode (global default)
+	p, err = resolveConfigPath("opencode", homeDir, appData, cwd, "linux")
+	if err != nil {
+		t.Fatalf("opencode: %v", err)
+	}
+	if p != filepath.Join(homeDir, ".config", "opencode", "opencode.json") {
+		t.Errorf("opencode got %s, want %s", p, filepath.Join(homeDir, ".config", "opencode", "opencode.json"))
+	}
+
+	// OpenCode (workspace when opencode.json exists)
+	tempOpenCodeWS := t.TempDir()
+	_ = os.WriteFile(filepath.Join(tempOpenCodeWS, "opencode.json"), []byte("{}"), 0o644)
+	p, err = resolveConfigPath("opencode", homeDir, appData, tempOpenCodeWS, "linux")
+	if err != nil {
+		t.Fatalf("opencode workspace: %v", err)
+	}
+	if p != filepath.Join(tempOpenCodeWS, "opencode.json") {
+		t.Errorf("opencode workspace got %s, want %s", p, filepath.Join(tempOpenCodeWS, "opencode.json"))
+	}
+
+	// 4. GitHub Copilot CLI
+	p, err = resolveConfigPath("copilot", homeDir, appData, cwd, "linux")
+	if err != nil {
+		t.Fatalf("copilot: %v", err)
+	}
+	if p != filepath.Join(homeDir, ".copilot", "mcp-config.json") {
+		t.Errorf("copilot got %s, want %s", p, filepath.Join(homeDir, ".copilot", "mcp-config.json"))
+	}
+
+	// Copilot CLI with COPILOT_HOME override
+	tempCopilotHome := t.TempDir()
+	t.Setenv("COPILOT_HOME", tempCopilotHome)
+	p, err = resolveConfigPath("copilot", homeDir, appData, cwd, "linux")
+	if err != nil {
+		t.Fatalf("copilot with COPILOT_HOME: %v", err)
+	}
+	if p != filepath.Join(tempCopilotHome, "mcp-config.json") {
+		t.Errorf("copilot COPILOT_HOME got %s, want %s", p, filepath.Join(tempCopilotHome, "mcp-config.json"))
+	}
+
+	// 5. Void Editor (global default)
+	p, err = resolveConfigPath("void", homeDir, appData, cwd, "linux")
+	if err != nil {
+		t.Fatalf("void: %v", err)
+	}
+	if p != filepath.Join(homeDir, ".void-editor", "mcp.json") {
+		t.Errorf("void got %s, want %s", p, filepath.Join(homeDir, ".void-editor", "mcp.json"))
+	}
+
+	// Void Editor (workspace when .void exists)
+	tempVoidWS := t.TempDir()
+	_ = os.MkdirAll(filepath.Join(tempVoidWS, ".void"), 0o755)
+	p, err = resolveConfigPath("void", homeDir, appData, tempVoidWS, "linux")
+	if err != nil {
+		t.Fatalf("void workspace: %v", err)
+	}
+	if p != filepath.Join(tempVoidWS, ".void", "mcp.json") {
+		t.Errorf("void workspace got %s, want %s", p, filepath.Join(tempVoidWS, ".void", "mcp.json"))
+	}
+
+	// 6. Continue.dev (global default)
+	p, err = resolveConfigPath("continue", homeDir, appData, cwd, "linux")
+	if err != nil {
+		t.Fatalf("continue: %v", err)
+	}
+	if p != filepath.Join(homeDir, ".continue", "mcpServers", "vivechak.json") {
+		t.Errorf("continue got %s, want %s", p, filepath.Join(homeDir, ".continue", "mcpServers", "vivechak.json"))
+	}
+
+	// Continue.dev (workspace when .continue exists)
+	tempContinueWS := t.TempDir()
+	_ = os.MkdirAll(filepath.Join(tempContinueWS, ".continue"), 0o755)
+	p, err = resolveConfigPath("continue", homeDir, appData, tempContinueWS, "linux")
+	if err != nil {
+		t.Fatalf("continue workspace: %v", err)
+	}
+	if p != filepath.Join(tempContinueWS, ".continue", "mcpServers", "vivechak.json") {
+		t.Errorf("continue workspace got %s, want %s", p, filepath.Join(tempContinueWS, ".continue", "mcpServers", "vivechak.json"))
+	}
+
+	// 7. Block Goose (Linux/macOS)
+	p, err = resolveConfigPath("goose", homeDir, appData, cwd, "linux")
+	if err != nil {
+		t.Fatalf("goose linux: %v", err)
+	}
+	if p != filepath.Join(homeDir, ".config", "goose", "config.yaml") {
+		t.Errorf("goose linux got %s, want %s", p, filepath.Join(homeDir, ".config", "goose", "config.yaml"))
+	}
+
+	// Block Goose (Windows)
+	p, err = resolveConfigPath("goose", homeDir, appData, cwd, "windows")
+	if err != nil {
+		t.Fatalf("goose windows: %v", err)
+	}
+	expectedGooseWin := filepath.Join(appData, "Block", "goose", "config", "config.yaml")
+	if p != expectedGooseWin {
+		t.Errorf("goose windows got %s, want %s", p, expectedGooseWin)
+	}
+}
+
+func TestDetermineServerKey_ExpandedHarnesses(t *testing.T) {
+	if got := determineServerKey("opencode", "/path/to/opencode.json", nil); got != "mcp" {
+		t.Errorf("opencode serverKey got %q, want %q", got, "mcp")
+	}
+	if got := determineServerKey("goose", "/path/to/config.yaml", nil); got != "extensions" {
+		t.Errorf("goose serverKey got %q, want %q", got, "extensions")
+	}
+	if got := determineServerKey("mcp", "/workspace/.mcp.json", nil); got != "mcpServers" {
+		t.Errorf("mcp serverKey got %q, want %q", got, "mcpServers")
+	}
+	if got := determineServerKey("claude-code", "/home/.claude.json", nil); got != "mcpServers" {
+		t.Errorf("claude-code serverKey got %q, want %q", got, "mcpServers")
+	}
+	if got := determineServerKey("copilot", "/home/.copilot/mcp-config.json", nil); got != "mcpServers" {
+		t.Errorf("copilot serverKey got %q, want %q", got, "mcpServers")
+	}
+	if got := determineServerKey("void", "/workspace/.void/mcp.json", nil); got != "mcpServers" {
+		t.Errorf("void serverKey got %q, want %q", got, "mcpServers")
+	}
+	if got := determineServerKey("continue", "/workspace/.continue/mcpServers/vivechak.json", nil); got != "mcpServers" {
+		t.Errorf("continue serverKey got %q, want %q", got, "mcpServers")
+	}
+}
+
+func TestBuildServerConfig(t *testing.T) {
+	exe := "/path/to/vivechak"
+
+	// Standard
+	std := buildServerConfig("mcpServers", exe)
+	if std["command"] != exe {
+		t.Errorf("expected command %q, got %v", exe, std["command"])
+	}
+
+	// OpenCode (mcp)
+	opencode := buildServerConfig("mcp", exe)
+	if opencode["type"] != "local" {
+		t.Errorf("expected type 'local', got %v", opencode["type"])
+	}
+	cmdList, ok := opencode["command"].([]string)
+	if !ok || len(cmdList) != 2 || cmdList[0] != exe || cmdList[1] != "serve" {
+		t.Errorf("expected command array [%q, 'serve'], got %v", exe, opencode["command"])
+	}
+	if opencode["enabled"] != true {
+		t.Errorf("expected enabled true, got %v", opencode["enabled"])
+	}
+
+	// Goose (extensions)
+	goose := buildServerConfig("extensions", exe)
+	if goose["type"] != "stdio" {
+		t.Errorf("expected type 'stdio', got %v", goose["type"])
+	}
+	if goose["cmd"] != exe {
+		t.Errorf("expected cmd %q, got %v", exe, goose["cmd"])
+	}
+	if goose["enabled"] != true {
+		t.Errorf("expected enabled true, got %v", goose["enabled"])
+	}
+}
+
+func TestMergeGooseYAML(t *testing.T) {
+	exe := "/custom/bin/vivechak"
+
+	// 1. Empty file
+	outEmpty := mergeGooseYAML(nil, exe)
+	strEmpty := string(outEmpty)
+	if !strings.Contains(strEmpty, "extensions:") || !strings.Contains(strEmpty, "vivechak:") || !strings.Contains(strEmpty, exe) {
+		t.Fatalf("mergeGooseYAML empty failed:\n%s", strEmpty)
+	}
+
+	// 2. Existing YAML without extensions
+	existingNoExt := "version: 1.0\nprovider: anthropic\n"
+	outNoExt := mergeGooseYAML([]byte(existingNoExt), exe)
+	strNoExt := string(outNoExt)
+	if !strings.Contains(strNoExt, "provider: anthropic") || !strings.Contains(strNoExt, "extensions:") || !strings.Contains(strNoExt, exe) {
+		t.Fatalf("mergeGooseYAML without extensions failed:\n%s", strNoExt)
+	}
+
+	// 3. Existing YAML with other extensions
+	existingWithExt := "extensions:\n  developer:\n    enabled: true\n"
+	outWithExt := mergeGooseYAML([]byte(existingWithExt), exe)
+	strWithExt := string(outWithExt)
+	if !strings.Contains(strWithExt, "developer:") || !strings.Contains(strWithExt, "vivechak:") || !strings.Contains(strWithExt, exe) {
+		t.Fatalf("mergeGooseYAML with existing extensions failed:\n%s", strWithExt)
+	}
+
+	// 4. Existing YAML with pre-existing vivechak (update in place)
+	existingWithVivechak := "extensions:\n  developer:\n    enabled: true\n  vivechak:\n    type: stdio\n    cmd: \"/old/path\"\n"
+	outUpdated := mergeGooseYAML([]byte(existingWithVivechak), exe)
+	strUpdated := string(outUpdated)
+	if strings.Contains(strUpdated, "/old/path") {
+		t.Errorf("old path was not replaced:\n%s", strUpdated)
+	}
+	if !strings.Contains(strUpdated, exe) || !strings.Contains(strUpdated, "developer:") {
+		t.Errorf("updated YAML missing new path or sibling extension:\n%s", strUpdated)
+	}
+}
+
+func TestMergeConfig_PreservesClaudeCodeState(t *testing.T) {
+	existingClaude := []byte(`{
+  "numStartups": 42,
+  "theme": "dark",
+  "allowedTools": ["bash", "read_file"],
+  "mcpServers": {
+    "existing-server": {
+      "command": "node",
+      "args": ["server.js"]
+    }
+  }
+}`)
+	exe := "/path/to/vivechak"
+	merged, err := mergeConfig(existingClaude, exe, "mcpServers")
+	if err != nil {
+		t.Fatalf("mergeConfig failed: %v", err)
+	}
+
+	var parsed map[string]any
+	dec := json.NewDecoder(bytes.NewReader(merged))
+	dec.UseNumber()
+	if err := dec.Decode(&parsed); err != nil {
+		t.Fatalf("merged is invalid JSON: %v", err)
+	}
+
+	if num, ok := parsed["numStartups"].(json.Number); !ok || num.String() != "42" {
+		t.Errorf("numStartups was corrupted: %v", parsed["numStartups"])
+	}
+	if parsed["theme"] != "dark" {
+		t.Errorf("theme was corrupted: %v", parsed["theme"])
+	}
+
+	servers := parsed["mcpServers"].(map[string]any)
+	if servers["existing-server"] == nil {
+		t.Errorf("existing-server was dropped")
+	}
+	if servers["vivechak"] == nil {
+		t.Errorf("vivechak was not added")
+	}
+}
+
+func TestDetectWorkspaceHost_ExpandedIndicators(t *testing.T) {
+	// 1. .mcp.json file
+	dirMCP := t.TempDir()
+	_ = os.WriteFile(filepath.Join(dirMCP, ".mcp.json"), []byte("{}"), 0o644)
+	if got := detectWorkspaceHost(dirMCP); got != "mcp" {
+		t.Errorf("expected 'mcp' for .mcp.json, got %q", got)
+	}
+
+	// 2. opencode.json file
+	dirOpenCode := t.TempDir()
+	_ = os.WriteFile(filepath.Join(dirOpenCode, "opencode.json"), []byte("{}"), 0o644)
+	if got := detectWorkspaceHost(dirOpenCode); got != "opencode" {
+		t.Errorf("expected 'opencode' for opencode.json, got %q", got)
+	}
+
+	// 3. .void directory
+	dirVoid := t.TempDir()
+	_ = os.MkdirAll(filepath.Join(dirVoid, ".void"), 0o755)
+	if got := detectWorkspaceHost(dirVoid); got != "void" {
+		t.Errorf("expected 'void' for .void, got %q", got)
+	}
+
+	// 4. .continue directory
+	dirContinue := t.TempDir()
+	_ = os.MkdirAll(filepath.Join(dirContinue, ".continue"), 0o755)
+	if got := detectWorkspaceHost(dirContinue); got != "continue" {
+		t.Errorf("expected 'continue' for .continue, got %q", got)
+	}
+
+	// 5. .copilot directory
+	dirCopilot := t.TempDir()
+	_ = os.MkdirAll(filepath.Join(dirCopilot, ".copilot"), 0o755)
+	if got := detectWorkspaceHost(dirCopilot); got != "copilot" {
+		t.Errorf("expected 'copilot' for .copilot, got %q", got)
+	}
+
+	// 6. .goose directory
+	dirGoose := t.TempDir()
+	_ = os.MkdirAll(filepath.Join(dirGoose, ".goose"), 0o755)
+	if got := detectWorkspaceHost(dirGoose); got != "goose" {
+		t.Errorf("expected 'goose' for .goose, got %q", got)
+	}
+}
+
+func TestRunSetup_DryRun_All21Presets(t *testing.T) {
+	presets := []string{
+		"cursor", "vscode", "claude-desktop", "claude-code", "mcp", "opencode",
+		"copilot", "void", "continue", "goose", "windsurf", "antigravity",
+		"zed", "kiro", "trae", "omp", "openhands", "droid", "cline", "roo", "devin",
+	}
+
+	for _, p := range presets {
+		var stdout, stderr bytes.Buffer
+		code := runSetupWithArgs([]string{"--dry-run", p}, &stdout, &stderr)
+		if code != 0 {
+			t.Errorf("setup --dry-run %s failed with code %d: %s", p, code, stderr.String())
+			continue
+		}
+		if !strings.Contains(stdout.String(), "[dry-run]") {
+			t.Errorf("setup --dry-run %s missing [dry-run] marker in output: %s", p, stdout.String())
+		}
 	}
 }

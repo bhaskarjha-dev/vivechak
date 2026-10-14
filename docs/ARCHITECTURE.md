@@ -23,7 +23,7 @@ vivechak/
 ├── cmd/
 │   └── vivechak/           # CLI entry points and host configurations
 │       ├── main.go         # Command dispatcher, stdio server startup, slog routing (vck alias)
-│       ├── config.go       # "setup" and "mcp-config" host configuration & 14 presets
+│       ├── config.go       # "setup" and "mcp-config" host configuration & 21 presets
 │       └── doctor.go       # "doctor" workspace integrity verification
 ├── internal/
 │   ├── core/               # Pure business logic (DAG, gate, validation, quality, scopes)

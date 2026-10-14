@@ -63,6 +63,13 @@ Output:
 | **Cursor** | `vck setup cursor` | `cursor` | `~/.cursor/mcp.json` (global) or `.cursor/mcp.json` (workspace) | `mcpServers` |
 | **VS Code** | `vck setup vscode` | `vscode` | `.vscode/mcp.json` (workspace) | `servers` |
 | **Claude Desktop** | `vck setup claude` | `claude`, `claude-desktop` | `claude_desktop_config.json` (OS-specific application storage) | `mcpServers` |
+| **Claude Code** | `vck setup claude-code` | `claude-code`, `claudecode` | `~/.claude.json` (global) or `.mcp.json` (workspace) | `mcpServers` |
+| **Universal Portable** | `vck setup mcp` | `mcp`, `portable`, `universal` | `.mcp.json` (workspace root) | `mcpServers` |
+| **OpenCode** | `vck setup opencode` | `opencode`, `open-code` | `opencode.json` (workspace) or `~/.config/opencode/opencode.json` | `mcp` |
+| **GitHub Copilot CLI** | `vck setup copilot` | `copilot`, `github-copilot` | `~/.copilot/mcp-config.json` (global) or `.copilot/mcp-config.json` | `mcpServers` |
+| **Void Editor** | `vck setup void` | `void`, `void-editor` | `.void/mcp.json` (workspace) or `~/.void-editor/mcp.json` | `mcpServers` |
+| **Continue.dev** | `vck setup continue` | `continue`, `continuedev` | `.continue/mcpServers/vivechak.json` (workspace/global) | `mcpServers` |
+| **Block Goose** | `vck setup goose` | `goose`, `block-goose` | `~/.config/goose/config.yaml` (global) or `.goose/config.yaml` | `extensions` |
 | **Windsurf** | `vck setup windsurf` | `windsurf` | `~/.codeium/windsurf/mcp_config.json` | `mcpServers` |
 | **Google Antigravity** | `vck setup agy` | `agy`, `antigravity` | `~/.gemini/config/mcp_config.json` (global) or `.agents/mcp_config.json` (workspace) | `mcpServers` |
 | **Zed Editor** | `vck setup zed` | `zed` | `~/.config/zed/settings.json` (or `%APPDATA%\Zed\settings.json`) | `context_servers` |
@@ -393,6 +400,55 @@ Devin local and CLI configurations read from `.devin/mcp_config.local.json`:
 ```sh
 vck setup devin
 # or: vivechak mcp-config --preset devin --write
+```
+
+### Claude Code
+
+Claude Code supports user-global settings in `~/.claude.json` as well as project-level `.mcp.json`. `vck setup` automatically merges the Vivechak MCP server while strictly preserving user state, tokens, and active sessions:
+
+```sh
+vck setup claude-code
+```
+
+---
+
+### Universal Portable Standard (`.mcp.json`)
+
+The emerging standard for project-level MCP definitions across Claude Code, Cursor, Windsurf, and other modern harnesses. Creates or merges into `.mcp.json` at your project root:
+
+```sh
+vck setup mcp
+# or: vck setup portable
+```
+
+---
+
+### OpenCode
+
+OpenCode terminal agent uses `opencode.json` with the specialized `"mcp"` key and array-style execution commands:
+
+```sh
+vck setup opencode
+```
+
+---
+
+### Continue.dev
+
+Continue.dev supports modular MCP server configuration files in `.continue/mcpServers/`. Vivechak safely configures an isolated `.continue/mcpServers/vivechak.json` without modifying your primary `config.yaml`:
+
+```sh
+vck setup continue
+```
+
+---
+
+### Block Goose
+
+Block Goose orchestrates stdio extensions via YAML in `~/.config/goose/config.yaml`. `vck setup` safely merges the extension into Goose's configuration without disturbing existing settings:
+
+```sh
+vck setup goose
 ```
 
 ---

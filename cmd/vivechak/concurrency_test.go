@@ -1096,22 +1096,22 @@ func TestMassive_CLI_SubcommandMatrix(t *testing.T) {
 		t.Errorf("setup --help output missing Available Presets:\n%s", string(outHelp))
 	}
 
-	// 3. Test mcp-config on all 14 presets: each must output valid JSON
+	// 3. Test mcp-config on all 21 presets: each must output valid JSON
 	allPresets := []string{
-		"claude-desktop", "cursor", "windsurf", "vscode", "gemini-cli",
-		"claude-code", "codewhisperer", "cline", "continue", "roo-cline",
-		"zed", "neovim", "jetbrains", "emacs",
+		"cursor", "vscode", "claude-desktop", "claude-code", "mcp", "opencode",
+		"copilot", "void", "continue", "goose", "windsurf", "antigravity",
+		"zed", "kiro", "trae", "omp", "openhands", "droid", "cline", "roo", "devin",
 	}
 	for _, p := range allPresets {
-		cmdCfg := exec.CommandContext(ctx, binPath, "mcp-config", p)
+		cmdCfg := exec.CommandContext(ctx, binPath, "mcp-config", "--preset", p)
 		outCfg, errCfg := cmdCfg.CombinedOutput()
 		if errCfg != nil {
-			t.Errorf("mcp-config %s failed: %v\noutput: %s", p, errCfg, string(outCfg))
+			t.Errorf("mcp-config --preset %s failed: %v\noutput: %s", p, errCfg, string(outCfg))
 			continue
 		}
 		var parsed map[string]any
 		if err := json.Unmarshal(outCfg, &parsed); err != nil {
-			t.Errorf("mcp-config %s produced invalid JSON: %v\noutput: %s", p, err, string(outCfg))
+			t.Errorf("mcp-config --preset %s produced invalid JSON: %v\noutput: %s", p, err, string(outCfg))
 		}
 	}
 
