@@ -43,3 +43,8 @@ scratch/
 
 # Lock files left by advisory locking
 *.lock
+
+# Node.js & Python artifacts
+node_modules/
+__pycache__/
+*.egg-info/
