@@ -118,8 +118,18 @@ func handleSaveSession(ctx context.Context, _ *sdkmcp.CallToolRequest, in SaveSe
 	}
 	defer func() { _ = unlock() }()
 
-	// L1 Construct: auto-remedy missing status in frontmatter via in-place insertion
-	contentToSave := core.EnsureFrontmatterField([]byte(in.Content), "status", "draft")
+	// Enforce frontmatter status synchronization based on validation result:
+	// If validation has blocking errors (L1/L2), session is saved as draft so downstream sessions remain blocked.
+	// If validation passed with 0 blocking errors, session is completed and status is set to complete.
+	contentToSave := []byte(in.Content)
+	if validation.HasBlocking() {
+		contentToSave = core.SetFrontmatterField(contentToSave, "status", "draft")
+	} else {
+		fm, _, _ := core.ParseFrontmatter(contentToSave)
+		if fm == nil || !fm.Has("status") || strings.EqualFold(fm.GetString("status"), "draft") {
+			contentToSave = core.SetFrontmatterField(contentToSave, "status", "complete")
+		}
+	}
 
 	// Save the file (even with warnings — L2 saves as draft)
 	if err := store.WriteFileAtomic(ws.Root(), relPath, contentToSave, 0o644); err != nil {
@@ -186,17 +196,27 @@ func handleSaveSession(ctx context.Context, _ *sdkmcp.CallToolRequest, in SaveSe
 	}
 
 	// Mini-status (eliminates need for separate status calls)
-	completedSessions, _ := scanCompletedSessions(ws)
+	var knownIDs []string
+	if dag != nil {
+		for _, s := range dag.Sessions {
+			knownIDs = append(knownIDs, s.ID)
+		}
+	}
+	completedSessions, _ := scanCompletedSessions(ws, knownIDs...)
 	gateDecisions := collectGateDecisions(ws)
 	progress := map[string]any{
 		"sessions_completed": len(completedSessions),
 		"decisions_recorded": len(gateDecisions),
 	}
-	info := core.InspectWorkspace(root)
-	if info.HasPipeline {
-		if pipeData, err := ws.ReadFile(core.PipelineFile); err == nil {
-			if dag, err := core.ParsePipeline(pipeData); err == nil {
-				progress["sessions_total"] = len(dag.Sessions)
+	if dag != nil {
+		progress["sessions_total"] = len(dag.Sessions)
+	} else {
+		info := core.InspectWorkspace(root)
+		if info.HasPipeline {
+			if pipeData, err := ws.ReadFile(core.PipelineFile); err == nil {
+				if parsedDAG, err := core.ParsePipeline(pipeData); err == nil {
+					progress["sessions_total"] = len(parsedDAG.Sessions)
+				}
 			}
 		}
 	}

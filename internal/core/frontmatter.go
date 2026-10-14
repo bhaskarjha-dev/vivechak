@@ -317,13 +317,15 @@ func (fm Frontmatter) Set(key string, value any) {
 }
 
 // EnsureFrontmatterField ensures that the given key and value exist in the frontmatter.
-// If the key is already present, data is returned unchanged.
+// SetFrontmatterField sets or updates the given key and value in YAML frontmatter.
+// If the key is already present, its value is replaced in-place.
 // If valid frontmatter exists and the key is missing, the key-value pair is inserted
 // directly before the closing delimiter ("---" or closing code fence) without re-serializing
 // or altering comments, key order, and formatting.
-func EnsureFrontmatterField(data []byte, key, value string) []byte {
+// If no frontmatter is found, data is returned unchanged.
+func SetFrontmatterField(data []byte, key, value string) []byte {
 	fm, _, err := ParseFrontmatter(data)
-	if err != nil || fm == nil || fm.Has(key) {
+	if err != nil || fm == nil {
 		return data
 	}
 
@@ -338,6 +340,27 @@ func EnsureFrontmatterField(data []byte, key, value string) []byte {
 	start := skipLeadingWhitespaceAndComments(d)
 
 	trimmed := d[start:]
+
+	// Check if wrapped in <details> block
+	if bytes.HasPrefix(trimmed, []byte("<details>")) || bytes.HasPrefix(trimmed, []byte("<details ")) || bytes.HasPrefix(trimmed, []byte("<details\n")) || bytes.HasPrefix(trimmed, []byte("<details\r\n")) {
+		detailsClose := bytes.Index(trimmed, []byte("</details>"))
+		if detailsClose != -1 {
+			detailsContent := trimmed[:detailsClose]
+			yamlStart := bytes.Index(detailsContent, []byte("```yaml"))
+			if yamlStart != -1 {
+				yamlStartLine := yamlStart + 7
+				if nl := bytes.IndexByte(detailsContent[yamlStartLine:], '\n'); nl != -1 {
+					yamlContentStart := yamlStartLine + nl + 1
+					yamlEnd := bytes.Index(detailsContent[yamlContentStart:], []byte("```"))
+					if yamlEnd != -1 {
+						blockStart := start + yamlContentStart
+						blockEnd := start + yamlContentStart + yamlEnd
+						return replaceOrInsertInBlock(data, d, bomLen, blockStart, blockEnd, key, value)
+					}
+				}
+			}
+		}
+	}
 
 	// Check if wrapped in code fence, e.g. ```yaml or ```
 	if bytes.HasPrefix(trimmed, []byte("```yaml")) || bytes.HasPrefix(trimmed, []byte("```")) {
@@ -374,21 +397,9 @@ func EnsureFrontmatterField(data []byte, key, value string) []byte {
 						}
 					}
 					if closeIdx != -1 {
-						insertPos := bomLen + start + closeIdx
-						lineBreak := "\n"
-						if insertPos > 1 && data[insertPos-2] == '\r' && data[insertPos-1] == '\n' {
-							lineBreak = "\r\n"
-						}
-						insertText := key + ": " + value + lineBreak
-						if insertPos > 0 && data[insertPos-1] != '\n' {
-							insertText = lineBreak + key + ": " + value + lineBreak
-						}
-						var res bytes.Buffer
-						res.Grow(len(data) + len(insertText))
-						res.Write(data[:insertPos])
-						res.WriteString(insertText)
-						res.Write(data[insertPos:])
-						return res.Bytes()
+						blockStart := start + nl + 1
+						blockEnd := start + closeIdx
+						return replaceOrInsertInBlock(data, d, bomLen, blockStart, blockEnd, key, value)
 					}
 				}
 			}
@@ -440,7 +451,61 @@ func EnsureFrontmatterField(data []byte, key, value string) []byte {
 		return data
 	}
 
-	insertPos := bomLen + closeLineStart
+	blockStart := yamlStart
+	blockEnd := closeLineStart
+	return replaceOrInsertInBlock(data, d, bomLen, blockStart, blockEnd, key, value)
+}
+
+// replaceOrInsertInBlock scans the YAML lines between blockStart and blockEnd.
+// If a line defining key is found, it is replaced in-place.
+// If the key is not found, key: value is inserted before blockEnd.
+func replaceOrInsertInBlock(data, d []byte, bomLen, blockStart, blockEnd int, key, value string) []byte {
+	pos := blockStart
+	for pos < blockEnd {
+		lineStart := pos
+		lineEnd := pos
+		for lineEnd < blockEnd && d[lineEnd] != '\n' {
+			lineEnd++
+		}
+
+		lineBytes := d[lineStart:lineEnd]
+		trimmedLine := bytes.TrimRight(lineBytes, " \t\r")
+		if len(trimmedLine) > 0 && trimmedLine[0] != '#' {
+			trimmedLeft := bytes.TrimLeft(trimmedLine, " \t")
+			indent := trimmedLine[:len(trimmedLine)-len(trimmedLeft)]
+			if bytes.HasPrefix(trimmedLeft, []byte(key)) {
+				remainder := trimmedLeft[len(key):]
+				remainderTrimmed := bytes.TrimLeft(remainder, " \t")
+				if bytes.HasPrefix(remainderTrimmed, []byte(":")) {
+					// Found existing key! Replace line in-place.
+					lineBreak := "\n"
+					if lineEnd > lineStart && d[lineEnd-1] == '\r' {
+						lineBreak = "\r\n"
+					}
+					replacement := string(indent) + key + ": " + value + lineBreak
+					var res bytes.Buffer
+					res.Grow(len(data) + len(replacement))
+					res.Write(data[:bomLen+lineStart])
+					res.WriteString(replacement)
+					endOffset := bomLen + lineEnd
+					if lineEnd < len(d) && d[lineEnd] == '\n' {
+						endOffset = bomLen + lineEnd + 1
+					}
+					res.Write(data[endOffset:])
+					return res.Bytes()
+				}
+			}
+		}
+
+		if lineEnd < blockEnd {
+			pos = lineEnd + 1
+		} else {
+			break
+		}
+	}
+
+	// Key not found in frontmatter; insert before blockEnd
+	insertPos := bomLen + blockEnd
 	lineBreak := "\n"
 	if insertPos > 1 && data[insertPos-2] == '\r' && data[insertPos-1] == '\n' {
 		lineBreak = "\r\n"
@@ -456,6 +521,19 @@ func EnsureFrontmatterField(data []byte, key, value string) []byte {
 	res.WriteString(insertText)
 	res.Write(data[insertPos:])
 	return res.Bytes()
+}
+
+// EnsureFrontmatterField ensures that the given key and value exist in the frontmatter.
+// If the key is already present, data is returned unchanged.
+// If valid frontmatter exists and the key is missing, the key-value pair is inserted
+// directly before the closing delimiter ("---" or closing code fence) without re-serializing
+// or altering comments, key order, and formatting.
+func EnsureFrontmatterField(data []byte, key, value string) []byte {
+	fm, _, err := ParseFrontmatter(data)
+	if err != nil || fm == nil || fm.Has(key) {
+		return data
+	}
+	return SetFrontmatterField(data, key, value)
 }
 
 // skipLeadingWhitespaceAndComments skips leading whitespace, HTML comments (e.g. <!-- DECISION: D-001 -->),

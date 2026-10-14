@@ -113,7 +113,11 @@ func handleReplan(ctx context.Context, _ *sdkmcp.CallToolRequest, in ReplanInput
 			"Ensure the pipeline markdown is formatted correctly.")
 	}
 
-	completedSessions, _ := scanCompletedSessions(ws)
+	var knownIDs []string
+	for _, s := range dag.Sessions {
+		knownIDs = append(knownIDs, s.ID)
+	}
+	completedSessions, _ := scanCompletedSessions(ws, knownIDs...)
 	isCompleted := completedSessions[sessionID] || completedSessions[strings.ToUpper(sessionID)] || completedSessions[strings.ToLower(sessionID)]
 
 	switch op {

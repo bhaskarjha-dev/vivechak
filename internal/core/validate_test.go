@@ -755,6 +755,34 @@ status: complete
 	}
 }
 
+func TestValidateEvidenceProvenance_FiveColumnLedger(t *testing.T) {
+	session := `---
+session_id: T1-01
+title: Memory Buffering
+date: 2026-10-01
+door_type: one-way
+status: complete
+---
+## Key Findings
+- In-memory ring buffer keeps allocations bounded. Grade A (fetched)
+
+## Discovered Concerns
+Ring buffer overflows drop oldest frames without disk backpressure.
+
+## Sources & Evidence Ledger
+| Claim | Grade | Modifiers | Method | Source |
+|---|---|---|---|---|
+| RAM allocation | Grade A | direct | fetched | https://golang.org/pkg/sync |
+| Heap pause | Grade A | fresh | fetched | https://golang.org/doc/gc |
+`
+	res := ValidateSessionWithContext([]byte(session), true)
+	for _, iss := range res.Issues {
+		if iss.Code == "V-OWD-VAGUE-PROVENANCE" || iss.Code == "W-VAGUE-PROVENANCE" {
+			t.Errorf("5-column ledger falsely flagged vague provenance: %v", iss)
+		}
+	}
+}
+
 func TestValidateDiscoveredConcerns_LengthBoundary(t *testing.T) {
 	// 49 characters: below 50 char threshold
 	shortConcerns := `---

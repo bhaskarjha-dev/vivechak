@@ -34,25 +34,47 @@ var (
 func ValidateEvidenceProvenance(bodyStr string, isOneWay bool, result *ValidationResult) {
 	lines := strings.Split(bodyStr, "\n")
 	inSourcesTable := false
+	sourceCol := -1
 
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
 		if strings.HasPrefix(trimmed, "## Sources") || strings.HasPrefix(trimmed, "## Evidence") {
 			inSourcesTable = true
+			sourceCol = -1
 			continue
 		}
 		if inSourcesTable && strings.HasPrefix(trimmed, "## ") {
 			inSourcesTable = false
+			sourceCol = -1
 		}
 
-		if inSourcesTable && strings.HasPrefix(trimmed, "|") && !strings.Contains(trimmed, "---") {
+		if inSourcesTable && strings.HasPrefix(trimmed, "|") {
+			if strings.Contains(trimmed, "---") {
+				continue
+			}
 			parts := strings.Split(trimmed, "|")
 			if len(parts) >= 4 {
+				// Check if this is a header line defining columns
+				lowerLine := strings.ToLower(trimmed)
+				if strings.Contains(lowerLine, "source") || strings.Contains(lowerLine, "citation") || strings.Contains(lowerLine, "reference") {
+					for idx, part := range parts {
+						p := strings.ToLower(strings.TrimSpace(part))
+						if p == "source" || p == "citation" || p == "reference" || p == "source / anchor" || p == "provenance" {
+							sourceCol = idx
+							break
+						}
+					}
+					// If this was the header line itself, don't validate it as a data row
+					if strings.Contains(lowerLine, "grade") || strings.Contains(lowerLine, "claim") {
+						continue
+					}
+				}
+
 				isGradeA := false
 				isFetched := false
 				var sourceText string
 
-				for idx, part := range parts {
+				for _, part := range parts {
 					cell := strings.TrimSpace(part)
 					cellUpper := strings.ToUpper(cell)
 					if cellUpper == "A" || cellUpper == "GRADE A" || cellUpper == "[A]" || cellUpper == "[GRADE A]" {
@@ -61,10 +83,27 @@ func ValidateEvidenceProvenance(bodyStr string, isOneWay bool, result *Validatio
 					if strings.Contains(strings.ToLower(cell), "fetched") {
 						isFetched = true
 					}
-					if idx == 2 && cell != "" && cellUpper != "SOURCE" && cellUpper != "A" && cellUpper != "GRADE A" {
+				}
+
+				// Pick source column if header was recognized
+				if sourceCol > 0 && sourceCol < len(parts) {
+					sourceText = strings.TrimSpace(parts[sourceCol])
+				}
+
+				// Fallback or override if another cell contains a qualified URL/anchor
+				hasURLInRow := false
+				for idx, part := range parts {
+					cell := strings.TrimSpace(part)
+					if strings.HasPrefix(cell, "http://") || strings.HasPrefix(cell, "https://") || strings.Contains(cell, "://") {
 						sourceText = cell
-					} else if idx == 1 && cell != "" && cellUpper != "#" && cellUpper != "SOURCE" && cellUpper != "A" && cellUpper != "GRADE A" && sourceText == "" {
-						sourceText = cell
+						hasURLInRow = true
+						break
+					}
+					if !hasURLInRow && sourceText == "" && idx >= 2 && cell != "" {
+						cellUpper := strings.ToUpper(cell)
+						if cellUpper != "A" && cellUpper != "GRADE A" && !strings.Contains(strings.ToLower(cell), "fetched") && cellUpper != "DIRECT" && cellUpper != "INDIRECT" {
+							sourceText = cell
+						}
 					}
 				}
 

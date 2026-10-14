@@ -596,7 +596,7 @@ Defined in [`SaveSessionInput`](../internal/mcp/tool_save_session.go):
       "decisions_recorded": 0
     }
   },
-  "next_step": "Run vivechak_next_session for the next session, or vivechak_record_decision to record decisions from this session's findings.",
+  "next_step": "Run vivechak_next_session for the next research session, or vivechak_record_decision(session_id=\"T1-01\", auto_draft_from=\"T1-01\") to record an ADR from this session's findings.",
   "meta": {
     "api": 1,
     "tool": "vivechak_save_session"
@@ -605,7 +605,7 @@ Defined in [`SaveSessionInput`](../internal/mcp/tool_save_session.go):
 ```
 
 > [!NOTE]
-> **Dynamic Guided Routing:** When saving a session that informs an irreversible **One-Way Door**, `next_step` imperatively directs the agent to run `vivechak_challenge(session_id="...", mode="red_team")` before recording the decision. If quality observations (`Q-*`) are detected, they are surfaced directly within `next_step` to prevent autonomous agents from bypassing quality coaching.
+> **Dynamic Guided Routing:** When saving a session that informs an irreversible **One-Way Door**, `next_step` imperatively directs the agent to run `vivechak_challenge(session_id="...", mode="red_team")` before recording the decision. For synthesis sessions (`SYN-01`, `FAD`), `next_step` directs the agent to run `vivechak_run_gate` to verify exit criteria. If quality observations (`Q-*`) are detected, they are surfaced directly within `next_step` to prevent autonomous agents from bypassing quality coaching.
 
 #### Common Warnings & Quality Observations
 - `[L3-WARN] W-NO-EVIDENCE-GRADES: No inline evidence grades found (expected A-E grades per P3)`
@@ -939,9 +939,10 @@ Defined in [`RunGateInput`](../internal/mcp/tool_run_gate.go):
 - `GATE-QUALITY: Only 1 session(s) completed — minimum 3 recommended for a meaningful pipeline`
 - `GATE-QUALITY: DECISIONS.md or ADR files appear empty or trivial`
 - `GATE-QUALITY: 1 one-way door decision(s) lack required reversal triggers`
-- `GATE-ADVISORY: B3-EVIDENTIARY: Session T0-01 informs one-way door D-001 but has Grade C/D/E citation(s)`
-- `GATE-ADVISORY: B4-VERIFICATION: Session T0-01 informs one-way door D-001 but has 'recalled' citation(s)`
-- `GATE-ADVISORY: B5-ALTERNATIVES: One-way door D-001 lacks documented rejected alternatives section`
+- `GATE-QUALITY: B3-EVIDENTIARY: Session T0-01 informs one-way door D-001 but recommendation has 1 Grade C/D/E citation(s). One-way decisions require Grade A/B evidence. (help: re-verify with web search and update via vivechak_amend_session(session_id="T0-01"))`
+- `GATE-QUALITY: B4-VERIFICATION: Session T0-01 informs one-way door D-001 but recommendation has 1 'recalled' citation(s). One-way decisions require fetched/cached verification. (help: fetch primary evidence and update via vivechak_amend_session(session_id="T0-01"))`
+- `GATE-QUALITY: B5-ALTERNATIVES: One-way door D-001 lacks documented rejected alternatives section (minimum 30 chars required). (help: edit ADR to include substantive '## Alternatives Considered' section)`
+- `GATE-ADVISORY: B-DECISION-STUB: One-way door D-001 lacks mandatory structural sections (Context, Rationale, or Reversal Trigger)`
 - `W-OWD-NO-CHALLENGE: One-Way Door decision D-001 was not subjected to adversarial red-team challenge before commitment`
 
 ---

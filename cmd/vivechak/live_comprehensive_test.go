@@ -412,8 +412,8 @@ ONNX Runtime with all-MiniLM-L6-v2 instead of OpenAI embeddings. Grade A (local 
 ## Evaluated Options
 - all-MiniLM-L6-v2: 384 dimensions, 15ms latency. Grade A (benchmark)
 - BGE-small: 384 dimensions, 22ms latency. Grade B (benchmark)
-## Concerns
-Memory consumption under concurrent categorization threads.
+## Discovered Concerns
+Memory consumption spikes observed under concurrent categorization threads requiring bounded worker pools.
 `
 		envSaveR2 := callAndParse("vivechak_save_session", map[string]any{
 			"project_root": projectDir,
@@ -438,8 +438,8 @@ SQLite WAL mode with SQLCipher instead of PostgreSQL. Grade A (encryption benchm
 ## Evaluated Options
 - SQLite + SQLCipher: embedded, zero external daemon. Grade A (official docs)
 - PostgreSQL + pgcrypto: requires background service. Grade A (official docs)
-## Concerns
-Write concurrency locks when batch indexing.
+## Discovered Concerns
+Write concurrency locks and checkpoint stalls occur when batch indexing large financial ledgers.
 `
 		envSaveR3 := callAndParse("vivechak_save_session", map[string]any{
 			"project_root": projectDir,
@@ -1212,6 +1212,7 @@ func TestRealMassive_ZeroTrust_LiveSubprocess_AuditVerification(t *testing.T) {
 	t001Content := `---
 id: T0-01
 title: In-Memory Storage & Buffer Evaluation
+date: 2026-10-01
 status: complete
 informs_decisions: [D-001]
 ---

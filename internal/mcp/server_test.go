@@ -626,6 +626,10 @@ PostgreSQL 16 is the best choice. A (official documentation)
 ## Recommendations
 
 Use PostgreSQL with pgvector for embeddings.
+
+## Discovered Concerns
+
+Found connection limits and memory spikes under high concurrency requiring connection pooling.
 `
 	result, err = cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_save_session",
@@ -2514,6 +2518,7 @@ func TestSaveSession_QualityObservationsAndProgress(t *testing.T) {
 	sessContent := `---
 id: T0-01
 title: Initial Research
+date: 2026-10-14
 status: complete
 topic: architecture
 informs_decisions: [D-001]
@@ -2955,6 +2960,7 @@ func TestNextSession_CaseInsensitive(t *testing.T) {
 	sessContent := `---
 id: t0-01
 title: Session 1
+date: 2026-10-14
 status: complete
 ---
 # Key Findings

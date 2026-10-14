@@ -474,6 +474,9 @@ type StorageEngine interface {
 
 ## Recommendations
 Adopt RocksDB for primary key-value storage.
+
+## Discovered Concerns
+Compaction stalls observed under high concurrent write spikes requiring custom tuning.
 `
 		resS1, err := cs.CallTool(ctx, &mcp.CallToolParams{
 			Name: "vivechak_save_session",
@@ -598,6 +601,9 @@ gRPC over TCP incurs 2x head-of-line blocking. B (QUIC vs TCP Study) [corroborat
 
 ## Recommendations
 Use Raft over QUIC transport.
+
+## Discovered Concerns
+Network partition recovery requires quorum heartbeats and backoff retries.
 `
 		resS2, err := cs.CallTool(ctx, &mcp.CallToolParams{
 			Name: "vivechak_save_session",

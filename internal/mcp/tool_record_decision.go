@@ -293,20 +293,23 @@ func handleRecordDecision(ctx context.Context, _ *sdkmcp.CallToolRequest, in Rec
 	}
 
 	// Mini-status (eliminates need for separate status calls)
-	completedSessions, _ := scanCompletedSessions(ws)
-	gateDecisions := collectGateDecisions(ws)
-	progress := map[string]any{
-		"sessions_completed": len(completedSessions),
-		"decisions_recorded": len(gateDecisions),
-	}
+	var knownIDs []string
+	progress := make(map[string]any)
 	info := core.InspectWorkspace(root)
 	if info.HasPipeline {
 		if pipeData, err := ws.ReadFile(core.PipelineFile); err == nil {
 			if dag, err := core.ParsePipeline(pipeData); err == nil {
+				for _, s := range dag.Sessions {
+					knownIDs = append(knownIDs, s.ID)
+				}
 				progress["sessions_total"] = len(dag.Sessions)
 			}
 		}
 	}
+	completedSessions, _ := scanCompletedSessions(ws, knownIDs...)
+	gateDecisions := collectGateDecisions(ws)
+	progress["sessions_completed"] = len(completedSessions)
+	progress["decisions_recorded"] = len(gateDecisions)
 	dataMap["progress"] = progress
 
 	nextStep := "Run vivechak_next_session for the next research session, or " +

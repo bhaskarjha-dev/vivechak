@@ -83,7 +83,11 @@ func handleVisualize(ctx context.Context, _ *sdkmcp.CallToolRequest, in Visualiz
 			"Ensure the pipeline markdown is formatted correctly.")
 	}
 
-	completedSessions, _ := scanCompletedSessions(ws)
+	var knownIDs []string
+	for _, s := range dag.Sessions {
+		knownIDs = append(knownIDs, s.ID)
+	}
+	completedSessions, _ := scanCompletedSessions(ws, knownIDs...)
 
 	var rendered string
 	switch format {

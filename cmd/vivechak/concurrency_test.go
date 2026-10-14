@@ -364,6 +364,8 @@ status: complete
 # Persistent Storage Layer
 ## Recommendations
 Adopt RocksDB for persistent event log. Grade A (benchmark)
+## Discovered Concerns
+Compaction stalls observed under sustained concurrent writes requiring custom memtable tuning.
 ## Delta
 | Prior | Status | Impact |
 |---|---|---|
@@ -428,6 +430,8 @@ status: complete
 # Distributed Consensus
 ## Recommendations
 Adopt Raft consensus engine. Grade A (formal TLA+ spec)
+## Discovered Concerns
+Leader election timeouts cause intermittent transaction pauses during partition recovery.
 ## Delta
 | Prior | Status | Impact |
 |---|---|---|

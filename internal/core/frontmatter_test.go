@@ -710,4 +710,103 @@ We evaluated relational database engines for transaction persistence.
 	}
 }
 
+func TestSetFrontmatterField(t *testing.T) {
+	t.Run("updates existing status from draft to complete", func(t *testing.T) {
+		input := `---
+# Important architectural comment
+id: T1-01
+title: Datastore Research
+status: draft
+tier: 1
+---
+
+# Datastore Findings
+Content here.
+`
+		out := SetFrontmatterField([]byte(input), "status", "complete")
+		fm, body, err := ParseFrontmatter(out)
+		if err != nil {
+			t.Fatalf("unexpected error parsing result: %v", err)
+		}
+		if fm == nil {
+			t.Fatal("expected frontmatter")
+		}
+		if fm.GetString("status") != "complete" {
+			t.Errorf("expected status 'complete', got %q", fm.GetString("status"))
+		}
+		if fm.GetString("id") != "T1-01" {
+			t.Errorf("expected id 'T1-01', got %q", fm.GetString("id"))
+		}
+		outStr := string(out)
+		if strings.Contains(outStr, "status: draft") {
+			t.Error("old status: draft should not be present")
+		}
+		if !strings.Contains(outStr, "# Important architectural comment") {
+			t.Error("expected comments to be preserved")
+		}
+		if !strings.Contains(string(body), "Content here.") {
+			t.Error("expected body to be preserved")
+		}
+	})
+
+	t.Run("updates existing status from complete to draft", func(t *testing.T) {
+		input := `---
+id: T1-01
+status: complete
+---
+# Body
+`
+		out := SetFrontmatterField([]byte(input), "status", "draft")
+		fm, _, err := ParseFrontmatter(out)
+		if err != nil || fm == nil {
+			t.Fatalf("failed to parse frontmatter: %v", err)
+		}
+		if fm.GetString("status") != "draft" {
+			t.Errorf("expected status 'draft', got %q", fm.GetString("status"))
+		}
+		if strings.Contains(string(out), "status: complete") {
+			t.Error("old status: complete should not be present")
+		}
+	})
+
+	t.Run("inserts field when missing", func(t *testing.T) {
+		input := `---
+id: T1-01
+title: No Status
+---
+# Body
+`
+		out := SetFrontmatterField([]byte(input), "status", "complete")
+		fm, _, err := ParseFrontmatter(out)
+		if err != nil || fm == nil {
+			t.Fatalf("failed to parse frontmatter: %v", err)
+		}
+		if fm.GetString("status") != "complete" {
+			t.Errorf("expected status 'complete', got %q", fm.GetString("status"))
+		}
+	})
+
+	t.Run("preserves CRLF line endings when replacing", func(t *testing.T) {
+		input := "---\r\nid: T1-01\r\nstatus: draft\r\n---\r\n\r\n# Body\r\n"
+		out := SetFrontmatterField([]byte(input), "status", "complete")
+		outStr := string(out)
+		if !strings.Contains(outStr, "status: complete\r\n") {
+			t.Errorf("expected CRLF line ending for replaced field, got:\n%q", outStr)
+		}
+		fm, _, err := ParseFrontmatter(out)
+		if err != nil || fm == nil || fm.GetString("status") != "complete" {
+			t.Errorf("failed to parse frontmatter from CRLF output: %v", err)
+		}
+	})
+
+	t.Run("preserves indentation of existing key", func(t *testing.T) {
+		input := "```yaml\n  id: T1-01\n  status: draft\n```\n# Body\n"
+		out := SetFrontmatterField([]byte(input), "status", "complete")
+		if !strings.Contains(string(out), "  status: complete\n") {
+			t.Errorf("expected preserved indentation, got:\n%s", string(out))
+		}
+	})
+}
+
+
 

@@ -241,6 +241,12 @@ status: complete
 ---
 # Findings
 Use RocksDB. A (benchmark)
+
+## Recommendation
+Adopt RocksDB for embedded transactional state storage.
+
+## Discovered Concerns
+Write stalls and compaction spikes observed during concurrent bulk ingest operations.
 `,
 		},
 	})
@@ -279,6 +285,12 @@ status: complete
 ---
 # Findings
 Use Raft. A (official spec)
+
+## Recommendation
+Adopt Raft over QUIC transport protocol.
+
+## Discovered Concerns
+Leader election delays occur during network partitions under high message volume.
 `,
 		},
 	})
