@@ -119,7 +119,7 @@ Comprehensive production release fusing the 18 quality audit findings (`CRIT-01`
 
 ---
 
-## [0.1.0] - 2026-09-28 — Initial Unified Release (Go MCP Server & Multi-Scope Engine)
+## [0.1.0-beta.0] - 2026-09-28 — Initial Unified Preview (Go MCP Server & Multi-Scope Engine)
 
 First public release of the automated **Vivechak (विवेचक)** system — uniting evidence-grounded research methodology with an autonomous Model Context Protocol (MCP) server.
 
@@ -204,6 +204,7 @@ Foundational meta-research and methodology specification (formerly drafted as v1
 
 [0.1.0]: https://github.com/bhaskarjha-dev/vivechak/releases/tag/v0.1.0
 [0.1.0-beta.1]: https://github.com/bhaskarjha-dev/vivechak/releases/tag/v0.1.0-beta.1
+[0.1.0-beta.0]: https://github.com/bhaskarjha-dev/vivechak/releases/tag/v0.1.0-beta.0
 [0.1.0-alpha.2]: https://github.com/bhaskarjha-dev/vivechak/releases/tag/v0.1.0-alpha.2
 [0.1.0-alpha.1]: https://github.com/bhaskarjha-dev/vivechak/releases/tag/v0.1.0-alpha.1
 [0.0.1-incubating]: https://github.com/bhaskarjha-dev/vivechak/tree/main
