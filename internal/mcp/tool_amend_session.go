@@ -58,6 +58,11 @@ func handleAmendSession(ctx context.Context, _ *sdkmcp.CallToolRequest, in Amend
 			"Use a valid session ID like 'R-01' or 'T1-01'.")
 	}
 
+	if in.AmendingSessionID != "" && !isValidID(in.AmendingSessionID) {
+		return ErrorResult(tool, fmt.Errorf("invalid amending_session_id %q", in.AmendingSessionID),
+			"Use a valid session ID like 'R-01' or 'T1-01'.")
+	}
+
 	if strings.TrimSpace(in.Amendment) == "" {
 		return ErrorResult(tool, fmt.Errorf("amendment content is required"),
 			"Provide the amendment text to append to the session.")

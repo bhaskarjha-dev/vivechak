@@ -783,6 +783,89 @@ Ring buffer overflows drop oldest frames without disk backpressure.
 	}
 }
 
+func TestValidateEvidenceProvenance_MarkdownLinksAndColumnVariants(t *testing.T) {
+	t.Run("4-column table with Citation header and markdown link", func(t *testing.T) {
+		session := `---
+session_id: T1-01
+title: Transport
+date: 2026-10-01
+door_type: one-way
+status: complete
+---
+## Key Findings
+- QUIC transport delivers low latency connection migration. Grade A (fetched)
+
+## Discovered Concerns
+UDP blocking by intermediate enterprise firewalls requires TCP fallback paths.
+
+## Sources & Evidence Ledger
+| Claim | Grade | Method | Citation |
+|---|---|---|---|
+| QUIC migration | Grade A | fetched | [RFC 9000 Specification](https://www.rfc-editor.org/rfc/rfc9000) |
+`
+		res := ValidateSessionWithContext([]byte(session), true)
+		for _, iss := range res.Issues {
+			if iss.Code == "V-OWD-VAGUE-PROVENANCE" || iss.Code == "W-VAGUE-PROVENANCE" {
+				t.Errorf("4-column ledger with markdown link falsely flagged: %v", iss)
+			}
+		}
+	})
+
+	t.Run("5-column table with Reference header and domain anchor", func(t *testing.T) {
+		session := `---
+session_id: T1-02
+title: Framework Selection
+date: 2026-10-01
+door_type: one-way
+status: complete
+---
+## Key Findings
+- Framework provides native desktop bindings. Grade A (fetched)
+
+## Discovered Concerns
+Cross-compilation requires platform-specific toolchains installed on CI agents.
+
+## Sources & Evidence Ledger
+| Claim | Grade | Modifiers | Method | Reference |
+|---|---|---|---|---|
+| Desktop bindings | Grade A | fresh | fetched | wails.io documentation |
+`
+		res := ValidateSessionWithContext([]byte(session), true)
+		for _, iss := range res.Issues {
+			if iss.Code == "V-OWD-VAGUE-PROVENANCE" || iss.Code == "W-VAGUE-PROVENANCE" {
+				t.Errorf("5-column ledger with Reference header falsely flagged: %v", iss)
+			}
+		}
+	})
+
+	t.Run("6-column table with Source / Anchor header and canonical URL", func(t *testing.T) {
+		session := `---
+session_id: T1-03
+title: Consensus Protocol
+date: 2026-10-01
+door_type: one-way
+status: complete
+---
+## Key Findings
+- Raft leader election converges in bounded time. Grade A (fetched)
+
+## Discovered Concerns
+Split-brain partition in 2-node cluster prevents quorum without witness node.
+
+## Sources & Evidence Ledger
+| # | Claim | Grade | Modifiers | Method | Source / Anchor |
+|---|---|---|---|---|---|
+| 1 | Raft convergence | Grade A | direct | fetched | [Raft Paper](https://raft.github.io/raft.pdf) |
+`
+		res := ValidateSessionWithContext([]byte(session), true)
+		for _, iss := range res.Issues {
+			if iss.Code == "V-OWD-VAGUE-PROVENANCE" || iss.Code == "W-VAGUE-PROVENANCE" {
+				t.Errorf("6-column ledger with Source / Anchor header falsely flagged: %v", iss)
+			}
+		}
+	})
+}
+
 func TestValidateDiscoveredConcerns_LengthBoundary(t *testing.T) {
 	// 49 characters: below 50 char threshold
 	shortConcerns := `---

@@ -69,6 +69,11 @@ func handleRecordDecision(ctx context.Context, _ *sdkmcp.CallToolRequest, in Rec
 			"Use a simple ID like 'D-01'.")
 	}
 
+	if in.AutoDraftFrom != "" && !isValidID(in.AutoDraftFrom) {
+		return ErrorResult(tool, fmt.Errorf("invalid auto_draft_from %q — must be alphanumeric with optional hyphens, underscores, dots", in.AutoDraftFrom),
+			"Use a valid session ID like 'T1-01'.")
+	}
+
 	// Auto-draft mode: generate draft from session if auto_draft_from is set and content is empty
 	if strings.TrimSpace(in.Content) == "" && strings.TrimSpace(in.AutoDraftFrom) != "" {
 		ws, err := store.OpenWorkspace(root)

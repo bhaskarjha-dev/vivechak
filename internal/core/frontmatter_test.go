@@ -806,6 +806,68 @@ title: No Status
 			t.Errorf("expected preserved indentation, got:\n%s", string(out))
 		}
 	})
+
+	t.Run("updates field inside details block", func(t *testing.T) {
+		input := `<details>
+<summary><strong>D-001</strong> · Database Selection · <code>one-way</code> · accepted</summary>
+
+` + "```yaml" + `
+id: D-001
+title: Database Selection
+door_type: one-way
+status: draft
+` + "```" + `
+
+</details>
+
+# D-001: Database Selection
+`
+		out := SetFrontmatterField([]byte(input), "status", "complete")
+		fm, body, err := ParseFrontmatter(out)
+		if err != nil || fm == nil {
+			t.Fatalf("failed to parse details block frontmatter after update: %v", err)
+		}
+		if fm.GetString("status") != "complete" {
+			t.Errorf("expected status 'complete', got %q", fm.GetString("status"))
+		}
+		if !strings.Contains(string(out), "<details>") || !strings.Contains(string(out), "</details>") {
+			t.Errorf("details block tags must be preserved in output:\n%s", string(out))
+		}
+		if !strings.Contains(string(body), "# D-001: Database Selection") {
+			t.Errorf("body must be preserved in output:\n%s", string(body))
+		}
+	})
+
+	t.Run("returns unchanged when no frontmatter exists", func(t *testing.T) {
+		input := "# Just a document\nNo frontmatter here.\n"
+		out := SetFrontmatterField([]byte(input), "status", "complete")
+		if string(out) != input {
+			t.Errorf("expected output to equal input when no frontmatter exists, got:\n%s", string(out))
+		}
+	})
+
+	t.Run("updates field when preceded by markdown title", func(t *testing.T) {
+		input := `# Architectural Decision: Database Engine
+---
+id: D-001
+door_type: one-way
+status: draft
+---
+
+## Context
+`
+		out := SetFrontmatterField([]byte(input), "status", "accepted")
+		fm, _, err := ParseFrontmatter(out)
+		if err != nil || fm == nil {
+			t.Fatalf("failed to parse frontmatter: %v", err)
+		}
+		if fm.GetString("status") != "accepted" {
+			t.Errorf("expected status 'accepted', got %q", fm.GetString("status"))
+		}
+		if !strings.HasPrefix(string(out), "# Architectural Decision: Database Engine") {
+			t.Errorf("expected leading title to remain at top of document")
+		}
+	})
 }
 
 

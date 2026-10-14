@@ -674,5 +674,55 @@ Upgraded engine rationale and alternatives considered.
 	}
 }
 
+func TestRecordDecision_AutoDraftFromSluggedSessionWithoutFrontmatterID(t *testing.T) {
+	tmpDir := t.TempDir()
+	sessionsDir := filepath.Join(tmpDir, core.SessionsDir)
+	if err := os.MkdirAll(sessionsDir, 0o755); err != nil {
+		t.Fatalf("mkdir sessions: %v", err)
+	}
+
+	// Create pipeline declaring T1-01
+	pipelineContent := `# Research Pipeline
+### Session T1-01: Storage Selection
+| **ID** | T1-01 |
+| **Dependencies** | None |
+` + "```prompt\nBrief\n```\n"
+	if err := os.WriteFile(filepath.Join(tmpDir, core.PipelineFile), []byte(pipelineContent), 0o644); err != nil {
+		t.Fatalf("writing pipeline: %v", err)
+	}
+
+	// Create slugged session file WITHOUT frontmatter ID
+	sessionContent := `---
+title: Storage Selection Research
+date: 2026-10-14
+status: complete
+---
+# Storage Selection Findings
+## Recommendation
+Adopt PostgreSQL with pg_partman for scalable time-series events [Grade A: official docs https://postgresql.org].
+`
+	if err := os.WriteFile(filepath.Join(sessionsDir, "T1-01-storage-selection.md"), []byte(sessionContent), 0o644); err != nil {
+		t.Fatalf("writing session: %v", err)
+	}
+
+	ctx := context.Background()
+	_, envDraft, err := handleRecordDecision(ctx, nil, RecordDecisionInput{
+		ProjectRoot:   tmpDir,
+		DecisionID:    "D-001",
+		AutoDraftFrom: "T1-01",
+	})
+	if err != nil || !envDraft.Success {
+		t.Fatalf("auto draft from slugged session failed: err=%v, env=%+v", err, envDraft)
+	}
+	dataMap, ok := envDraft.Data.(map[string]any)
+	if !ok {
+		t.Fatalf("expected map data, got: %T", envDraft.Data)
+	}
+	draftContent, _ := dataMap["draft_content"].(string)
+	if !strings.Contains(draftContent, "PostgreSQL") {
+		t.Errorf("expected draft to contain PostgreSQL recommendation, got:\n%s", draftContent)
+	}
+}
+
 
 

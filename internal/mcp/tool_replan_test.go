@@ -155,3 +155,28 @@ func TestHandleReplan_UpdateDepsAndPrompt(t *testing.T) {
 		t.Errorf("expected updated prompt in pipeline")
 	}
 }
+
+func TestHandleReplan_RemoveSession_SluggedWithoutFrontmatterID(t *testing.T) {
+	tmpDir := setupTestPipelineWorkspace(t)
+	ctx := context.Background()
+
+	// Write session as slugged file T0-01-landscape.md without frontmatter id
+	sessionContent := "---\ntitle: Done\nstatus: complete\ndate: \"2026-10-14\"\n---\n# Done\n"
+	_ = os.WriteFile(filepath.Join(tmpDir, core.SessionsDir, "T0-01-landscape.md"), []byte(sessionContent), 0o644)
+
+	// Attempt to remove T0-01 -> should be recognized as completed via knownIDs and rejected
+	resComp, envComp, errComp := handleReplan(ctx, nil, ReplanInput{
+		ProjectRoot: tmpDir,
+		Operation:   "remove_session",
+		SessionID:   "T0-01",
+	})
+	if errComp != nil {
+		t.Fatalf("unexpected handler err: %v", errComp)
+	}
+	if !resComp.IsError {
+		t.Errorf("expected error removing completed session T0-01 via slugged file, got env: %+v", envComp)
+	}
+	if !strings.Contains(envComp.Message, "cannot remove completed session") {
+		t.Errorf("expected 'cannot remove completed session' message, got: %s", envComp.Message)
+	}
+}
