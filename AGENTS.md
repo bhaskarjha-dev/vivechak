@@ -105,8 +105,10 @@ vivechak/
 ├── CODE_OF_CONDUCT.md · LICENSE    ← Contributor Covenant v2.1 · MIT License
 ├── go.mod · go.sum                 ← Go 1.25+ module
 ├── Makefile                        ← Standard build, test, lint & embed-sync targets
-├── .goreleaser.yml                 ← 6-platform cross-compilation
+├── .goreleaser.yml                 ← 7-platform cross-compilation + Linux nfpms
+├── Dockerfile · flake.nix          ← Multi-arch container & Nix flake
 ├── install.sh · install.ps1        ← Shell installers
+├── npm/ · pypi/                    ← Zero-script npx & uvx runner packages
 │
 ├── cmd/vivechak/                   ← MCP server + CLI entry point (vck alias)
 │   ├── main.go                     ← Entry point (serve, setup, mcp-config, doctor, version)

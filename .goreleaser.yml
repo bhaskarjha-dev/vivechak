@@ -107,6 +107,30 @@ builds:
     env:
       - CGO_ENABLED=0
 
+  - id: vivechak-freebsd
+    main: ./cmd/vivechak
+    binary: vivechak
+    goos: [freebsd]
+    goarch: [amd64]
+    flags: [-trimpath]
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+    env:
+      - CGO_ENABLED=0
+
+  - id: vck-freebsd
+    main: ./cmd/vivechak
+    binary: vck
+    goos: [freebsd]
+    goarch: [amd64]
+    flags: [-trimpath]
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+    env:
+      - CGO_ENABLED=0
+
 universal_binaries:
   - id: vivechak-darwin-universal
     ids:
@@ -132,6 +156,46 @@ archives:
     files:
       - LICENSE
       - README.md
+
+nfpms:
+  - id: vivechak-linux-packages
+    package_name: vivechak
+    file_name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    ids:
+      - vivechak-linux
+      - vck-linux
+    homepage: https://github.com/bhaskarjha-dev/vivechak
+    description: Evidence-grounded research for technical decisions — MCP server
+    maintainer: Bhaskar Jha <me@bhaskarjha.dev>
+    license: MIT
+    vendor: bhaskarjha-dev
+    section: devel
+    priority: optional
+    formats:
+      - deb
+      - rpm
+      - apk
+      - archlinux
+    bindir: /usr/bin
+    contents:
+      - src: LICENSE
+        dst: /usr/share/doc/vivechak/LICENSE
+        file_info:
+          mode: 0644
+      - src: README.md
+        dst: /usr/share/doc/vivechak/README.md
+        file_info:
+          mode: 0644
+    deb:
+      provides:
+        - vck
+      conflicts:
+        - vck
+      replaces:
+        - vck
+    rpm:
+      provides:
+        - vck
 
 checksum:
   name_template: checksums.txt
@@ -197,6 +261,28 @@ brews:
       system "#{bin}/vivechak", "version"
       system "#{bin}/vck", "version"
 
+  - name: vck
+    ids:
+      - default
+    repository:
+      owner: bhaskarjha-dev
+      name: homebrew-tap
+      token: "{{ if index .Env \"TAP_GITHUB_TOKEN\" }}{{ .Env.TAP_GITHUB_TOKEN }}{{ else }}{{ .Env.GITHUB_TOKEN }}{{ end }}"
+    directory: Formula
+    homepage: https://github.com/bhaskarjha-dev/vivechak
+    description: Shorthand CLI for Vivechak — evidence-grounded research MCP server
+    license: MIT
+    install: |
+      bin.install "vck"
+      if File.exist?("vivechak")
+        bin.install "vivechak"
+      else
+        bin.install_symlink "vck" => "vivechak"
+      end
+    test: |
+      system "#{bin}/vck", "version"
+      system "#{bin}/vivechak", "version"
+
 scoops:
   - name: vivechak
     ids:
@@ -211,3 +297,17 @@ scoops:
     bin:
       - "vivechak.exe"
       - "vck.exe"
+
+  - name: vck
+    ids:
+      - default
+    repository:
+      owner: bhaskarjha-dev
+      name: scoop-bucket
+      token: "{{ if index .Env \"TAP_GITHUB_TOKEN\" }}{{ .Env.TAP_GITHUB_TOKEN }}{{ else }}{{ .Env.GITHUB_TOKEN }}{{ end }}"
+    homepage: https://github.com/bhaskarjha-dev/vivechak
+    description: Shorthand CLI for Vivechak — evidence-grounded research MCP server
+    license: MIT
+    bin:
+      - "vck.exe"
+      - "vivechak.exe"

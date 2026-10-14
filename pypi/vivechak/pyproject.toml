@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vivechak"
+version = "0.1.0"
+description = "Evidence-grounded research for technical decisions — MCP server"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "MIT"}
+authors = [{name = "Bhaskar Jha", email = "me@bhaskarjha.dev"}]
+keywords = ["mcp", "model-context-protocol", "ai-agent", "architecture", "research", "cursor", "claude"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Topic :: Software Development :: Build Tools",
+]
+
+[project.scripts]
+vivechak = "vivechak.cli:main"
+vck = "vivechak.cli:main"

@@ -27,7 +27,7 @@ desktop.ini
 *.sw?
 
 # Go build artifacts
-bin/
+/bin/
 dist/
 *.exe
 *.exe~

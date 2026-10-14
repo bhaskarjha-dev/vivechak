@@ -11,6 +11,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Unified release delivering the 12 enforcement hardening tasks, quality audit fixes, and complete pre-release hardening wave across engine parsers, concurrency locks, gate strictness, and cognitive quality coaching:
 
+- **Universal Multi-Ecosystem Packaging & Zero-Script Ephemeral Runners:** Expanded distribution architecture with dual-identity execution parity (`vivechak` and `vck`):
+  - **Linux Native Packages via nFPM (`.goreleaser.yml`):** Automatically builds `.deb` (Debian/Ubuntu/Mint), `.rpm` (Fedora/RHEL/CentOS), `.apk` (Alpine), and `.pkg.tar.zst` (Arch Linux) bundling both binaries with `Provides: vck`.
+  - **Zero-Script npm / npx Runner (`npm/vivechak`, `npm/vck`):** Pure Node.js lazy-cache binary runner (`bin/runner.js`) with zero postinstall scripts (bypassing pnpm/Yarn/npm v12 script blocking and `--ignore-scripts`) allowing instant execution via `npx -y vck serve` with zero local installation.
+  - **PyPI / uvx Python Runner (`pypi/vivechak`, `pypi/vck`):** Pure Python standard-library wrapper with in-memory process replacement (`os.execv`) allowing instant execution via `uvx vck serve`.
+  - **Docker Multi-Arch Container (`Dockerfile` & GHCR):** Multi-arch container image (`linux/amd64`, `linux/arm64`) on GitHub Container Registry (`ghcr.io/bhaskarjha-dev/vivechak` and `ghcr.io/bhaskarjha-dev/vck`) with non-root security and clean stdio MCP streaming.
+  - **FreeBSD Target:** Added `freebsd/amd64` to GoReleaser matrix.
+  - **Nix Flake (`flake.nix`):** Declarative package expression enabling `nix run github:bhaskarjha-dev/vivechak`.
+  - **Dual Homebrew Tap & Scoop Bucket Manifests:** Added `Formula/vck.rb` (with `conflicts_with "vivechak"`) and `scoop/vck.json`.
+  - **Decoupled CI/CD Workflow (`release.yml`):** Upgraded release action to a decoupled 4-stage pipeline isolating core releases from optional token-dependent jobs (`docker`, `npm`, `pypi`).
 - **Expanded AI Harness Presets & Portable Standard (`config.go`):** Expanded `vck setup` and `vck mcp-config` from 14 to 21 presets, adding native support for Claude Code (`claude-code`), Universal Portable MCP (`mcp` / `portable` / `universal` via `.mcp.json`), OpenCode (`opencode`), Continue.dev (`continue`), Block Goose (`goose`), Void Editor (`void`), and GitHub Copilot CLI (`copilot`).
 - **Zero-Loss State Preservation for Claude Code (`config.go`):** Implemented number-preserving JSON decoding (`dec.UseNumber()`) in configuration merges, ensuring existing user state, tokens, session history, and custom settings in `~/.claude.json` are never clobbered or truncated.
 - **Specialized Schema Dispatch (`config.go`):** Added schema generators for OpenCode (array-format `command: ["<exe>", "serve"]`, `"type": "local"`, `"enabled": true` under `"mcp"` key), Continue.dev modular configuration (`.continue/mcpServers/vivechak.json`), and Block Goose stdio extensions (`config.yaml`).

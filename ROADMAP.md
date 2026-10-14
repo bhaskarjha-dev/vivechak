@@ -23,7 +23,7 @@ Vivechak delivers a unified, evidence-grounded research methodology powered by a
 | **CLI & Diagnostics** | ✅ Shipped | `vck` shorthand alias, `vck setup` (1-second host configuration + 21 presets), `vck mcp-config` (universal JSON config), and `vck doctor` workspace integrity checker |
 | **FRAMEWORK.md** | ✅ Shipped | Complete standalone specification (8 principles, evidence grading A–E, prompt anatomy, Weighted Evaluation Protocol, Phase 0 Gate) |
 | **6 Operational Templates** | ✅ Shipped | `DECISIONS.template.md`, `CONFLICT-RESOLUTION.template.md`, `COMPARISON-SESSION.template.md`, `FOUNDING-ARCHITECTURE.template.md`, `PHASE-0-GATE.template.md`, `SESSION.template.md` (`schema_version: "0.1.0"`) |
-| **Distribution & Packages** | ✅ Shipped | Single-binary cross-compilation (6 platforms via GoReleaser), Homebrew, Scoop, WinGet, shell installers (`install.sh`, `install.ps1`) |
+| **Distribution & Packages** | ✅ Shipped | Single-binary cross-compilation (7 platforms: Darwin, Linux, Windows, FreeBSD), macOS universal binary, Linux native packages (`.deb`, `.rpm`, `.apk`, Arch tar.zst via nFPM), Docker multi-arch images (`ghcr.io`), Homebrew (`vivechak` & `vck`), Scoop (`vivechak` & `vck`), WinGet, npm/npx runner (`vivechak` & `vck`), PyPI/uvx runner (`vivechak` & `vck`), Nix flake (`flake.nix`), and shell installers (`install.sh`, `install.ps1`) |
 | **meta-research/** | ✅ Sealed | 14 locked ADRs (D-001–D-014), 27 research artifacts, empirical evidence base validating every design decision |
 
 ---

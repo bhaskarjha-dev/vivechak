@@ -1,0 +1,30 @@
+{
+  "name": "vivechak",
+  "version": "0.1.0",
+  "description": "Evidence-grounded research for technical decisions — MCP server",
+  "main": "bin/runner.js",
+  "bin": {
+    "vivechak": "bin/runner.js",
+    "vck": "bin/runner.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bhaskarjha-dev/vivechak.git"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "ai-agent",
+    "architecture",
+    "research",
+    "decisions",
+    "cursor",
+    "claude",
+    "antigravity"
+  ],
+  "author": "Bhaskar Jha <me@bhaskarjha.dev>",
+  "license": "MIT",
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}

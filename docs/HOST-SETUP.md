@@ -56,6 +56,42 @@ Output:
 }
 ```
 
+#### Ephemeral Runners (Zero Local Binary Installation)
+
+If you prefer not to install the binary onto your system `$PATH`, you can configure any host to run Vivechak on the fly:
+
+```json
+// Via npx (Node.js)
+{
+  "mcpServers": {
+    "vivechak": {
+      "command": "npx",
+      "args": ["-y", "vck", "serve"]
+    }
+  }
+}
+
+// Via uvx (Python)
+{
+  "mcpServers": {
+    "vivechak": {
+      "command": "uvx",
+      "args": ["vck", "serve"]
+    }
+  }
+}
+
+// Via Docker (Containers / Cloud Agent Sandboxes)
+{
+  "mcpServers": {
+    "vivechak": {
+      "command": "docker",
+      "args": ["run", "-i", "--rm", "-v", "${workspaceFolder}:/workspace", "ghcr.io/bhaskarjha-dev/vck:latest", "serve"]
+    }
+  }
+}
+```
+
 ### Supported Desktop Hosts & Harness Presets
 
 | Environment / Harness | Fast Setup Command | Preset Shortcut | Default Config Location | Schema Key |

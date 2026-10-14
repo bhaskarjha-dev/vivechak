@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vck"
+version = "0.1.0"
+description = "Shorthand CLI for Vivechak — evidence-grounded research MCP server"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "MIT"}
+authors = [{name = "Bhaskar Jha", email = "me@bhaskarjha.dev"}]
+dependencies = [
+    "vivechak==0.1.0",
+]
+keywords = ["vck", "vivechak", "mcp", "model-context-protocol", "ai-agent", "architecture", "research"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Topic :: Software Development :: Build Tools",
+]
+
+[project.scripts]
+vck = "vck.cli:main"
+vivechak = "vck.cli:main"

@@ -7,10 +7,12 @@ on:
 
 permissions:
   contents: write
+  packages: write
 
 jobs:
-  release:
-    name: Release
+  # 1. Primary Native Release (macOS runner for universal lipo + 7 OS targets + nfpms)
+  goreleaser:
+    name: Core GoReleaser
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
@@ -34,3 +36,111 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAP_GITHUB_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
+
+  # 2. Multi-Arch Docker Container Image (Runs on Linux using GITHUB_TOKEN)
+  docker:
+    name: Docker GHCR
+    needs: goreleaser
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download Linux Binaries via GitHub CLI
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p docker-dist
+          gh release download ${{ github.ref_name }} --pattern "vivechak_*_linux_*.tar.gz" --dir docker-dist
+
+      - name: Extract Binaries for Multi-Arch Container
+        run: |
+          mkdir -p docker-dist/amd64 docker-dist/arm64
+          tar -xzf docker-dist/vivechak_*_linux_amd64.tar.gz -C docker-dist/amd64
+          tar -xzf docker-dist/vivechak_*_linux_arm64.tar.gz -C docker-dist/arm64
+
+      - name: Build and Push Multi-Arch Image
+        run: |
+          docker buildx build \
+            --platform linux/amd64,linux/arm64 \
+            -t ghcr.io/${{ github.repository_owner }}/vivechak:${{ github.ref_name }} \
+            -t ghcr.io/${{ github.repository_owner }}/vivechak:latest \
+            -t ghcr.io/${{ github.repository_owner }}/vck:${{ github.ref_name }} \
+            -t ghcr.io/${{ github.repository_owner }}/vck:latest \
+            --push .
+
+  # 3. npm / npx Publisher (Isolated, fails safe if NPM_TOKEN absent)
+  npm:
+    name: npm Registry
+    needs: goreleaser
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for NPM_TOKEN
+        id: check_token
+        run: |
+          if [ -n "${{ secrets.NPM_TOKEN }}" ]; then
+            echo "has_token=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_token=false" >> $GITHUB_OUTPUT
+            echo "::notice::NPM_TOKEN is not set; skipping npm package publish."
+          fi
+
+      - uses: actions/setup-node@v4
+        if: steps.check_token.outputs.has_token == 'true'
+        with:
+          node-version: "20.x"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Publish to npm
+        if: steps.check_token.outputs.has_token == 'true'
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          echo "Publishing vivechak..."
+          cd npm/vivechak && npm publish --access public
+          echo "Publishing vck..."
+          cd ../vck && npm publish --access public
+
+  # 4. PyPI / uvx Publisher (Isolated, fails safe if PYPI_API_TOKEN absent)
+  pypi:
+    name: PyPI Registry
+    needs: goreleaser
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for PYPI_API_TOKEN
+        id: check_token
+        run: |
+          if [ -n "${{ secrets.PYPI_API_TOKEN }}" ]; then
+            echo "has_token=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_token=false" >> $GITHUB_OUTPUT
+            echo "::notice::PYPI_API_TOKEN is not set; skipping PyPI package publish."
+          fi
+
+      - uses: actions/setup-python@v5
+        if: steps.check_token.outputs.has_token == 'true'
+        with:
+          python-version: "3.11"
+
+      - name: Publish to PyPI
+        if: steps.check_token.outputs.has_token == 'true'
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+        run: |
+          python -m pip install --upgrade build twine
+          cd pypi/vivechak && python -m build && twine upload dist/*
+          cd ../vck && python -m build && twine upload dist/*
