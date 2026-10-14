@@ -59,6 +59,10 @@ Forensic audit and real-world multi-agent dogfooding telemetry uncovered 21 conc
 | **E-19** | MCP / Ergonomics | **Actionable ADR Auto-Draft Guidance:** Agents mistook candidate stubs in `DECISIONS.md` for recorded decisions. Updated `buildNextStep` to surface exact `vivechak_record_decision(decision_id="<ID>", auto_draft_from="<SESS>")` one-liners. | ✅ Resolved |
 | **E-20** | Prompts / Calibration | **Upstream Context Complacency Guard:** Injected Layer 0 findings caused agents to halt searches in Layer 1/2. Expanded `calibrationBlock` in `tool_next_session` to mandate that technical specifications (schemas, bundle sizes, security flags) must still be grounded with external sources. | ✅ Resolved |
 | **E-21** | Gate / Diagnostics | **Pinpoint Phase 0 Gate Remediation Hints:** Enhanced `EvaluateGate` blocking issue messages with actionable `help:` hints specifying the exact tool to call. | ✅ Resolved |
+| **E-22** | Core / Frontmatter | **Bidirectional Frontmatter Status Lifecycle Sync:** `SetFrontmatterField` atomically syncs frontmatter status on disk; marks `status: draft` upon blocking defects and auto-promotes to `status: complete` on valid sessions, eliminating DAG unblocking deadlocks. | ✅ Resolved |
+| **E-23** | MCP / DAG | **Auxiliary Tool `knownIDs` DAG Propagation:** Propagated `knownIDs` to `scanCompletedSessions` across all reading tools, ensuring slugged session filenames without explicit frontmatter IDs are recognized as completed. | ✅ Resolved |
+| **E-24** | Validation / Ledger | **Dynamic 5-Column Evidence Ledger & Markdown Link Parsing:** Added dynamic header matching (`Source`, `Citation`, `Reference`, `Provenance`) and row-wide URL scanning in `ValidateEvidenceProvenance`, supporting markdown links (`[Title](url)`). | ✅ Resolved |
+| **E-25** | MCP / Security | **Adversarial Parameter Traversal Validation:** Enforced `isValidID` checks on secondary session identifiers (`amending_session_id`, `auto_draft_from`) to prevent traversal injection. | ✅ Resolved |
 
 ### 2.1 Near-Term Packaging & Workflows (Awaiting Demand Signal)
 

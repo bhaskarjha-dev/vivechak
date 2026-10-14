@@ -1,6 +1,6 @@
 # Server Architecture Guide
 
-> **Last verified against code:** 2026-10-07 (v0.1.0)
+> **Last verified against code:** 2026-10-14 (v0.1.0)
 > If you find discrepancies with the actual code, please file an issue.
 
 Welcome to the internal architecture guide for **Vivechak** (विवेचक). This document is written for Go developers and contributors who want to understand, extend, or maintain the Vivechak MCP server codebase.
