@@ -25,24 +25,42 @@ Throughout this quickstart, we use a concrete scenario:
 
 Give your AI coding agent (Cursor, VS Code, Claude Desktop, Antigravity, etc.) direct access to Vivechak's 13 orchestration tools.
 
-### 1. Install Vivechak
+### 1. Install & Run
 
-**macOS / Linux:**
+**Instant / Ephemeral Runners (Zero Pre-Installation Required):**
 ```sh
-curl -fsSL https://raw.githubusercontent.com/bhaskarjha-dev/vivechak/main/install.sh | sh
+# Node.js / npx (macOS, Linux, Windows)
+npx -y vck serve                              # or: npx -y vivechak serve
+
+# Python / uvx (macOS, Linux, Windows)
+uvx vck serve                                 # or: uvx vivechak serve
+
+# Docker / Cloud Agents (Devin, OpenHands, CI)
+docker run -i --rm -v "${PWD}:/workspace" ghcr.io/bhaskarjha-dev/vck:latest serve
 ```
 
-**Windows (PowerShell):**
-```powershell
-irm https://raw.githubusercontent.com/bhaskarjha-dev/vivechak/main/install.ps1 | iex
-```
-
-*Or via package managers:*
+**Or Native Install via Package Managers:**
 ```sh
-brew install bhaskarjha-dev/tap/vivechak                                            # Homebrew
-winget install bhaskarjha-dev.Vivechak                                              # WinGet
-scoop bucket add vivechak https://github.com/bhaskarjha-dev/scoop-bucket && scoop install vivechak # Scoop
-go install github.com/bhaskarjha-dev/vivechak/cmd/vivechak@latest                   # Go 1.25+
+# Homebrew (macOS & Linuxbrew)
+brew install bhaskarjha-dev/tap/vck           # or: brew install bhaskarjha-dev/tap/vivechak
+
+# Windows (WinGet or Scoop)
+winget install bhaskarjha-dev.Vivechak
+scoop bucket add vivechak https://github.com/bhaskarjha-dev/scoop-bucket && scoop install vck
+
+# Debian / Ubuntu (.deb) & Fedora / RHEL (.rpm)
+sudo dpkg -i vivechak_0.1.0_linux_amd64.deb   # Debian / Ubuntu
+sudo rpm -i vivechak_0.1.0_linux_amd64.rpm    # Fedora / RHEL
+
+# Nix / NixOS
+nix run github:bhaskarjha-dev/vivechak
+
+# Direct Shell Installers
+curl -fsSL https://raw.githubusercontent.com/bhaskarjha-dev/vivechak/main/install.sh | sh      # macOS/Linux
+irm https://raw.githubusercontent.com/bhaskarjha-dev/vivechak/main/install.ps1 | iex           # Windows
+
+# Go Toolchain (Go 1.25+)
+go install github.com/bhaskarjha-dev/vivechak/cmd/vivechak@latest
 ```
 
 ### 2. Configure Your AI Host

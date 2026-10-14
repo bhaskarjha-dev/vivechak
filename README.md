@@ -165,16 +165,14 @@ vivechak/
 │   ├── store/                      ← Atomic file I/O with os.Root confinement
 │   └── embed/                      ← Embedded generators + templates
 │
-├── .goreleaser.yml                 ← 6-platform cross-compilation config
-├── install.sh                      ← macOS/Linux installer (curl | sh)
-├── install.ps1                     ← Windows installer (irm | iex)
+├── .goreleaser.yml                 ← 7-platform cross-compilation + Linux nfpms
+├── Dockerfile · flake.nix          ← Multi-arch container & Nix flake
+├── install.sh · install.ps1        ← Shell installers
+├── npm/ · pypi/                    ← Zero-script npx & uvx runner packages
+├── Formula/ · scoop/ · winget/     ← Package manager manifests
 ├── .github/workflows/              ← CI + release pipelines
 │   ├── ci.yml                      ← Test + vet + build on push/PR
-│   └── release.yml                 ← GoReleaser on tag push
-│
-├── Formula/vivechak.rb             ← Homebrew formula
-├── scoop/vivechak.json             ← Scoop bucket manifest
-├── winget/                         ← winget manifest
+│   └── release.yml                 ← Decoupled release workflow
 │
 ├── GENERATOR.md                    ← Project-scope generator (full pipeline → FAD)
 ├── GENERATOR-DECISION.md           ← Decision-scope generator (1–3 sessions → ADR)

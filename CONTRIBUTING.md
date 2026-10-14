@@ -86,7 +86,7 @@ When releasing a new version, update ALL of the following references:
 - [ ] `FRAMEWORK.md` — header version (if applicable)
 - [ ] `templates/` — header version in all 6 templates, `schema_version` in templates if schema changed
 - [ ] `internal/embed/` — verify 1:1 embed sync with root generators and templates
-- [ ] Package manifests — `Formula/vivechak.rb`, `scoop/vivechak.json`, `winget/bhaskarjha-dev.Vivechak.yaml`
+- [ ] Package manifests — `Formula/vivechak.rb`, `Formula/vck.rb`, `scoop/vivechak.json`, `scoop/vck.json`, `winget/bhaskarjha-dev.Vivechak.yaml`, `npm/*/package.json`, `pypi/*/pyproject.toml`, `flake.nix`
 
 ---
 

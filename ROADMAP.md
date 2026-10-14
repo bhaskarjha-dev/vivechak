@@ -34,7 +34,7 @@ Every deferred feature is tracked with its origin, explicit gate condition, and 
 
 ### 2.0 Pre-Release Hardening Wave (October 2026)
 
-Forensic audit and real-world multi-agent dogfooding telemetry uncovered 21 concrete anomalies that were resolved prior to initial public release:
+Forensic audit and real-world multi-agent dogfooding telemetry uncovered 25 concrete anomalies that were resolved prior to initial public release:
 
 | Issue | Category | Root Cause & Resolution | Status |
 |---|---|---|---|
