@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Unified release delivering the 12 enforcement hardening tasks, quality audit fixes, and complete pre-release hardening wave across engine parsers, concurrency locks, gate strictness, and cognitive quality coaching:
 
 ### Added
+- **Guided Worker & DAG Hardening (E-16–E-21):** Synthesis exit-gate routing (`tool_save_session.go`), L2Block draft dependency gating in DAG resolution (`workspace.go`, `tool_next_session.go`), pre-synthesis evidentiary sanity checks (`tool_next_session.go`), actionable ADR auto-draft guidance, upstream context complacency guard, and pinpoint Phase 0 Gate remediation hints with `help:` links (`gate.go`).
 - **Unified AST-Aware Section Extractor (`markdown.go`):** CommonMark heading-level extraction (`ExtractSection`) across `validate.go`, `draft_decision.go`, and `tool_run_gate.go`; preserves H3 subsections within H2 sections and eliminates sibling heading truncation.
 - **Strict Track B Phase 0 Gate (`tool_run_gate.go`):** Promotes One-Way Door `B3` (evidentiary threshold), `B4` (verification method), and `B5` (rejected alternatives) defects from non-blocking advisories to fatal blocking issues, preventing Potemkin passes.
 - **Canonical Provenance Anchor Verification (`validate.go`):** Verifies Grade A claims against canonical URL (`http://`, `https://`), RFC (`rfc `), or DOI (`doi:`) anchors; eliminated arbitrary lexical `>70% Grade A` bell curve cap per ADR `D-UX-02` and systematic review gold standards.

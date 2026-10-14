@@ -456,6 +456,11 @@ func ScanCompletedSessions(ws WorkspaceFS, knownIDs ...string) (map[string]bool,
 				}
 			}
 
+			// L2Block check: If session is explicitly saved as draft, do NOT mark completed
+			if fm != nil && strings.EqualFold(fm.GetString("status"), "draft") {
+				continue
+			}
+
 			hasExplicitFMID := fm != nil && (fm.GetString("session_id") != "" || fm.GetString("id") != "")
 			id := ExtractSessionID(e.Name(), fm)
 			if id != "" {
@@ -489,16 +494,18 @@ func ScanCompletedSessions(ws WorkspaceFS, knownIDs ...string) (map[string]bool,
 		if parsed, _, err := ParseFrontmatter(data); err == nil {
 			fm = parsed
 		}
-		id := ExtractSessionID(filepath.Base(FADFile), fm)
-		if id != "" {
-			completed[id] = true
-		}
-		completed["FAD"] = true
-		completed["SYN-01"] = true
-		completed["SYN"] = true
-		for _, kid := range knownIDs {
-			if IsSynthesisSession(kid) {
-				completed[kid] = true
+		if fm == nil || !strings.EqualFold(fm.GetString("status"), "draft") {
+			id := ExtractSessionID(filepath.Base(FADFile), fm)
+			if id != "" {
+				completed[id] = true
+			}
+			completed["FAD"] = true
+			completed["SYN-01"] = true
+			completed["SYN"] = true
+			for _, kid := range knownIDs {
+				if IsSynthesisSession(kid) {
+					completed[kid] = true
+				}
 			}
 		}
 	}

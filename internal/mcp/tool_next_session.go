@@ -173,13 +173,18 @@ func handleNextSession(_ context.Context, _ *sdkmcp.CallToolRequest, in NextSess
 		injected, err := core.InjectContext(*session, sessionsDir, completedIDs)
 		if err != nil {
 			// Session found but no prompt — return what we have
-			return buildSessionResponse(tool, *session, "", completedIDs, dag, in.Verbose, nil)
+			return buildSessionResponse(tool, *session, "", completedIDs, dag, in.Verbose, nil, ws)
 		}
 		var injWarnings []string
 		if injected.Warning != "" {
 			injWarnings = append(injWarnings, injected.Warning)
 		}
-		return buildSessionResponse(tool, injected.Session, injected.InjectedPrompt, completedIDs, dag, in.Verbose, injWarnings)
+		if core.IsSynthesisSession(session.ID) {
+			if adv := checkPreSynthesisAdvisory(dag, completedIDs, sessionsDir); adv != "" {
+				injWarnings = append(injWarnings, adv)
+			}
+		}
+		return buildSessionResponse(tool, injected.Session, injected.InjectedPrompt, completedIDs, dag, in.Verbose, injWarnings, ws)
 	}
 
 	// Find next actionable sessions
@@ -222,7 +227,7 @@ func handleNextSession(_ context.Context, _ *sdkmcp.CallToolRequest, in NextSess
 			var missingDeps []string
 			for _, dep := range s.Dependencies {
 				if !completedIDs[dep] {
-					missingDeps = append(missingDeps, dep)
+					missingDeps = append(missingDeps, formatMissingDep(ws, dep))
 				}
 			}
 			blockedInfo = append(blockedInfo, map[string]any{
@@ -290,17 +295,79 @@ func handleNextSession(_ context.Context, _ *sdkmcp.CallToolRequest, in NextSess
 		}
 	}
 
-	return buildSessionResponse(tool, nextSession, prompt, completedIDs, dag, in.Verbose, injWarnings, otherReady...)
+	// Detect pre-synthesis evidentiary defects on One-Way Doors
+	if core.IsSynthesisSession(nextSession.ID) {
+		if adv := checkPreSynthesisAdvisory(dag, completedIDs, sessionsDir); adv != "" {
+			injWarnings = append(injWarnings, adv)
+		}
+	}
+
+	return buildSessionResponse(tool, nextSession, prompt, completedIDs, dag, in.Verbose, injWarnings, ws, otherReady...)
+}
+
+func formatMissingDep(ws core.WorkspaceFS, dep string) string {
+	if ws != nil {
+		if entries, err := ws.ListDir(core.SessionsDir); err == nil {
+			for _, e := range entries {
+				stem := strings.TrimSuffix(e.Name(), ".md")
+				if strings.EqualFold(stem, dep) || strings.HasPrefix(strings.ToLower(stem), strings.ToLower(dep)+"-") {
+					if dData, rErr := ws.ReadFile(filepath.Join(core.SessionsDir, e.Name())); rErr == nil {
+						if fm, _, pErr := core.ParseFrontmatter(dData); pErr == nil && fm != nil {
+							if strings.EqualFold(fm.GetString("status"), "draft") {
+								return dep + " (saved as draft — resolve blocking issues and re-save)"
+							}
+						}
+					}
+					break
+				}
+			}
+		}
+	}
+	return dep
+}
+
+func checkPreSynthesisAdvisory(dag *core.DAG, completedIDs map[string]bool, sessionsDir string) string {
+	if dag == nil {
+		return ""
+	}
+	var owdIssues []string
+	recalledCitationRe := regexp.MustCompile(`(?i)(?:\[[^\]\n]*\b(?:recalled|parametric)\b[^\]\n]*\]|\([^)\n]*\b(?:recalled|parametric)\b[^)\n]*\)|\brecalled\s+memory\b|\|\s*recalled\s*\|)`)
+
+	for _, s := range dag.Sessions {
+		if strings.EqualFold(s.DoorType, "one-way") && completedIDs[s.ID] {
+			if sData, _, err := core.ReadSessionFilePublic(sessionsDir, s.ID); err == nil && sData != "" {
+				// Check for recalled verification in recommendation
+				rec := core.ExtractSection(sData, "recommend", "verdict", "decision")
+				if len(rec) >= 20 && recalledCitationRe.MatchString(rec) {
+					owdIssues = append(owdIssues, fmt.Sprintf("%s (recommendation relies on Grade D recalled claims)", s.ID))
+				}
+				// Check for challenge section
+				lower := strings.ToLower(sData)
+				if !strings.Contains(lower, "challenge findings") && !strings.Contains(lower, "red-team stress test") {
+					owdIssues = append(owdIssues, fmt.Sprintf("%s (lacks adversarial challenge)", s.ID))
+				}
+			}
+		}
+	}
+	if len(owdIssues) > 0 {
+		return fmt.Sprintf(
+			"PRE-SYNTHESIS ADVISORY: %d One-Way Door session(s) have evidentiary gaps: %s. "+
+				"Note: Phase 0 Gate will FAIL after synthesis unless resolved. "+
+				"You may proceed with synthesis now or amend weak sessions first with vivechak_amend_session.",
+			len(owdIssues), strings.Join(owdIssues, "; "))
+	}
+	return ""
 }
 
 const calibrationBlock = "\n\n---\n### RESEARCH CALIBRATION (Active Rules)\n" +
 	"1. **Memory \u2260 Evidence:** Claims recalled from model weights cap at Grade D. Verify with web search.\n" +
-	"2. **Qualified Provenance:** Grade A claims require canonical URLs, domain anchors, RFCs, or doc titles.\n" +
-	"3. **Falsification Required:** Actively search for failure modes, gotchas, and production incident postmortems.\n" +
-	"4. **Honest Gaps:** Explicitly stating \"searched X and found no evidence\" is valued. Never hallucinate sources.\n"
+	"2. **Upstream \u2260 Exhaustive:** Injected upstream findings provide high-level architectural context, NOT implementation specifications. Exact schemas, library bundle sizes, API rate limits, and security configurations must be verified with current external sources.\n" +
+	"3. **Qualified Provenance:** Grade A claims require canonical URLs, domain anchors, RFCs, or doc titles.\n" +
+	"4. **Falsification Required:** Actively search for failure modes, gotchas, and production incident postmortems.\n" +
+	"5. **Honest Gaps:** Explicitly stating \"searched X and found no evidence\" is valued. Never hallucinate sources.\n"
 
 // buildSessionResponse creates the response envelope for a session.
-func buildSessionResponse(tool string, session core.Session, prompt string, completedIDs map[string]bool, dag *core.DAG, verbose bool, preWarnings []string, otherReady ...string) (*sdkmcp.CallToolResult, Envelope, error) {
+func buildSessionResponse(tool string, session core.Session, prompt string, completedIDs map[string]bool, dag *core.DAG, verbose bool, preWarnings []string, ws core.WorkspaceFS, otherReady ...string) (*sdkmcp.CallToolResult, Envelope, error) {
 	data := map[string]any{
 		"session_id":         session.ID,
 		"title":              session.Title,
@@ -366,7 +433,7 @@ func buildSessionResponse(tool string, session core.Session, prompt string, comp
 				var missingDeps []string
 				for _, dep := range s.Dependencies {
 					if !completedIDs[dep] {
-						missingDeps = append(missingDeps, dep)
+						missingDeps = append(missingDeps, formatMissingDep(ws, dep))
 					}
 				}
 				if len(missingDeps) > 0 {
@@ -395,6 +462,12 @@ func buildSessionResponse(tool string, session core.Session, prompt string, comp
 					"contradicted — use this to identify the research's strongest and weakest signals. "+
 					"Save with vivechak_save_session using session_id='%s'.",
 				len(completedIDs), session.ID, session.ID)
+			for _, w := range preWarnings {
+				if strings.HasPrefix(w, "PRE-SYNTHESIS ADVISORY") {
+					nextStep = "⚠️ " + w + "\n\n" + nextStep
+					break
+				}
+			}
 		} else {
 			nextStep = fmt.Sprintf(
 				"Execute the prompt for session %s. Ground every significant claim "+

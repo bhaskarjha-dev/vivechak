@@ -232,6 +232,15 @@ func buildNextStep(sessionID string, errorCount int, observations []core.Quality
 		parts = append(parts, "⚠️ QUALITY ADVISORIES: "+strings.Join(advisories, " | "))
 	}
 
+	// Dedicated synthesis exit gate routing
+	if core.IsSynthesisSession(sessionID) {
+		parts = append(parts, "🎉 FAD synthesis saved to research/FAD.md. "+
+			"All research pipeline sessions are complete, but Phase 0 is NOT yet passed.\n\n"+
+			"➡️ NEXT REQUIRED STEP: Run 'vivechak_run_gate' to evaluate Phase 0 exit criteria "+
+			"before code scaffolding or implementation.")
+		return strings.Join(parts, "\n\n")
+	}
+
 	// 2. Door type check from DAG
 	isOneWay := false
 	if dag != nil {
@@ -243,14 +252,16 @@ func buildNextStep(sessionID string, errorCount int, observations []core.Quality
 	// 3. Route based on door type
 	if isOneWay {
 		parts = append(parts, fmt.Sprintf(
-			"🛑 ONE-WAY DOOR: Session '%s' informs an irreversible decision. "+
-				"Run 'vivechak_challenge(session_id=\"%s\", mode=\"red_team\")' to stress-test "+
-				"your findings before recording the decision. Amend with challenge results "+
-				"via vivechak_amend_session.",
-			sessionID, sessionID))
+			"🛑 ONE-WAY DOOR: Session '%s' informs an irreversible decision.\n"+
+				"1. Run 'vivechak_challenge(session_id=\"%s\", mode=\"red_team\")' to stress-test findings.\n"+
+				"2. Amend findings via 'vivechak_amend_session'.\n"+
+				"3. Auto-draft and record canonical ADR via 'vivechak_record_decision(decision_id=\"<D-ID>\", auto_draft_from=\"%s\")'.",
+			sessionID, sessionID, sessionID))
 	} else {
-		parts = append(parts, "Run vivechak_next_session for the next session, or "+
-			"vivechak_record_decision to record decisions from this session's findings.")
+		parts = append(parts, fmt.Sprintf(
+			"Next: Run 'vivechak_next_session' for the next session, or "+
+				"record an ADR via 'vivechak_record_decision(decision_id=\"<D-ID>\", auto_draft_from=\"%s\")'.",
+			sessionID))
 	}
 
 	return strings.Join(parts, "\n\n")

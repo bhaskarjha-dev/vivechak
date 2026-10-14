@@ -34,7 +34,7 @@ Every deferred feature is tracked with its origin, explicit gate condition, and 
 
 ### 2.0 Pre-Release Hardening Wave (October 2026)
 
-Forensic audit and real-world multi-agent dogfooding telemetry uncovered 15 concrete anomalies that were resolved prior to initial public release:
+Forensic audit and real-world multi-agent dogfooding telemetry uncovered 21 concrete anomalies that were resolved prior to initial public release:
 
 | Issue | Category | Root Cause & Resolution | Status |
 |---|---|---|---|
@@ -53,11 +53,21 @@ Forensic audit and real-world multi-agent dogfooding telemetry uncovered 15 conc
 | **E-13** | Workspace | **In-Process Workspace Session Memory (`workspace.go`):** Desktop IDEs (Kiro, Cursor) run stdio MCP servers in `~` or IDE root, failing workspace resolution when `project_root` is omitted from subsequent calls. Added thread-safe `lastResolvedWorkspace` session cache. | ✅ Resolved |
 | **E-14** | Exit Gate | **Unambiguous Phase 0 Gate Stop-Signal (`tool_run_gate.go`):** Replaced polite envelope messaging (`"Gate evaluation complete"`) on Track B failure with unmistakable stop-signals (`❌ PHASE 0 GATE FAILED`, `⛔ DO NOT PROCEED TO CODE`) to prevent model sycophancy from claiming false completion. | ✅ Resolved |
 | **E-15** | Epistemics | **Elimination of "Optional" Escape Hatches for One-Way Doors:** Removed all "(optional)" references to `vivechak_challenge`. Mandated red-team challenge verification on One-Way Doors before final ADR locking. | ✅ Resolved |
+| **E-16** | MCP / Routing | **Terminal Synthesis Exit-Gate Routing:** `buildNextStep` generated generic session `next_step` on FAD synthesis save. Added dedicated `isSynthesis` branch mandating `vivechak_run_gate` before code scaffolding. | ✅ Resolved |
+| **E-17** | Core / DAG | **L2Block Enforcement in DAG Resolution:** `ScanCompletedSessions` only checked file existence on disk, ignoring `status: draft`. Updated to inspect frontmatter and exclude draft sessions from completed dependencies, preventing downstream sessions from unlocking prematurely. | ✅ Resolved |
+| **E-18** | MCP / Epistemics | **Pre-Synthesis Evidentiary Sanity Check:** Agents synthesized FAD without knowing upstream One-Way Doors had evidentiary defects. Added non-blocking pre-synthesis inspection in `tool_next_session` warning about Grade D / unreviewed items without circular deadlocks. | ✅ Resolved |
+| **E-19** | MCP / Ergonomics | **Actionable ADR Auto-Draft Guidance:** Agents mistook candidate stubs in `DECISIONS.md` for recorded decisions. Updated `buildNextStep` to surface exact `vivechak_record_decision(decision_id="<ID>", auto_draft_from="<SESS>")` one-liners. | ✅ Resolved |
+| **E-20** | Prompts / Calibration | **Upstream Context Complacency Guard:** Injected Layer 0 findings caused agents to halt searches in Layer 1/2. Expanded `calibrationBlock` in `tool_next_session` to mandate that technical specifications (schemas, bundle sizes, security flags) must still be grounded with external sources. | ✅ Resolved |
+| **E-21** | Gate / Diagnostics | **Pinpoint Phase 0 Gate Remediation Hints:** Enhanced `EvaluateGate` blocking issue messages with actionable `help:` hints specifying the exact tool to call. | ✅ Resolved |
 
 ### 2.1 Near-Term Packaging & Workflows (Awaiting Demand Signal)
 
 | Feature | Description | Origin | Gate Condition | Est. Effort |
 |---|---|---|---|---|
+| **BYOK LLM Bridge (`v0.2.0`)** | Optional enrichment layer for automated challenge execution and semantic conflict detection; core remains zero-LLM Go binary. | ROADMAP.md § 3.1 / Dogfooding | User demand for automated host-agnostic red-team execution | Medium |
+| **URL Health Verification (`v0.2.1`)** | Cached L3 advisory check for dead/404 URLs without blocking execution. | ADR D-UX-02 § 4 / Dogfooding | User demand for automated link rot detection | Low |
+| **Empirical Sandbox Spike Runner (`v0.2.2`)** | Container-based CPU/RAM/latency benchmarking for Two-Way Doors. | ROADMAP.md § 3.2 | Adoption of empirical spike tier across 3+ client teams | High |
+| **Living Reversal Sentinels (`v0.3.0`)** | Background CI sentinel checking CVEs and dependency deprecations against ADR review dates. | ROADMAP.md § 3.3 | Production projects with 6+ months post-deployment telemetry | Medium |
 | **Incremental Session Building** | `vivechak_add_finding` / `vivechak_save_draft` tool endpoints allowing agents to stream findings incrementally rather than writing complete sessions. | Definitive Plan / `API-03` | 3+ user requests showing context window overflow on single session writes | Medium |
 | **`vivechak_export`** | One-command compilation of FAD and ADR registry into self-contained HTML/PDF reports with embedded SVG charts and offline citation snapshots. | Definitive Plan / Missing Tools | User demand for stakeholder presentation beyond Markdown | Low |
 | **Thin Agent Plugin Package** | `plugin.json` + `mcp.json` + quick-start skills bundle for IDEs supporting the Agent Plugins standard (Cursor, VS Code extensions). Supplementary to the native binary. | ADR D-014 / Meta-Research R-05 | Demand from users on harnesses with native plugin discovery; or Claude Desktop/Antigravity adding Agent Plugins support | Low |

@@ -326,3 +326,40 @@ func TestResolveWorkspace_LastResolvedMemory(t *testing.T) {
 	}
 }
 
+func TestScanCompletedSessions_IgnoresDraft(t *testing.T) {
+	dir := t.TempDir()
+	ws := &testWorkspaceFS{root: dir}
+	_ = os.MkdirAll(filepath.Join(dir, SessionsDir), 0o755)
+
+	// Save completed session
+	completedContent := "---\nsession_id: T0-01\nstatus: completed\n---\n# Findings"
+	_ = os.WriteFile(filepath.Join(dir, SessionsDir, "T0-01.md"), []byte(completedContent), 0o644)
+
+	// Save draft session with blocking issues
+	draftContent := "---\nsession_id: T0-02\nstatus: draft\n---\n# Draft"
+	_ = os.WriteFile(filepath.Join(dir, SessionsDir, "T0-02.md"), []byte(draftContent), 0o644)
+
+	completed, err := ScanCompletedSessions(ws, "T0-01", "T0-02")
+	if err != nil {
+		t.Fatalf("ScanCompletedSessions failed: %v", err)
+	}
+
+	if !completed["T0-01"] {
+		t.Errorf("expected T0-01 to be completed")
+	}
+	if completed["T0-02"] {
+		t.Errorf("expected draft session T0-02 NOT to be marked as completed")
+	}
+
+	// Draft FAD test
+	draftFAD := "---\nstatus: draft\n---\n# FAD Draft"
+	_ = os.WriteFile(filepath.Join(dir, FADFile), []byte(draftFAD), 0o644)
+	completedFAD, err := ScanCompletedSessions(ws, "SYN-01")
+	if err != nil {
+		t.Fatalf("ScanCompletedSessions failed: %v", err)
+	}
+	if completedFAD["SYN-01"] || completedFAD["FAD"] {
+		t.Errorf("expected draft FAD NOT to be marked as completed")
+	}
+}
+

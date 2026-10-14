@@ -597,7 +597,8 @@ func verifyEvidentiaryIntegrity(ws WorkspaceFS, info WorkspaceInfo) ([]string, [
 		altContent := ExtractSection(bodyStr, "alternative", "rejected")
 		if len(strings.TrimSpace(altContent)) < 30 {
 			blocking = append(blocking, fmt.Sprintf(
-				"B5-ALTERNATIVES: One-way door %s lacks documented rejected alternatives section (minimum 30 chars required)", d.ID))
+				"B5-ALTERNATIVES: One-way door %s lacks documented rejected alternatives section (minimum 30 chars required). "+
+					"(help: edit ADR to include substantive '## Alternatives Considered' section)", d.ID))
 		}
 
 		// B-DECISION-STUB: Structural check replacing naive character volume check (advisory)
@@ -666,16 +667,18 @@ func verifyEvidentiaryIntegrity(ws WorkspaceFS, info WorkspaceInfo) ([]string, [
 			lowGrades := len(lowGradeRe.FindAllString(checkStr, -1))
 			if lowGrades > 0 {
 				blocking = append(blocking, fmt.Sprintf(
-					"B3-EVIDENTIARY: Session %s informs one-way door %s but recommendation has %d Grade C/D/E citation(s). One-way decisions require Grade A/B evidence.",
-					sid, d.ID, lowGrades))
+					"B3-EVIDENTIARY: Session %s informs one-way door %s but recommendation has %d Grade C/D/E citation(s). "+
+						"One-way decisions require Grade A/B evidence. (help: re-verify with web search and update via vivechak_amend_session(session_id=%q))",
+					sid, d.ID, lowGrades, sid))
 			}
 
 			// B4: Check recalled verification supporting the recommendation
 			recalledCount := len(recalledCitationRe.FindAllString(checkStr, -1))
 			if recalledCount > 0 {
 				blocking = append(blocking, fmt.Sprintf(
-					"B4-VERIFICATION: Session %s informs one-way door %s but recommendation has %d 'recalled' citation(s). One-way decisions require fetched/cached verification.",
-					sid, d.ID, recalledCount))
+					"B4-VERIFICATION: Session %s informs one-way door %s but recommendation has %d 'recalled' citation(s). "+
+						"One-way decisions require fetched/cached verification. (help: fetch primary evidence and update via vivechak_amend_session(session_id=%q))",
+					sid, d.ID, recalledCount, sid))
 			}
 		}
 	}
