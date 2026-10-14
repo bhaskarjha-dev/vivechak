@@ -70,12 +70,13 @@ jobs:
 
       - name: Build and Push Multi-Arch Image
         run: |
+          OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
           docker buildx build \
             --platform linux/amd64,linux/arm64 \
-            -t ghcr.io/${{ github.repository_owner }}/vivechak:${{ github.ref_name }} \
-            -t ghcr.io/${{ github.repository_owner }}/vivechak:latest \
-            -t ghcr.io/${{ github.repository_owner }}/vck:${{ github.ref_name }} \
-            -t ghcr.io/${{ github.repository_owner }}/vck:latest \
+            -t ghcr.io/${OWNER}/vivechak:${{ github.ref_name }} \
+            -t ghcr.io/${OWNER}/vivechak:latest \
+            -t ghcr.io/${OWNER}/vck:${{ github.ref_name }} \
+            -t ghcr.io/${OWNER}/vck:latest \
             --push .
 
   # 3. npm / npx Publisher (Isolated, fails safe if NPM_TOKEN absent)
@@ -142,5 +143,5 @@ jobs:
           TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
         run: |
           python -m pip install --upgrade build twine
-          cd pypi/vivechak && python -m build && twine upload dist/*
-          cd ../vck && python -m build && twine upload dist/*
+          cd pypi/vivechak && python -m build && twine upload --non-interactive dist/*
+          cd ../vck && python -m build && twine upload --non-interactive dist/*

@@ -242,6 +242,7 @@ brews:
   - name: vivechak
     ids:
       - default
+    skip_upload: "{{ if index .Env \"TAP_GITHUB_TOKEN\" }}false{{ else }}true{{ end }}"
     repository:
       owner: bhaskarjha-dev
       name: homebrew-tap
@@ -264,6 +265,7 @@ brews:
   - name: vck
     ids:
       - default
+    skip_upload: "{{ if index .Env \"TAP_GITHUB_TOKEN\" }}false{{ else }}true{{ end }}"
     repository:
       owner: bhaskarjha-dev
       name: homebrew-tap
@@ -287,6 +289,7 @@ scoops:
   - name: vivechak
     ids:
       - default
+    skip_upload: "{{ if index .Env \"TAP_GITHUB_TOKEN\" }}false{{ else }}true{{ end }}"
     repository:
       owner: bhaskarjha-dev
       name: scoop-bucket
@@ -301,6 +304,7 @@ scoops:
   - name: vck
     ids:
       - default
+    skip_upload: "{{ if index .Env \"TAP_GITHUB_TOKEN\" }}false{{ else }}true{{ end }}"
     repository:
       owner: bhaskarjha-dev
       name: scoop-bucket
