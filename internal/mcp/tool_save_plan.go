@@ -2,6 +2,7 @@ package mcputil
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -10,6 +11,7 @@ import (
 	"time"
 
 	"github.com/bhaskarjha-dev/vivechak/internal/core"
+	vembed "github.com/bhaskarjha-dev/vivechak/internal/embed"
 	store "github.com/bhaskarjha-dev/vivechak/internal/store"
 	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
 )
@@ -106,11 +108,39 @@ func handleSavePlan(ctx context.Context, _ *sdkmcp.CallToolRequest, in SavePlanI
 			"Use a simple slug like 'database-selection'.")
 	}
 
-	// Ensure workspace exists
+	// Ensure workspace exists; auto-initialize if not yet created to prevent blocking the agent
 	if !core.WorkspaceExists(root) {
-		return ErrorResult(tool, fmt.Errorf("workspace not initialized at %s", root),
-			"Run vivechak_init first to create the workspace structure.")
+		dirs := []string{
+			filepath.Join(root, core.ResearchDir),
+			filepath.Join(root, core.SessionsDir),
+			filepath.Join(root, core.TemplatesDir),
+		}
+		for _, d := range dirs {
+			if err := os.MkdirAll(d, 0o755); err != nil {
+				return ErrorResult(tool, fmt.Errorf("auto-initializing workspace %q: %w", d, err),
+					"Check filesystem permissions.")
+			}
+		}
+		// Copy scope-appropriate templates
+		for _, tmpl := range core.TemplatesForScope(scope) {
+			relPath := filepath.Join(core.TemplatesDir, tmpl)
+			dest := filepath.Join(root, relPath)
+			if _, err := os.Stat(dest); os.IsNotExist(err) {
+				if data, err := vembed.ReadTemplate(tmpl); err == nil {
+					_ = os.WriteFile(dest, data, 0o644)
+				}
+			}
+		}
+		// Persist scope metadata
+		meta := core.WorkspaceMeta{
+			Scope:     scope,
+			CreatedAt: time.Now().UTC().Format(time.RFC3339),
+		}
+		if metaBytes, err := json.MarshalIndent(meta, "", "  "); err == nil {
+			_ = os.WriteFile(filepath.Join(root, core.MetadataFile), metaBytes, 0o644)
+		}
 	}
+
 
 	ws, err := store.OpenWorkspace(root)
 	if err != nil {

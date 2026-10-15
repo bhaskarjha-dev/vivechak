@@ -18,7 +18,7 @@ import (
 // InitInput holds the arguments for vivechak_init.
 type InitInput struct {
 	ProjectRoot string `json:"project_root,omitempty" jsonschema:"workspace root path. Recommended: pass active project directory path explicitly (e.g. 'project_root': 'd:/my-project') to prevent defaulting to host IDE process CWD"`
-	Scope       string `json:"scope,omitempty"         jsonschema:"research scope: project | decision | comparison (default: project)"`
+	Scope       string `json:"scope,omitempty"        jsonschema:"research scope: 'project' (default) | 'decision' | 'comparison'. Pass explicitly to select workspace layout."`
 }
 
 func registerInit(server *sdkmcp.Server) {
@@ -30,7 +30,7 @@ func registerInit(server *sdkmcp.Server) {
 				"Creates research/ directory structure and copies scope-appropriate templates. " +
 				"Pass 'project_root' explicitly with your project directory path (e.g. 'project_root': 'd:/my-project') " +
 				"to ensure artifacts land in your project workspace. " +
-				"Accepts scope parameter to adjust layout: 'project' (full pipeline, all 6 templates), " +
+				"Requires 'scope' parameter: 'project' (full pipeline, all 6 templates), " +
 				"'decision' (single decision, 2 templates), or 'comparison' (bounded comparison, 1 template). " +
 				"Safe to call on an already-initialized workspace — reports existing state without overwriting.",
 			Annotations: &sdkmcp.ToolAnnotations{
@@ -206,8 +206,8 @@ func handleInit(_ context.Context, req *sdkmcp.CallToolRequest, in InitInput) (*
 			"directories_created": dirs,
 		},
 		Warnings: warnings,
-		NextStep: fmt.Sprintf("Run vivechak_prepare_generator with your %s description to get the generator prompt. "+
-			"Execute that prompt to generate your research pipeline.", scope),
+		NextStep: fmt.Sprintf("Run vivechak_prepare_generator with scope=%q and your %s description to get the generator prompt. "+
+			"Execute that prompt to generate your research pipeline.", scope, scope),
 		Meta: NewMeta(tool),
 	}
 	return env.ToResult()

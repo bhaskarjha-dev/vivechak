@@ -3,6 +3,8 @@
 // This separation allows unit testing without MCP transport overhead.
 package core
 
+import "strings"
+
 // Scope represents the research scope level.
 // Vivechak works at three scope levels per FRAMEWORK.md §9.
 type Scope string
@@ -64,3 +66,64 @@ func SessionPrefix(scope Scope) string {
 		return "T"
 	}
 }
+
+// InferScope analyzes raw user context text to detect whether it describes a bounded
+// options comparison, a single architectural decision, or a full project pipeline.
+// Defaults to ScopeProject if no clear comparison or decision signals are found.
+func InferScope(contextText string) Scope {
+	trimmed := strings.TrimSpace(contextText)
+	if trimmed == "" {
+		return ScopeProject
+	}
+
+	lower := strings.ToLower(trimmed)
+
+	// Explicit schema keys from generator templates
+	if strings.Contains(trimmed, "OPTIONS:") && (strings.Contains(trimmed, "CRITERIA:") || !strings.Contains(trimmed, "DECISION:")) {
+		return ScopeComparison
+	}
+	if strings.Contains(trimmed, "DECISION:") && (strings.Contains(trimmed, "STAGE:") || strings.Contains(trimmed, "LEANING:")) {
+		return ScopeDecision
+	}
+
+	// Full project / application signals (override weak comparison/decision words)
+	projectSignals := []string{
+		"full architecture", "entire architecture", "system design", "system architecture",
+		"founding architecture", "fad", "startup idea", "new startup", "build an app",
+		"build a platform", "building a platform", "complete stack", "tech stack for",
+		"research pipeline", "uber for", "pipeline for",
+	}
+	for _, sig := range projectSignals {
+		if strings.Contains(lower, sig) {
+			return ScopeProject
+		}
+	}
+
+	// Single decision signals: "should we use", "should i use", "decision:", "choose between"
+	decisionSignals := []string{
+		"should we use", "should i use", "should we adopt", "should i adopt",
+		"should we pick", "should i pick", "choose between", "decision between",
+		"architectural decision", "adr:", "adr for", "decision:",
+	}
+	for _, sig := range decisionSignals {
+		if strings.Contains(lower, sig) {
+			return ScopeDecision
+		}
+	}
+
+	// Bounded comparison signals: "vs", "versus", "compare X and Y", "which is better", "library shootout"
+	compSignals := []string{
+		" vs ", " vs. ", " versus ", "compare ", "comparison between", "comparison of",
+		"which is better", "which one is better", "which one should", "which library",
+		"which tool", "shootout", "benchmark between",
+	}
+	for _, sig := range compSignals {
+		if strings.Contains(lower, sig) {
+			return ScopeComparison
+		}
+	}
+
+
+	return ScopeProject
+}
+

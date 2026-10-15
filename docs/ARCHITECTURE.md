@@ -24,7 +24,7 @@ vivechak/
 │   └── vivechak/           # CLI entry points and host configurations
 │       ├── main.go         # Command dispatcher, stdio server startup, slog routing (vck alias)
 │       ├── config.go       # "setup" and "mcp-config" host configuration & 21 presets
-│       └── doctor.go       # "doctor" workspace integrity verification
+│       └── doctor.go       # "doctor" workspace integrity verification and detected scope diagnostics
 ├── internal/
 │   ├── core/               # Pure business logic (DAG, gate, validation, quality, scopes)
 │   │   ├── scope.go        # Scope definitions (project, decision, comparison)
@@ -357,17 +357,28 @@ Key wire test suites:
   6. `vivechak_next_session` (Receives SYN-01 with T1-01 and T1-02 findings automatically injected)
   7. `vivechak_run_gate` (Executes Phase 0 exit gate)
 
-### 4. Subprocess Live Stdio Integration Tests (`cmd/vivechak/serve_test.go`)
+### 4. Massive In-Memory Real-Lifecycle Tests (`internal/mcp/massive_real_lifecycle_test.go`)
+Comprehensive 8-scenario lifecycle test suite running over in-memory JSON-RPC transports. Simulates realistic, non-ideal agent behaviors and validates:
+- **Full Project Pipeline Lifecycle:** End-to-end multi-layer DAG execution with context injection, quality coaching observations (`Q-*`), and Phase 0 Gate pass.
+- **Decision Scope Lifecycle:** Targeted 1–3 session ADR research and automated ADR compilation into `DECISIONS.md`.
+- **Comparison Scope Lifecycle:** Rapid single-session WEP matrix generation with sensitivity analysis.
+- **Resilient Schema Aliasing:** Verifies `vivechak_challenge` accepts `decision_id` and `challenge_type`, and `vivechak_run_gate` accepts `track` with structured machine-readable results (`track_a_result`, `track_b_result`, `decisions`).
+- **Vague Human Prompt Steering:** Validates that ambiguous, informal, or typo-ridden prompts from small LLM harnesses are gracefully steered via the Guided Worker pattern.
+- **High-Concurrency Contention:** Verifies advisory flock concurrency and monotonic temp file isolation during rapid parallel writes.
+- **Phase 0 Gate Strictness:** Verifies that incomplete one-way door ADRs (missing reversal triggers or rejected alternatives) strictly fail Track B.
+- **Dynamic DAG Replanning:** Mid-flight session addition, removal, dependency rewiring, and acyclicity enforcement.
+
+### 5. Subprocess Live Stdio Integration Tests (`cmd/vivechak/serve_test.go`)
 Spawns the compiled `vivechak serve` binary as a genuine subprocess, connecting via JSON-RPC stdio pipes. Executes a full 17-step end-to-end lifecycle (`init` → `save_plan` → `next_session` → `save_session` → `record_decision` → `validate` → `run_gate`), validating subprocess signal handling, real stdio transport hygiene, and exit gates.
 
-### 5. Massive Live Depth Audit Suite (`cmd/vivechak/live_depth_audit_test.go`)
+### 6. Massive Live Depth Audit Suite (`cmd/vivechak/live_depth_audit_test.go`)
 Comprehensive 1,000+ line live integration test suite that spawns the Vivechak MCP server and CLI commands as real subprocesses over stdio JSON-RPC. Validates:
 - Every one of the 13 MCP tools end-to-end with realistic inputs and edge cases.
 - Dynamic challenge routing, quality coaching observations (`Q-*`), qualified provenance validation, and Phase 0 Gate decoupled Track A / Track B evaluations.
 - All 4 CLI entry points (`vck setup`, `vck mcp-config`, `vck doctor`, `vck version`).
 - FAD root mirroring, directory target handling in `setup`, and comment anchor deduplication.
 
-### 6. Subprocess Concurrency & Lifecycle Verification Suites (`cmd/vivechak/*_test.go`)
+### 7. Subprocess Concurrency & Lifecycle Verification Suites (`cmd/vivechak/*_test.go`)
 - [`cmd/vivechak/e2e_test.go`](../cmd/vivechak/e2e_test.go) & [`real_e2e_massive_verification_test.go`](../cmd/vivechak/real_e2e_massive_verification_test.go): Full end-to-end multi-vector subprocess testing across all 13 tools, verifying live stdio JSON-RPC lifecycle, exit gates, and CLI commands (`version`, `doctor`, `mcp-config`).
 - [`cmd/vivechak/concurrency_test.go`](../cmd/vivechak/concurrency_test.go): High-concurrency subagent stress testing verifying atomic write locks, collision-free temporary file creation under rapid iteration, and race-free multi-agent decision recording.
 - [`cmd/vivechak/workspace_resolution_test.go`](../cmd/vivechak/workspace_resolution_test.go): Verifies 5-step workspace resolution chain across explicit `project_root`, ancestor directory traversal, in-process session memory, OS program folder boundary guards, and environment variables.

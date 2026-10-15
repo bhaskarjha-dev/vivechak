@@ -32,9 +32,13 @@ echo "Detected: ${OS}/${ARCH}"
 
 # Get latest release tag
 echo "Fetching latest release..."
-TAG=$(curl -fsSL "https://api.github.com/repos/${REPO}/releases/latest" | grep '"tag_name"' | sed -E 's/.*"tag_name": *"([^"]+)".*/\1/')
+TAG=$(curl -fsSL "https://api.github.com/repos/${REPO}/releases/latest" 2>/dev/null | grep '"tag_name"' | sed -E 's/.*"tag_name": *"([^"]+)".*/\1/')
 if [ -z "$TAG" ]; then
-  echo "Error: could not determine latest release"
+  # Fallback to redirect URL if API is rate-limited
+  TAG=$(curl -fsSL -I -o /dev/null -w "%{url_effective}" "https://github.com/${REPO}/releases/latest" 2>/dev/null | sed -E 's#.*/##')
+fi
+if [ -z "$TAG" ] || [ "$TAG" = "latest" ]; then
+  echo "Error: could not determine latest release (check network connection or GitHub access)"
   exit 1
 fi
 VERSION="${TAG#v}"

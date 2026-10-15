@@ -13,9 +13,11 @@ import (
 
 // ChallengeInput holds arguments for vivechak_challenge.
 type ChallengeInput struct {
-	ProjectRoot string `json:"project_root,omitempty" jsonschema:"workspace root path (optional)"`
-	SessionID   string `json:"session_id"             jsonschema:"required: which session to challenge (e.g. T1-01)"`
-	Mode        string `json:"mode,omitempty"         jsonschema:"challenge mode: 'red_team' (default), 'evidence_audit', or 'cross_session'"`
+	ProjectRoot   string `json:"project_root,omitempty"   jsonschema:"workspace root path (optional)"`
+	SessionID     string `json:"session_id,omitempty"     jsonschema:"which session to challenge (e.g. T1-01 or D-001-S1)"`
+	DecisionID    string `json:"decision_id,omitempty"   jsonschema:"optional alias for session_id (e.g. D-001)"`
+	Mode          string `json:"mode,omitempty"           jsonschema:"challenge mode: 'red_team' (default), 'evidence_audit', or 'cross_session'"`
+	ChallengeType string `json:"challenge_type,omitempty" jsonschema:"optional alias for mode (e.g. 'red_team', 'premortem')"`
 }
 
 func registerChallenge(server *sdkmcp.Server) {
@@ -49,13 +51,19 @@ func handleChallenge(ctx context.Context, _ *sdkmcp.CallToolRequest, in Challeng
 	}
 
 	sessionID := strings.TrimSpace(in.SessionID)
+	if sessionID == "" && strings.TrimSpace(in.DecisionID) != "" {
+		sessionID = strings.TrimSpace(in.DecisionID)
+	}
 	if sessionID == "" {
 		return ErrorResult(tool, fmt.Errorf("session_id is required"),
-			"Provide the session ID to challenge (e.g. 'T1-01').")
+			"Provide the session ID to challenge (e.g. 'T1-01' or 'D-001-S1').")
 	}
 
 	mode := strings.ToLower(strings.TrimSpace(in.Mode))
-	if mode == "" {
+	if mode == "" && strings.TrimSpace(in.ChallengeType) != "" {
+		mode = strings.ToLower(strings.TrimSpace(in.ChallengeType))
+	}
+	if mode == "" || mode == "premortem" {
 		mode = string(core.ModeRedTeam)
 	}
 

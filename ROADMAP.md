@@ -34,7 +34,7 @@ Every deferred feature is tracked with its origin, explicit gate condition, and 
 
 ### 2.0 Pre-Release Hardening Wave (October 2026)
 
-Forensic audit and real-world multi-agent dogfooding telemetry uncovered 25 concrete anomalies that were resolved prior to initial public release:
+Forensic audit and real-world multi-agent dogfooding telemetry uncovered 27 concrete anomalies that were resolved prior to initial public release:
 
 | Issue | Category | Root Cause & Resolution | Status |
 |---|---|---|---|
@@ -63,6 +63,8 @@ Forensic audit and real-world multi-agent dogfooding telemetry uncovered 25 conc
 | **E-23** | MCP / DAG | **Auxiliary Tool `knownIDs` DAG Propagation:** Propagated `knownIDs` to `scanCompletedSessions` across all reading tools, ensuring slugged session filenames without explicit frontmatter IDs are recognized as completed. | ✅ Resolved |
 | **E-24** | Validation / Ledger | **Dynamic 5-Column Evidence Ledger & Markdown Link Parsing:** Added dynamic header matching (`Source`, `Citation`, `Reference`, `Provenance`) and row-wide URL scanning in `ValidateEvidenceProvenance`, supporting markdown links (`[Title](url)`). | ✅ Resolved |
 | **E-25** | MCP / Security | **Adversarial Parameter Traversal Validation:** Enforced `isValidID` checks on secondary session identifiers (`amending_session_id`, `auto_draft_from`) to prevent traversal injection. | ✅ Resolved |
+| **E-26** | MCP / Interop | **Resilient MCP Schema Aliasing:** Small-model and varied agent harnesses often supply divergent argument keys. Supported `decision_id` and `challenge_type` aliases in `vivechak_challenge` and optional `track` filter in `vivechak_run_gate` alongside structured machine-readable result payload fields (`track_a_result`, `track_b_result`, `decisions`). | ✅ Resolved |
+| **E-27** | Core / Workspace | **Decoupled Plan-File Workspace Discovery:** Decoupled pipeline plan discovery (`RESEARCH-PIPELINE.md`, `DECISION-PLAN.md`, `COMPARISON-PLAN.md`) from `.vivechak.json` file presence, guaranteeing `info.HasPipeline = true` across all multi-scope workflows. | ✅ Resolved |
 
 ### 2.1 Near-Term Packaging & Workflows (Awaiting Demand Signal)
 

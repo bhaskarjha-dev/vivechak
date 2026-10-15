@@ -34,7 +34,7 @@ func printUsage(w io.Writer) {
 	fmt.Fprintf(w, "Commands:\n")
 	fmt.Fprintf(w, "  setup <host|path>  Set up Vivechak in an AI host or config file (alias: install)\n")
 	fmt.Fprintf(w, "  serve              Start MCP server over stdio (default — connects to ANY MCP client)\n")
-	fmt.Fprintf(w, "  doctor             Check workspace integrity\n")
+	fmt.Fprintf(w, "  doctor [path]      Check workspace integrity (default: current workspace)\n")
 	fmt.Fprintf(w, "  mcp-config         Output universal MCP JSON configuration (pipeable)\n")
 	fmt.Fprintf(w, "  version            Print version\n")
 }

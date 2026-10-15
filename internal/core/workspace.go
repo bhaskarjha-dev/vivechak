@@ -333,50 +333,51 @@ func InspectWorkspace(root string) WorkspaceInfo {
 			hasMetadataScope = true
 		}
 	}
+
+	// Scan research directory for plan files to check info.HasPipeline and infer scope if needed
+	researchEntries, _ := os.ReadDir(researchPath)
+	var hasDecisionPlan, hasComparisonPlan bool
+	for _, e := range researchEntries {
+		name := e.Name()
+		if !e.IsDir() && strings.HasSuffix(name, ".md") {
+			if strings.HasSuffix(name, "-plan.md") {
+				hasDecisionPlan = true
+				info.HasPipeline = true
+			} else if strings.HasSuffix(name, "-comparison.md") || strings.Contains(name, "-cmp-") {
+				hasComparisonPlan = true
+				info.HasPipeline = true
+			}
+		}
+	}
+
 	// If metadata did not provide a scope, infer scope from pipeline presence or manual workspace files
 	if !hasMetadataScope {
-		if info.HasPipeline {
+		if hasDecisionPlan {
+			info.Scope = ScopeDecision
+		} else if hasComparisonPlan {
+			info.Scope = ScopeComparison
+		} else if info.HasPipeline {
 			info.Scope = ScopeProject
-		} else if entries, err := os.ReadDir(researchPath); err == nil {
-			hasDecisionPlan := false
-			hasComparisonPlan := false
-			for _, e := range entries {
-				name := e.Name()
-				if !e.IsDir() && strings.HasSuffix(name, ".md") {
-					if strings.HasSuffix(name, "-plan.md") {
-						hasDecisionPlan = true
-						info.HasPipeline = true
-					} else if strings.HasSuffix(name, "-comparison.md") {
-						hasComparisonPlan = true
-						info.HasPipeline = true
+		} else {
+			// Check sessions directory for session ID prefixes if still undetermined
+			if sEntries, err := os.ReadDir(filepath.Join(root, SessionsDir)); err == nil {
+				for _, se := range sEntries {
+					sName := se.Name()
+					if strings.HasPrefix(sName, "S1-") || strings.HasPrefix(sName, "D-") {
+						info.Scope = ScopeDecision
+						break
+					} else if strings.HasPrefix(sName, "C-") || strings.HasPrefix(sName, "C1-") || strings.HasPrefix(sName, "CMP-") || strings.HasPrefix(sName, "COMP-") {
+						info.Scope = ScopeComparison
+						break
 					}
 				}
 			}
-			if hasDecisionPlan {
-				info.Scope = ScopeDecision
-			} else if hasComparisonPlan {
-				info.Scope = ScopeComparison
-			} else {
-				// Check sessions directory for session ID prefixes if still undetermined
-				if sEntries, err := os.ReadDir(filepath.Join(root, SessionsDir)); err == nil {
-					for _, se := range sEntries {
-						sName := se.Name()
-						if strings.HasPrefix(sName, "S1-") || strings.HasPrefix(sName, "D-") {
-							info.Scope = ScopeDecision
-							break
-						} else if strings.HasPrefix(sName, "C1-") || strings.HasPrefix(sName, "COMP-") {
-							info.Scope = ScopeComparison
-							break
-						}
-					}
-				}
-				if info.Scope == "" {
-					for _, e := range entries {
-						name := e.Name()
-						if !e.IsDir() && strings.HasSuffix(name, "-decision.md") {
-							info.Scope = ScopeDecision
-							break
-						}
+			if info.Scope == "" {
+				for _, e := range researchEntries {
+					name := e.Name()
+					if !e.IsDir() && strings.HasSuffix(name, "-decision.md") {
+						info.Scope = ScopeDecision
+						break
 					}
 				}
 			}
@@ -386,8 +387,8 @@ func InspectWorkspace(root string) WorkspaceInfo {
 	// Check for decisions (non-empty DECISIONS.md or ADR files in research/)
 	if fi, err := os.Stat(filepath.Join(root, DecisionsFile)); err == nil && fi.Size() > 0 {
 		info.HasDecisions = true
-	} else if entries, err := os.ReadDir(researchPath); err == nil {
-		for _, e := range entries {
+	} else {
+		for _, e := range researchEntries {
 			name := e.Name()
 			if !e.IsDir() && strings.HasSuffix(name, ".md") && !IsSpecialResearchFile(name) && strings.HasPrefix(strings.ToUpper(name), "D-") {
 				info.HasDecisions = true
@@ -429,7 +430,7 @@ func InspectWorkspace(root string) WorkspaceInfo {
 	return info
 }
 
-var sessionIDPrefixRe = regexp.MustCompile(`^(?i)(T\d+-\d+|S\d+-\d+|D-[A-Za-z0-9_-]+-S\d+|SYN-\d+|C\d+-\d+|COMP-\d+|FAD)(?:[-_].*)?$`)
+var sessionIDPrefixRe = regexp.MustCompile(`^(?i)(T\d+-\d+|S\d+-\d+|D-[A-Za-z0-9_-]+-S\d+|SYN-\d+|C-\d+|C\d+-\d+|CMP-\d+|COMP-\d+|FAD)(?:[-_].*)?$`)
 
 // ScanCompletedSessions reads the sessions directory and FAD file using workspace confinement,
 // returning completed IDs. Authoritative IDs come from YAML frontmatter (session_id or id fields), falling back to filename stem.

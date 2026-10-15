@@ -23,8 +23,19 @@ Write-Host "Detected: windows/$Arch" -ForegroundColor Cyan
 
 # Get latest release
 Write-Host 'Fetching latest release...'
-$Release = Invoke-RestMethod -Uri "https://api.github.com/repos/$Repo/releases/latest" -UseBasicParsing
-$Tag = $Release.tag_name
+try {
+    $Release = Invoke-RestMethod -Uri "https://api.github.com/repos/$Repo/releases/latest" -UseBasicParsing
+    $Tag = $Release.tag_name
+} catch {
+    # Fallback to redirect URL on API rate limits
+    $Resp = Invoke-WebRequest -Uri "https://github.com/$Repo/releases/latest" -MaximumRedirection 0 -ErrorAction SilentlyContinue
+    if ($Resp.Headers.Location) {
+        $Tag = Split-Path $Resp.Headers.Location -Leaf
+    } else {
+        Write-Error "Could not determine latest release: $_"
+        return
+    }
+}
 $Version = $Tag.TrimStart('v')
 Write-Host "Latest version: $Tag" -ForegroundColor Cyan
 

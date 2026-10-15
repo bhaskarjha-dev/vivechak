@@ -1,6 +1,8 @@
 package core
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -141,3 +143,131 @@ func TestIsSpecialResearchFile(t *testing.T) {
 		}
 	}
 }
+
+// TestInferScope verifies context-based scope auto-detection.
+func TestInferScope(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected Scope
+	}{
+		{
+			name:     "Empty context defaults to project",
+			input:    "",
+			expected: ScopeProject,
+		},
+		{
+			name:     "Winston vs Pino library comparison",
+			input:    "Winston vs Pino for high throughput logging",
+			expected: ScopeComparison,
+		},
+		{
+			name:     "Explicit compare verb",
+			input:    "compare fastify and express for new api gateway",
+			expected: ScopeComparison,
+		},
+		{
+			name:     "Which is better question",
+			input:    "which is better react query or swr",
+			expected: ScopeComparison,
+		},
+		{
+			name:     "Template OPTIONS schema",
+			input:    "OPTIONS: PostgreSQL, TimescaleDB, ClickHouse\nCRITERIA: write throughput",
+			expected: ScopeComparison,
+		},
+		{
+			name:     "Single decision question",
+			input:    "should we use mongo or postgres for patient medical records",
+			expected: ScopeDecision,
+		},
+		{
+			name:     "Decision prefix",
+			input:    "decision: graphql vs rest for mobile clients",
+			expected: ScopeDecision,
+		},
+		{
+			name:     "Template DECISION schema",
+			input:    "DECISION: Datastore selection\nSTAGE: pre-build\nOPTIONS: PG, Mongo",
+			expected: ScopeDecision,
+		},
+		{
+			name:     "Full project startup pitch",
+			input:    "hey plan my new startup idea. its basically uber for dog walkers. need mobile app, gps tracking, stripe payments",
+			expected: ScopeProject,
+		},
+		{
+			name:     "Full architecture design",
+			input:    "system architecture for a multi-tenant B2B analytics platform",
+			expected: ScopeProject,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := InferScope(tt.input)
+			if got != tt.expected {
+				t.Errorf("InferScope(%q) = %q, want %q", tt.input, got, tt.expected)
+			}
+		})
+	}
+}
+
+// TestSessionIDPrefixRegex_Comparison verifies that C-01 and CMP-01 session IDs are matched.
+func TestSessionIDPrefixRegex_Comparison(t *testing.T) {
+	stems := []struct {
+		stem     string
+		expected string
+	}{
+		{"C-01", "C-01"},
+		{"C-01-winston-vs-pino", "C-01"},
+		{"c-02_logging", "c-02"},
+		{"CMP-01-database", "CMP-01"},
+		{"COMP-01", "COMP-01"},
+		{"T1-01-database", "T1-01"},
+		{"T0-01", "T0-01"},
+		{"SYN-01-synthesis", "SYN-01"},
+		{"D-001-S1-landscape", "D-001-S1"},
+		{"FAD", "FAD"},
+	}
+
+	for _, tt := range stems {
+		m := sessionIDPrefixRe.FindStringSubmatch(tt.stem)
+		if len(m) < 2 {
+			t.Errorf("sessionIDPrefixRe failed to match %q", tt.stem)
+		} else if m[1] != tt.expected {
+			t.Errorf("sessionIDPrefixRe matched %q, want %q for stem %q", m[1], tt.expected, tt.stem)
+		}
+	}
+}
+
+// TestInspectWorkspace_ComparisonScopeDetection verifies that InspectWorkspace detects
+// comparison scope from -cmp- plan files and C- session IDs.
+func TestInspectWorkspace_ComparisonScopeDetection(t *testing.T) {
+	tmpDir := t.TempDir()
+	_ = os.MkdirAll(filepath.Join(tmpDir, ResearchDir), 0o755)
+	_ = os.MkdirAll(filepath.Join(tmpDir, SessionsDir), 0o755)
+	_ = os.MkdirAll(filepath.Join(tmpDir, TemplatesDir), 0o755)
+
+	// Add comparison template
+	_ = os.WriteFile(filepath.Join(tmpDir, TemplatesDir, "COMPARISON-SESSION.template.md"), []byte("# Template"), 0o644)
+
+	// Add slugged comparison plan
+	_ = os.WriteFile(filepath.Join(tmpDir, ResearchDir, "D-001-cmp-logging.md"), []byte("# Plan"), 0o644)
+
+	// Add C-01 session
+	_ = os.WriteFile(filepath.Join(tmpDir, SessionsDir, "C-01.md"), []byte("---\nsession_id: C-01\ntitle: Test\nstatus: complete\n---\n# Content"), 0o644)
+
+	info := InspectWorkspace(tmpDir)
+	if info.Scope != ScopeComparison {
+		t.Errorf("InspectWorkspace scope = %q, want %q", info.Scope, ScopeComparison)
+	}
+	if !info.HasPipeline {
+		t.Error("InspectWorkspace HasPipeline = false, want true")
+	}
+	if info.SessionCount != 1 {
+		t.Errorf("InspectWorkspace SessionCount = %d, want 1", info.SessionCount)
+	}
+}
+
+

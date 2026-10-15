@@ -25,6 +25,7 @@ func plural(n int) string {
 type RunGateInput struct {
 	ProjectRoot string `json:"project_root,omitempty" jsonschema:"root directory of the project (defaults to working directory)"`
 	Verbose     bool   `json:"verbose,omitempty"       jsonschema:"if true, return full gate details instead of summary"`
+	Track       string `json:"track,omitempty"         jsonschema:"optional track filter ('track_a', 'track_b', or 'all')"`
 }
 
 func registerRunGate(server *sdkmcp.Server) {
@@ -89,11 +90,22 @@ func handleRunGate(_ context.Context, _ *sdkmcp.CallToolRequest, in RunGateInput
 		trackBData["issues"] = gateResult.QualityChecks.Issues
 	}
 
+	trackAResult := "FAIL"
+	if gateResult.StructuralChecks.Passed {
+		trackAResult = "PASS"
+	}
+	trackBResult := "FAIL"
+	if gateResult.QualityChecks.Passed {
+		trackBResult = "PASS"
+	}
+
 	data := map[string]any{
 		"workspace_root":          root,
 		"scope":                   info.Scope,
 		"gate_status":             gateResult.Status,
 		"gate_passed":             gateResult.Passed,
+		"track_a_result":          trackAResult,
+		"track_b_result":          trackBResult,
 		"structural_checks":       trackAData,
 		"quality_checks":          trackBData,
 		"structural_completeness": trackAData,
@@ -105,6 +117,7 @@ func handleRunGate(_ context.Context, _ *sdkmcp.CallToolRequest, in RunGateInput
 	}
 
 	decisions := gateResult.Decisions
+	data["decisions"] = decisions
 	projectName := core.DetectProjectName(ws, root)
 
 	var tmplBytes []byte

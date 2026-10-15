@@ -11,6 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Unified release delivering the 12 enforcement hardening tasks, quality audit fixes, and complete pre-release hardening wave across engine parsers, concurrency locks, gate strictness, and cognitive quality coaching:
 
+- **Resilient MCP Schema Aliasing & Cross-Harness Interoperability:** Transparent parameter aliasing across diverse AI agent harnesses:
+  - `vivechak_challenge` accepts `decision_id` (alias for `session_id`) and `challenge_type` (alias for `mode`), preventing runtime schema rejections from small-model or third-party agent harnesses.
+  - `vivechak_run_gate` accepts optional `track` parameter (`track_a`, `track_b`, or `all`), returning structured machine-readable outcome fields `track_a_result` (`"PASS"` / `"FAIL"`), `track_b_result` (`"PASS"` / `"FAIL"`), and `decisions` array.
+- **Workspace Scope Diagnostics (`doctor.go`):** `vck doctor` now explicitly detects and displays the active workspace research scope (`✓ Scope: <project|decision|comparison>`), confirming pipeline tier recognition.
+- **Decoupled Plan-File Workspace Discovery (`workspace.go`):** Pipeline plan file detection (`RESEARCH-PIPELINE.md`, `DECISION-PLAN.md`, `COMPARISON-PLAN.md`) is fully decoupled from `.vivechak.json` presence, ensuring `info.HasPipeline = true` is consistently reported across all research scopes.
+- **Massive In-Memory Real-Lifecycle Test Suite (`massive_real_lifecycle_test.go`):** Added 8-scenario comprehensive integration test suite verifying end-to-end multi-scope execution, stress concurrency, vague human prompts, resilient schema aliases, dynamic quality coaching, and Phase 0 exit gates.
 - **Universal Multi-Ecosystem Packaging & Zero-Script Ephemeral Runners:** Expanded distribution architecture with dual-identity execution parity (`vivechak` and `vck`):
   - **Linux Native Packages via nFPM (`.goreleaser.yml`):** Automatically builds `.deb` (Debian/Ubuntu/Mint), `.rpm` (Fedora/RHEL/CentOS), `.apk` (Alpine), and `.pkg.tar.zst` (Arch Linux) bundling both binaries with `Provides: vck`.
   - **Zero-Script npm / npx Runner (`npm/vivechak`, `npm/vck`):** Pure Node.js lazy-cache binary runner (`bin/runner.js`) with zero postinstall scripts (bypassing pnpm/Yarn/npm v12 script blocking and `--ignore-scripts`) allowing instant execution via `npx -y vck serve` with zero local installation.

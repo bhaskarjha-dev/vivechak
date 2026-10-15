@@ -15,8 +15,8 @@ import (
 // PrepareGeneratorInput holds the arguments for vivechak_prepare_generator.
 type PrepareGeneratorInput struct {
 	ProjectRoot string `json:"project_root,omitempty" jsonschema:"workspace root path (optional; uses resolution chain if omitted)"`
-	Scope       string `json:"scope,omitempty"         jsonschema:"research scope: project | decision | comparison (default: project)"`
-	Context     string `json:"context"                 jsonschema:"project vision, decision context, or comparison context to inject into the generator prompt"`
+	Scope       string `json:"scope,omitempty"        jsonschema:"research scope: 'project' (full pipeline -> FAD) | 'decision' (1-3 sessions -> ADR) | 'comparison' (1 session -> WEP matrix). Pass explicitly."`
+	Context     string `json:"context"                jsonschema:"project vision, decision context, or comparison context to inject into the generator prompt. Required."`
 }
 
 func registerPrepareGenerator(server *sdkmcp.Server) {
@@ -25,7 +25,7 @@ func registerPrepareGenerator(server *sdkmcp.Server) {
 			Name:  "vivechak_prepare_generator",
 			Title: "Prepare Generator Prompt",
 			Description: "Return the appropriate generator prompt with context slots filled in, ready for " +
-				"execution. Accepts scope (project/decision/comparison) and your context description. " +
+				"execution. Requires scope ('project', 'decision', or 'comparison') and your context description. " +
 				"The context parameter should include: project vision, tech stack (languages, frameworks), " +
 				"constraints (timeline, team size), key open questions, and non-negotiables. " +
 				"Execute the returned prompt yourself in an AI session to produce the pipeline document for vivechak_save_plan. " +
@@ -54,10 +54,16 @@ func handlePrepareGenerator(_ context.Context, _ *sdkmcp.CallToolRequest, in Pre
 		}
 		scope = s
 	} else {
+		// Internal fallback if caller omitted scope
 		if ws, err := core.ResolveWorkspace(in.ProjectRoot); err == nil {
 			info := core.InspectWorkspace(ws)
 			if info.Scope != "" {
 				scope = info.Scope
+			}
+		}
+		if scope == core.ScopeProject && strings.TrimSpace(in.Context) != "" {
+			if inf := core.InferScope(in.Context); inf != core.ScopeProject {
+				scope = inf
 			}
 		}
 	}
@@ -158,16 +164,20 @@ func handlePrepareGenerator(_ context.Context, _ *sdkmcp.CallToolRequest, in Pre
 	// Calculate approximate token count for the prompt
 	approxTokens := len(genPrompt) / 4
 
+	msg := fmt.Sprintf("Prepared %s generator prompt (%d chars, ~%d tokens)", scope, len(genPrompt), approxTokens)
+
+	dataMap := map[string]any{
+		"scope":          scope,
+		"generator_file": genFile,
+		"prompt":         genPrompt,
+		"char_count":     len(genPrompt),
+		"approx_tokens":  approxTokens,
+	}
+
 	env := Envelope{
 		Success: true,
-		Message: fmt.Sprintf("Prepared %s generator prompt (%d chars, ~%d tokens)", scope, len(genPrompt), approxTokens),
-		Data: map[string]any{
-			"scope":          scope,
-			"generator_file": genFile,
-			"prompt":         genPrompt,
-			"char_count":     len(genPrompt),
-			"approx_tokens":  approxTokens,
-		},
+		Message: msg,
+		Data:    dataMap,
 		NextStep: "Execute this prompt in a fresh AI session to generate your research pipeline. " +
 			"Save the output using vivechak_save_plan.",
 		Meta: NewMeta(tool),

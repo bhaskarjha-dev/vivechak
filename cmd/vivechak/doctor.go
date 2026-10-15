@@ -73,9 +73,13 @@ func checkWorkspace(workspace string) (bool, []string, []string) {
 	}
 	successes = append(successes, "✓ Workspace exists")
 
-	// 2. Templates complete
-	templatesDir := filepath.Join(workspace, core.TemplatesDir)
+	// 2. Scope & Templates
 	info := core.InspectWorkspace(workspace)
+	if info.Scope != "" {
+		successes = append(successes, fmt.Sprintf("✓ Scope: %s", info.Scope))
+	}
+
+	templatesDir := filepath.Join(workspace, core.TemplatesDir)
 	expectedTemplates := core.TemplatesForScope(info.Scope)
 	var missingTemplates []string
 	for _, tpl := range expectedTemplates {
@@ -103,6 +107,13 @@ func checkWorkspace(workspace string) (bool, []string, []string) {
 		}
 	}
 	if matches, err := filepath.Glob(filepath.Join(workspace, core.ResearchDir, "*-comparison.md")); err == nil {
+		for _, m := range matches {
+			if data, err := os.ReadFile(m); err == nil {
+				pipelineChunks = append(pipelineChunks, string(data))
+			}
+		}
+	}
+	if matches, err := filepath.Glob(filepath.Join(workspace, core.ResearchDir, "*-cmp-*.md")); err == nil {
 		for _, m := range matches {
 			if data, err := os.ReadFile(m); err == nil {
 				pipelineChunks = append(pipelineChunks, string(data))
@@ -188,6 +199,9 @@ func checkWorkspace(workspace string) (bool, []string, []string) {
 
 			if pipelineContent != "" && id != "" {
 				inPipeline := strings.Contains(pipelineContent, id)
+				if !inPipeline && info.Scope == core.ScopeComparison && (strings.HasPrefix(strings.ToUpper(id), "C-") || strings.HasPrefix(strings.ToUpper(id), "CMP-") || strings.HasPrefix(strings.ToUpper(id), "COMP-")) {
+					inPipeline = true
+				}
 				if !inPipeline {
 					// Check progressively shorter hyphen- or underscore-delimited prefixes for slugged filenames
 					// e.g. "D-001-S1-slug" -> "D-001-S1", "T1-01-database-selection" -> "T1-01", "T1_01_database" -> "T1_01"

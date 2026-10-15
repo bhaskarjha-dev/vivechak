@@ -483,6 +483,42 @@ func TestRunDoctorWithArgs_RejectsSystemOrAppDir(t *testing.T) {
 	}
 }
 
+func TestCheckWorkspace_ComparisonWithSluggedPlanAndCSession(t *testing.T) {
+	tmpDir := t.TempDir()
+	_ = os.MkdirAll(filepath.Join(tmpDir, core.TemplatesDir), 0o755)
+	_ = os.MkdirAll(filepath.Join(tmpDir, core.SessionsDir), 0o755)
+
+	// Copy only comparison template
+	_ = os.WriteFile(filepath.Join(tmpDir, core.TemplatesDir, "COMPARISON-SESSION.template.md"), []byte("# Comparison Template"), 0o644)
+
+	// Slugged comparison plan in research/
+	planContent := `# RESEARCH BRIEF: Logging Library Comparison
+Compare Winston vs Pino.
+`
+	_ = os.WriteFile(filepath.Join(tmpDir, core.ResearchDir, "D-001-cmp-logging.md"), []byte(planContent), 0o644)
+
+	// Comparison session in research/sessions/ with C- prefix
+	sessionContent := `---
+session_id: C-01
+title: Winston vs Pino Shootout
+status: complete
+date: 2026-10-15
+---
+# Winston vs Pino Shootout
+Evidence Grade A (docs)
+`
+	_ = os.WriteFile(filepath.Join(tmpDir, core.SessionsDir, "C-01-winston-vs-pino.md"), []byte(sessionContent), 0o644)
+
+	hasErrors, successes, errs := checkWorkspace(tmpDir)
+	if hasErrors {
+		t.Fatalf("expected comparison workspace with D-001-cmp-logging.md and C-01-winston-vs-pino.md to be healthy, got errors: %v", errs)
+	}
+	if len(successes) == 0 {
+		t.Error("expected success messages from doctor")
+	}
+}
+
+
 
 
 

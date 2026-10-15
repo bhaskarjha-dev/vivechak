@@ -1013,3 +1013,73 @@ Compare Kafka vs RabbitMQ. A (benchmark)
 		t.Error("comparison next_step should NOT say 'web search enabled'")
 	}
 }
+
+// TestPrepareGenerator_AutoInfersScope verifies that prepare_generator automatically infers
+// comparison scope from "vs" in the context when scope is omitted.
+func TestPrepareGenerator_AutoInfersScope(t *testing.T) {
+	cs := testServer(t)
+	ctx := context.Background()
+
+	res, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_prepare_generator",
+		Arguments: map[string]any{
+			"context": "Compare Winston vs Pino for high throughput logging in Node.js",
+		},
+	})
+	if err != nil {
+		t.Fatalf("prepare_generator: %v", err)
+	}
+	env := parseEnvelope(t, res)
+	if !env.Success {
+		t.Fatalf("prepare_generator failed: %s", env.Message)
+	}
+	data, ok := env.Data.(map[string]any)
+	if !ok {
+		t.Fatal("expected data map in envelope")
+	}
+	if data["scope"] != "comparison" {
+		t.Errorf("expected scope 'comparison', got: %v", data["scope"])
+	}
+	prompt, _ := data["prompt"].(string)
+	if !strings.Contains(prompt, "COMPARISON") {
+		t.Errorf("expected comparison prompt content")
+	}
+}
+
+// TestSavePlan_AutoInitializesWorkspace verifies that save_plan auto-initializes the
+// workspace structure and templates when called on a fresh directory.
+func TestSavePlan_AutoInitializesWorkspace(t *testing.T) {
+	cs := testServer(t)
+	ctx := context.Background()
+	tmpDir := t.TempDir()
+
+	compContent := `# RESEARCH BRIEF: Logger Shootout
+Compare Winston vs Pino. Evidence Grade A (official docs).
+`
+	res, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_save_plan",
+		Arguments: map[string]any{
+			"project_root": tmpDir,
+			"scope":        "comparison",
+			"decision_id":  "C-01",
+			"slug":         "logging",
+			"content":      compContent,
+		},
+	})
+	if err != nil {
+		t.Fatalf("save_plan failed: %v", err)
+	}
+	env := parseEnvelope(t, res)
+	if !env.Success {
+		t.Fatalf("save_plan returned unsuccessful: %s", env.Message)
+	}
+
+	// Verify workspace structure was auto-initialized
+	if _, err := os.Stat(filepath.Join(tmpDir, "research", "templates", "COMPARISON-SESSION.template.md")); err != nil {
+		t.Errorf("auto-init failed to copy comparison template: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(tmpDir, "research", "C-01-cmp-logging.md")); err != nil {
+		t.Errorf("comparison plan file not found: %v", err)
+	}
+}
+
