@@ -92,7 +92,7 @@ Your agent coordinates the 13 tools autonomously:
 
 ```
 [Agent: vivechak_init]
-  └─ Creates research/ workspace, directories, and 6 operational contracts
+  └─ Creates research/ workspace, directories, and scope-appropriate operational contracts
 [Agent: vivechak_prepare_generator]
   └─ Fills your vision into GENERATOR.md
 [Agent: executes generator prompt]
@@ -135,14 +135,16 @@ The AI returns two separate documents. Create a `research/` directory in your pr
 1. `research/RESEARCH-PIPELINE.md` (the session DAG and copy-paste prompts)
 2. `research/DECISIONS.md` (the decision registry)
 
-### 4. Copy the 6 Contract Templates
-Copy the templates from `templates/` into your project's `research/templates/`:
+### 4. Copy the Scope-Appropriate Templates
+For a full project pipeline, copy all 6 templates from `templates/` into your project's `research/templates/`:
 - `DECISIONS.template.md`
 - `CONFLICT-RESOLUTION.template.md`
 - `COMPARISON-SESSION.template.md`
 - `FOUNDING-ARCHITECTURE.template.md`
 - `PHASE-0-GATE.template.md`
 - `SESSION.template.md`
+
+*(Note: For a single decision scope, you only need the first 2 templates. For a bounded comparison, you only need `COMPARISON-SESSION.template.md`.)*
 
 Your project workspace is now completely self-contained:
 ```

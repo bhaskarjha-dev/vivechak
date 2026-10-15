@@ -106,45 +106,38 @@ Every scope level applies the same methodology: traceable evidence grades (A–E
 
 ---
 
-## Quick Start (5 Steps)
+## Quick Start
 
-### Step 1: Generate Your Pipeline
-Open [GENERATOR.md](GENERATOR.md), paste your project description into the generator prompt, and send it to a frontier AI (Claude, Gemini, or ChatGPT with web search). You'll receive two files:
-- **RESEARCH-PIPELINE.md** — your project's complexity score, session DAG, and copy-paste-ready research prompts for every session
-- **DECISIONS.md** — initial decision registry with proposed hypotheses (evolves as you execute research)
+Vivechak supports two primary execution workflows: **Path A** with your AI coding agent via MCP (recommended, 1-prompt orchestration), or **Path B** manually in any browser AI chat.
 
-> **Extracting from web chat:** If your AI platform outputs inline text rather than downloadable files, look for the two clear document boundaries in the output. `RESEARCH-PIPELINE.md` starts with the pipeline header and ends after the last session prompt. `DECISIONS.md` starts with the decision registry header. Copy each section into its own file. The generator prompt instructs the AI to produce clearly separated, complete documents.
+### Path A: AI Agent Flow via MCP (Recommended)
 
-### Step 2: Set Up Your Project Workspace
-Create your project's `research/` directory, paste in the generated files, and **copy the 6 templates** from this repository:
+Once you've configured your AI host (`vck setup <host>`):
 
-```
-my-project/
-└── research/
-    ├── RESEARCH-PIPELINE.md         ← Generated (paste here)
-    ├── DECISIONS.md                 ← Generated (paste here)
-    ├── sessions/                    ← Create empty folder for research outputs
-    └── templates/                   ← Copy from Vivechak (see templates/)
-        ├── DECISIONS.template.md
-        ├── CONFLICT-RESOLUTION.template.md
-        ├── COMPARISON-SESSION.template.md
-        ├── FOUNDING-ARCHITECTURE.template.md
-        ├── PHASE-0-GATE.template.md
-        └── SESSION.template.md
-```
+1. **Prompt your agent in your project chat:**
+   > *"Use Vivechak to research our architecture. We need to build a real-time event streaming pipeline in Go handling 50k events/sec with PostgreSQL and Kafka."*  
+   *(Or for lightweight library shootouts: `"Vivechak compare: Winston vs Pino for fast JSON logging"`)*
 
-Your project is now **100% self-contained**. You never need to return to this meta-repo.
+2. **The agent orchestrates the entire loop autonomously:**
+   - Calls `vivechak_init` to create `research/` with scope-appropriate operational contracts.
+   - Calls `vivechak_prepare_generator` to inject your constraints and workload into the generator prompt.
+   - Executes research sessions, queries primary sources, and stress-tests vendor claims.
+   - Validates evidence grades (A–E) and saves structured session outputs via `vivechak_save_session`.
+   - Locks architectural decisions with one-way vs. two-way door classifications via `vivechak_record_decision`.
+   - Synthesizes findings into the Founding Architecture Document (`FAD.md`).
+   - Verifies the Phase 0 Exit Gate (`vivechak_run_gate`) before writing code.
 
-### Step 3: Execute Research Sessions
-Take each prompt from your generated RESEARCH-PIPELINE.md (inside the ```` ```prompt ```` code fences) and run it in an independent AI deep research session. Layer 0 sessions are designed to be parallel — run as many simultaneously as you want.
+---
 
-Save each output using the filename specified in the session's metadata table (e.g., `research/sessions/T1-01-primary-datastore-selection.md`).
+### Path B: Manual Flow (Browser / No MCP Installation)
 
-### Step 4: Record Decisions
-After key research sessions, update `DECISIONS.md` — lock architectural decisions using the format from `templates/DECISIONS.template.md`. Classify each as one-way or two-way door. If models disagree, use `templates/CONFLICT-RESOLUTION.template.md`.
+If you are using ChatGPT, Claude, or Gemini in your browser without an MCP agent harness:
 
-### Step 5: Synthesize, Gate & Build
-Compile all findings into a Founding Architecture Document using `templates/FOUNDING-ARCHITECTURE.template.md`. Verify exit criteria with `templates/PHASE-0-GATE.template.md`. Once the gate passes — start coding with the FAD as your architectural source of truth.
+1. **Generate Your Pipeline:** Open [GENERATOR.md](GENERATOR.md) (or [GENERATOR-DECISION.md](GENERATOR-DECISION.md) / [GENERATOR-COMPARISON.md](GENERATOR-COMPARISON.md)), paste your project vision into the prompt, and execute with web search enabled. You'll receive `RESEARCH-PIPELINE.md` (session DAG) and `DECISIONS.md` (initial decision registry).
+2. **Set Up Your Project Workspace:** Create your project's `research/` directory, save the generated files, and copy the scope-appropriate templates from `templates/` into `research/templates/`.
+3. **Execute Research Sessions:** Take each prompt from `RESEARCH-PIPELINE.md` and run it in an independent AI deep research session. Save outputs to `research/sessions/`.
+4. **Record Decisions:** After key sessions, lock architectural decisions in `DECISIONS.md` using the format from `templates/DECISIONS.template.md`. Classify each as one-way or two-way door. If models disagree, resolve using `templates/CONFLICT-RESOLUTION.template.md`.
+5. **Synthesize, Gate & Build:** Compile all findings into `FAD.md` using `templates/FOUNDING-ARCHITECTURE.template.md`. Verify exit criteria with `templates/PHASE-0-GATE.template.md`. Once the gate passes — start coding with the FAD as your architectural source of truth.
 
 ---
 
@@ -200,7 +193,7 @@ Vivechak ships as a universal **MCP server** — install the binary, register it
 
 | Tool | What It Does |
 |---|---|
-| `vivechak_init` | Create workspace structure and copy the 6 operational contracts |
+| `vivechak_init` | Create workspace structure and copy scope-appropriate operational contracts (1 for comparison, 2 for decision, 6 for project) |
 | `vivechak_prepare_generator` | Return scope-appropriate generator prompt with context filled in |
 | `vivechak_save_plan` | Validate + persist generated research plan and execution DAG |
 | `vivechak_status` | Report workspace progress (DAG completion, blocked sessions) |
@@ -266,8 +259,7 @@ Vivechak's most distinctive property: it was validated by the methodology it pre
 
 [FRAMEWORK.md](FRAMEWORK.md) contains the complete methodology specification — 8 principles, evidence grading system, pipeline topology, prompt anatomy, and synthesis workflows. **You do not need to read it to use Vivechak.** GENERATOR.md is self-contained; all methodology is operationalized inline in the generator prompt. FRAMEWORK.md is the definitive reference for understanding *why* the methodology works and for anyone improving the framework itself.
 
-
-
+---
 
 ## Roadmap
 
@@ -283,4 +275,3 @@ Vivechak's most distinctive property: it was validated by the methodology it pre
 | 8: Research Frontiers | Future | DSPy optimization, multi-agent debate, longitudinal calibration |
 
 See [ROADMAP.md](ROADMAP.md) for detailed plans and evidence corpus.
-
