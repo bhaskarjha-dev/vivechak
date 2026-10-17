@@ -7,7 +7,7 @@
 
 # Vivechak (विवेचक)
 
-**Evidence-grounded research for technical decisions.**
+**Evidence-grounded research for architectural, strategic, and technical decisions.**
 
 *vi- (apart) + √vic (to sift/separate) + -aka (the agent who does) = "the discerning analyst"*
 
@@ -17,7 +17,7 @@
 
 ### v0.1.0 — Separating evidence from assumption, truth from bias
 
-> **Transform technical decisions from gut-feel and cached training data into structured, evidence-graded research — whether you're architecting a whole project, researching a single decision, or comparing specific options.**
+> **Transform high-stakes decisions from gut-feel and cached training data into structured, evidence-graded research — whether you're architecting a system or business venture, researching an irreversible decision, or comparing competing options, models, or algorithms.**
 
 > **What you're installing:** A single standalone Go binary (`vck`) with **zero runtime dependencies**, **zero cloud phone-home**, and **zero telemetry**. It runs 100% locally on your machine as both a developer CLI (`vck doctor`, `vck setup`) and an orchestration MCP server (`vck serve`) for AI coding agents.
 
@@ -90,7 +90,7 @@ Done. Your agent now has 13 MCP tools for evidence-grounded research. See [Host 
 
 ## What Is This?
 
-You're making a technical decision — maybe architecting a whole project, choosing between databases, or evaluating whether to adopt a new framework. Some decisions are **irreversible** (one-way doors). If you get them wrong, you're looking at a rewrite.
+You're making a high-stakes decision — whether architecting a full system, designing a new business venture, making an irreversible strategic choice, or selecting between competing AI models, algorithms, or datastores. Some decisions are **irreversible** (one-way doors). If you get them wrong, you're looking at painful rewrites, failed migrations, or stranded capital.
 
 **Vivechak generates evidence-grounded research at three scope levels:**
 
@@ -116,7 +116,8 @@ Once you've configured your AI host (`vck setup <host>`):
 
 1. **Prompt your agent in your project chat:**
    > *"Use Vivechak to research our architecture. We need to build a real-time event streaming pipeline in Go handling 50k events/sec with PostgreSQL and Kafka."*  
-   *(Or for lightweight library shootouts: `"Vivechak compare: Winston vs Pino for fast JSON logging"`)*
+   *(Or for strategic decisions: `"Vivechak decision: in-house sales team vs partner reseller for EMEA market expansion"`)*  
+   *(Or for focused comparisons: `"Vivechak compare: Claude 3.5 Sonnet vs GPT-4o for autonomous coding agents"`)*
 
 2. **The agent orchestrates the entire loop autonomously:**
    - Calls `vivechak_init` to create `research/` with scope-appropriate operational contracts.

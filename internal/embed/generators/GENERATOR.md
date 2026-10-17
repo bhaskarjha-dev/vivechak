@@ -14,15 +14,15 @@
 ## The Generator Prompt
 
 ````markdown
-# GENERATE: Research Pipeline for a Technical Project
+# GENERATE: Research Pipeline for a Project or System
 
 ## BRIEF
 
 Generate a complete, ready-to-execute research pipeline for
-a new technical project. The output will be used to make evidence-grounded
-architectural decisions before committing to irreversible implementation decisions.
+a new project, venture, product, or system architecture. The output will be used to make evidence-grounded
+strategic and architectural decisions before committing to irreversible implementation decisions or capital investments.
 
-The goal is to identify every critical architectural decision this project
+The goal is to identify every critical architectural and structural decision this project
 requires, determine which are irreversible ("one-way doors" that need deep
 research) vs. reversible ("two-way doors" that can be decided quickly), and
 produce a unified research pipeline with copy-paste-ready prompts for every
@@ -30,7 +30,7 @@ session, plus a separate decision registry that evolves as research progresses.
 
 You are not constrained to only the decisions and concerns explicitly
 mentioned in the project vision. If your analysis reveals critical
-architectural concerns, risks, dependencies, or opportunities that the
+architectural, market, regulatory, operational, or technical concerns, risks, dependencies, or opportunities that the
 user did not mention, include research sessions for them. The project
 vision defines the starting point, not the ceiling.
 
@@ -57,16 +57,17 @@ Follow these rules when generating the pipeline:
 ### Step 1: Extract & Classify
 From the project vision above:
 - Infer the primary domain archetype (B2B SaaS, DevTools, FinTech, AI/ML,
-  Consumer Mobile, Real-Time/IoT, or hybrid). If the project spans multiple
+  Consumer Mobile, Real-Time/IoT, Marketplace/E-Commerce, Enterprise Operations,
+  BioTech/HealthTech, Business Venture, or hybrid). If the project spans multiple
   domains, identify primary and secondary archetypes. If the project represents
   an unlisted or novel domain, synthesize a custom archetype defining its
   unique operational and compliance boundaries.
-- Identify all stated constraints (regulatory, geographic, infrastructure).
+- Identify all stated constraints (regulatory, geographic, operational, budgetary, infrastructure).
 - Identify what the user has decided vs. what remains open. Treat open
   elements as research questions to include in the pipeline.
 - Assess regulatory exposure independently — don't trust self-reported risk
   labels. If the vision mentions payments, health data, children, financial
-  transactions, or PII, flag elevated compliance requirements regardless
+  transactions, PII, or critical infrastructure, flag elevated compliance requirements regardless
   of how the user describes the project.
 
 ### Step 2: Score Complexity (0–24)
@@ -74,14 +75,14 @@ Score the project across these 8 dimensions (0 = minimal, 3 = extreme):
 
 | Dimension | 0 | 1 | 2 | 3 |
 |---|---|---|---|---|
-| Domain Novelty | Standard pattern (e.g., CRUD) | Established category | Unconventional workflow | New category |
-| Technical Novelty | Known stack | New component | New paradigm | Unproven infra |
-| Regulatory Exposure | No sensitive data | Internal data | PII/GDPR/SOC2 | HIPAA/PCI/KYC |
-| Reversibility | Throwaway | Modular | Core schema/multi-tenant | Deep platform |
+| Domain Novelty | Standard pattern (e.g., CRUD / retail) | Established category | Unconventional workflow / model | New category |
+| Technical / Operational Novelty | Known stack / process | New component | New paradigm / workflow | Unproven infra / model |
+| Regulatory Exposure | No sensitive data / standard rules | Internal data | PII/GDPR/SOC2/financial | HIPAA/PCI/KYC/SEC |
+| Reversibility | Throwaway / easily swapped | Modular | Core schema / key contracts | Deep platform / legal lock-in |
 | Investment Horizon | Weekend spike | Lean MVP | Funded venture | Enterprise-critical |
-| Coordination Complexity | Single decision-maker | Small team alignment | Cross-team | Multi-org |
+| Coordination Complexity | Single decision-maker | Small team alignment | Cross-team / cross-function | Multi-org / ecosystem |
 | Expected Longevity | Days–weeks | Months | 1–3 years | 5+ years |
-| Integration Complexity | Standalone | 1–2 external interfaces | Multiple complex integrations | Regulated rails/legacy systems |
+| Integration Complexity | Standalone | 1–2 external interfaces | Multiple complex integrations | Regulated rails / legacy systems |
 
 Show the per-dimension score and rationale. Map total to tier:
 - 0–4 → Tier 0 (1–3 sessions)
@@ -93,16 +94,15 @@ HARD OVERRIDE: If Regulatory Exposure = 3, all intersecting decisions
 automatically receive deep research regardless of total score.
 
 ### Step 3: Build Session Matrix
-For each architectural decision the project requires:
-1. Classify as one-way door (irreversible: primary datastore, data model,
-   authentication architecture, core language/runtime, public API contracts,
-   wire protocols, regulatory compliance, hosting infrastructure,
-   deployment architecture, hardware selection, inter-service communication
-   patterns, event sourcing vs CRUD, monolith vs microservices,
-   data partitioning strategy) or
-   two-way door (reversible: UI framework, styling, CI tooling, utility
-   libraries, IDE configuration, documentation format, logging providers,
-   feature flag tooling).
+For each critical decision the project requires:
+1. Classify as one-way door (irreversible commitments: core data models & schemas,
+   sovereign data jurisdiction & regulatory rails, unit economics & pricing mechanics,
+   core runtime/infra platform, proprietary algorithms, fundamental API contracts,
+   wire protocols, inter-service communication patterns, event sourcing vs CRUD,
+   monolith vs decoupled services, data partitioning strategy) or
+   two-way door (reversible choices: UI framework, styling, CI tooling, utility
+   libraries, swappable service providers, IDE configuration, documentation format,
+   logging providers, feature flag tooling, initial marketing experiments).
 2. Route using this matrix:
 
    |  | Known Pattern | Unknown/Novel |

@@ -201,6 +201,41 @@ func TestInferScope(t *testing.T) {
 			input:    "system architecture for a multi-tenant B2B analytics platform",
 			expected: ScopeProject,
 		},
+		{
+			name:     "New business venture project",
+			input:    "we are planning a new business venture for global freight brokerage and logistics",
+			expected: ScopeProject,
+		},
+		{
+			name:     "Market entry plan",
+			input:    "market entry research pipeline for SEA healthtech telemedicine platform",
+			expected: ScopeProject,
+		},
+		{
+			name:     "Strategic business decision",
+			input:    "strategic decision: build in-house sales team vs partner agency",
+			expected: ScopeDecision,
+		},
+		{
+			name:     "Trade-off between business models",
+			input:    "trade-off between product-led growth and enterprise outbound sales",
+			expected: ScopeDecision,
+		},
+		{
+			name:     "AI model comparison",
+			input:    "Claude 3.5 Sonnet vs GPT-4o for multi-turn autonomous coding agents",
+			expected: ScopeComparison,
+		},
+		{
+			name:     "Algorithm comparison",
+			input:    "which algorithm is faster for distributed consensus in low latency networks",
+			expected: ScopeComparison,
+		},
+		{
+			name:     "Strategic option choice",
+			input:    "which strategy for cross-border currency settlement and hedging",
+			expected: ScopeComparison,
+		},
 	}
 
 	for _, tt := range tests {

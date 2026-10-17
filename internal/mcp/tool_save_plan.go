@@ -86,16 +86,45 @@ func handleSavePlan(ctx context.Context, _ *sdkmcp.CallToolRequest, in SavePlanI
 
 	// Auto-extract ID from plan content if not explicitly provided
 	if in.DecisionID == "" && (scope == core.ScopeDecision || scope == core.ScopeComparison) {
-		reID := regexp.MustCompile(`(?m)(?:^\|\s*\*\*ID\*\*\s*\|\s*([A-Za-z0-9_-]+)\s*\||^#+\s*(?:Comparison Plan:|Decision Plan:|Session)\s*([A-Za-z0-9_-]+))`)
-		if m := reID.FindStringSubmatch(in.Content); len(m) > 0 {
-			if m[1] != "" {
-				in.DecisionID = strings.TrimSpace(m[1])
-			} else if m[2] != "" {
-				in.DecisionID = strings.TrimSpace(m[2])
+		// First check for explicit markdown table rows: | Decision | D-05 | or | ID | D-05 | or | **ID** | D-05 |
+		reTableRow := regexp.MustCompile(`(?m)^\|\s*(?:\*\*)?(?:ID|Decision|Decision ID|Comparison ID)(?:\*\*)?\s*\|\s*([A-Za-z0-9_-]+)\s*\|`)
+		if m := reTableRow.FindStringSubmatch(in.Content); len(m) > 1 {
+			val := strings.TrimSpace(m[1])
+			if val != "D-NEW" && val != "C-NEW" && val != "" {
+				in.DecisionID = val
 			}
 		}
+
+		// Next check for explicit section headers like "# D-05-PLAN:" or "### Session D-05-S1:" or "# C-01-comparison:"
+		if in.DecisionID == "" {
+			reHeadingID := regexp.MustCompile(`(?m)^#+\s*(?:Session\s+)?([A-Za-z]+-\d+[A-Za-z0-9_-]*)`)
+			if m := reHeadingID.FindStringSubmatch(in.Content); len(m) > 1 {
+				val := strings.TrimSpace(m[1])
+				// If it's a session ID like D-05-S1, strip the -S1 suffix to get the decision ID D-05
+				if scope == core.ScopeDecision && strings.Contains(val, "-S") {
+					parts := strings.Split(val, "-S")
+					in.DecisionID = parts[0]
+				} else {
+					in.DecisionID = val
+				}
+			}
+		}
+
+		// Fallback to pattern search or canonical defaults
 		if in.DecisionID == "" && scope == core.ScopeComparison {
-			in.DecisionID = core.SessionPrefix(scope) + "01"
+			reCmp := regexp.MustCompile(`\b(C-\d{1,4})\b`)
+			if m := reCmp.FindStringSubmatch(in.Content); len(m) > 1 && m[1] != "C-NEW" {
+				in.DecisionID = m[1]
+			} else {
+				in.DecisionID = core.SessionPrefix(scope) + "01"
+			}
+		} else if in.DecisionID == "" && scope == core.ScopeDecision {
+			reDec := regexp.MustCompile(`\b(D-\d{1,4})\b`)
+			if m := reDec.FindStringSubmatch(in.Content); len(m) > 1 && m[1] != "D-NEW" {
+				in.DecisionID = m[1]
+			} else {
+				in.DecisionID = "D-01"
+			}
 		}
 	}
 
@@ -151,25 +180,28 @@ func handleSavePlan(ctx context.Context, _ *sdkmcp.CallToolRequest, in SavePlanI
 	var savedFiles []string
 	var warnings []string
 
-	// L1-L2 Mechanical validation of plan content
-	planValidation := core.ValidatePlan([]byte(in.Content))
-	if planValidation.HasBlocking() {
-		var firstErr string
-		var firstHint string
-		for _, issue := range planValidation.Issues {
-			if issue.Level == core.L2Block {
-				firstErr = issue.Message
-				firstHint = issue.FixHint
-				break
+	var planValidation *core.ValidationResult
+	// L1-L2 Mechanical validation of plan content (applicable for project and decision scopes)
+	if scope != core.ScopeComparison {
+		planValidation = core.ValidatePlan([]byte(in.Content))
+		if planValidation.HasBlocking() {
+			var firstErr string
+			var firstHint string
+			for _, issue := range planValidation.Issues {
+				if issue.Level == core.L2Block {
+					firstErr = issue.Message
+					firstHint = issue.FixHint
+					break
+				}
 			}
+			if firstHint == "" {
+				firstHint = "Fix dependency cycles, dangling session references, or missing plan content."
+			}
+			return ErrorResult(tool, fmt.Errorf("plan validation failed: %s", firstErr), firstHint)
 		}
-		if firstHint == "" {
-			firstHint = "Fix dependency cycles, dangling session references, or missing plan content."
+		for _, issue := range planValidation.Issues {
+			warnings = append(warnings, issue.String())
 		}
-		return ErrorResult(tool, fmt.Errorf("plan validation failed: %s", firstErr), firstHint)
-	}
-	for _, issue := range planValidation.Issues {
-		warnings = append(warnings, issue.String())
 	}
 
 	var decValidation *core.ValidationResult
@@ -278,12 +310,14 @@ func handleSavePlan(ctx context.Context, _ *sdkmcp.CallToolRequest, in SavePlanI
 
 	nextStep := "Run vivechak_next_session to get the first research session prompt. " +
 		"Execute it in a fresh AI session with web search, then save the output with vivechak_save_session."
-	for _, issue := range planValidation.Issues {
-		if issue.Code == "W-PARSER-SESSION-MISMATCH" {
-			nextStep = fmt.Sprintf("⚠️ INCOMPLETE PIPELINE DETECTED: %s. "+
-				"Generate the missing prompt blocks before proceeding, or run vivechak_next_session for available sessions.",
-				issue.Message)
-			break
+	if planValidation != nil {
+		for _, issue := range planValidation.Issues {
+			if issue.Code == "W-PARSER-SESSION-MISMATCH" {
+				nextStep = fmt.Sprintf("⚠️ INCOMPLETE PIPELINE DETECTED: %s. "+
+					"Generate the missing prompt blocks before proceeding, or run vivechak_next_session for available sessions.",
+					issue.Message)
+				break
+			}
 		}
 	}
 

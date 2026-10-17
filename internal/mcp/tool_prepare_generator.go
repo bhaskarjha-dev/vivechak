@@ -15,8 +15,8 @@ import (
 // PrepareGeneratorInput holds the arguments for vivechak_prepare_generator.
 type PrepareGeneratorInput struct {
 	ProjectRoot string `json:"project_root,omitempty" jsonschema:"workspace root path (optional; uses resolution chain if omitted)"`
-	Scope       string `json:"scope,omitempty"        jsonschema:"research scope: 'project' (full pipeline -> FAD) | 'decision' (1-3 sessions -> ADR) | 'comparison' (1 session -> WEP matrix). Pass explicitly."`
-	Context     string `json:"context"                jsonschema:"project vision, decision context, or comparison context to inject into the generator prompt. Required."`
+	Scope       string `json:"scope,omitempty"        jsonschema:"research scope (REQUIRED): 'comparison' (comparing 2+ options, models, algorithms, vendors, strategies) | 'decision' (single choice or dilemma with trade-offs/ADR) | 'project' (full system architecture, new venture, or comprehensive research pipeline)"`
+	Context     string `json:"context"                jsonschema:"the user's question, options being compared, decision dilemma, or project vision. Required."`
 }
 
 func registerPrepareGenerator(server *sdkmcp.Server) {
@@ -24,12 +24,13 @@ func registerPrepareGenerator(server *sdkmcp.Server) {
 		&sdkmcp.Tool{
 			Name:  "vivechak_prepare_generator",
 			Title: "Prepare Generator Prompt",
-			Description: "Return the appropriate generator prompt with context slots filled in, ready for " +
-				"execution. Requires scope ('project', 'decision', or 'comparison') and your context description. " +
-				"The context parameter should include: project vision, tech stack (languages, frameworks), " +
-				"constraints (timeline, team size), key open questions, and non-negotiables. " +
-				"Execute the returned prompt yourself in an AI session to produce the pipeline document for vivechak_save_plan. " +
-				"Read-only — does not modify the workspace.",
+			Description: "MANDATORY research entrypoint: Call this tool whenever the user asks to compare " +
+				"two or more options, alternatives, approaches, technologies, models, algorithms, or strategies (e.g., 'A vs B', 'which should I choose'), " +
+				"or asks for an evaluative decision, trade-off analysis, new project research, or system architecture plan. " +
+				"Do NOT answer comparisons, option evaluations, decisions, or system planning from ungrounded memory — ALWAYS invoke this tool " +
+				"to prepare an evidence-calibrated research brief. Skip for direct code implementation, debugging, or syntax lookup. " +
+				"Requires 'scope' ('comparison', 'decision', or 'project') " +
+				"and the user's question, options, decision dilemma, or project vision as 'context'. Read-only — does not modify workspace.",
 			Annotations: &sdkmcp.ToolAnnotations{
 				ReadOnlyHint:    true,
 				IdempotentHint:  true,

@@ -242,14 +242,14 @@ This protocol balances research continuity with responsiveness to change — a c
 
 | Dimension | 0 (Low) | 1 (Moderate) | 2 (Substantial) | 3 (Extreme) |
 |---|---|---|---|---|
-| **Domain Novelty** | Standard pattern (e.g., CRUD app) | Established category (e.g., B2B SaaS, standard lab protocol) | Unconventional workflow | New category/paradigm |
-| **Technical Novelty** | Team's standard stack | Familiar platform, new component | New framework/paradigm | Unproven infrastructure |
-| **Regulatory Exposure** | Zero sensitive data | Internal data | PII, GDPR, SOC 2 | HIPAA, PCI-DSS, KYC/AML |
-| **Reversibility** | Throwaway/rewritable | Modularly swappable | Core schema/multi-tenant | Deep platform infra |
-| **Investment Horizon** | Hackathon/weekend | Lean MVP/internal tool | Funded venture | Enterprise mission-critical |
-| **Coordination Complexity** | Single decision-maker | Small team (2–4) | Mid-size (5–12) | Multi-team (>12) |
+| **Domain Novelty** | Standard pattern (e.g., CRUD / retail) | Established category (e.g., B2B SaaS, standard protocol) | Unconventional workflow / model | New category / paradigm |
+| **Technical / Operational Novelty** | Known stack / standard process | Familiar platform, new component | New framework / workflow paradigm | Unproven infra / model |
+| **Regulatory Exposure** | Zero sensitive data / standard rules | Internal data | PII, GDPR, SOC 2, financial | HIPAA, PCI-DSS, KYC/AML, SEC |
+| **Reversibility** | Throwaway / easily swapped | Modularly swappable | Core schema / key contracts | Deep platform / legal lock-in |
+| **Investment Horizon** | Hackathon / weekend spike | Lean MVP / internal tool | Funded venture | Enterprise mission-critical |
+| **Coordination Complexity** | Single decision-maker | Small team alignment (2–4) | Cross-team / cross-function (5–12) | Multi-org / ecosystem (>12) |
 | **Expected Longevity** | Days to weeks | Months (prototype) | 1–3 years (product) | 5+ years (platform) |
-| **Integration Complexity** | Standalone | 1–2 external interfaces (APIs, protocols, feeds) | Multiple complex integrations | Regulated rails/legacy systems |
+| **Integration Complexity** | Standalone | 1–2 external interfaces (APIs, feeds) | Multiple complex integrations | Regulated rails / legacy systems |
 
 #### Tier Mapping
 

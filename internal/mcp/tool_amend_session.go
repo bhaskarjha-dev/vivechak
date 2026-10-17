@@ -14,10 +14,12 @@ import (
 
 // AmendSessionInput holds the arguments for vivechak_amend_session.
 type AmendSessionInput struct {
-	ProjectRoot      string `json:"project_root,omitempty"       jsonschema:"workspace root path"`
-	SessionID        string `json:"session_id"                    jsonschema:"session ID to amend (e.g. R-01)"`
+	ProjectRoot       string `json:"project_root,omitempty"       jsonschema:"workspace root path"`
+	SessionID         string `json:"session_id"                    jsonschema:"session ID to amend (e.g. R-01)"`
 	AmendingSessionID string `json:"amending_session_id,omitempty" jsonschema:"session ID that discovered the amendment (optional, for traceability)"`
-	Amendment        string `json:"amendment"                     jsonschema:"amendment content to append"`
+	Amendment         string `json:"amendment,omitempty"           jsonschema:"amendment content to append"`
+	Content           string `json:"content,omitempty"             jsonschema:"alias for amendment content"`
+	Reason            string `json:"reason,omitempty"              jsonschema:"optional reason or summary for the amendment"`
 }
 
 func registerAmendSession(server *sdkmcp.Server) {
@@ -63,12 +65,24 @@ func handleAmendSession(ctx context.Context, _ *sdkmcp.CallToolRequest, in Amend
 			"Use a valid session ID like 'R-01' or 'T1-01'.")
 	}
 
-	if strings.TrimSpace(in.Amendment) == "" {
+	amendmentText := strings.TrimSpace(in.Amendment)
+	if amendmentText == "" {
+		amendmentText = strings.TrimSpace(in.Content)
+	}
+	if in.Reason != "" {
+		if amendmentText != "" {
+			amendmentText = fmt.Sprintf("Reason: %s\n\n%s", in.Reason, amendmentText)
+		} else {
+			amendmentText = in.Reason
+		}
+	}
+
+	if amendmentText == "" {
 		return ErrorResult(tool, fmt.Errorf("amendment content is required"),
 			"Provide the amendment text to append to the session.")
 	}
 
-	if err := validateContentSize(in.Amendment); err != nil {
+	if err := validateContentSize(amendmentText); err != nil {
 		return ErrorResult(tool, err, "Reduce amendment size.")
 	}
 
@@ -111,9 +125,30 @@ func handleAmendSession(ctx context.Context, _ *sdkmcp.CallToolRequest, in Amend
 		}
 
 		if sessionFile == "" {
+			// Also check research/ directly for comparison sessions or ADRs (e.g. C-01-comparison.md or D-01-database.md)
+			if entries, err := ws.ListDir(core.ResearchDir); err == nil {
+				idUpper := strings.ToUpper(in.SessionID)
+				for _, e := range entries {
+					if e.IsDir() || filepath.Ext(e.Name()) != ".md" {
+						continue
+					}
+					name := strings.TrimSuffix(e.Name(), ".md")
+					nameUpper := strings.ToUpper(name)
+					if nameUpper == idUpper ||
+						strings.HasPrefix(nameUpper, idUpper+"-") ||
+						strings.HasPrefix(nameUpper, idUpper+"_") {
+						sessionFile = e.Name()
+						sessionsDir = core.ResearchDir
+						break
+					}
+				}
+			}
+		}
+
+		if sessionFile == "" {
 			return ErrorResult(tool,
-				fmt.Errorf("session file for %q not found in %s", in.SessionID, sessionsDir),
-				fmt.Sprintf("Ensure session %s has been saved with vivechak_save_session first.", in.SessionID))
+				fmt.Errorf("session file for %q not found in %s or %s", in.SessionID, core.SessionsDir, core.ResearchDir),
+				fmt.Sprintf("Ensure session %s has been saved first.", in.SessionID))
 		}
 		relPath = filepath.Join(sessionsDir, sessionFile)
 		displayName = sessionFile
@@ -141,7 +176,7 @@ func handleAmendSession(ctx context.Context, _ *sdkmcp.CallToolRequest, in Amend
 	}
 	timestamp := time.Now().UTC().Format(time.RFC3339)
 	amendmentBlock := fmt.Sprintf("\n\n---\n\n## Post-Hoc Amendment%s\n\n%s\n\n*Added: %s*\n",
-		amendSource, strings.TrimSpace(in.Amendment), timestamp)
+		amendSource, strings.TrimSpace(amendmentText), timestamp)
 
 	// Append to file
 	newContent := append(existing, []byte(amendmentBlock)...)

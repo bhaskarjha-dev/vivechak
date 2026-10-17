@@ -247,8 +247,8 @@ var (
 	// - ### FAD: Founding Architecture Document
 	sessionHeaderRe = regexp.MustCompile(`^#{1,4}\s+(?:(?:Session\s+([A-Za-z0-9]+(?:[-_][A-Za-z0-9]+)*))|([A-Za-z0-9]+(?:-[A-Za-z0-9]+)+)|([A-Za-z]+\d+|[A-Z]{2,10}))\s*[:—\-]\s*(.*)`)
 
-	// Matches metadata table rows like: | **ID** | T1-01 |
-	metaFieldRe = regexp.MustCompile(`\|\s*\*\*([^*]+)\*\*\s*\|\s*(.+?)\s*\|`)
+	// Matches metadata table rows like: | **ID** | T1-01 | or | ID | T1-01 |
+	metaFieldRe = regexp.MustCompile(`\|\s*(?:\*\*)?([^*|\s][^*|]*?)(?:\*\*)?\s*\|\s*([^|]+?)\s*\|`)
 
 	// Matches horizontal session table rows like: | D-015-S1 | Comparison | none | sessions/D-015-S1-cache-comparison.md |
 	sessionTableRowRe = regexp.MustCompile(`^\|\s*([A-Za-z0-9]+(?:[-_][A-Za-z0-9]+)*)\s*\|\s*([^|]+)\|\s*([^|]+)\|\s*([^|]+)\|`)
@@ -403,7 +403,22 @@ func ParsePipeline(data []byte) (*DAG, error) {
 		if strings.Contains(line, "|") && !strings.Contains(line, "**") && !strings.Contains(line, "---") && strings.Count(trimmed, "|") == 5 {
 			if matches := sessionTableRowRe.FindStringSubmatch(trimmed); matches != nil {
 				idVal := strings.TrimSpace(matches[1])
-				if !strings.EqualFold(idVal, "session-id") && !strings.EqualFold(idVal, "id") && !strings.EqualFold(idVal, "session") {
+				isNotSessionID := strings.EqualFold(idVal, "session-id") ||
+					strings.EqualFold(idVal, "id") ||
+					strings.EqualFold(idVal, "session") ||
+					strings.EqualFold(idVal, "criterion") ||
+					strings.EqualFold(idVal, "metric") ||
+					strings.EqualFold(idVal, "feature") ||
+					strings.EqualFold(idVal, "option") ||
+					strings.EqualFold(idVal, "parameter") ||
+					strings.EqualFold(idVal, "dimension") ||
+					strings.EqualFold(idVal, "attribute") ||
+					strings.EqualFold(idVal, "candidate") ||
+					strings.EqualFold(idVal, "requirement") ||
+					strings.EqualFold(idVal, "category") ||
+					(!strings.EqualFold(idVal, "fad") && !strings.ContainsAny(idVal, "0123456789"))
+
+				if !isNotSessionID {
 					currentSession = getOrCreateSession(idVal)
 					if len(currentSession.Dependencies) == 0 {
 						currentSession.Dependencies = parseDependencies(matches[3])
@@ -416,15 +431,23 @@ func ParsePipeline(data []byte) (*DAG, error) {
 			}
 		}
 
-		// Parse metadata table rows
-		if strings.Contains(line, "**") && strings.Contains(line, "|") {
+		// Parse metadata table rows (2-column key-value table: | **Field** | Value | or | Field | Value |)
+		if strings.Contains(line, "|") && !strings.Contains(line, "---") && strings.Count(trimmed, "|") == 3 {
 			if matches := metaFieldRe.FindStringSubmatch(line); matches != nil {
 				field := strings.TrimSpace(matches[1])
 				value := strings.TrimSpace(matches[2])
 
+				// Ignore table header row | Field | Value | or | ID | Title |
+				if strings.EqualFold(field, "field") || strings.EqualFold(value, "value") ||
+					strings.EqualFold(value, "title") || strings.EqualFold(value, "role") {
+					continue
+				}
+
 				switch strings.ToLower(field) {
 				case "id", "session id":
-					currentSession = getOrCreateSession(value)
+					if !strings.EqualFold(value, "id") && !strings.EqualFold(value, "session-id") && value != "" {
+						currentSession = getOrCreateSession(value)
+					}
 				case "layer":
 					if currentSession != nil {
 						if l, err := strconv.Atoi(strings.TrimSpace(value)); err == nil {
@@ -451,8 +474,8 @@ func ParsePipeline(data []byte) (*DAG, error) {
 						currentSession.OutputFile = strings.Trim(value, "`")
 					}
 				}
+				continue
 			}
-			continue
 		}
 
 		// Parse complexity score (tolerates both Unicode → and ASCII ->, -->, =>)

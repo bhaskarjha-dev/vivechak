@@ -86,12 +86,25 @@ func InferScope(contextText string) Scope {
 		return ScopeDecision
 	}
 
-	// Full project / application signals (override weak comparison/decision words)
+	// Explicit decision signals: "strategic decision", "architectural decision", "business decision", "decision:", "adr:"
+	explicitDecisionSignals := []string{
+		"strategic decision", "architectural decision", "business decision",
+		"adr:", "adr for", "decision:",
+	}
+	for _, sig := range explicitDecisionSignals {
+		if strings.Contains(lower, sig) {
+			return ScopeDecision
+		}
+	}
+
+	// Full project / application / business venture signals (override weak comparison/decision words)
 	projectSignals := []string{
 		"full architecture", "entire architecture", "system design", "system architecture",
 		"founding architecture", "fad", "startup idea", "new startup", "build an app",
 		"build a platform", "building a platform", "complete stack", "tech stack for",
-		"research pipeline", "uber for", "pipeline for",
+		"research pipeline", "uber for", "pipeline for", "new business", "new venture",
+		"new product", "business plan", "venture research", "launching a", "launching an",
+		"business project", "market entry pipeline", "market entry plan", "market entry research", "go-to-market plan",
 	}
 	for _, sig := range projectSignals {
 		if strings.Contains(lower, sig) {
@@ -99,11 +112,11 @@ func InferScope(contextText string) Scope {
 		}
 	}
 
-	// Single decision signals: "should we use", "should i use", "decision:", "choose between"
+	// Single decision signals: "should we use", "should i use", "choose between"
 	decisionSignals := []string{
 		"should we use", "should i use", "should we adopt", "should i adopt",
-		"should we pick", "should i pick", "choose between", "decision between",
-		"architectural decision", "adr:", "adr for", "decision:",
+		"should we pick", "should i pick", "should we choose", "should i choose",
+		"choose between", "decision between", "trade-off between", "tradeoffs between",
 	}
 	for _, sig := range decisionSignals {
 		if strings.Contains(lower, sig) {
@@ -111,11 +124,13 @@ func InferScope(contextText string) Scope {
 		}
 	}
 
-	// Bounded comparison signals: "vs", "versus", "compare X and Y", "which is better", "library shootout"
+	// Bounded comparison signals: "vs", "versus", "compare X and Y", "which is better", "shootout"
 	compSignals := []string{
 		" vs ", " vs. ", " versus ", "compare ", "comparison between", "comparison of",
-		"which is better", "which one is better", "which one should", "which library",
-		"which tool", "shootout", "benchmark between",
+		"which is better", "which one is better", "which is faster", "which one is faster",
+		"which one should", "which library", "which tool", "which model", "which algorithm",
+		"which approach", "which option", "which strategy", "which vendor", "which provider",
+		"shootout", "benchmark between",
 	}
 	for _, sig := range compSignals {
 		if strings.Contains(lower, sig) {

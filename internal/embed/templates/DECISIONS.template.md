@@ -27,9 +27,9 @@ schema_version: "0.1.0"
 
 ## Context & Problem Statement
 
-[Describe the technical requirements, architectural forces, and constraints
+[Describe the technical, strategic, operational, or business requirements, forces, and constraints
 that necessitate this decision. Include quantitative requirements where
-available (throughput targets, latency limits, data volumes, user counts).]
+available (throughput targets, latency limits, data volumes, user counts, unit economics, budget).]
 
 ## Evaluated Options
 
@@ -45,7 +45,7 @@ available (throughput targets, latency limits, data volumes, user counts).]
 
 [Causal rationale mapping evidence directly to decision criteria. Explain
 WHY the chosen option outperforms competitors for THIS specific project's
-constraints, not generic superiority claims.]
+constraints and objectives, not generic superiority claims.]
 
 ## Rejected Alternatives & Tradeoffs
 

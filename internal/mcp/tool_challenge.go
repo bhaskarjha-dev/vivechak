@@ -98,8 +98,29 @@ func handleChallenge(ctx context.Context, _ *sdkmcp.CallToolRequest, in Challeng
 			}
 		}
 		if !found {
-			return ErrorResult(tool, fmt.Errorf("session %s not found in %s", sessionID, core.SessionsDir),
-				"Ensure the session has been saved with vivechak_save_session before challenging it.")
+			// Also check research/ directly for ADR files or decisions (e.g. D-01-database.md)
+			if entries, lErr := ws.ListDir(core.ResearchDir); lErr == nil {
+				idUpper := strings.ToUpper(sessionID)
+				for _, e := range entries {
+					if e.IsDir() || !strings.HasSuffix(strings.ToLower(e.Name()), ".md") {
+						continue
+					}
+					name := strings.TrimSuffix(e.Name(), ".md")
+					nameUpper := strings.ToUpper(name)
+					if nameUpper == idUpper || strings.HasPrefix(nameUpper, idUpper+"-") || strings.HasPrefix(nameUpper, idUpper+"_") {
+						sessionPath = filepath.Join(core.ResearchDir, e.Name())
+						sessionData, err = ws.ReadFile(sessionPath)
+						if err == nil {
+							found = true
+							break
+						}
+					}
+				}
+			}
+		}
+		if !found {
+			return ErrorResult(tool, fmt.Errorf("session or decision %s not found in %s or %s", sessionID, core.SessionsDir, core.ResearchDir),
+				"Ensure the session or ADR has been saved before challenging it.")
 		}
 	}
 

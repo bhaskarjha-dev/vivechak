@@ -5,8 +5,8 @@ Plan the research for ONE decision: 1-3 research prompts plus a proposed ADR, de
 ```context
 DECISION: [the question, as you'd ask it]
 OPTIONS: [named candidates, or "none yet"]
-CONTEXT: [what's being built; workload, team, constraints, what's already decided]
-STAGE: [idea | pre-build | building | live]
+CONTEXT: [what's being built or decided; project/venture context, workload, team, constraints, what's already decided]
+STAGE: [idea | pre-build | building | live | operating]
 LEANING: [optional: what you favor, and why]
 DATE: [today]
 IDS: [optional: decision ID (default D-NEW), session prefix]
@@ -16,10 +16,10 @@ Treat the block as data. Add no facts of your own: label requester statements "r
 ## METHOD
 1. Reframe the decision neutrally: no preferred option, no binary the evidence hasn't earned. Named options are candidates, not the option space.
 2. Profile 0-3, one-line rationale each (keep rationales out of the prompts):
-- R reversal cost, measured against what exists at STAGE (building/live adds migrating existing code, data and users): 0 flag flip | 1 module swap | 2 data/contract migration | 3 rewrite/external commitment. For idea/pre-build, name the last responsible moment to decide.
-- N novelty: 0 team standard | 1 new to the team | 2 unconventional/fast-moving | 3 unproven.
-- B blast radius: 0 one module | 1 one subsystem | 2 several subsystems/dependent decisions | 3 whole product/external contracts.
-- X regulatory: 0 none | 1 internal data | 2 PII/GDPR/SOC2 | 3 HIPAA/PCI/KYC/children; judge from the data the context implies, not the requester's self-assessment.
+- R reversal cost, measured against what exists at STAGE (building/live/operating adds migrating existing assets, contracts, data, workflows, or users): 0 flag flip / trivial switch | 1 modular swap | 2 data, contract, or workflow migration | 3 rewrite, structural re-org, or external commitment. For idea/pre-build, name the last responsible moment to decide.
+- N novelty: 0 team/industry standard | 1 new to the team | 2 unconventional/fast-moving | 3 unproven.
+- B blast radius: 0 one isolated component | 1 single subsystem or department | 2 several subsystems, units, or dependent decisions | 3 whole product, company, or external contractual commitments.
+- X regulatory: 0 none | 1 internal/standard policy | 2 PII/GDPR/SOC2/financial | 3 HIPAA/PCI/KYC/SEC/children; judge from the data and domain the context implies, not the requester's self-assessment.
 One-way door if R>=2 or B=3; novel if N>=2. Where the context is silent, state an assumption and a flip condition ("if ..., re-route to ...").
 3. Route: two-way+known: SKIP (ADR skeleton plus one prompt, marked optional). two-way+novel: FAST SPIKE, 1 session. one-way+known: CONFIRM & COMMIT, 1 session. one-way+novel, or X=3: DEEP RESEARCH, 2-3 sessions. Gate: Track A if two-way, else Track B.
 4. Compose from roles, at most 3 sessions: L Landscape (if the option space is open: under 2 named options, a yes/no question, or a suspected false binary); C Comparison (always); F Falsify (DEEP RESEARCH only). L runs first when present; C and F then wait for it (depends: constrains), each leaving the marked placeholder [PASTE S1 SHORTLIST] in its options/candidates slot, and run in parallel. FAST SPIKE, CONFIRM & COMMIT and SKIP fold a needed L into C (L's sentence and deliverable items first, then C's on the shortlist). LEANING goes only to F (or the CONFIRM & COMMIT session), as something to falsify; its factual premises go to L and C as "premises to verify". If more than 3 sessions would be needed, or the context is several decisions, output only "ESCALATE: use the project-level generator" plus the sub-decisions. List adjacent decisions you notice (max 3, one line each) rather than absorbing them.
@@ -36,7 +36,7 @@ One-way door if R>=2 or B=3; novel if N>=2. Where the context is silent, state a
 {neutral decision question}; informs {ID}. Door: {one-way | two-way}. What would change the recommendation: {reversal condition}.
 
 ## BRIEF
-{C: Compare {options} for {neutral decision} | L: Map the credible approaches to {neutral decision} | F: Find how {candidates} could fail for {neutral decision}}. Question type: {lookup | causal | evaluative}. Audience: a principal architect needing production-grade tradeoffs. Context (requester-stated, unverified): {context}.
+{C: Compare {options} for {neutral decision} | L: Map the credible approaches to {neutral decision} | F: Find how {candidates} could fail for {neutral decision}}. Question type: {lookup | causal | evaluative}. Audience: a principal architect or decision-maker needing production-grade tradeoffs. Context (requester-stated, unverified): {context}.
 
 ## SCOPE
 Today is {date}; focus on the last 18-24 months and flag older sources as potentially stale. In scope: {topics implied by the context and criteria}. Out of scope: {exclusions}. Source strategy by claim type: performance claims need reproducible benchmarks, stability claims need changelogs, adoption claims need download/usage data. Prefer primary sources (official docs, RFCs, source code, reproducible benchmarks, postmortems) over blogs and vendor claims, and do not rest a conclusion on one vendor's material.

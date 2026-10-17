@@ -118,16 +118,14 @@ func handleNextSession(_ context.Context, _ *sdkmcp.CallToolRequest, in NextSess
 	// Read pipeline file (or decision plan file)
 	pipelineData, err := ws.ReadFile(core.PipelineFile)
 	if err != nil {
-		if info.Scope == core.ScopeDecision {
-			// Look for decision plan file (*-plan.md) in research/
-			if entries, lErr := ws.ListDir(core.ResearchDir); lErr == nil {
-				for _, e := range entries {
-					if !e.IsDir() && strings.HasSuffix(e.Name(), "-plan.md") {
-						if data, rErr := ws.ReadFile(filepath.Join(core.ResearchDir, e.Name())); rErr == nil {
-							pipelineData = data
-							err = nil
-							break
-						}
+		// Look for decision plan file (*-plan.md) in research/
+		if entries, lErr := ws.ListDir(core.ResearchDir); lErr == nil {
+			for _, e := range entries {
+				if !e.IsDir() && strings.HasSuffix(e.Name(), "-plan.md") {
+					if data, rErr := ws.ReadFile(filepath.Join(core.ResearchDir, e.Name())); rErr == nil {
+						pipelineData = data
+						err = nil
+						break
 					}
 				}
 			}

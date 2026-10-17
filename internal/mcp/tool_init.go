@@ -18,7 +18,7 @@ import (
 // InitInput holds the arguments for vivechak_init.
 type InitInput struct {
 	ProjectRoot string `json:"project_root,omitempty" jsonschema:"workspace root path. Recommended: pass active project directory path explicitly (e.g. 'project_root': 'd:/my-project') to prevent defaulting to host IDE process CWD"`
-	Scope       string `json:"scope,omitempty"        jsonschema:"research scope: 'project' (default) | 'decision' | 'comparison'. Pass explicitly to select workspace layout."`
+	Scope       string `json:"scope,omitempty"        jsonschema:"research scope (REQUIRED): 'project' (full pipeline -> FAD) | 'decision' (single decision -> ADR) | 'comparison' (bounded comparison -> WEP matrix). Pass explicitly to select workspace layout."`
 }
 
 func registerInit(server *sdkmcp.Server) {

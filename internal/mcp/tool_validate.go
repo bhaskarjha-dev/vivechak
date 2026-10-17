@@ -278,9 +278,22 @@ func handleWorkspaceValidate(tool string, projectRoot string) (*sdkmcp.CallToolR
 		results["fad"] = fadResult
 	}
 
-	// Validate pipeline if it exists
-	if data, err := ws.ReadFile(core.PipelineFile); err == nil && len(data) > 0 {
-		v := core.ValidatePlan(data)
+	// Validate pipeline or decision plan if it exists
+	planFile := core.PipelineFile
+	planData, err := ws.ReadFile(planFile)
+	if err != nil || len(planData) == 0 {
+		if entries, lErr := ws.ListDir(core.ResearchDir); lErr == nil {
+			for _, e := range entries {
+				if !e.IsDir() && strings.HasSuffix(e.Name(), "-plan.md") {
+					planFile = filepath.Join(core.ResearchDir, e.Name())
+					planData, _ = ws.ReadFile(planFile)
+					break
+				}
+			}
+		}
+	}
+	if len(planData) > 0 {
+		v := core.ValidatePlan(planData)
 		pipeResult := map[string]any{
 			"status":        v.Status,
 			"error_count":   v.ErrorCount(),
@@ -288,10 +301,35 @@ func handleWorkspaceValidate(tool string, projectRoot string) (*sdkmcp.CallToolR
 		}
 		if v.HasBlocking() {
 			for _, issue := range v.BlockingIssues() {
-				allWarnings = append(allWarnings, fmt.Sprintf("PIPELINE: %s", issue.String()))
+				allWarnings = append(allWarnings, fmt.Sprintf("PLAN %s: %s", filepath.Base(planFile), issue.String()))
 			}
 		}
 		results["pipeline"] = pipeResult
+	}
+
+	// Validate comparison if C-*-comparison.md exists
+	if entries, lErr := ws.ListDir(core.ResearchDir); lErr == nil {
+		for _, e := range entries {
+			if !e.IsDir() && strings.HasPrefix(strings.ToUpper(e.Name()), "C-") && strings.HasSuffix(e.Name(), "-comparison.md") {
+				compPath := filepath.Join(core.ResearchDir, e.Name())
+				if compData, rErr := ws.ReadFile(compPath); rErr == nil && len(compData) > 0 {
+					v := core.ValidateSession(compData)
+					compResult := map[string]any{
+						"file":          e.Name(),
+						"status":        v.Status,
+						"error_count":   v.ErrorCount(),
+						"warning_count": v.WarningCount(),
+					}
+					if v.HasBlocking() {
+						for _, issue := range v.BlockingIssues() {
+							allWarnings = append(allWarnings, fmt.Sprintf("COMPARISON %s: %s", e.Name(), issue.String()))
+						}
+					}
+					results["comparison"] = compResult
+					break
+				}
+			}
+		}
 	}
 
 	totalIssues := len(allWarnings)
