@@ -1083,3 +1083,81 @@ Compare Winston vs Pino. Evidence Grade A (official docs).
 	}
 }
 
+// TestPrepareGenerator_ScopeAwareNextStep verifies that prepare_generator returns
+// scope-appropriate next_step guidance for comparison, decision, and project scopes.
+func TestPrepareGenerator_ScopeAwareNextStep(t *testing.T) {
+	cs := testServer(t)
+	ctx := context.Background()
+
+	cases := []struct {
+		name        string
+		scope       string
+		context     string
+		expectedSub string
+	}{
+		{
+			name:        "comparison scope",
+			scope:       "comparison",
+			context:     "Pino vs Winston for logging",
+			expectedSub: "WEP comparison matrix",
+		},
+		{
+			name:        "decision scope",
+			scope:       "decision",
+			context:     "Migrate PostgreSQL to ClickHouse for analytics",
+			expectedSub: "decision plan and ADR skeleton",
+		},
+		{
+			name:        "project scope",
+			scope:       "project",
+			context:     "Build a distributed streaming architecture in Go",
+			expectedSub: "generate your research pipeline",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			res, err := cs.CallTool(ctx, &mcp.CallToolParams{
+				Name: "vivechak_prepare_generator",
+				Arguments: map[string]any{
+					"scope":   tc.scope,
+					"context": tc.context,
+				},
+			})
+			if err != nil {
+				t.Fatalf("prepare_generator(%s): %v", tc.scope, err)
+			}
+			env := parseEnvelope(t, res)
+			if !strings.Contains(env.NextStep, tc.expectedSub) {
+				t.Errorf("expected next_step to contain %q, got: %q", tc.expectedSub, env.NextStep)
+			}
+		})
+	}
+}
+
+// TestServerInstructions_MultiScopeAndOutofScope verifies the instruction prompt includes
+// multi-scope workflows, out-of-scope boundaries, and fits within size limits.
+func TestServerInstructions_MultiScopeAndOutofScope(t *testing.T) {
+	instrLen := len(ServerInstructions)
+	if instrLen <= 1000 || instrLen >= 2000 {
+		t.Errorf("expected ServerInstructions length between 1000 and 2000 bytes, got %d", instrLen)
+	}
+
+	mandatoryPhrases := []string{
+		"MANDATORY TRIGGER RULES",
+		"SKIP Vivechak for direct code authoring",
+		"Comparison ('A vs B', 1 session)",
+		"Decision (ADR, 1–3 sessions)",
+		"Project (Full Pipeline)",
+		"Evidence Grades",
+		"Session Sections",
+		"Token Efficiency",
+	}
+
+	for _, phrase := range mandatoryPhrases {
+		if !strings.Contains(ServerInstructions, phrase) {
+			t.Errorf("ServerInstructions missing required phrase: %q", phrase)
+		}
+	}
+}
+

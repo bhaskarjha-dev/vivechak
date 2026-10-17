@@ -192,6 +192,21 @@ func TestInferScope(t *testing.T) {
 			expected: ScopeDecision,
 		},
 		{
+			name:     "Migration architectural decision",
+			input:    "Should we migrate our analytics datastore from PostgreSQL to ClickHouse?",
+			expected: ScopeDecision,
+		},
+		{
+			name:     "Migration dilemma with slang/typos",
+			input:    "shuld we migrate our event storage from mysql to clickhouse",
+			expected: ScopeDecision,
+		},
+		{
+			name:     "Architectural fork signal",
+			input:    "architectural fork for multi-region authentication service",
+			expected: ScopeDecision,
+		},
+		{
 			name:     "Decision prefix",
 			input:    "decision: graphql vs rest for mobile clients",
 			expected: ScopeDecision,

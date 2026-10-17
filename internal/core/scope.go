@@ -144,15 +144,19 @@ func InferScope(contextText string) Scope {
 		}
 	}
 
-	// Single decision signals: "should we use", "should i use", "choose between"
+	// Single decision signals: "should we use", "should i use", "choose between", "should we migrate"
 	decisionSignals := []string{
 		"should we use", "should i use", "should we adopt", "should i adopt",
 		"should we pick", "should i pick", "should we choose", "should i choose",
+		"should we migrate", "should i migrate", "migrate from", "migration from",
+		"migrate to", "migration to", "migrate our",
 		"shuld we use", "shuld i use", "shud we use", "shud i use",
 		"shuld we adopt", "shuld i adopt", "shud we adopt", "shud i adopt",
 		"shuld we choose", "shuld i choose", "shud we choose", "shud i choose",
 		"shuld we pick", "shuld i pick", "shud we pick", "shud i pick",
+		"shuld we migrate", "shuld i migrate", "shud we migrate", "shud i migrate",
 		"choose between", "decision between", "trade-off between", "tradeoffs between",
+		"architectural fork", "architectural dilemma",
 	}
 	for _, sig := range decisionSignals {
 		if strings.Contains(lower, sig) {
