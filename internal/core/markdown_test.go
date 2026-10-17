@@ -73,3 +73,39 @@ func TestExtractSection_NotFoundAndEmpty(t *testing.T) {
 		t.Errorf("expected empty string for missing section, got %q", got)
 	}
 }
+
+func TestExtractSection_CodeFenceWithComments(t *testing.T) {
+	doc := `## Discovered Concerns
+Here are the primary risks:
+` + "```bash\n# Check system requirements\ncat /etc/os-release\n# Verify limits\nulimit -n\n```" + `
+These concerns are substantial and exceed 50 characters in total length.
+
+## Next Section
+Other content.
+`
+	got := ExtractSection(doc, "discovered concerns")
+	if !strings.Contains(got, "cat /etc/os-release") {
+		t.Fatalf("ExtractSection truncated content before code block, got:\n%s", got)
+	}
+	if !strings.Contains(got, "These concerns are substantial") {
+		t.Fatalf("ExtractSection truncated content at code comment, got:\n%s", got)
+	}
+	if strings.Contains(got, "Other content") {
+		t.Fatalf("ExtractSection bled into Next Section, got:\n%s", got)
+	}
+
+	// Also test tilde fences (~~~)
+	docTilde := `## Delta
+` + "~~~python\n# Invalidate cache\nredis.flushall()\n~~~" + `
+Delta continues here.
+## Summary
+Done.`
+	gotTilde := ExtractSection(docTilde, "delta")
+	if !strings.Contains(gotTilde, "redis.flushall") || !strings.Contains(gotTilde, "Delta continues here") {
+		t.Fatalf("ExtractSection failed on tilde code fence, got:\n%s", gotTilde)
+	}
+	if strings.Contains(gotTilde, "Done.") {
+		t.Fatalf("ExtractSection bled past tilde fence section, got:\n%s", gotTilde)
+	}
+}
+

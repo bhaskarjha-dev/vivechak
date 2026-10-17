@@ -592,5 +592,48 @@ func TestBuildStaleDatePattern_EmptyYears(t *testing.T) {
 	}
 }
 
+func TestObserveSessionQuality_GradeAInLedgerTable(t *testing.T) {
+	content := []byte(`---
+session_id: T0-01
+status: draft
+---
+## Prior
+Initial assumption.
 
+## Key Findings
+- [CLAIM-01] Postgres 16 introduces btree indexing speedups (Grade A · corroborated | fetched).
 
+## Discovered Concerns
+Memory pressure during maintenance operations.
+
+## Delta
+Performance gains observed.
+
+## Sources & Evidence Ledger
+| # | Source | Grade | Modifiers | Status | Supports |
+|---|---|---|---|---|---|
+| 1 | https://www.postgresql.org/docs/16/release-16.html | Grade A | corroborated | fetched | CLAIM-01 |
+`)
+	obs := ObserveSessionQuality(content)
+	for _, o := range obs {
+		if strings.Contains(o.Message, "lack canonical URL") {
+			t.Fatalf("unexpected false Grade A warning when URL is in ledger table: %s", o.Message)
+		}
+	}
+}
+
+func TestHasSectionHeading_CaseInsensitive(t *testing.T) {
+	doc := `
+## Discovered Concerns
+Here are unexpected findings.
+`
+	if !hasSectionHeading(doc, "DISCOVERED CONCERNS") {
+		t.Errorf("expected hasSectionHeading to match uppercase keywords")
+	}
+	if !hasSectionHeading(doc, "Discovered Concerns") {
+		t.Errorf("expected hasSectionHeading to match mixed-case keywords")
+	}
+	if hasSectionHeading(doc, "NONEXISTENT") {
+		t.Errorf("expected false for nonexistent heading")
+	}
+}

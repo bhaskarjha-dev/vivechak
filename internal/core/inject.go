@@ -126,9 +126,11 @@ func cleanTableCell(s string) string {
 func extractRecommendation(body string) string {
 	lines := strings.Split(body, "\n")
 	inRec := false
+	var ft FenceTracker
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
-		if strings.HasPrefix(trimmed, "#") {
+		inCodeBlock := ft.ProcessLine(trimmed)
+		if !inCodeBlock && strings.HasPrefix(trimmed, "#") {
 			lower := strings.ToLower(trimmed)
 			if strings.Contains(lower, "recommend") {
 				if idx := strings.Index(trimmed, ":"); idx != -1 && idx+1 < len(trimmed) {
@@ -149,7 +151,7 @@ func extractRecommendation(body string) string {
 				break
 			}
 		}
-		if inRec && trimmed != "" {
+		if inRec && !inCodeBlock && trimmed != "" && !strings.HasPrefix(trimmed, "|") {
 			val := strings.TrimLeft(trimmed, "-*# ")
 			val = strings.Trim(val, "*_`")
 			val = cleanTableCell(val)
@@ -332,14 +334,18 @@ func gatherAllFindings(sessionsDir string, completedSessions map[string]bool) (s
 
 // extractDeltaSection extracts the content under a ## Delta heading from session body.
 // Returns the delta content (without the heading itself), or empty string if not found.
+// Headings inside code blocks are ignored.
 func extractDeltaSection(body string) string {
 	lines := strings.Split(body, "\n")
 	var deltaContent strings.Builder
 	inDelta := false
+	var ft FenceTracker
 
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
-		if strings.HasPrefix(trimmed, "#") {
+		inCodeBlock := ft.ProcessLine(trimmed)
+
+		if !inCodeBlock && strings.HasPrefix(trimmed, "#") {
 			lower := strings.ToLower(trimmed)
 			if strings.Contains(lower, "delta") && !inDelta {
 				inDelta = true

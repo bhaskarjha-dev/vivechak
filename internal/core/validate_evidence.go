@@ -30,20 +30,28 @@ var (
 	)
 )
 
+var sourcesHeadingRegex = regexp.MustCompile(`(?i)^#{2,3}\s+(?:\d+\.\s*)?(?:Sources|Evidence|References)`)
+
 // ValidateEvidenceProvenance verifies that Grade A fetched claims have qualified provenance anchors.
 func ValidateEvidenceProvenance(bodyStr string, isOneWay bool, result *ValidationResult) {
 	lines := strings.Split(bodyStr, "\n")
 	inSourcesTable := false
 	sourceCol := -1
+	var ft FenceTracker
 
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
-		if strings.HasPrefix(trimmed, "## Sources") || strings.HasPrefix(trimmed, "## Evidence") {
+		inCodeBlock := ft.ProcessLine(trimmed)
+		if inCodeBlock {
+			continue
+		}
+
+		if sourcesHeadingRegex.MatchString(trimmed) {
 			inSourcesTable = true
 			sourceCol = -1
 			continue
 		}
-		if inSourcesTable && strings.HasPrefix(trimmed, "## ") {
+		if inSourcesTable && strings.HasPrefix(trimmed, "#") {
 			inSourcesTable = false
 			sourceCol = -1
 		}

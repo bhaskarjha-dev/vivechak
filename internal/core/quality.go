@@ -71,7 +71,7 @@ func ObserveSessionQuality(content []byte) []QualityObservation {
 			gradeCPlusCount++
 		}
 	}
-	// Verify Grade A claims have explicit URL or canonical RFC anchors (Task 4.2 / ADR D-UX-02)
+	// Verify Grade A claims have explicit URL or canonical RFC anchors (Task 4.2 / ADR D-UX-02 / E-32)
 	gradeALines := findLinesWithGradeA(bodyStr)
 	unanchoredGradeA := 0
 	for _, l := range gradeALines {
@@ -84,10 +84,12 @@ func ObserveSessionQuality(content []byte) []QualityObservation {
 			unanchoredGradeA++
 		}
 	}
-	if unanchoredGradeA > 0 {
+	totalAnchors := countDistinctURLs(bodyStr) + countDistinctRFCsAndDOIs(bodyStr)
+	if unanchoredGradeA > 0 && totalAnchors < unanchoredGradeA {
+		missing := unanchoredGradeA - totalAnchors
 		observations = append(observations, QualityObservation{
 			Category: "evidence",
-			Message: fmt.Sprintf("%d Grade A claim(s) lack canonical URL or RFC provenance anchors. Primary evidence requires verifiable sources.", unanchoredGradeA),
+			Message: fmt.Sprintf("%d Grade A claim(s) lack canonical URL or RFC provenance anchors in claim bullets or Sources Ledger. Primary evidence requires verifiable sources.", missing),
 			Severity: "consideration",
 		})
 	}
@@ -274,14 +276,17 @@ func isLikelyYearReference(text string, start, end int) bool {
 }
 
 // hasSectionHeading checks whether body contains any markdown heading (# ...) containing any of the keywords.
+// Headings inside code blocks are ignored.
 func hasSectionHeading(body string, keywords ...string) bool {
 	lines := strings.Split(body, "\n")
+	var ft FenceTracker
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
-		if strings.HasPrefix(trimmed, "#") {
+		inCodeBlock := ft.ProcessLine(trimmed)
+		if !inCodeBlock && strings.HasPrefix(trimmed, "#") {
 			lower := strings.ToLower(trimmed)
 			for _, kw := range keywords {
-				if strings.Contains(lower, kw) {
+				if strings.Contains(lower, strings.ToLower(kw)) {
 					return true
 				}
 			}
@@ -296,6 +301,11 @@ func findLinesWithGradeA(text string) []string {
 	lines := strings.Split(text, "\n")
 	var res []string
 	for _, l := range lines {
+		trimmed := strings.TrimSpace(l)
+		// Skip table rows (ledger or criteria tables) so table entries are not confused with claim statements
+		if strings.HasPrefix(trimmed, "|") {
+			continue
+		}
 		if gradeALineRe.MatchString(l) {
 			res = append(res, l)
 		}
@@ -310,6 +320,20 @@ func countDistinctURLs(text string) int {
 	}
 	seen := make(map[string]bool)
 	for _, m := range matches {
+		seen[strings.ToLower(m)] = true
+	}
+	return len(seen)
+}
+
+var rfcDocPattern = regexp.MustCompile(`(?i)\brfc[- ]?\d{3,5}\b`)
+var doiDocPattern = regexp.MustCompile(`(?i)\bdoi:10\.\d{4,9}/[^\s\)]+`)
+
+func countDistinctRFCsAndDOIs(text string) int {
+	seen := make(map[string]bool)
+	for _, m := range rfcDocPattern.FindAllString(text, -1) {
+		seen[strings.ToLower(m)] = true
+	}
+	for _, m := range doiDocPattern.FindAllString(text, -1) {
 		seen[strings.ToLower(m)] = true
 	}
 	return len(seen)

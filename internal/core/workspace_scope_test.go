@@ -236,6 +236,26 @@ func TestInferScope(t *testing.T) {
 			input:    "which strategy for cross-border currency settlement and hedging",
 			expected: ScopeComparison,
 		},
+		{
+			name:     "vck compare prefix",
+			input:    "vck compare winston vs pino",
+			expected: ScopeComparison,
+		},
+		{
+			name:     "vck decide prefix with colon",
+			input:    "vck decide: postgres vs clickhouse for analytics",
+			expected: ScopeDecision,
+		},
+		{
+			name:     "vck plan prefix",
+			input:    "vck plan new b2b payment platform",
+			expected: ScopeProject,
+		},
+		{
+			name:     "vivechak adr prefix",
+			input:    "vivechak adr event streaming architecture",
+			expected: ScopeDecision,
+		},
 	}
 
 	for _, tt := range tests {
@@ -305,4 +325,60 @@ func TestInspectWorkspace_ComparisonScopeDetection(t *testing.T) {
 	}
 }
 
+func TestInspectWorkspace_DecisionsFrontmatterDoorType(t *testing.T) {
+	tmpDir := t.TempDir()
+	_ = os.MkdirAll(filepath.Join(tmpDir, ResearchDir), 0o755)
 
+	// File named "storage-choice.md" (does not start with D-)
+	adrContent := `---
+id: D-01
+title: Storage Engine Choice
+door_type: two-way
+status: accepted
+---
+# Content
+`
+	_ = os.WriteFile(filepath.Join(tmpDir, ResearchDir, "storage-choice.md"), []byte(adrContent), 0o644)
+
+	info := InspectWorkspace(tmpDir)
+	if !info.HasDecisions {
+		t.Errorf("expected InspectWorkspace to detect decision file via door_type frontmatter")
+	}
+}
+
+func TestCollectGateDecisions_CaseInsensitiveDeduplication(t *testing.T) {
+	tmpDir := t.TempDir()
+	_ = os.MkdirAll(filepath.Join(tmpDir, ResearchDir), 0o755)
+
+	// Standalone ADR file with lowercase id "d-01"
+	adrContent := `---
+id: d-01
+title: Storage Engine
+door_type: two-way
+status: accepted
+---
+# Content
+`
+	_ = os.WriteFile(filepath.Join(tmpDir, ResearchDir, "D-01.md"), []byte(adrContent), 0o644)
+
+	// Consolidated DECISIONS.md with uppercase ID "D-01"
+	decisionsContent := `# Decisions
+
+<!-- DECISION: D-01 -->
+---
+id: D-01
+title: Storage Engine
+door_type: two-way
+status: accepted
+---
+# Content
+<!-- /DECISION: D-01 -->
+`
+	_ = os.WriteFile(filepath.Join(tmpDir, DecisionsFile), []byte(decisionsContent), 0o644)
+
+	ws := &testWorkspaceFS{root: tmpDir}
+	decisions := CollectGateDecisions(ws)
+	if len(decisions) != 1 {
+		t.Fatalf("expected exactly 1 deduplicated decision, got %d: %+v", len(decisions), decisions)
+	}
+}

@@ -1007,6 +1007,36 @@ func TestSafeTruncateUTF8(t *testing.T) {
 	}
 }
 
+func TestExtractDeltaSection_CodeFence(t *testing.T) {
+	body := `## Delta
+Initial belief changed based on testing:
+` + "```bash\n# Verify configuration\nsysctl -p\n# Check reload\nnginx -s reload\n```" + `
+Final delta verdict here.
+
+## Next Section
+Other info.`
+
+	got := extractDeltaSection(body)
+	if !strings.Contains(got, "sysctl -p") || !strings.Contains(got, "Final delta verdict here") {
+		t.Fatalf("extractDeltaSection truncated prematurely on code comment, got:\n%s", got)
+	}
+	if strings.Contains(got, "Other info") {
+		t.Fatalf("extractDeltaSection bled into next section, got:\n%s", got)
+	}
+}
+
+func TestExtractRecommendation_CodeFence(t *testing.T) {
+	body := `## Recommendation
+` + "```python\n# Recommended snippet\nimport pino\n```" + `
+Pino is chosen for extreme performance.`
+
+	got := extractRecommendation(body)
+	if !strings.Contains(got, "Pino is chosen") {
+		t.Fatalf("extractRecommendation truncated on code comment, got:\n%s", got)
+	}
+}
+
+
 
 
 

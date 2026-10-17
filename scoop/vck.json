@@ -16,10 +16,7 @@
   },
   "bin": [
     "vck.exe",
-    [
-      "vck.exe",
-      "vivechak"
-    ]
+    "vivechak.exe"
   ],
   "checkver": "github",
   "autoupdate": {

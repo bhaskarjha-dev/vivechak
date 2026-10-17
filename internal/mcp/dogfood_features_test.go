@@ -1540,6 +1540,61 @@ We choose Raft consensus for deterministic state replication. Grade A (https://r
 	}
 }
 
+// TestWorkspaceValidate_DeduplicatesStandaloneAndRegistry verifies that an ADR in a standalone file
+// and DECISIONS.md is validated exactly once.
+func TestWorkspaceValidate_DeduplicatesStandaloneAndRegistry(t *testing.T) {
+	cs := testServer(t)
+	ctx := context.Background()
+	tmpDir := t.TempDir()
+
+	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "vivechak_init",
+		Arguments: map[string]any{"project_root": tmpDir, "scope": "project"},
+	})
+
+	// Standalone ADR file D-001-consensus.md
+	standaloneADR := `---
+id: D-001
+title: Consensus Engine
+status: accepted
+door_type: two-way
+---
+# D-001: Consensus Engine
+We choose Raft consensus for deterministic state replication across distributed research storage nodes. Grade A (https://raft.github.io)
+`
+	_ = os.WriteFile(filepath.Join(tmpDir, core.ResearchDir, "D-001-consensus.md"), []byte(standaloneADR), 0o644)
+
+	// Consolidated registry with same ID D-001
+	decisionsMD := `# Architectural Decisions
+
+<!-- DECISION: D-001 -->
+---
+id: D-001
+title: Consensus Engine
+status: accepted
+door_type: two-way
+---
+# D-001: Consensus Engine
+We choose Raft consensus for deterministic state replication across distributed research storage nodes. Grade A (https://raft.github.io)
+<!-- /DECISION: D-001 -->
+`
+	_ = os.WriteFile(filepath.Join(tmpDir, core.DecisionsFile), []byte(decisionsMD), 0o644)
+
+	res, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "vivechak_validate",
+		Arguments: map[string]any{"project_root": tmpDir},
+	})
+	if err != nil {
+		t.Fatalf("validate failed: %v", err)
+	}
+	env := parseEnvelope(t, res)
+	dataMap := env.Data.(map[string]any)
+	decMap := dataMap["decisions"].(map[string]any)
+	if int(decMap["valid"].(float64)) != 1 {
+		t.Errorf("expected exactly 1 deduplicated valid decision, got: %v", decMap["valid"])
+	}
+}
+
 // TestRunGate_ZeroTwoWayDoors_TrackAPasses verifies Track A handles 0 two-way doors cleanly
 func TestRunGate_ZeroTwoWayDoors_TrackAPasses(t *testing.T) {
 	cs := testServer(t)

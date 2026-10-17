@@ -15,7 +15,7 @@ Vivechak delivers a unified, evidence-grounded research methodology powered by a
 |---|---|---|
 | **13 Atomic MCP Tools** | ✅ Shipped | Full lifecycle support: `init`, `prepare_generator`, `save_plan`, `status`, `next_session`, `save_session`, `record_decision` (with ADR supersession), `amend_session`, `validate`, `run_gate`, `challenge` (adversarial red-teaming), `replan` (in-flight DAG mutation), and `visualize` (Mermaid graph + status table) |
 | **Multi-Scope Generators** | ✅ Shipped | `GENERATOR.md` (Project), `GENERATOR-DECISION.md` (Decision), `GENERATOR-COMPARISON.md` (Comparison) with synchronized `CORE:BEGIN/END` methodology kernels, Research Depth Mandates, and token-optimized execution guidance |
-| **Unified AST-Aware Markdown Parser** | ✅ Shipped | CommonMark heading-level extraction for recommendations, alternatives, and frontmatters; eliminates sibling truncation and parser fragility |
+| **Unified AST-Aware Markdown Parser** | ✅ Shipped | CommonMark heading-level and code-fence-aware extraction for recommendations, alternatives, and frontmatters; eliminates sibling truncation, code comment false positives, and parser fragility |
 | **Strict Decoupled Phase 0 Exit Gate** | ✅ Shipped | Non-negotiable blocking on One-Way Door evidentiary defects (B3), verification gaps (B4), and missing alternatives (B5), preventing Potemkin passes while preserving fast spikes for Two-Way Doors |
 | **Permissive Frontmatter & ADR Supersession** | ✅ Shipped | Zero-crash frontmatter extraction for documents starting with `# Heading` or blank lines; robust non-destructive ADR supersession |
 | **Eager Concurrency Locks** | ✅ Shipped | Mutual exclusion across mid-flight replans (anti-TOCTOU) and workspace root FAD mirror synthesis |
@@ -65,11 +65,22 @@ Forensic audit and real-world multi-agent dogfooding telemetry uncovered 27 conc
 | **E-25** | MCP / Security | **Adversarial Parameter Traversal Validation:** Enforced `isValidID` checks on secondary session identifiers (`amending_session_id`, `auto_draft_from`) to prevent traversal injection. | ✅ Resolved |
 | **E-26** | MCP / Interop | **Resilient MCP Schema Aliasing:** Small-model and varied agent harnesses often supply divergent argument keys. Supported `decision_id` and `challenge_type` aliases in `vivechak_challenge` and optional `track` filter in `vivechak_run_gate` alongside structured machine-readable result payload fields (`track_a_result`, `track_b_result`, `decisions`). | ✅ Resolved |
 | **E-27** | Core / Workspace | **Decoupled Plan-File Workspace Discovery:** Decoupled pipeline plan discovery (`RESEARCH-PIPELINE.md`, `DECISION-PLAN.md`, `COMPARISON-PLAN.md`) from `.vivechak.json` file presence, guaranteeing `info.HasPipeline = true` across all multi-scope workflows. | ✅ Resolved |
+| **E-28** | Parsers | **Code-Fence-Aware CommonMark Extraction (`markdown.go`, `inject.go`):** AST section extractor parsed `#` comment lines inside code blocks as headings, triggering premature section truncation and false `V-OWD-NO-CONCERNS` errors. Added state-machine `FenceTracker` ignoring code fence comments while preserving heading substring matching. | ✅ Resolved |
+| **E-29** | Core / Gate | **Dual-Source Decision Resolution (`workspace.go`, `gate.go`, `tool_validate.go`):** Replaced exclusive `if len(sources) == 0` fallback. Scans both standalone `D-*.md` files and consolidated `DECISIONS.md` simultaneously, deduplicating by decision ID. | ✅ Resolved |
+| **E-30** | CI/CD | **Dynamic Release Version Synchronization (`release.yml`):** Dynamic `sed` injection of git release tag (`${GITHUB_REF_NAME#v}`) into `npm/` and `pypi/` manifests, dependency bounds, and runner scripts before publishing. | ✅ Resolved |
+| **E-31** | MCP / Validator | **Multi-Tier Frontmatter Extraction in `tool_validate`:** Unified frontmatter validation to check anchored comments, unanchored `---` blocks, and standalone ADRs, matching `gate.go`. | ✅ Resolved |
+| **E-32** | Quality Engine | **Evidence Ledger URL Cross-Referencing (`quality.go`):** Updated Grade A provenance checker to accept canonical URLs and RFCs documented in the `## Sources & Evidence Ledger` table rather than failing on claim bullets, and excluded table rows from claim counts. | ✅ Resolved |
+| **E-33** | MCP / Prompt | **Front-Loaded Trigger Rules in `ServerInstructions`:** Moved mandatory trigger directives to the top of MCP handshake instructions to prevent small-model workflow truncation. | ✅ Resolved |
+| **E-34** | Core / Scope | **`vck` Shorthand Scope Recognition (`scope.go`):** Added explicit prefix matching for `vck plan`, `vck decide`, `vck compare`, and `vck vs` to `InferScope`. | ✅ Resolved |
+| **E-35** | Validation | **Resilient Sources Header Regex (`validate_evidence.go`):** Replaced prefix matching with regex supporting numbered headings and H3 levels. | ✅ Resolved |
+| **E-36** | Packaging | **Scoop Manifest Binary Alignment (`scoop/vivechak.json`):** Aligned reference Scoop manifest to declare `["vivechak.exe", "vck.exe"]` directly. | ✅ Resolved |
 
 ### 2.1 Near-Term Packaging & Workflows (Awaiting Demand Signal)
 
 | Feature | Description | Origin | Gate Condition | Est. Effort |
 |---|---|---|---|---|
+| **Automated Prompt Verification in CI** | Continuous testing of `ServerInstructions` and trigger adherence across small models in CI test matrix. | Dogfooding / Small-Model Audits | Regression tests for multi-harness instruction parsing | Low |
+| **Dynamic Scope Telemetry** | Telemetry and dry-run diagnostics tracking `InferScope` accuracy in live CLI logs across diverse prompt phrasings. | Dogfooding / CLI Ergonomics | Multi-agent pipelines exhibiting ambiguous scope inputs | Low |
 | **BYOK LLM Bridge (`v0.2.0`)** | Optional enrichment layer for automated challenge execution and semantic conflict detection; core remains zero-LLM Go binary. | ROADMAP.md § 3.1 / Dogfooding | User demand for automated host-agnostic red-team execution | Medium |
 | **URL Health Verification (`v0.2.1`)** | Cached L3 advisory check for dead/404 URLs without blocking execution. | ADR D-UX-02 § 4 / Dogfooding | User demand for automated link rot detection | Low |
 | **Empirical Sandbox Spike Runner (`v0.2.2`)** | Container-based CPU/RAM/latency benchmarking for Two-Way Doors. | ROADMAP.md § 3.2 | Adoption of empirical spike tier across 3+ client teams | High |

@@ -1,6 +1,6 @@
 # Server Architecture Guide
 
-> **Last verified against code:** 2026-10-14 (v0.1.0)
+> **Last verified against code:** 2026-10-17 (v0.1.0)
 > If you find discrepancies with the actual code, please file an issue.
 
 Welcome to the internal architecture guide for **Vivechak** (विवेचक). This document is written for Go developers and contributors who want to understand, extend, or maintain the Vivechak MCP server codebase.
@@ -35,7 +35,7 @@ vivechak/
 │   │   ├── draft_decision.go # Automated ADR drafting from session recommendations
 │   │   ├── frontmatter.go  # YAML frontmatter parsing and composition
 │   │   ├── inject.go       # Upstream context injection engine
-│   │   ├── markdown.go     # Resilient section extraction
+│   │   ├── markdown.go     # CommonMark fence tracking (FenceTracker) & section extraction
 │   │   ├── validate.go     # Structural validation ladder (L1–L4)
 │   │   ├── validate_evidence.go # Evidence grade & qualified provenance rules
 │   │   ├── quality.go      # Advisory quality coaching (Q-*) & dynamic freshness

@@ -632,3 +632,54 @@ status: accepted
 		t.Errorf("unexpected decision: %+v", decs[0])
 	}
 }
+
+func TestCollectGateDecisions_DualSource(t *testing.T) {
+	dir := t.TempDir()
+	ws := &testWorkspaceFS{root: dir}
+	_ = os.MkdirAll(filepath.Join(dir, "research"), 0o755)
+
+	// Standalone D-01
+	_ = os.WriteFile(filepath.Join(dir, "research", "D-01.md"), []byte("---\nid: D-01\ntitle: Standalone\ndoor_type: two-way\nstatus: accepted\n---\nBody"), 0o644)
+	// Consolidated DECISIONS.md with D-02
+	_ = os.WriteFile(filepath.Join(dir, "research", "DECISIONS.md"), []byte("---\nid: D-02\ntitle: Registry\ndoor_type: two-way\nstatus: accepted\n---\nBody"), 0o644)
+
+	decisions := CollectGateDecisions(ws)
+	if len(decisions) != 2 {
+		t.Fatalf("expected 2 decisions from dual sources, got %d: %+v", len(decisions), decisions)
+	}
+}
+
+func TestVerifyDecisionsMechanical_CaseInsensitiveDeduplication(t *testing.T) {
+	dir := t.TempDir()
+	ws := &testWorkspaceFS{root: dir}
+	_ = os.MkdirAll(filepath.Join(dir, "research"), 0o755)
+
+	// Standalone D-01 with lowercase id "d-01"
+	d1 := `---
+id: d-01
+door_type: two-way
+status: accepted
+---
+# D-01
+`
+	_ = os.WriteFile(filepath.Join(dir, "research", "D-01.md"), []byte(d1), 0o644)
+
+	// Consolidated DECISIONS.md with uppercase ID "D-01"
+	decisionsContent := `# Decisions
+<!-- DECISION: D-01 -->
+---
+id: D-01
+door_type: two-way
+status: accepted
+---
+# D-01
+<!-- /DECISION: D-01 -->
+`
+	_ = os.WriteFile(filepath.Join(dir, DecisionsFile), []byte(decisionsContent), 0o644)
+
+	info := InspectWorkspace(dir)
+	ok, issues, _ := verifyDecisionsMechanical(ws, info)
+	if !ok {
+		t.Fatalf("expected verifyDecisionsMechanical to pass, got issues: %v", issues)
+	}
+}

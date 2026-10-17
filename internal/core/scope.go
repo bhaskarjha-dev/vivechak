@@ -86,6 +86,22 @@ func InferScope(contextText string) Scope {
 		return ScopeDecision
 	}
 
+	// Command shorthand triggers (vck & vivechak)
+	cleanLower := strings.ReplaceAll(lower, ":", " ")
+	cleanLower = strings.Join(strings.Fields(cleanLower), " ")
+	if strings.HasPrefix(cleanLower, "vck plan") || strings.HasPrefix(cleanLower, "vck project") ||
+		strings.HasPrefix(cleanLower, "vivechak plan") || strings.HasPrefix(cleanLower, "vivechak project") {
+		return ScopeProject
+	}
+	if strings.HasPrefix(cleanLower, "vck decide") || strings.HasPrefix(cleanLower, "vck adr") ||
+		strings.HasPrefix(cleanLower, "vivechak decide") || strings.HasPrefix(cleanLower, "vivechak adr") {
+		return ScopeDecision
+	}
+	if strings.HasPrefix(cleanLower, "vck compare") || strings.HasPrefix(cleanLower, "vck vs") ||
+		strings.HasPrefix(cleanLower, "vivechak compare") || strings.HasPrefix(cleanLower, "vivechak vs") {
+		return ScopeComparison
+	}
+
 	// Explicit decision signals: "strategic decision", "architectural decision", "business decision", "decision:", "adr:"
 	explicitDecisionSignals := []string{
 		"strategic decision", "architectural decision", "business decision",

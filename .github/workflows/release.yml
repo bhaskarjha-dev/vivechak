@@ -103,6 +103,16 @@ jobs:
           node-version: "20.x"
           registry-url: "https://registry.npmjs.org"
 
+      - name: Synchronize npm versions from git tag
+        if: steps.check_token.outputs.has_token == 'true'
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          echo "Setting npm packages, dependencies, and runner to version: $TAG_VERSION"
+          sed -i "s/\"version\": \".*\"/\"version\": \"$TAG_VERSION\"/" npm/vivechak/package.json
+          sed -i "s/\"version\": \".*\"/\"version\": \"$TAG_VERSION\"/" npm/vck/package.json
+          sed -i "s/\"vivechak\": \".*\"/\"vivechak\": \"$TAG_VERSION\"/" npm/vck/package.json
+          sed -i "s/const VERSION = ['\"].*['\"];/const VERSION = '$TAG_VERSION';/" npm/vivechak/bin/runner.js
+
       - name: Publish to npm
         if: steps.check_token.outputs.has_token == 'true'
         env:
@@ -135,6 +145,18 @@ jobs:
         if: steps.check_token.outputs.has_token == 'true'
         with:
           python-version: "3.11"
+
+      - name: Synchronize PyPI versions from git tag
+        if: steps.check_token.outputs.has_token == 'true'
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          echo "Setting PyPI packages, dependencies, and cli runner to version: $TAG_VERSION"
+          sed -i "s/version = \".*\"/version = \"$TAG_VERSION\"/" pypi/vivechak/pyproject.toml
+          sed -i "s/version = \".*\"/version = \"$TAG_VERSION\"/" pypi/vck/pyproject.toml
+          sed -i "s/\"vivechak==.*\"/\"vivechak==$TAG_VERSION\"/" pypi/vck/pyproject.toml
+          sed -i "s/VERSION = ['\"].*['\"]/VERSION = \"$TAG_VERSION\"/" pypi/vivechak/src/vivechak/cli.py
+          sed -i "s/__version__ = ['\"].*['\"]/__version__ = \"$TAG_VERSION\"/" pypi/vivechak/src/vivechak/__init__.py
+          sed -i "s/__version__ = ['\"].*['\"]/__version__ = \"$TAG_VERSION\"/" pypi/vck/src/vck/__init__.py
 
       - name: Publish to PyPI
         if: steps.check_token.outputs.has_token == 'true'

@@ -98,9 +98,11 @@ func GenerateChallenges(sessionContent []byte, sessionID string, mode ChallengeM
 func extractRecommendationSnippet(body string) string {
 	lines := strings.Split(body, "\n")
 	inRec := false
+	var ft FenceTracker
 	for _, l := range lines {
 		trimmed := strings.TrimSpace(l)
-		if strings.HasPrefix(trimmed, "#") {
+		inCodeBlock := ft.ProcessLine(trimmed)
+		if !inCodeBlock && strings.HasPrefix(trimmed, "#") {
 			lower := strings.ToLower(trimmed)
 			if strings.Contains(lower, "recommend") {
 				inRec = true
@@ -127,9 +129,11 @@ func extractRejectedAlternatives(body string) []string {
 	var rejected []string
 	lines := strings.Split(body, "\n")
 	inAlt := false
+	var ft FenceTracker
 	for _, l := range lines {
 		trimmed := strings.TrimSpace(l)
-		if strings.HasPrefix(trimmed, "#") {
+		inCodeBlock := ft.ProcessLine(trimmed)
+		if !inCodeBlock && strings.HasPrefix(trimmed, "#") {
 			lower := strings.ToLower(trimmed)
 			if strings.Contains(lower, "alternative") {
 				inAlt = true

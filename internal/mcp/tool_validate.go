@@ -195,6 +195,8 @@ func handleWorkspaceValidate(tool string, projectRoot string) (*sdkmcp.CallToolR
 	decisionsValid := 0
 	decisionsWarnings := 0
 	decisionsErrors := 0
+	seenIDs := make(map[string]bool)
+
 	if entries, err := ws.ListDir(core.ResearchDir); err == nil {
 		for _, e := range entries {
 			name := e.Name()
@@ -221,6 +223,28 @@ func handleWorkspaceValidate(tool string, projectRoot string) (*sdkmcp.CallToolR
 				}
 			}
 
+			// Track ID for deduplication against DECISIONS.md
+			if fm, _, err := core.ParseFrontmatter(data); err == nil && fm != nil {
+				id := fm.GetString("id")
+				if id == "" {
+					id = fm.GetString("decision_id")
+				}
+				if id != "" {
+					seenIDs[strings.ToUpper(id)] = true
+				}
+			}
+			baseName := strings.TrimSuffix(name, ".md")
+			seenIDs[strings.ToUpper(baseName)] = true
+			if m := regexp.MustCompile(`^(?i)(D-[A-Za-z0-9]+)`).FindStringSubmatch(baseName); len(m) > 1 {
+				seenIDs[strings.ToUpper(m[1])] = true
+			}
+			if idx := strings.Index(baseName, "-"); idx != -1 {
+				if nextIdx := strings.Index(baseName[idx+1:], "-"); nextIdx != -1 {
+					shortID := baseName[:idx+1+nextIdx]
+					seenIDs[strings.ToUpper(shortID)] = true
+				}
+			}
+
 			v := core.ValidateDecision(data)
 			if v.HasBlocking() {
 				decisionsErrors++
@@ -235,22 +259,51 @@ func handleWorkspaceValidate(tool string, projectRoot string) (*sdkmcp.CallToolR
 		}
 	}
 
-	// Fallback to DECISIONS.md anchored blocks if no standalone decision files exist
-	if decisionsValid == 0 && decisionsWarnings == 0 && decisionsErrors == 0 {
-		if data, err := ws.ReadFile(core.DecisionsFile); err == nil && len(data) > 0 {
-			anchoredRe := regexp.MustCompile(`(?s)<!-- DECISION:\s*([A-Za-z0-9_-]+)\s*-->\s*(.*?)\s*<!-- /DECISION:\s*[A-Za-z0-9_-]+\s*-->`)
-			matches := anchoredRe.FindAllSubmatch(data, -1)
-			for _, m := range matches {
-				v := core.ValidateDecision(m[2])
-				if v.HasBlocking() {
-					decisionsErrors++
-					for _, issue := range v.BlockingIssues() {
-						allWarnings = append(allWarnings, fmt.Sprintf("DECISION %s: %s", string(m[1]), issue.String()))
+	// Also validate decisions in consolidated DECISIONS.md (deduplicating already validated IDs)
+	if data, err := ws.ReadFile(core.DecisionsFile); err == nil && len(data) > 0 {
+		anchoredRe := regexp.MustCompile(`(?s)<!-- DECISION:\s*([A-Za-z0-9_-]+)\s*-->\s*(.*?)\s*<!-- /DECISION:\s*[A-Za-z0-9_-]+\s*-->`)
+		unanchoredRe := regexp.MustCompile(`(?s)(?:^|\n)(---\s*\n.*?\n---)`)
+
+		matches := anchoredRe.FindAllSubmatch(data, -1)
+		for _, m := range matches {
+			id := string(m[1])
+			if seenIDs[strings.ToUpper(id)] {
+				continue
+			}
+			seenIDs[strings.ToUpper(id)] = true
+			v := core.ValidateDecision(m[2])
+			if v.HasBlocking() {
+				decisionsErrors++
+				for _, issue := range v.BlockingIssues() {
+					allWarnings = append(allWarnings, fmt.Sprintf("DECISION %s: %s", id, issue.String()))
+				}
+			} else if v.WarningCount() > 0 {
+				decisionsWarnings++
+			} else {
+				decisionsValid++
+			}
+		}
+
+		// Also check unanchored frontmatter blocks in DECISIONS.md
+		for _, m := range unanchoredRe.FindAllSubmatch(data, -1) {
+			if fm, _, err := core.ParseFrontmatter(m[1]); err == nil && fm != nil {
+				id := fm.GetString("id")
+				if id == "" {
+					id = fm.GetString("decision_id")
+				}
+				if id != "" && !seenIDs[strings.ToUpper(id)] && !strings.HasPrefix(strings.ToUpper(id), "CHK-") {
+					seenIDs[strings.ToUpper(id)] = true
+					v := core.ValidateDecision(m[1])
+					if v.HasBlocking() {
+						decisionsErrors++
+						for _, issue := range v.BlockingIssues() {
+							allWarnings = append(allWarnings, fmt.Sprintf("DECISION %s: %s", id, issue.String()))
+						}
+					} else if v.WarningCount() > 0 {
+						decisionsWarnings++
+					} else {
+						decisionsValid++
 					}
-				} else if v.WarningCount() > 0 {
-					decisionsWarnings++
-				} else {
-					decisionsValid++
 				}
 			}
 		}

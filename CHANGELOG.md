@@ -11,6 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Unified release delivering the 12 enforcement hardening tasks, quality audit fixes, and complete pre-release hardening wave across engine parsers, concurrency locks, gate strictness, and cognitive quality coaching:
 
+- **AST Code Fence Truncation Defense (`markdown.go`, `inject.go`, `quality.go`, `challenge.go`):** CommonMark section extractor now tracks code block boundaries via `FenceTracker`, preventing `#` comments in code blocks from prematurely truncating discovered concerns or recommendation text.
+- **Dual-Source Decision Split-Brain Fix (`workspace.go`, `gate.go`, `tool_validate.go`):** Workspace resolution, gate verification, and validation now scan both standalone `D-*.md` files and `research/DECISIONS.md` concurrently with ID deduplication.
+- **Release Packaging Automation (`release.yml`):** Release workflow dynamically injects git tag versions into npm and PyPI package manifests, dependency bounds, and binary runners before publishing.
+- **Evidence Ledger Provenance Cross-Referencing (`quality.go`):** Grade A citations are verified against URLs and RFCs documented in the Evidence Ledger table without raising false alarms on finding bullets, and table rows are excluded from claim counts.
+- **Command Shorthand Scope Inference (`scope.go`):** Added native recognition for `vck` and `vivechak` command prefixes (`vck plan`, `vck decide`, `vck compare`, `vck vs`).
+
 - **Resilient MCP Schema Aliasing & Cross-Harness Interoperability:** Transparent parameter aliasing across diverse AI agent harnesses:
   - `vivechak_challenge` accepts `decision_id` (alias for `session_id`) and `challenge_type` (alias for `mode`), preventing runtime schema rejections from small-model or third-party agent harnesses.
   - `vivechak_run_gate` accepts optional `track` parameter (`track_a`, `track_b`, or `all`), returning structured machine-readable outcome fields `track_a_result` (`"PASS"` / `"FAIL"`), `track_b_result` (`"PASS"` / `"FAIL"`), and `decisions` array.

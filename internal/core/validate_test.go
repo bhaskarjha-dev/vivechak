@@ -864,6 +864,33 @@ Split-brain partition in 2-node cluster prevents quorum without witness node.
 			}
 		}
 	})
+
+	t.Run("numbered H2 and H3 Sources headers parsed accurately", func(t *testing.T) {
+		session := `---
+session_id: T1-04
+title: Numbered Header
+date: 2026-10-01
+door_type: one-way
+status: complete
+---
+## Key Findings
+- Distributed tracing overhead is bounded. Grade A (fetched)
+
+## Discovered Concerns
+Sampling rate trade-offs under high volume require dynamic rate limiting.
+
+## 5. Sources & Evidence Ledger
+| # | Claim | Grade | Method | Source |
+|---|---|---|---|---|
+| 1 | Tracing overhead | Grade A | fetched | https://opentelemetry.io/docs/specs/otel/ |
+`
+		res := ValidateSessionWithContext([]byte(session), true)
+		for _, iss := range res.Issues {
+			if iss.Code == "V-OWD-VAGUE-PROVENANCE" || iss.Code == "W-VAGUE-PROVENANCE" {
+				t.Errorf("numbered heading ledger falsely flagged: %v", iss)
+			}
+		}
+	})
 }
 
 func TestValidateDiscoveredConcerns_LengthBoundary(t *testing.T) {
@@ -925,5 +952,27 @@ status: complete
 	}
 }
 
+func TestValidateEvidenceProvenance_IgnoresCodeBlocks(t *testing.T) {
+	body := `
+## Key Findings
+- Primary finding with Grade A (official documentation).
 
+Here is an example code block with sample evidence:
+` + "```markdown" + `
+## Sources
+| Grade | Modifiers | Status | Source |
+| Grade A | fetched | valid | missing-url-here |
+` + "```" + `
 
+## 4. Sources & Evidence Ledger
+| Grade | Modifiers | Status | Source |
+| Grade A | fetched | valid | https://docs.example.com/api |
+`
+	res := &ValidationResult{Status: "valid"}
+	ValidateEvidenceProvenance(body, true, res)
+	for _, issue := range res.Issues {
+		if issue.Code == "V-MISSING-PROVENANCE" {
+			t.Errorf("code block sources table falsely triggered provenance blocking: %v", issue)
+		}
+	}
+}

@@ -390,9 +390,17 @@ func InspectWorkspace(root string) WorkspaceInfo {
 	} else {
 		for _, e := range researchEntries {
 			name := e.Name()
-			if !e.IsDir() && strings.HasSuffix(name, ".md") && !IsSpecialResearchFile(name) && strings.HasPrefix(strings.ToUpper(name), "D-") {
-				info.HasDecisions = true
-				break
+			if !e.IsDir() && strings.HasSuffix(name, ".md") && !IsSpecialResearchFile(name) {
+				if strings.HasPrefix(strings.ToUpper(name), "D-") {
+					info.HasDecisions = true
+					break
+				}
+				if dData, err := os.ReadFile(filepath.Join(root, ResearchDir, name)); err == nil && len(dData) > 0 {
+					if fm, _, err := ParseFrontmatter(dData); err == nil && fm != nil && fm.Has("door_type") {
+						info.HasDecisions = true
+						break
+					}
+				}
 			}
 		}
 	}
@@ -560,10 +568,10 @@ func CollectGateDecisions(ws WorkspaceFS) []GateDecisionItem {
 		}
 	}
 
-	if len(sources) == 0 {
-		if decData, err := ws.ReadFile(DecisionsFile); err == nil && len(decData) > 0 {
-			sources = append(sources, decisionSource{file: DecisionsFile, data: decData})
-		}
+	// Scan consolidated DECISIONS.md alongside standalone files.
+	// The processedIDs map below guarantees standalone files take precedence on ID collisions.
+	if decData, err := ws.ReadFile(DecisionsFile); err == nil && len(decData) > 0 {
+		sources = append(sources, decisionSource{file: DecisionsFile, data: decData})
 	}
 
 	var decisions []GateDecisionItem
@@ -580,10 +588,11 @@ func CollectGateDecisions(ws WorkspaceFS) []GateDecisionItem {
 		if id == "" || strings.HasPrefix(strings.ToUpper(id), "CHK-") || fm.Has("conflicting_sources") {
 			return
 		}
-		if processedIDs[id] {
+		upperID := strings.ToUpper(id)
+		if processedIDs[upperID] {
 			return
 		}
-		processedIDs[id] = true
+		processedIDs[upperID] = true
 
 		title := fm.GetString("title")
 		if title == "" {

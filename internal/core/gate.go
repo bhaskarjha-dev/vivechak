@@ -410,11 +410,10 @@ func verifyDecisionsMechanical(ws WorkspaceFS, info WorkspaceInfo) (bool, []stri
 		}
 	}
 
-	// Fallback to DECISIONS.md if no individual ADR files exist
-	if len(sources) == 0 {
-		if decData, err := ws.ReadFile(DecisionsFile); err == nil && len(decData) > 0 {
-			sources = append(sources, decisionSource{file: DecisionsFile, data: decData})
-		}
+	// Scan consolidated DECISIONS.md alongside standalone files.
+	// processedIDs guarantees standalone files take precedence on ID collisions.
+	if decData, err := ws.ReadFile(DecisionsFile); err == nil && len(decData) > 0 {
+		sources = append(sources, decisionSource{file: DecisionsFile, data: decData})
 	}
 
 	if len(sources) == 0 {
@@ -441,10 +440,11 @@ func verifyDecisionsMechanical(ws WorkspaceFS, info WorkspaceInfo) (bool, []stri
 		if strings.HasPrefix(strings.ToUpper(id), "CHK-") || fm.Has("conflicting_sources") {
 			return // Skip conflict resolution records
 		}
-		if processedIDs[id] {
+		upperID := strings.ToUpper(id)
+		if processedIDs[upperID] {
 			return
 		}
-		processedIDs[id] = true
+		processedIDs[upperID] = true
 		hasDecisionsParsed = true
 
 		status := strings.ToLower(strings.TrimSpace(fm.GetString("status")))
