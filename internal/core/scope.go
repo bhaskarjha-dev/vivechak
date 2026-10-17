@@ -128,23 +128,13 @@ func InferScope(contextText string) Scope {
 		}
 	}
 
-	// Single decision signals: "should we use", "should i use", "choose between"
-	decisionSignals := []string{
-		"should we use", "should i use", "should we adopt", "should i adopt",
-		"should we pick", "should i pick", "should we choose", "should i choose",
-		"choose between", "decision between", "trade-off between", "tradeoffs between",
-	}
-	for _, sig := range decisionSignals {
-		if strings.Contains(lower, sig) {
-			return ScopeDecision
-		}
-	}
-
 	// Bounded comparison signals: "vs", "versus", "compare X and Y", "which is better", "shootout"
 	compSignals := []string{
 		" vs ", " vs. ", " versus ", "compare ", "comparison between", "comparison of",
 		"which is better", "which one is better", "which is faster", "which one is faster",
-		"which one should", "which library", "which tool", "which model", "which algorithm",
+		"which one should", "which one shud", "which should", "which shud",
+		"confused between", "confused bw",
+		"which library", "which tool", "which model", "which algorithm",
 		"which approach", "which option", "which strategy", "which vendor", "which provider",
 		"shootout", "benchmark between",
 	}
@@ -154,6 +144,21 @@ func InferScope(contextText string) Scope {
 		}
 	}
 
+	// Single decision signals: "should we use", "should i use", "choose between"
+	decisionSignals := []string{
+		"should we use", "should i use", "should we adopt", "should i adopt",
+		"should we pick", "should i pick", "should we choose", "should i choose",
+		"shuld we use", "shuld i use", "shud we use", "shud i use",
+		"shuld we adopt", "shuld i adopt", "shud we adopt", "shud i adopt",
+		"shuld we choose", "shuld i choose", "shud we choose", "shud i choose",
+		"shuld we pick", "shuld i pick", "shud we pick", "shud i pick",
+		"choose between", "decision between", "trade-off between", "tradeoffs between",
+	}
+	for _, sig := range decisionSignals {
+		if strings.Contains(lower, sig) {
+			return ScopeDecision
+		}
+	}
 
 	return ScopeProject
 }

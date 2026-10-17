@@ -172,6 +172,16 @@ func TestInferScope(t *testing.T) {
 			expected: ScopeComparison,
 		},
 		{
+			name:     "Prompt 1B: Zero mention of vivechak with slang and typos",
+			input:    "hey im confused bw winston and pino for my express app which one shud i use?? need fast json logging pls help",
+			expected: ScopeComparison,
+		},
+		{
+			name:     "Prompt 4A: Frontend framework dilemma with slang and typos",
+			input:    "bro shuld i use react 19 server actions or tanstack react query for fetching data in my nextjs dashboard? im totally confused",
+			expected: ScopeDecision,
+		},
+		{
 			name:     "Template OPTIONS schema",
 			input:    "OPTIONS: PostgreSQL, TimescaleDB, ClickHouse\nCRITERIA: write throughput",
 			expected: ScopeComparison,
