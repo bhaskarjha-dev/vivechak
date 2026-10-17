@@ -282,7 +282,7 @@ Defined in [`PrepareGeneratorInput`](../internal/mcp/tool_prepare_generator.go):
 | Parameter | Type | Required | Description |
 |---|---|---|---|
 | `project_root` | `string` | Optional | Workspace root path (optional; uses resolution chain if omitted). |
-| `scope` | `string` | **Required** | Research scope: `comparison` \| `decision` \| `project`. Selects research generator prompt. |
+| `scope` | `string` | Optional | Research scope: `comparison` \| `decision` \| `project`. If omitted, automatically inferred from context via `core.InferScope()`. |
 | `context` | `string` | **Required** | The user's question, options being compared, decision dilemma, or project vision. |
 
 #### Response (`data` field)
