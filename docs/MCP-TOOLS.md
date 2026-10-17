@@ -313,7 +313,7 @@ Defined in [`PrepareGeneratorInput`](../internal/mcp/tool_prepare_generator.go):
     "char_count": 8240,
     "approx_tokens": 2060
   },
-  "next_step": "Execute this prompt in a fresh AI session with web search enabled. Save the output using vivechak_save_plan.",
+  "next_step": "Execute this prompt in a research session with web search. Save the decision plan and ADR skeleton using vivechak_save_plan.",
   "meta": {
     "api": 1,
     "tool": "vivechak_prepare_generator"

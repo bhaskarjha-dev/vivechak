@@ -99,7 +99,7 @@ Defined in [`internal/core/workspace.go`](../internal/core/workspace.go), [`Reso
 The workspace layout is standard across all Vivechak projects:
 - `research/` — Workspace root
 - `research/sessions/` — Markdown outputs from individual research sessions
-- `research/templates/` — Copy of the 6 canonical templates
+- `research/templates/` — Copy of scope-appropriate templates (6 for project, 2 for decision, 1 for comparison)
 - `research/RESEARCH-PIPELINE.md` — DAG session definitions and metadata
 - `research/DECISIONS.md` — Central architectural decision registry (auto-compiled from individual `D-*.md` files)
 - `research/FAD.md` — Synthesized Founding Architecture Document
