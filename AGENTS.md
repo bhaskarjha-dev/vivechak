@@ -7,60 +7,100 @@
 
 ## 1. What This Repository Is
 
-**Vivechak** is a meta-framework that generates evidence-grounded research for technical decisions. It works at three scope levels: full project pipelines (→ FAD), single decisions (→ ADR), and bounded comparisons (→ WEP matrix).
+**Vivechak** is an epistemic grounding meta-framework that generates evidence-graded research for technical decisions across all stages of a project's lifecycle. It operates across three distinct scope levels:
+- **Comparison Scope (`ScopeComparison`):** Rapid evaluation between 2–5 options (→ WEP matrix in 1 session, ~5 minutes, 0 DAG, 0 gate).
+- **Decision Scope (`ScopeDecision`):** Architectural dilemma in an active codebase (→ ADR in 1–3 sessions, ~30 minutes, 0 project DAG, 0 FAD).
+- **Project Scope (`ScopeProject`):** Greenfield architecture or major rewrite (→ FAD across 4–30 DAG sessions, Phase 0 Gate).
 
-**The methodology tools are [GENERATOR.md](GENERATOR.md), [GENERATOR-DECISION.md](GENERATOR-DECISION.md), and [GENERATOR-COMPARISON.md](GENERATOR-COMPARISON.md).** The MCP server (`cmd/vivechak/`) automates orchestration — workspace setup, DAG resolution, context injection, validation, and exit gates. Everything else supports them.
+**The methodology generators are [GENERATOR.md](GENERATOR.md), [GENERATOR-DECISION.md](GENERATOR-DECISION.md), and [GENERATOR-COMPARISON.md](GENERATOR-COMPARISON.md).** The MCP server (`cmd/vivechak/`, binary alias `vck`) automates orchestration — workspace initialization, scope inference, DAG resolution, context injection, validation, and exit gates. Everything else supports them.
 
 ---
 
-## 2. Using Vivechak for a New Project
+## 2. Using Vivechak Across the 3 Scopes
 
-This is the common case — an agent is asked to generate and/or execute a research pipeline for a project.
+An agent uses Vivechak by choosing the scope level that matches the decision task:
 
-### Generate the Pipeline
+| Dimension | 1. Comparison Scope (`ScopeComparison`) | 2. Decision Scope (`ScopeDecision`) | 3. Project Scope (`ScopeProject`) | 4. OUT OF SCOPE |
+|---|---|---|---|---|
+| **Objective** | Compare 2–5 concrete options | Lock an architectural decision (ADR) | Full system architecture (FAD) | Write code, debug, explain syntax |
+| **Typical Prompts** | *"Pino vs Winston"*, *"Zod vs Valibot"* | *"gRPC vs REST for internal services"* | *"Architect real-time streaming pipeline"* | *"Fix this type error"*, *"Write a function"* |
+| **Sessions & Time**| 1 session (~5 minutes) | 1–3 sessions (~30 minutes) | 4–30 sessions (Hours–Days) | 0 sessions (Direct execution) |
+| **DAG Overhead** | **Zero** (no DAG created or required) | **Zero** (no project DAG or topology) | **Full DAG** (topological dependency resolution) | None |
+| **Gate Overhead**| **None** | Optional Track B check | **Mandatory** Track A / Track B Phase 0 Gate | None |
+| **Templates Used**| 1 (`COMPARISON-SESSION.template.md`) | 2 (`DECISIONS`, `CONFLICT-RESOLUTION`) | 6 (All templates) | None |
+| **Primary Output**| `research/C-NNN-comparison.md` (WEP) | `research/D-NNN.md` (Locked ADR) | `research/FAD.md` (Founding Architecture) | Code files / direct response |
 
-1. Open [GENERATOR.md](GENERATOR.md) and extract the prompt from inside the ```` ````markdown ```` code fences.
-2. Replace `[PASTE YOUR PROJECT DESCRIPTION HERE]` with the project vision.
-3. Execute the prompt in a fresh AI session with web search enabled.
-4. You will receive **two files**: `RESEARCH-PIPELINE.md` (session DAG + prompts) and `DECISIONS.md` (initial decision registry).
+---
 
-### Set Up the Project Workspace
+### 2.1 Comparison Scope (1 Session → WEP Matrix)
+Use when asked to compare, choose, or benchmark 2–5 named technologies, libraries, algorithms, or datastores (e.g., *"Compare Pino vs Winston"*, *"Zod vs Valibot"*).
 
-5. Save both generated files to the project's `research/` directory.
-6. Copy the **6 templates** from `templates/` into `research/templates/`:
+**MCP Flow:**
+1. Call `vivechak_prepare_generator(scope="comparison", context="...")`.
+2. Run the returned prompt in a research session with web search enabled.
+3. Call `vivechak_save_plan(content=<output>, scope="comparison")`. Done! Output is saved to `research/C-NNN-comparison.md`.
+
+**Manual Flow:**
+1. Open [GENERATOR-COMPARISON.md](GENERATOR-COMPARISON.md) and extract the prompt.
+2. Fill the `OPTIONS:`, `CRITERIA:`, and `CONTEXT:` slots.
+3. Execute in an AI session with web search.
+4. Save the Weighted Evaluation Protocol (WEP) matrix output into `research/COMPARISON.md`.
+
+---
+
+### 2.2 Decision Scope (1–3 Sessions → ADR)
+Use when resolving an architectural fork, migration, or dilemma in an existing project (e.g., *"Should we migrate our event storage from PostgreSQL to ClickHouse?"*, *"Auth0 vs Clerk vs custom auth"*).
+
+**MCP Flow:**
+1. Call `vivechak_prepare_generator(scope="decision", context="...")`.
+2. Save the decision plan via `vivechak_save_plan(scope="decision", decision_id="D-NNN", slug="...", content=...)`.
+3. Execute the 1–3 sessions (`L` Landscape, `C` Comparison, `F` Falsification) via `vivechak_next_session` and `vivechak_save_session`.
+4. (Optional) Stress-test with `vivechak_challenge(decision_id="D-NNN", mode="red_team")`.
+5. Lock the decision via `vivechak_record_decision(decision_id="D-NNN")`. Output is saved as canonical ADR `research/D-NNN.md` and compiled into `research/DECISIONS.md`.
+
+**Manual Flow:**
+1. Open [GENERATOR-DECISION.md](GENERATOR-DECISION.md) and copy prompt with context.
+2. Copy `DECISIONS.template.md` and `CONFLICT-RESOLUTION.template.md` to `research/templates/`.
+3. Execute the 1–3 sessions and record the ADR in `research/D-NNN.md`.
+
+---
+
+### 2.3 Project Scope (Full Pipeline → FAD)
+Use when architecting a brand new project, platform, or massive subsystem rewrite from scratch.
+
+**MCP Flow:**
+1. Call `vivechak_init(scope="project")`.
+2. Call `vivechak_prepare_generator(scope="project", context="<project vision>")`.
+3. Execute generator prompt and call `vivechak_save_plan(content=...)` to save `RESEARCH-PIPELINE.md`.
+4. Loop: `vivechak_next_session` → research → `vivechak_save_session` → `vivechak_record_decision`.
+5. Run grand synthesis session `SYN-01` to compile `research/FAD.md`.
+6. Run `vivechak_run_gate` to verify Track A and Track B exit criteria before starting implementation.
+
+**Manual Flow:**
+1. Open [GENERATOR.md](GENERATOR.md) and extract prompt inside ```` ````markdown ```` fences.
+2. Replace `[PASTE YOUR PROJECT DESCRIPTION HERE]` with vision and execute with web search.
+3. Save `RESEARCH-PIPELINE.md` and `DECISIONS.md` to `research/`. Copy all 6 templates from `templates/` to `research/templates/`:
    - `DECISIONS.template.md` — for recording architectural decisions
    - `CONFLICT-RESOLUTION.template.md` — for resolving conflicting findings
    - `COMPARISON-SESSION.template.md` — for structuring option comparisons
    - `FOUNDING-ARCHITECTURE.template.md` — for compiling the final FAD
    - `PHASE-0-GATE.template.md` — for the pre-coding exit gate
    - `SESSION.template.md` — for standardized research session outputs
+4. Execute session DAG, record ADRs, synthesize `FAD.md`, and pass `PHASE-0-GATE.template.md`. Once the gate passes — start coding.
 
-```
-project/
-└── research/
-    ├── RESEARCH-PIPELINE.md         ← Generated
-    ├── DECISIONS.md                 ← Generated
-    ├── sessions/                    ← Empty folder for session outputs
-    └── templates/                   ← Copied from Vivechak
-        ├── DECISIONS.template.md
-        ├── CONFLICT-RESOLUTION.template.md
-        ├── COMPARISON-SESSION.template.md
-        ├── FOUNDING-ARCHITECTURE.template.md
-        ├── PHASE-0-GATE.template.md
-        └── SESSION.template.md
-```
+> **You do NOT need to read FRAMEWORK.md to use Vivechak.** The generator prompts are self-contained — all methodology is operationalized inline.
 
-**The project workspace is now 100% self-contained.** No further reference to this repository is needed.
+---
 
-### Execute the Pipeline
+### 2.4 When NOT to Use Vivechak (Anti-Pattern Guardrail)
+Vivechak must **never** be invoked for:
+1. **Direct Code Authoring:** Writing functions, components, API endpoints, or scripts.
+2. **Syntax & Language Inquiries:** Language grammar, type signatures, API parameters.
+3. **Local Bug Fixing & Troubleshooting:** Inspecting stack traces, resolving compiler errors, fixing tests.
+4. **Micro-Refactoring & Code Cleanup:** Renaming variables, extracting helpers, reformatting.
+5. **Non-Architectural Conventions:** Choices with zero reversal risk and zero lasting impact.
 
-7. Take each prompt from the generated `RESEARCH-PIPELINE.md` and run it in an independent AI research session. Save outputs to `research/sessions/`.
-8. After key sessions, record decisions in `DECISIONS.md` using the `DECISIONS.template.md` format. Classify each as one-way or two-way door.
-9. If sessions produce conflicting recommendations, resolve using `CONFLICT-RESOLUTION.template.md`.
-10. Synthesize all findings into `FAD.md` using `FOUNDING-ARCHITECTURE.template.md`.
-11. Verify exit criteria with `PHASE-0-GATE.template.md`. Once the gate passes — start coding.
-
-> **You do NOT need to read FRAMEWORK.md to use Vivechak.** GENERATOR.md is self-contained — all methodology is operationalized inline in the generator prompt and baked into every generated session prompt.
+> **Rule for Agents:** If the user's intent is to write code or debug an error, write the code or diagnose the issue directly. Do NOT invoke Vivechak tools.
 
 ---
 

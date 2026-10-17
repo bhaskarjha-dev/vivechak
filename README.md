@@ -114,19 +114,19 @@ Vivechak supports two primary execution workflows: **Path A** with your AI codin
 
 Once you've configured your AI host (`vck setup <host>`):
 
-1. **Prompt your agent in your project chat:**
-   > *"Use Vivechak to research our architecture. We need to build a real-time event streaming pipeline in Go handling 50k events/sec with PostgreSQL and Kafka."*  
-   *(Or for strategic decisions: `"Vivechak decision: in-house sales team vs partner reseller for EMEA market expansion"`)*  
-   *(Or for focused comparisons: `"Vivechak compare: Claude 3.5 Sonnet vs GPT-4o for autonomous coding agents"`)*
+1. **Prompt your agent in your project chat based on your need:**
+   - **For Bounded Comparisons (~5 minutes, 1 session):**  
+     > *"Vivechak compare: Pino vs Winston for high-throughput Node.js microservices."*  
+     *(Agent runs `vivechak_prepare_generator(scope="comparison")` → executes with web search → saves Weighted Evaluation Matrix via `vivechak_save_plan`. Zero DAG, zero gate!)*
+   - **For Architectural Decisions (~30 minutes, 1–3 sessions):**  
+     > *"Vivechak decision: Should we migrate our analytics datastore from PostgreSQL to ClickHouse?"*  
+     *(Agent runs `vivechak_prepare_generator(scope="decision")` → executes 1–3 focused sessions → locks canonical ADR `D-NNN.md` with reversal triggers via `vivechak_record_decision`. Zero project DAG, zero FAD!)*
+   - **For Full Project Pipelines (Hours–Days, greenfield architecture):**  
+     > *"Use Vivechak to research our architecture. We need to build a real-time event streaming pipeline in Go handling 50k events/sec with PostgreSQL and Kafka."*  
+     *(Agent runs `vivechak_init(scope="project")`, prepares DAG pipeline, loops through sessions, synthesizes `FAD.md`, and verifies `vivechak_run_gate` before writing code.)*
 
-2. **The agent orchestrates the entire loop autonomously:**
-   - Calls `vivechak_init` to create `research/` with scope-appropriate operational contracts.
-   - Calls `vivechak_prepare_generator` to inject your constraints and workload into the generator prompt.
-   - Executes research sessions, queries primary sources, and stress-tests vendor claims.
-   - Validates evidence grades (A–E) and saves structured session outputs via `vivechak_save_session`.
-   - Locks architectural decisions with one-way vs. two-way door classifications via `vivechak_record_decision`.
-   - Synthesizes findings into the Founding Architecture Document (`FAD.md`).
-   - Verifies the Phase 0 Exit Gate (`vivechak_run_gate`) before writing code.
+2. **When NOT to use Vivechak (Direct Implementation):**
+   - Skip Vivechak for direct code writing, syntax questions, local bug fixing, or trivial refactoring (e.g., *"Write a Go function to parse JWT"*). Your agent writes code directly without calling research tools.
 
 ---
 
@@ -134,11 +134,10 @@ Once you've configured your AI host (`vck setup <host>`):
 
 If you are using ChatGPT, Claude, or Gemini in your browser without an MCP agent harness:
 
-1. **Generate Your Pipeline:** Open [GENERATOR.md](GENERATOR.md) (or [GENERATOR-DECISION.md](GENERATOR-DECISION.md) / [GENERATOR-COMPARISON.md](GENERATOR-COMPARISON.md)), paste your project vision into the prompt, and execute with web search enabled. You'll receive `RESEARCH-PIPELINE.md` (session DAG) and `DECISIONS.md` (initial decision registry).
-2. **Set Up Your Project Workspace:** Create your project's `research/` directory, save the generated files, and copy the scope-appropriate templates from `templates/` into `research/templates/`.
-3. **Execute Research Sessions:** Take each prompt from `RESEARCH-PIPELINE.md` and run it in an independent AI deep research session. Save outputs to `research/sessions/`.
-4. **Record Decisions:** After key sessions, lock architectural decisions in `DECISIONS.md` using the format from `templates/DECISIONS.template.md`. Classify each as one-way or two-way door. If models disagree, resolve using `templates/CONFLICT-RESOLUTION.template.md`.
-5. **Synthesize, Gate & Build:** Compile all findings into `FAD.md` using `templates/FOUNDING-ARCHITECTURE.template.md`. Verify exit criteria with `templates/PHASE-0-GATE.template.md`. Once the gate passes — start coding with the FAD as your architectural source of truth.
+1. **Choose Your Scope Generator:**
+   - **Comparison:** Open [GENERATOR-COMPARISON.md](GENERATOR-COMPARISON.md), inject options & criteria, run in a web search chat, and save the resulting WEP matrix into `research/COMPARISON.md`.
+   - **Decision:** Open [GENERATOR-DECISION.md](GENERATOR-DECISION.md), paste the dilemma, execute 1–3 sessions, and record the ADR in `research/D-NNN.md` using `templates/DECISIONS.template.md`.
+   - **Project:** Open [GENERATOR.md](GENERATOR.md), paste your vision, save `RESEARCH-PIPELINE.md` (DAG) and `DECISIONS.md`, copy all 6 templates, execute sessions into `research/sessions/`, synthesize `FAD.md`, and pass `templates/PHASE-0-GATE.template.md` before coding.
 
 ---
 

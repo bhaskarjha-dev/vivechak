@@ -80,32 +80,43 @@ vck mcp-config
 ```
 *(For all 21 presets, terminal harnesses, or manual configs, see the [Host Setup Guide](HOST-SETUP.md).)*
 
-### 3. Prompt Your AI Agent
+### 3. Prompt Your AI Agent Based on Scope
 
-Open your agent chat in your project repository and run:
+Open your agent chat in your project repository and choose your scope:
 
-> *"Use Vivechak to research the architecture for our B2B SaaS analytics app. We need to choose our primary analytics datastore for 20M events/day across 500 tenants."*
+- **For Quick Comparisons (~5 mins, 1 session):**
+  > *"Vivechak compare: Pino vs Winston for high-throughput Node.js microservices."*
+- **For Architectural Decisions (~30 mins, 1–3 sessions):**
+  > *"Vivechak decision: Should we migrate our primary analytics datastore from PostgreSQL to ClickHouse?"*
+- **For Full Project Pipelines (Hours–Days, greenfield architecture):**
+  > *"Use Vivechak to research our architecture. We need to build a multi-tenant B2B SaaS analytics platform ingesting 20M events/day."*
 
-### 4. The Agent Executes the Loop
+> [!NOTE]
+> **When NOT to use Vivechak:** Do NOT invoke Vivechak for routine coding, writing functions, debugging errors, or syntax explanations. Let your agent write code directly without research tools.
 
-Your agent coordinates the 13 tools autonomously:
+### 4. How the Agent Executes Each Scope
 
+- **Comparison Scope:** Agent calls `vivechak_prepare_generator(scope="comparison")` → executes prompt with search → calls `vivechak_save_plan` to persist WEP matrix in `research/C-NNN-comparison.md`. Done in 5 minutes! Zero DAG, zero gate.
+- **Decision Scope:** Agent calls `vivechak_prepare_generator(scope="decision")` → saves plan via `vivechak_save_plan` → runs 1–3 sessions → calls `vivechak_record_decision` to lock canonical ADR `research/D-NNN.md`. Zero project DAG, zero FAD.
+- **Project Scope:** Full autonomous orchestration across all 13 tools:
 ```
-[Agent: vivechak_init]
-  └─ Creates research/ workspace, directories, and scope-appropriate operational contracts
+[Agent: vivechak_init (scope: 'project')]
+  └─ Creates research/ workspace and copies all 6 operational templates
 [Agent: vivechak_prepare_generator]
-  └─ Fills your vision into GENERATOR.md
+  └─ Injects your vision into GENERATOR.md
 [Agent: executes generator prompt]
   └─ Generates RESEARCH-PIPELINE.md (DAG) & DECISIONS.md (registry)
 [Agent: vivechak_save_plan]
   └─ Validates DAG dependencies & persists research plan
 [Agent: Execution Loop]
-  ├─ vivechak_next_session   ──> Returns next ready prompt with upstream findings injected
-  ├─ [Agent executes research using web search & deep retrieval]
-  ├─ vivechak_save_session   ──> Validates evidence grades (A-E) and saves session output
+  ├─ vivechak_next_session   ──> Injects upstream findings into next ready prompt
+  ├─ [Agent executes deep research with web search]
+  ├─ vivechak_save_session   ──> Validates evidence grades (A-E) and saves session
   └─ vivechak_record_decision ──> Locks ADR with One-Way vs Two-Way Door classification
+[Agent: FAD Synthesis (SYN-01)]
+  └─ Synthesizes all findings into research/FAD.md
 [Agent: vivechak_run_gate]
-  └─ Evaluates Phase 0 exit gate (Track A fast-track or Track B 11-step check)
+  └─ Evaluates Phase 0 Exit Gate (Track A fast-track or Track B 11-step check)
 ```
 
 See the [MCP Tools Reference](MCP-TOOLS.md) for full tool schemas, parameter specs, and error handling.

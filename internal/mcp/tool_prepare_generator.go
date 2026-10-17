@@ -175,13 +175,25 @@ func handlePrepareGenerator(_ context.Context, _ *sdkmcp.CallToolRequest, in Pre
 		"approx_tokens":  approxTokens,
 	}
 
+	var nextStep string
+	switch scope {
+	case core.ScopeComparison:
+		nextStep = "Execute this prompt in a research session with web search. " +
+			"Save the resulting WEP comparison matrix using vivechak_save_plan."
+	case core.ScopeDecision:
+		nextStep = "Execute this prompt in a research session with web search. " +
+			"Save the decision plan and ADR skeleton using vivechak_save_plan."
+	default:
+		nextStep = "Execute this prompt in a fresh AI session to generate your research pipeline. " +
+			"Save the output using vivechak_save_plan."
+	}
+
 	env := Envelope{
-		Success: true,
-		Message: msg,
-		Data:    dataMap,
-		NextStep: "Execute this prompt in a fresh AI session to generate your research pipeline. " +
-			"Save the output using vivechak_save_plan.",
-		Meta: NewMeta(tool),
+		Success:  true,
+		Message:  msg,
+		Data:     dataMap,
+		NextStep: nextStep,
+		Meta:     NewMeta(tool),
 	}
 	return env.ToResult()
 }

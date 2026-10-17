@@ -4,14 +4,37 @@
 
 ---
 
-## 1. Executive Philosophy
+## 1. Executive Philosophy & The Three Research Scopes
 
 > **The Research-First Law:**
-> *Before beginning development, investigate every irreversible architectural decision with graded, verifiable evidence. Develop nothing based on cached assumptions, outdated training data, or hallucinated conclusions.*
+> *Investigate irreversible architectural decisions and comparative choices with graded, verifiable evidence — whether architecting a new system on Day 0, resolving an architectural dilemma on Day 30, or evaluating competing technologies on Month 6. Develop nothing based on cached assumptions, outdated training data, or hallucinated consensus.*
 
-Technical failures and architectural rewrites are rarely caused by poor implementation — they are caused by **premature decisions made on unverified assumptions.** The Vivechak is a structured pre-development engine that discovers, evaluates, resolves, and synthesizes the technical foundation of any project before committing to irreversible implementation decisions.
+Technical failures and architectural rewrites are rarely caused by poor implementation — they are caused by **premature decisions made on unverified assumptions.** Vivechak is an evidence-grounded research meta-framework that discovers, evaluates, resolves, and grounds technical decisions across the software lifecycle.
 
-### How the Framework Operates
+### The Three Research Scopes
+
+Vivechak operates at three distinct scope levels calibrated to decision blast radius:
+
+```
+┌──────────────────┬──────────────────┬──────────────────┬────────────────────────┐
+│ 1. Comparison    │ 2. Decision      │ 3. Project       │ 4. OUT OF SCOPE        │
+│    (WEP Matrix)  │    (ADR D-NNN)   │    (FAD Pipeline)│    (NO Vivechak)       │
+├──────────────────┼──────────────────┼──────────────────┼────────────────────────┤
+│ • 1 session      │ • 1–3 sessions   │ • 4–30 sessions  │ • 0 sessions           │
+│ • ~5 minutes     │ • ~30 minutes    │ • Full pipeline  │ • Direct execution     │
+│ • 0 DAG          │ • 0 DAG          │ • Topological DAG│ • Zero ceremony        │
+│ • 0 FAD / 0 Gate │ • 0 FAD          │ • FAD + Phase 0  │ • No MCP tools called  │
+│ • 1 template     │ • 2 templates    │ • 6 templates    │                        │
+└──────────────────┴──────────────────┴──────────────────┴────────────────────────┘
+```
+
+1. **Comparison Scope (`GENERATOR-COMPARISON.md`):** Rapid evaluation between 2–5 options producing an evidence-graded Weighted Evaluation Protocol (WEP) matrix in a single session without DAG or gate overhead.
+2. **Decision Scope (`GENERATOR-DECISION.md`):** Focused investigation for an architectural dilemma in an existing project, producing a validated Architectural Decision Record (ADR) in 1–3 sessions.
+3. **Project Scope (`GENERATOR.md`):** Greenfield system architecture or major platform rewrite, decomposing uncertainty into an information DAG, synthesizing findings into a Founding Architecture Document (FAD), and verifying pre-codebase exit criteria via the Phase 0 Gate.
+
+*(For detailed scope methodology, invariants I1–I9, and decision routing, see [§9. Multi-Scope Research](#9-multi-scope-research).)*
+
+### How Project Scope Operates (Full Pipeline)
 
 ```
 PROJECT VISION
@@ -111,6 +134,8 @@ Front-load the complete brief in a single turn. Never drip-feed instructions acr
 > **Evidence:** E-017 (Laban et al. ICLR 2026, 39% multi-turn drop), E-018 (persona debunking), E-019 (ReAct paradigm), E-020 (format restriction penalty)
 
 **Audience framing vs. persona assignment:** Specifying the target audience (e.g., "a Principal Architect needing production-grade tradeoffs") sets the QUALITY BAR for the output. This is distinct from persona assignment (e.g., "You are an expert database engineer"), which attempts to alter the model's reasoning behavior. Audience framing is prescriptive scope (WHAT quality level); persona assignment is method prescription (HOW to think). The former is permitted under P4; the latter is empirically refuted.
+
+**The Zero-Tooling Boundary (Out-of-Scope Protection):** Vivechak's evidentiary rigor applies strictly to technical choices, comparisons, architectural evaluations, and system design. It must **never** be invoked for routine code implementation, syntax questions, local debugging, or micro-refactoring. Applying research ceremonies to everyday programming triggers cognitive friction, slows development, and wastes model attention budget.
 
 ### P5: Commodity-Maximized Composition
 *Supersedes: pre-validation fixed ~40/60 ratio*

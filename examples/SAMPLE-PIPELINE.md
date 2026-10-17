@@ -203,3 +203,92 @@ After completing all sessions and the `SYN-01` synthesis step, the agent runs th
 ```
 
 With the Phase 0 Gate passed, the agent uses the sealed FAD as the architectural source of truth and seamlessly transitions into writing the actual Katha application code.
+
+---
+
+## Walkthrough 2: Mid-Project Architectural Decision (Decision Scope)
+
+*Scenario:* Two months into developing Katha, the team hits scaling issues with JSON REST APIs for high-volume character graph syncing. They need an architectural decision: **Should Katha migrate internal service communication to gRPC or stay on HTTP/2 REST?**
+
+This is an architectural decision with lasting impact, but **it does not require a full greenfield FAD or 30-session pipeline**. The agent uses **Decision Scope**:
+
+### Step 1: Prepare the Decision Generator
+**Tool Call:** `vivechak_prepare_generator`
+```json
+{
+  "scope": "decision",
+  "context": "DECISION: Should Katha migrate internal character graph sync to gRPC or remain on HTTP/2 REST?\nOPTIONS: gRPC (protobuf), HTTP/2 REST (JSON), tRPC\nCONTEXT: Node/TypeScript backend; 10k graph mutations/sec; 4 internal microservices; need schema safety and bi-directional streaming.\nSTAGE: active production"
+}
+```
+
+**Tool Response:**
+```json
+{
+  "success": true,
+  "message": "Prepared decision generator prompt",
+  "next_step": "Execute this prompt in a research session with web search. Save the decision plan and ADR skeleton using vivechak_save_plan."
+}
+```
+
+### Step 2: Save the Decision Plan & ADR Skeleton
+The agent runs the prompt, receives the decision plan and ADR skeleton (`D-015`), and saves it:
+**Tool Call:** `vivechak_save_plan`
+```json
+{
+  "scope": "decision",
+  "decision_id": "D-015",
+  "slug": "internal-rpc-protocol",
+  "content": "..."
+}
+```
+
+### Step 3: Execute Focused Sessions & Lock ADR
+The agent runs the 2 generated sessions (`L` Landscape and `F` Falsification/Premortem), saves them via `vivechak_save_session`, and locks the ADR:
+**Tool Call:** `vivechak_record_decision`
+```json
+{
+  "decision_id": "D-015",
+  "artifact_type": "decision",
+  "content": "..."
+}
+```
+*Result:* Canonical ADR `research/D-015-internal-rpc-protocol.md` is locked with reversal triggers and automatically registered in `research/DECISIONS.md`. **Total time: 25 minutes. Zero project DAG, zero FAD overhead.**
+
+---
+
+## Walkthrough 3: Rapid Technology Comparison (Comparison Scope)
+
+*Scenario:* During a feature sprint, an engineer needs to pick a high-throughput logging library for Katha's Node.js ingestion worker: **Pino vs Winston**.
+
+This is a bounded library evaluation. Building a DAG or running a Phase 0 Gate would be absurd bureaucracy. The agent uses **Comparison Scope**:
+
+### Step 1: Prepare the Comparison Generator
+**Tool Call:** `vivechak_prepare_generator`
+```json
+{
+  "scope": "comparison",
+  "context": "OPTIONS: Pino, Winston\nCRITERIA: throughput under high load, memory footprint, async destination logging, TypeScript support\nCONTEXT: Node.js 22 worker ingesting 15k events/sec; AWS CloudWatch export"
+}
+```
+
+**Tool Response:**
+```json
+{
+  "success": true,
+  "message": "Prepared comparison generator prompt",
+  "next_step": "Execute this prompt in a research session with web search. Save the resulting WEP comparison matrix using vivechak_save_plan."
+}
+```
+
+### Step 2: Execute Prompt & Save Output
+The agent executes the self-contained prompt with web search. The model returns an evidence-graded Weighted Evaluation Protocol (WEP) matrix with sensitivity analysis (±20% weight shifts) and concrete failure modes.
+
+The agent persists the result directly:
+**Tool Call:** `vivechak_save_plan`
+```json
+{
+  "scope": "comparison",
+  "content": "# COMPARISON: Pino vs Winston for High-Throughput Ingestion\n..."
+}
+```
+*Result:* Output is saved to `research/C-001-comparison.md`. The engineer has an authoritative, evidence-graded recommendation based on primary benchmarks. **Total time: 4 minutes. Zero DAG, zero templates copied, zero gate required.**

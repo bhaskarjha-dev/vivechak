@@ -182,6 +182,17 @@ flowchart TD
 
 ---
 
+### 4. Out of Scope (Direct Implementation & Coding)
+Vivechak tools are purpose-built for evidence-grounded technical research, architecture, and technology comparisons. **Do NOT invoke MCP tools for:**
+- Writing application source code, UI components, backend routes, or data models.
+- Answering syntax, type definitions, or standard library API questions.
+- Debugging stack traces, runtime exceptions, or compiler errors.
+- Micro-refactoring, variable renaming, or file formatting.
+
+When a user asks for code implementation or debugging, respond directly with code or troubleshooting advice without invoking any Vivechak MCP tools.
+
+---
+
 ## Tools Reference
 
 ### 1. `vivechak_init`

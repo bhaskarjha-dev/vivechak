@@ -40,6 +40,9 @@ flowchart TD
     Choice -->|"Bounded selection between 2–5 named tools/libraries"| C["3. Comparison Scope<br/>GENERATOR-COMPARISON.md<br/>(1 session → WEP Matrix)"]
 ```
 
+> [!IMPORTANT]
+> **When NOT to use Vivechak:** Do NOT use Vivechak prompts for direct code implementation, debugging errors, syntax lookups, or local refactoring. Vivechak is an epistemic research framework for technical choices and architectural evaluations; for writing code, prompt your AI model directly without research templates.
+
 ---
 
 ## 1. Project Scope (Full Pipeline Workflow)
