@@ -15,7 +15,7 @@ Unified release delivering the 12 enforcement hardening tasks, quality audit fix
 - **Dual-Source Decision Split-Brain Fix (`workspace.go`, `gate.go`, `tool_validate.go`):** Workspace resolution, gate verification, and validation now scan both standalone `D-*.md` files and `research/DECISIONS.md` concurrently with ID deduplication.
 - **Release Packaging Automation (`release.yml`):** Release workflow dynamically injects git tag versions into npm and PyPI package manifests, dependency bounds, and binary runners before publishing.
 - **Evidence Ledger Provenance Cross-Referencing (`quality.go`):** Grade A citations are verified against URLs and RFCs documented in the Evidence Ledger table without raising false alarms on finding bullets, and table rows are excluded from claim counts.
-- **Command Shorthand Scope Inference (`scope.go`):** Added native recognition for `vck` and `vivechak` command prefixes (`vck plan`, `vck decide`, `vck compare`, `vck vs`).
+- **Scope Auto-Inference & Shorthand (`scope.go`):** Added native recognition for `vck` and `vivechak` command prefixes (`vck plan`, `vck decide`, `vck compare`, `vck vs`), comparative signal precedence, and human slang/typo resilience (`shud`, `bw`, etc.).
 
 - **Resilient MCP Schema Aliasing & Cross-Harness Interoperability:** Transparent parameter aliasing across diverse AI agent harnesses:
   - `vivechak_challenge` accepts `decision_id` (alias for `session_id`) and `challenge_type` (alias for `mode`), preventing runtime schema rejections from small-model or third-party agent harnesses.

@@ -71,7 +71,7 @@ Forensic audit and real-world multi-agent dogfooding telemetry uncovered 27 conc
 | **E-31** | MCP / Validator | **Multi-Tier Frontmatter Extraction in `tool_validate`:** Unified frontmatter validation to check anchored comments, unanchored `---` blocks, and standalone ADRs, matching `gate.go`. | ✅ Resolved |
 | **E-32** | Quality Engine | **Evidence Ledger URL Cross-Referencing (`quality.go`):** Updated Grade A provenance checker to accept canonical URLs and RFCs documented in the `## Sources & Evidence Ledger` table rather than failing on claim bullets, and excluded table rows from claim counts. | ✅ Resolved |
 | **E-33** | MCP / Prompt | **Front-Loaded Trigger Rules in `ServerInstructions`:** Moved mandatory trigger directives to the top of MCP handshake instructions to prevent small-model workflow truncation. | ✅ Resolved |
-| **E-34** | Core / Scope | **`vck` Shorthand Scope Recognition (`scope.go`):** Added explicit prefix matching for `vck plan`, `vck decide`, `vck compare`, and `vck vs` to `InferScope`. | ✅ Resolved |
+| **E-34** | Core / Scope | **Scope Auto-Inference & Shorthand (`scope.go`):** Added prefix matching for `vck`/`vivechak` commands (`plan`, `decide`, `compare`, `vs`), comparative signal precedence, and slang/typo resilience (`shud`, `bw`, etc.) to `InferScope`. | ✅ Resolved |
 | **E-35** | Validation | **Resilient Sources Header Regex (`validate_evidence.go`):** Replaced prefix matching with regex supporting numbered headings and H3 levels. | ✅ Resolved |
 | **E-36** | Packaging | **Scoop Manifest Binary Alignment (`scoop/vivechak.json`):** Aligned reference Scoop manifest to declare `["vivechak.exe", "vck.exe"]` directly. | ✅ Resolved |
 

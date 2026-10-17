@@ -416,6 +416,8 @@ status: complete
 			{"vck vs: Redis vs Memcached", core.ScopeComparison},
 			{"should we choose PostgreSQL or MySQL?", core.ScopeDecision},
 			{"compare grpc and rest", core.ScopeComparison},
+			{"hey im confused bw winston and pino for my express app which one shud i use?? need fast json logging pls help", core.ScopeComparison},
+			{"bro shuld i use react 19 server actions or tanstack react query for fetching data in my nextjs dashboard? im totally confused", core.ScopeDecision},
 			{"full architecture for cloud native stream processing", core.ScopeProject},
 		}
 
