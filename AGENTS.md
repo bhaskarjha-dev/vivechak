@@ -171,7 +171,9 @@ vivechak/
 │   └── SESSION.template.md         ← Standard research session output format
 │
 ├── examples/                       ← Concrete adoption walkthroughs
-│   └── SAMPLE-PIPELINE.md          ← End-to-end MCP workflow sample (Katha project)
+│   ├── SAMPLE-COMPARISON.md        ← Comparison scope walkthrough (Pino vs Winston WEP matrix)
+│   ├── SAMPLE-DECISION.md          ← Decision scope walkthrough (ClickHouse migration ADR)
+│   └── SAMPLE-PIPELINE.md          ← Project scope walkthrough (Katha full pipeline)
 │
 ├── docs/                           ← Documentation
 │   ├── QUICKSTART.md               ← Vivechak in 5 Minutes

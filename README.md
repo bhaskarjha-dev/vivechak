@@ -182,7 +182,7 @@ vivechak/
 ├── docs/TROUBLESHOOTING.md        ← Diagnostic guides & error code catalog
 │
 ├── templates/                      ← 6 operational contracts (copy to projects)
-├── examples/                       ← Concrete adoption walkthroughs
+├── examples/                       ← Concrete walkthroughs across all 3 scopes (Comparison, Decision, Project)
 ├── docs/meta-research/              ← 14 locked ADRs + evidence provenance
 │
 ├── AGENTS.md                       ← AI agent operating manual

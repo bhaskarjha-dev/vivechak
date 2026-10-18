@@ -55,3 +55,10 @@ jobs:
 
       - name: Build
         run: go build ./cmd/vivechak/
+
+      - name: CLI Subcommands Verification
+        run: |
+          go run ./cmd/vivechak version
+          go run ./cmd/vivechak doctor --help
+          go run ./cmd/vivechak gate --help
+          go run ./cmd/vivechak mcp-config
