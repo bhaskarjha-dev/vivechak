@@ -113,16 +113,13 @@ func InferScope(contextText string) Scope {
 		}
 	}
 
-	// Full project / application / business venture signals (override weak comparison/decision words)
-	projectSignals := []string{
+	// Explicit full-architecture / complete pipeline signals
+	fullArchSignals := []string{
 		"full architecture", "entire architecture", "system design", "system architecture",
-		"founding architecture", "fad", "startup idea", "new startup", "build an app",
-		"build a platform", "building a platform", "complete stack", "tech stack for",
-		"research pipeline", "uber for", "pipeline for", "new business", "new venture",
-		"new product", "business plan", "venture research", "launching a", "launching an",
-		"business project", "market entry pipeline", "market entry plan", "market entry research", "go-to-market plan",
+		"founding architecture", "fad", "research pipeline", "complete stack", "tech stack for",
+		"market entry pipeline", "market entry plan", "market entry research", "go-to-market plan",
 	}
-	for _, sig := range projectSignals {
+	for _, sig := range fullArchSignals {
 		if strings.Contains(lower, sig) {
 			return ScopeProject
 		}
@@ -161,6 +158,18 @@ func InferScope(contextText string) Scope {
 	for _, sig := range decisionSignals {
 		if strings.Contains(lower, sig) {
 			return ScopeDecision
+		}
+	}
+
+	// Broad project / application / business venture signals (applied when no comparison or decision signals matched)
+	projectSignals := []string{
+		"startup idea", "new startup", "build an app", "build a platform", "building a platform",
+		"uber for", "pipeline for", "new business", "new venture", "new product",
+		"business plan", "venture research", "launching a", "launching an", "business project",
+	}
+	for _, sig := range projectSignals {
+		if strings.Contains(lower, sig) {
+			return ScopeProject
 		}
 	}
 

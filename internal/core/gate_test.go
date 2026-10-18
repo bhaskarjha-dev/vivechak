@@ -683,3 +683,68 @@ status: accepted
 		t.Fatalf("expected verifyDecisionsMechanical to pass, got issues: %v", issues)
 	}
 }
+
+func TestEvaluateGate_TrackA_DecoupledFromFAD(t *testing.T) {
+	dir := t.TempDir()
+	ws := &testWorkspaceFS{root: dir}
+	_ = os.MkdirAll(filepath.Join(dir, "research"), 0o755)
+
+	// Two-way door decision
+	d1 := `---
+id: D-01
+title: Logging Library
+door_type: two-way
+status: accepted
+review_trigger: Traffic > 100k req/s
+---
+# Logging Library
+`
+	_ = os.WriteFile(filepath.Join(dir, "research", "D-01.md"), []byte(d1), 0o644)
+
+	info := InspectWorkspace(dir)
+	res := EvaluateGate(ws, info, dir)
+
+	// Track A must pass because D-01 is accepted two-way door, even with zero FAD or DAG
+	if !res.TrackAChecks.Passed {
+		t.Errorf("expected Track A to pass independently of FAD, got issues: %v", res.TrackAChecks.Issues)
+	}
+	// Structural checks should fail because FAD and DAG are missing
+	if res.StructuralChecks.Passed {
+		t.Errorf("expected StructuralChecks to fail due to missing FAD/DAG")
+	}
+}
+
+func TestEvaluateGate_ComparisonScopeZeroGate(t *testing.T) {
+	dir := t.TempDir()
+	ws := &testWorkspaceFS{root: dir}
+	_ = os.MkdirAll(filepath.Join(dir, "research"), 0o755)
+
+	// Save comparison artifact
+	cmp := `---
+id: C-01-cmp-pino-vs-winston
+title: Pino vs Winston
+date: 2026-10-18
+status: final
+scope_level: comparison
+---
+# Pino vs Winston
+| Criterion | Weight |
+|---|---|
+| Speed | 1.0 |
+`
+	_ = os.WriteFile(filepath.Join(dir, "research", "C-01-comparison.md"), []byte(cmp), 0o644)
+
+	meta := WorkspaceMeta{Scope: ScopeComparison}
+	metaBytes, _ := json.Marshal(meta)
+	_ = os.WriteFile(filepath.Join(dir, MetadataFile), metaBytes, 0o644)
+
+	info := InspectWorkspace(dir)
+	res := EvaluateGate(ws, info, dir)
+
+	if !res.Passed {
+		t.Errorf("expected Comparison Scope to pass gate unconditionally with zero gate overhead, got: %v", res.Status)
+	}
+	if res.Status != "PASS" {
+		t.Errorf("expected status PASS, got %s", res.Status)
+	}
+}

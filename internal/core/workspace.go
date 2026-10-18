@@ -80,6 +80,8 @@ func IsSpecialResearchFile(name string) bool {
 	lower := strings.ToLower(name)
 	if strings.HasSuffix(lower, "-plan.md") ||
 		strings.HasSuffix(lower, "-comparison.md") ||
+		strings.Contains(lower, "-cmp-") ||
+		strings.EqualFold(name, "COMPARISON.md") ||
 		strings.HasSuffix(lower, "-conflict-resolution.md") ||
 		strings.EqualFold(name, "DECISIONS.md") ||
 		strings.EqualFold(name, "FAD.md") ||
@@ -384,10 +386,18 @@ func InspectWorkspace(root string) WorkspaceInfo {
 		}
 	}
 
-	// Check for decisions (non-empty DECISIONS.md or ADR files in research/)
-	if fi, err := os.Stat(filepath.Join(root, DecisionsFile)); err == nil && fi.Size() > 0 {
-		info.HasDecisions = true
-	} else {
+	// Check for decisions (substantive DECISIONS.md or ADR files in research/)
+	hasSubstantiveDecisionsFile := false
+	if decData, err := os.ReadFile(filepath.Join(root, DecisionsFile)); err == nil && len(decData) > 0 {
+		decStr := string(decData)
+		if strings.Contains(decStr, "<!-- DECISION:") ||
+			strings.Contains(decStr, "door_type:") ||
+			hasDecisionTableRow(decStr) {
+			info.HasDecisions = true
+			hasSubstantiveDecisionsFile = true
+		}
+	}
+	if !hasSubstantiveDecisionsFile {
 		for _, e := range researchEntries {
 			name := e.Name()
 			if !e.IsDir() && strings.HasSuffix(name, ".md") && !IsSpecialResearchFile(name) {
@@ -673,4 +683,23 @@ func CollectGateDecisions(ws WorkspaceFS) []GateDecisionItem {
 	}
 
 	return decisions
+}
+
+// hasDecisionTableRow checks if markdown content contains a table row recording a decision ID.
+func hasDecisionTableRow(content string) bool {
+	lines := strings.Split(content, "\n")
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "|") {
+			parts := strings.Split(trimmed, "|")
+			if len(parts) >= 3 {
+				col1 := strings.TrimSpace(parts[1])
+				upper := strings.ToUpper(col1)
+				if strings.HasPrefix(upper, "D-") || strings.HasPrefix(upper, "[D-") {
+					return true
+				}
+			}
+		}
+	}
+	return false
 }

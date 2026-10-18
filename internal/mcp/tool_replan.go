@@ -16,8 +16,10 @@ import (
 // ReplanInput holds arguments for vivechak_replan.
 type ReplanInput struct {
 	ProjectRoot  string `json:"project_root,omitempty"      jsonschema:"workspace root path (optional)"`
-	Operation    string `json:"operation"                 jsonschema:"operation: 'add_session', 'remove_session', 'update_deps', 'update_prompt'"`
-	SessionID    string `json:"session_id"                 jsonschema:"target session ID (e.g. T1-02)"`
+	Operation    string `json:"operation,omitempty"        jsonschema:"operation: 'add_session', 'remove_session', 'update_deps', 'update_prompt' (optional for guided overview)"`
+	SessionID    string `json:"session_id,omitempty"       jsonschema:"target session ID (e.g. T1-02)"`
+	Reason       string `json:"reason,omitempty"           jsonschema:"rationale or finding prompting the replan"`
+	Impact       string `json:"impact,omitempty"           jsonschema:"intended impact on DAG topology or affected sessions"`
 	Layer        string `json:"layer,omitempty"            jsonschema:"for add_session: layer number (e.g. '1')"`
 	Topic        string `json:"topic,omitempty"            jsonschema:"for add_session: session title/topic"`
 	Prompt       string `json:"prompt,omitempty"           jsonschema:"for add_session: prompt markdown"`
@@ -58,18 +60,6 @@ func handleReplan(ctx context.Context, _ *sdkmcp.CallToolRequest, in ReplanInput
 		return ErrorResult(tool, err, "Initialize a workspace first with vivechak_init.")
 	}
 
-	op := strings.ToLower(strings.TrimSpace(in.Operation))
-	if op == "" {
-		return ErrorResult(tool, fmt.Errorf("operation is required"),
-			"Specify an operation: 'add_session', 'remove_session', 'update_deps', or 'update_prompt'.")
-	}
-
-	sessionID := strings.TrimSpace(in.SessionID)
-	if sessionID == "" {
-		return ErrorResult(tool, fmt.Errorf("session_id is required"),
-			"Provide the target session ID.")
-	}
-
 	ws, err := store.OpenWorkspace(root)
 	if err != nil {
 		return ErrorResult(tool, err, "Ensure the workspace directory exists.")
@@ -92,6 +82,52 @@ func handleReplan(ctx context.Context, _ *sdkmcp.CallToolRequest, in ReplanInput
 			return ErrorResult(tool, fmt.Errorf("pipeline file %s not found", core.PipelineFile),
 				"Save a plan first using vivechak_save_plan before mutating it.")
 		}
+	}
+
+	op := strings.ToLower(strings.TrimSpace(in.Operation))
+	if op == "" {
+		data, err := ws.ReadFile(pipelineFile)
+		if err != nil {
+			return ErrorResult(tool, fmt.Errorf("reading pipeline: %w", err), "Verify pipeline file exists.")
+		}
+		dag, err := core.ParsePipeline(data)
+		if err != nil {
+			return ErrorResult(tool, fmt.Errorf("parsing pipeline: %w", err), "Pipeline file is malformed.")
+		}
+
+		knownIDs := make([]string, 0, len(dag.Sessions))
+		for _, s := range dag.Sessions {
+			knownIDs = append(knownIDs, s.ID)
+		}
+		completedMap, _ := core.ScanCompletedSessions(ws, knownIDs...)
+		var candidates []string
+		for _, s := range dag.Sessions {
+			if !completedMap[s.ID] {
+				candidates = append(candidates, fmt.Sprintf("%s (%s)", s.ID, s.Title))
+			}
+		}
+
+		env := Envelope{
+			Success: true,
+			Message: "To replan, specify the operation ('add_session', 'remove_session', 'update_deps', or 'update_prompt') and target session_id.",
+			Data: map[string]any{
+				"status":               "guided",
+				"reason":               in.Reason,
+				"impact":               in.Impact,
+				"available_operations": []string{"add_session", "remove_session", "update_deps", "update_prompt"},
+				"uncompleted_sessions": candidates,
+				"pipeline_file":        pipelineFile,
+			},
+			NextStep: fmt.Sprintf("Call vivechak_replan with operation ('update_prompt', 'remove_session', 'add_session', or 'update_deps') and session_id (uncompleted candidates: %s).", strings.Join(candidates, ", ")),
+			Meta:     NewMeta(tool),
+		}
+		return env.ToResult()
+	}
+
+	sessionID := strings.TrimSpace(in.SessionID)
+	if sessionID == "" {
+		return ErrorResult(tool, fmt.Errorf("session_id is required"),
+			"Provide the target session ID.")
 	}
 
 	// Acquire lock eagerly before reading and mutating pipeline to prevent TOCTOU races
@@ -235,6 +271,12 @@ func handleReplan(ctx context.Context, _ *sdkmcp.CallToolRequest, in ReplanInput
 		"session_id":     sessionID,
 		"total_sessions": len(dag.Sessions),
 		"pipeline_file":  pipelineFile,
+	}
+	if in.Reason != "" {
+		resData["reason"] = in.Reason
+	}
+	if in.Impact != "" {
+		resData["impact"] = in.Impact
 	}
 
 	nextStep := "Pipeline updated. Run vivechak_next_session to get the next research prompt, or vivechak_visualize to inspect the DAG."

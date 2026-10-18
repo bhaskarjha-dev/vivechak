@@ -15,7 +15,7 @@ import (
 // ValidateInput holds the arguments for vivechak_validate.
 type ValidateInput struct {
 	ProjectRoot  string `json:"project_root,omitempty" jsonschema:"workspace root path"`
-	ArtifactType string `json:"artifact_type,omitempty" jsonschema:"what to validate: session | decision | plan | fad | conflict (omit for workspace-wide validation)"`
+	ArtifactType string `json:"artifact_type,omitempty" jsonschema:"what to validate: session | decision | comparison | plan | fad | conflict (omit for workspace-wide validation)"`
 	Content      string `json:"content,omitempty"        jsonschema:"content to validate (Markdown); omit with project_root for workspace-wide validation"`
 }
 
@@ -25,7 +25,7 @@ func registerValidate(server *sdkmcp.Server) {
 			Name:  "vivechak_validate",
 			Title: "Validate Artifact",
 			Description: "Dry-run validation on any Vivechak artifact (session output, plan, " +
-				"decision record, or FAD). Use for dry-run validation of in-progress content only — " +
+				"decision record, comparison matrix, or FAD). Use for dry-run validation of in-progress content only — " +
 				"save_session validates automatically, so calling validate before save doubles token cost. " +
 				"Can also validate an entire workspace: omit content and provide only project_root " +
 				"to validate all artifacts in the workspace. Read-only — no side effects.",
@@ -63,13 +63,15 @@ func handleValidate(_ context.Context, _ *sdkmcp.CallToolRequest, in ValidateInp
 		validation = core.ValidateDecision([]byte(in.Content))
 	case "conflict-resolution", "conflict":
 		validation = core.ValidateConflictResolution([]byte(in.Content))
+	case "comparison", "comp":
+		validation = core.ValidateComparison([]byte(in.Content))
 	case "plan":
 		validation = core.ValidatePlan([]byte(in.Content))
 	case "fad":
 		validation = core.ValidateFAD([]byte(in.Content))
 	default:
 		return ErrorResult(tool, fmt.Errorf("unknown artifact_type %q", artifactType),
-			"Use 'session', 'decision', 'plan', 'fad', or 'conflict'.")
+			"Use 'session', 'decision', 'comparison', 'plan', 'fad', or 'conflict'.")
 	}
 
 	var warnings []string
@@ -360,29 +362,38 @@ func handleWorkspaceValidate(tool string, projectRoot string) (*sdkmcp.CallToolR
 		results["pipeline"] = pipeResult
 	}
 
-	// Validate comparison if C-*-comparison.md exists
+	// Validate comparisons if C-*.md, *-comparison.md, *-cmp-*.md, or COMPARISON.md exist
+	var compResults []map[string]any
 	if entries, lErr := ws.ListDir(core.ResearchDir); lErr == nil {
 		for _, e := range entries {
-			if !e.IsDir() && strings.HasPrefix(strings.ToUpper(e.Name()), "C-") && strings.HasSuffix(e.Name(), "-comparison.md") {
-				compPath := filepath.Join(core.ResearchDir, e.Name())
+			name := e.Name()
+			if !e.IsDir() && strings.HasSuffix(name, ".md") &&
+				(strings.HasPrefix(strings.ToUpper(name), "C-") ||
+					strings.HasSuffix(name, "-comparison.md") ||
+					strings.Contains(name, "-cmp-") ||
+					strings.EqualFold(name, "COMPARISON.md")) {
+				compPath := filepath.Join(core.ResearchDir, name)
 				if compData, rErr := ws.ReadFile(compPath); rErr == nil && len(compData) > 0 {
-					v := core.ValidateSession(compData)
+					v := core.ValidateComparison(compData)
 					compResult := map[string]any{
-						"file":          e.Name(),
+						"file":          name,
 						"status":        v.Status,
 						"error_count":   v.ErrorCount(),
 						"warning_count": v.WarningCount(),
 					}
 					if v.HasBlocking() {
 						for _, issue := range v.BlockingIssues() {
-							allWarnings = append(allWarnings, fmt.Sprintf("COMPARISON %s: %s", e.Name(), issue.String()))
+							allWarnings = append(allWarnings, fmt.Sprintf("COMPARISON %s: %s", name, issue.String()))
 						}
 					}
-					results["comparison"] = compResult
-					break
+					compResults = append(compResults, compResult)
 				}
 			}
 		}
+	}
+	if len(compResults) > 0 {
+		results["comparisons"] = compResults
+		results["comparison"] = compResults[0] // backward-compatible alias for first comparison
 	}
 
 	totalIssues := len(allWarnings)

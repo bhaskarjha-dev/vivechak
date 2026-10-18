@@ -55,6 +55,61 @@ func handleVisualize(ctx context.Context, _ *sdkmcp.CallToolRequest, in Visualiz
 	}
 	defer ws.Close()
 
+	info := core.InspectWorkspace(root)
+	if info.Scope == core.ScopeComparison {
+		var compFile string
+		var compData []byte
+		if entries, lErr := ws.ListDir(core.ResearchDir); lErr == nil {
+			for _, e := range entries {
+				name := e.Name()
+				if !e.IsDir() && strings.HasSuffix(name, ".md") &&
+					(strings.HasPrefix(strings.ToUpper(name), "C-") ||
+						strings.HasSuffix(name, "-comparison.md") ||
+						strings.Contains(name, "-cmp-") ||
+						strings.EqualFold(name, "COMPARISON.md")) {
+					compFile = filepath.Join(core.ResearchDir, name)
+					if d, rErr := ws.ReadFile(compFile); rErr == nil && len(d) > 0 {
+						compData = d
+						break
+					}
+				}
+			}
+		}
+		if len(compData) == 0 {
+			return ErrorResult(tool, fmt.Errorf("comparison file not found in %s", core.ResearchDir),
+				"Save a comparison matrix first using vivechak_save_plan before visualizing it.")
+		}
+
+		var rendered string
+		switch format {
+		case "mermaid":
+			rendered = core.RenderComparisonMermaid(compData)
+		case "table":
+			rendered = core.RenderComparisonTable(compData)
+		default:
+			return ErrorResult(tool, fmt.Errorf("unsupported format %q", format),
+				"Supported formats: 'mermaid' (default) or 'table'.")
+		}
+
+		resData := map[string]any{
+			"format":    format,
+			"rendered":  rendered,
+			"rendering": rendered,
+			format:      rendered,
+			"file":      filepath.Base(compFile),
+			"scope":     info.Scope,
+		}
+		nextStep := "Comparison visualization complete. Proceed to finalize decision or start implementation."
+		env := Envelope{
+			Success:  true,
+			Message:  fmt.Sprintf("Comparison visualization rendered (%s format)", format),
+			Data:     resData,
+			NextStep: nextStep,
+			Meta:     NewMeta(tool),
+		}
+		return env.ToResult()
+	}
+
 	pipelineFile := core.PipelineFile
 	pipelineData, err := ws.ReadFile(pipelineFile)
 	if err != nil {

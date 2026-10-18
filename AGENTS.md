@@ -151,9 +151,10 @@ vivechak/
 ├── npm/ · pypi/                    ← Zero-script npx & uvx runner packages
 │
 ├── cmd/vivechak/                   ← MCP server + CLI entry point (vck alias)
-│   ├── main.go                     ← Entry point (serve, setup, mcp-config, doctor, version)
+│   ├── main.go                     ← Entry point (serve, setup, mcp-config, doctor, gate, version)
 │   ├── config.go                   ← setup & mcp-config (auto-detection + 21 presets)
-│   └── doctor.go                   ← Workspace integrity checker
+│   ├── doctor.go                   ← Workspace integrity checker
+│   └── gate.go                     ← Headless Phase 0 exit gate evaluator (CI-ready)
 │
 ├── internal/                       ← Server implementation (Go)
 │   ├── core/                       ← Pure logic (workspace, DAG, validation, injection)

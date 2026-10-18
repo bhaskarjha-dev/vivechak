@@ -24,7 +24,8 @@ vivechak/
 │   └── vivechak/           # CLI entry points and host configurations
 │       ├── main.go         # Command dispatcher, stdio server startup, slog routing (vck alias)
 │       ├── config.go       # "setup" and "mcp-config" host configuration & 21 presets
-│       └── doctor.go       # "doctor" workspace integrity verification and detected scope diagnostics
+│       ├── doctor.go       # "doctor" workspace integrity verification and detected scope diagnostics
+│       └── gate.go         # "gate" headless Phase 0 exit gate evaluation (CI-ready)
 ├── internal/
 │   ├── core/               # Pure business logic (DAG, gate, validation, quality, scopes)
 │   │   ├── scope.go        # Scope definitions (project, decision, comparison)
@@ -39,7 +40,8 @@ vivechak/
 │   │   ├── validate.go     # Structural validation ladder (L1–L4)
 │   │   ├── validate_evidence.go # Evidence grade & qualified provenance rules
 │   │   ├── quality.go      # Advisory quality coaching (Q-*) & dynamic freshness
-│   │   └── challenge.go    # Adversarial challenge prompt generator
+│   │   ├── challenge.go    # Adversarial challenge prompt generator
+│   │   └── visualize_comparison.go # Comparison Scope WEP visualization engine
 │   ├── mcp/                # MCP protocol server and tool handlers (package mcputil)
 │   │   ├── server.go       # Server factory and tool registration dispatcher
 │   │   ├── envelope.go     # Standardized JSON response envelope & dual-channel encoding
@@ -375,7 +377,7 @@ Spawns the compiled `vivechak serve` binary as a genuine subprocess, connecting 
 Comprehensive 1,000+ line live integration test suite that spawns the Vivechak MCP server and CLI commands as real subprocesses over stdio JSON-RPC. Validates:
 - Every one of the 13 MCP tools end-to-end with realistic inputs and edge cases.
 - Dynamic challenge routing, quality coaching observations (`Q-*`), qualified provenance validation, and Phase 0 Gate decoupled Track A / Track B evaluations.
-- All 4 CLI entry points (`vck setup`, `vck mcp-config`, `vck doctor`, `vck version`).
+- All 5 CLI entry points (`vck setup`, `vck mcp-config`, `vck doctor`, `vck gate`, `vck version`).
 - FAD root mirroring, directory target handling in `setup`, and comment anchor deduplication.
 
 ### 7. Subprocess Concurrency & Lifecycle Verification Suites (`cmd/vivechak/*_test.go`)

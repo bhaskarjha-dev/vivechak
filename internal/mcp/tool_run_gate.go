@@ -84,27 +84,33 @@ func handleRunGate(_ context.Context, _ *sdkmcp.CallToolRequest, in RunGateInput
 	}
 
 	trackAData := map[string]any{
+		"label":  gateResult.TrackAChecks.Label,
+		"passed": gateResult.TrackAChecks.Passed,
+		"score":  gateResult.TrackAChecks.Score,
+	}
+	trackBData := map[string]any{
+		"label":  gateResult.TrackBChecks.Label,
+		"passed": gateResult.TrackBChecks.Passed,
+		"score":  gateResult.TrackBChecks.Score,
+	}
+	structuralData := map[string]any{
 		"label":  gateResult.StructuralChecks.Label,
 		"passed": gateResult.StructuralChecks.Passed,
 		"score":  gateResult.StructuralChecks.Score,
 	}
-	trackBData := map[string]any{
-		"label":  gateResult.QualityChecks.Label,
-		"passed": gateResult.QualityChecks.Passed,
-		"score":  gateResult.QualityChecks.Score,
-	}
 
 	if in.Verbose {
-		trackAData["issues"] = gateResult.StructuralChecks.Issues
-		trackBData["issues"] = gateResult.QualityChecks.Issues
+		trackAData["issues"] = gateResult.TrackAChecks.Issues
+		trackBData["issues"] = gateResult.TrackBChecks.Issues
+		structuralData["issues"] = gateResult.StructuralChecks.Issues
 	}
 
 	trackAResult := "FAIL"
-	if gateResult.StructuralChecks.Passed {
+	if gateResult.TrackAChecks.Passed {
 		trackAResult = "PASS"
 	}
 	trackBResult := "FAIL"
-	if gateResult.QualityChecks.Passed {
+	if gateResult.TrackBChecks.Passed {
 		trackBResult = "PASS"
 	}
 
@@ -112,14 +118,14 @@ func handleRunGate(_ context.Context, _ *sdkmcp.CallToolRequest, in RunGateInput
 	gateStatus := gateResult.Status
 	switch trackFilter {
 	case "track_a":
-		gatePassed = gateResult.StructuralChecks.Passed
+		gatePassed = gateResult.TrackAChecks.Passed
 		if gatePassed {
 			gateStatus = "PASS"
 		} else {
 			gateStatus = "FAIL"
 		}
 	case "track_b":
-		gatePassed = gateResult.QualityChecks.Passed
+		gatePassed = gateResult.TrackBChecks.Passed
 		if gatePassed {
 			gateStatus = "PASS"
 		} else {
@@ -135,14 +141,16 @@ func handleRunGate(_ context.Context, _ *sdkmcp.CallToolRequest, in RunGateInput
 		"track_filter":            trackFilter,
 		"track_a_result":          trackAResult,
 		"track_b_result":          trackBResult,
-		"structural_checks":       trackAData,
+		"structural_checks":       structuralData,
 		"quality_checks":          trackBData,
-		"structural_completeness": trackAData,
+		"track_a_checks":          trackAData,
+		"track_b_checks":          trackBData,
+		"structural_completeness": structuralData,
 		"mechanical_quality":      trackBData,
-		"track_a":                 trackAData, // deprecated alias for structural_checks
-		"track_b":                 trackBData, // deprecated alias for quality_checks
-		"scope_note": "This gate performs automated MECHANICAL checks only (Structural Completeness and Quality Indicators). " +
-			"Track A (Two-Way Door fast track) and Track B (One-Way Door rigorous gate) semantic decisions and human sign-off per PHASE-0-GATE.template.md are the host architect's responsibility.",
+		"track_a":                 trackAData,
+		"track_b":                 trackBData,
+		"scope_note": "This gate performs automated MECHANICAL checks only (Track A Two-Way Doors, Track B One-Way Doors, and Structural Completeness). " +
+			"Semantic decisions and human sign-off per PHASE-0-GATE.template.md are the host architect's responsibility.",
 	}
 
 	decisions := gateResult.Decisions
@@ -252,7 +260,7 @@ func handleRunGate(_ context.Context, _ *sdkmcp.CallToolRequest, in RunGateInput
 	}
 
 	allAdvisories := append(append([]string{}, gateResult.Advisories...), warnings...)
-	gateContent := core.RenderGateArtifact(ws, tmplBytes, root, projectName, gateResult.Status, gateResult.StructuralChecks.Passed, gateResult.QualityChecks.Passed, gateResult.StructuralChecks.Issues, gateResult.QualityChecks.Issues, decisions, allAdvisories...)
+	gateContent := core.RenderGateArtifact(ws, tmplBytes, root, projectName, gateResult.Status, gateResult.TrackAChecks.Passed, gateResult.TrackBChecks.Passed, gateResult.TrackAChecks.Issues, gateResult.TrackBChecks.Issues, decisions, allAdvisories...)
 	if len(gateContent) > 0 {
 		_ = ws.MkdirAll(core.ResearchDir, 0o755)
 		if writeErr := store.WriteFileAtomic(ws.Root(), core.GateFile, gateContent, 0o644); writeErr != nil {
@@ -267,18 +275,23 @@ func handleRunGate(_ context.Context, _ *sdkmcp.CallToolRequest, in RunGateInput
 		failureScope := "Track B"
 		switch trackFilter {
 		case "track_a":
-			blockingIssues = append(blockingIssues, gateResult.StructuralChecks.Issues...)
+			blockingIssues = append(blockingIssues, gateResult.TrackAChecks.Issues...)
 			failureScope = "Track A"
 		case "track_b":
-			blockingIssues = append(blockingIssues, gateResult.QualityChecks.Issues...)
+			blockingIssues = append(blockingIssues, gateResult.TrackBChecks.Issues...)
 			failureScope = "Track B"
 		default:
 			blockingIssues = append(blockingIssues, gateResult.StructuralChecks.Issues...)
-			blockingIssues = append(blockingIssues, gateResult.QualityChecks.Issues...)
-			if len(gateResult.StructuralChecks.Issues) > 0 && len(gateResult.QualityChecks.Issues) > 0 {
-				failureScope = "Track A and Track B"
+			blockingIssues = append(blockingIssues, gateResult.TrackAChecks.Issues...)
+			blockingIssues = append(blockingIssues, gateResult.TrackBChecks.Issues...)
+			if len(gateResult.StructuralChecks.Issues) > 0 && len(gateResult.TrackBChecks.Issues) > 0 {
+				failureScope = "Structural and Quality"
 			} else if len(gateResult.StructuralChecks.Issues) > 0 {
-				failureScope = "Track A"
+				failureScope = "Structural Completeness"
+			} else if len(gateResult.TrackBChecks.Issues) > 0 {
+				failureScope = "Track B Quality"
+			} else if len(gateResult.TrackAChecks.Issues) > 0 {
+				failureScope = "Track A Two-Way Door"
 			}
 		}
 		issueCount := len(blockingIssues)

@@ -36,7 +36,7 @@ Vivechak is built from the ground up to be **harness-agnostic**. It communicates
 | **Cloud Background Agents** | Devin, Factory Droid, GitHub Workspaces | ✅ Full (Production) | Pre-installed binary via `install.sh` + `vck mcp-config` | Autonomous headless execution through Phase 0 Gate. |
 | **Parallel-Agent Swarms** | Subagent spawning (Antigravity subagents, Claude Code task agents) | ✅ Full (Production) | Inherited MCP server or spawned processes | Safe concurrent writes via advisory locking; `⚡` parallel hints. |
 | **Multi-Agent Frameworks** | CrewAI, LangGraph, AutoGen | ✅ Compatible | Custom MCP client connector | Map research sessions to agent roles (e.g., Critic runs `challenge`). |
-| **CI/CD Pipelines** | GitHub Actions, GitLab CI | ✅ Compatible | Headless CLI (`vck doctor`, `vivechak_run_gate`) | Fail CI builds if Phase 0 Gate criteria are not satisfied. |
+| **CI/CD Pipelines** | GitHub Actions, GitLab CI | ✅ Compatible | Headless CLI (`vck doctor`, `vck gate`) | Fail CI builds if Phase 0 Gate criteria are not satisfied. |
 | **Agent SDKs & Runtimes** | Google Genkit, Microsoft ADK, Mastra | ✅ Compatible | SDK MCP client connectors | Programmatic pipeline execution and decision recording. |
 | **Web-Based Agents** | LibreChat, ChatGPT (Web MCP), Gemini Advanced | ⚠️ Rollout-Dependent | Web MCP connector / `librechat.yaml` | Functionality matches host's MCP rollout status. |
 
@@ -240,4 +240,6 @@ jobs:
         run: curl -sSL https://raw.githubusercontent.com/bhaskarjha-dev/vivechak/main/install.sh | bash
       - name: Run Workspace Doctor
         run: vck doctor
+      - name: Evaluate Phase 0 Exit Gate
+        run: vck gate
 ```

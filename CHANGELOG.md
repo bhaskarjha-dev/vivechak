@@ -7,10 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [0.1.0] - 2026-10-13 — Hardened Initial Release & MCP Server
+## [0.1.0] - 2026-10-18 — Hardened Initial Release & MCP Server
 
-Unified release delivering the 12 enforcement hardening tasks, quality audit fixes, and complete pre-release hardening wave across engine parsers, concurrency locks, gate strictness, and cognitive quality coaching:
+Unified release delivering the complete pre-release hardening wave across engine parsers, decoupled exit gates, headless CLI verification, concurrency locks, and packaging:
 
+- **Decoupled Pre-Codebase Exit Gate (`gate.go`, `tool_run_gate.go`):** Decoupled Track A (Two-Way Doors fast reversibility) from Track B (One-Way Doors B1–B11 checks). Track A explicitly passes and authorizes prototyping when all Two-Way Doors satisfy reversibility, without requiring FAD or full project DAG. Comparison scope receives clean zero-gate clearance with advisory.
+- **Headless Gate CLI (`vck gate`, `cmd/vivechak/gate.go`):** Added `vck gate` subcommand with `--track <all|track_a|track_b>`, `--format <text|json>`, and `--verbose` for automated CI/CD gating and headless verification.
+- **First-Class Comparison Validation (`ValidateComparison`, `validate.go`, `tool_validate.go`):** Added structured WEP matrix validation, checking criterion tables, scores, and evidence grades for comparison artifacts (`C-*.md`, `*-comparison.md`, `*-cmp-*.md`).
+- **Scope Auto-Inference Precedence Calibration (`scope.go`):** Calibrated `InferScope` so explicit comparison or decision queries containing product context (e.g. *"compare pino vs winston for our new startup"*) route accurately to `ScopeComparison` or `ScopeDecision` rather than defaulting to `ScopeProject`.
+- **Special Research File Isolation (`workspace.go`, `tool_record_decision.go`):** Isolated comparison files (`-cmp-`, `COMPARISON.md`) from ADR scans, preventing comparison matrices from corrupting architectural decision registries.
+- **Comparison Scope Visualization (`visualize_comparison.go`, `tool_visualize.go`):** Added Mermaid flowchart and ASCII table rendering for Comparison Scope WEP matrices without requiring DAG pipeline files.
+- **Multi-Session Decision ID Preservation (`tool_challenge.go`):** Replaced naive hyphen-splitting with frontmatter inspection to resolve multi-session decision IDs (`D-001-S1`, `D-001-S2`), preventing cross-session overwrite defects during challenges.
+- **Content-Aware Decision Header Verification (`workspace.go`):** `InspectWorkspace` now inspects `DECISIONS.md` content for non-header decision rows, preventing empty 93-byte boilerplate tables from triggering split-brain states with gate evaluation.
+- **Guided Re-planning & Reason/Impact Metadata (`tool_replan.go`):** Extended `vivechak_replan` with `reason` and `impact` fields and implemented a non-destructive guided overview mode returning uncompleted candidate sessions when `operation` is omitted.
+- **Multi-Stage Local & Multi-Arch Docker Build (`Dockerfile`, `.dockerignore`):** Converted container build to a multi-stage Go builder compiling from source for both local `docker build .` and multi-arch CI (`linux/amd64`, `linux/arm64`).
+- **Asynchronous Signal-Forwarding npm Runner (`npm/vivechak/bin/runner.js`):** Upgraded runner to `child_process.spawn`, forwarding `SIGINT` and `SIGTERM` signals cleanly to the native binary.
+- **Safe PyPI Streaming Archive Download (`pypi/vivechak/src/vivechak/cli.py`):** Upgraded download logic to `urllib.request.urlopen` with HTTP 200 response validation.
+- **Nix Flake Proxy Vendoring (`flake.nix`):** Configured `proxyVendor = true;` in `buildGoModule`.
+- **Windows CRLF Normalization in Decision Registry (`tool_record_decision.go`):** Normalized `\r\n` to `\n` in `wrapFrontmatterForRegistry`, preventing dangling carriage returns on Windows.
 - **4-Scope Mental Model & Out-of-Scope Guardrails:** Formalized the complete 4-scope operational hierarchy across `README.md`, `AGENTS.md`, `FRAMEWORK.md`, `docs/`, and `ServerInstructions`: Comparison Scope (1 session → WEP matrix, 0 DAG, 0 gate), Decision Scope (1–3 sessions → ADR, 0 project DAG), Project Scope (Full pipeline → FAD), and Out-of-Scope (mandatory guardrail directing agents to skip research tools for direct code authoring, bug fixing, or syntax questions).
 - **Dynamic Scope-Aware Guided Worker Guidance (`tool_prepare_generator.go`):** `vivechak_prepare_generator` emits tailored, scope-appropriate `next_step` instructions across all 3 tiers (WEP comparison matrix for comparisons, decision plan and ADR skeleton for decisions, research pipeline for full projects).
 - **Architectural Migration Scope Inference (`scope.go`):** Enhanced `InferScope` to recognize architectural migration queries (*"should we migrate"*, *"migrate from"*, *"migration from"*, *"architectural fork"* / *"architectural dilemma"*) and route them to `ScopeDecision`.

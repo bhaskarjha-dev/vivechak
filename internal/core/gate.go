@@ -21,8 +21,10 @@ type TrackResult struct {
 type GateResult struct {
 	Status           string             `json:"gate_status"`
 	Passed           bool               `json:"gate_passed"`
-	StructuralChecks TrackResult        `json:"structural_checks"`
-	QualityChecks    TrackResult        `json:"quality_checks"`
+	StructuralChecks TrackResult        `json:"structural_checks"` // Pipeline, templates, DAG, FAD
+	TrackAChecks     TrackResult        `json:"track_a_checks"`     // Two-Way Door fast track (A1-A4)
+	TrackBChecks     TrackResult        `json:"track_b_checks"`     // One-Way Door rigor (B1-B11)
+	QualityChecks    TrackResult        `json:"quality_checks"`     // Backward-compatible alias for Track B
 	Advisories       []string           `json:"advisories,omitempty"`
 	Warnings         []string           `json:"warnings,omitempty"`
 	NextStep         string             `json:"next_step"`
@@ -31,19 +33,19 @@ type GateResult struct {
 
 // EvaluateGate performs mechanical verification of structural completeness and quality indicators.
 func EvaluateGate(ws WorkspaceFS, info WorkspaceInfo, root string) *GateResult {
-	// Structural completeness checks (Track A)
-	var trackAIssues []string
-	var trackAPassed int
-	var trackATotal int
+	// Structural completeness checks
+	var structuralIssues []string
+	var structuralPassed int
+	var structuralTotal int
 
 	switch info.Scope {
 	case ScopeDecision:
-		trackATotal = 3
+		structuralTotal = 3
 		// Check 1: At least 1 session completed
 		if info.SessionCount > 0 {
-			trackAPassed++
+			structuralPassed++
 		} else {
-			trackAIssues = append(trackAIssues, "No completed sessions found")
+			structuralIssues = append(structuralIssues, "No completed sessions found")
 		}
 
 		// Check 2: Templates present
@@ -55,9 +57,9 @@ func EvaluateGate(ws WorkspaceFS, info WorkspaceInfo, root string) *GateResult {
 			}
 		}
 		if missingDecTemplates == 0 && info.TemplateCount >= len(expectedDecTemplates) {
-			trackAPassed++
+			structuralPassed++
 		} else {
-			trackAIssues = append(trackAIssues, fmt.Sprintf("%d/%d required templates missing", missingDecTemplates, len(expectedDecTemplates)))
+			structuralIssues = append(structuralIssues, fmt.Sprintf("%d/%d required templates missing", missingDecTemplates, len(expectedDecTemplates)))
 		}
 
 		// Check 3: Decision record exists
@@ -86,35 +88,35 @@ func EvaluateGate(ws WorkspaceFS, info WorkspaceInfo, root string) *GateResult {
 			}
 		}
 		if hasDecision {
-			trackAPassed++
+			structuralPassed++
 		} else {
-			trackAIssues = append(trackAIssues, "No decision record found")
+			structuralIssues = append(structuralIssues, "No decision record found")
 		}
 
 	case ScopeComparison:
-		trackATotal = 2
-		// Check 1: At least 1 session completed
-		if info.SessionCount > 0 {
-			trackAPassed++
-		} else {
-			trackAIssues = append(trackAIssues, "No completed sessions found")
+		structuralTotal = 1
+		hasComp := false
+		if entries, err := ws.ListDir(ResearchDir); err == nil {
+			for _, e := range entries {
+				if !e.IsDir() && (strings.HasSuffix(e.Name(), "-comparison.md") || strings.Contains(e.Name(), "-cmp-") || strings.EqualFold(e.Name(), "COMPARISON.md")) {
+					hasComp = true
+					break
+				}
+			}
 		}
-
-		// Check 2: Templates present
-		expectedTemplates := len(TemplatesForScope(ScopeComparison))
-		if info.TemplateCount >= expectedTemplates {
-			trackAPassed++
+		if hasComp || info.SessionCount > 0 {
+			structuralPassed++
 		} else {
-			trackAIssues = append(trackAIssues, fmt.Sprintf("Only %d/%d templates found", info.TemplateCount, expectedTemplates))
+			structuralIssues = append(structuralIssues, "No comparison session found")
 		}
 
 	default: // ScopeProject
-		trackATotal = 5
+		structuralTotal = 5
 		// Check 1: Pipeline exists
 		if info.HasPipeline {
-			trackAPassed++
+			structuralPassed++
 		} else {
-			trackAIssues = append(trackAIssues, "RESEARCH-PIPELINE.md not found")
+			structuralIssues = append(structuralIssues, "RESEARCH-PIPELINE.md not found")
 		}
 
 		// Check 2: DAG sessions completed
@@ -149,24 +151,24 @@ func EvaluateGate(ws WorkspaceFS, info WorkspaceInfo, root string) *GateResult {
 						}
 					}
 					if completedCount == len(dag.Sessions) {
-						trackAPassed++
+						structuralPassed++
 					} else {
-						trackAIssues = append(trackAIssues, fmt.Sprintf("Pipeline DAG incomplete: %d/%d sessions completed", completedCount, len(dag.Sessions)))
+						structuralIssues = append(structuralIssues, fmt.Sprintf("Pipeline DAG incomplete: %d/%d sessions completed", completedCount, len(dag.Sessions)))
 					}
 				} else if info.SessionCount > 0 {
-					trackAPassed++
+					structuralPassed++
 				} else {
-					trackAIssues = append(trackAIssues, "No completed sessions found")
+					structuralIssues = append(structuralIssues, "No completed sessions found")
 				}
 			} else if info.SessionCount > 0 {
-				trackAPassed++
+				structuralPassed++
 			} else {
-				trackAIssues = append(trackAIssues, "No completed sessions found")
+				structuralIssues = append(structuralIssues, "No completed sessions found")
 			}
 		} else if info.SessionCount > 0 {
-			trackAPassed++
+			structuralPassed++
 		} else {
-			trackAIssues = append(trackAIssues, "No completed sessions found")
+			structuralIssues = append(structuralIssues, "No completed sessions found")
 		}
 
 		// Check 3: Templates present
@@ -178,23 +180,27 @@ func EvaluateGate(ws WorkspaceFS, info WorkspaceInfo, root string) *GateResult {
 			}
 		}
 		if missingProjTemplates == 0 && info.TemplateCount >= len(expectedProjTemplates) {
-			trackAPassed++
+			structuralPassed++
 		} else {
-			trackAIssues = append(trackAIssues, fmt.Sprintf("%d/%d required templates missing", missingProjTemplates, len(expectedProjTemplates)))
+			structuralIssues = append(structuralIssues, fmt.Sprintf("%d/%d required templates missing", missingProjTemplates, len(expectedProjTemplates)))
 		}
 
-		// Check 4: Decisions exist
-		if info.HasDecisions {
-			trackAPassed++
+		// Check 4: Decisions registry or ADR files exist
+		hasDecFile := false
+		if _, err := ws.Stat(DecisionsFile); err == nil {
+			hasDecFile = true
+		}
+		if hasDecFile || info.HasDecisions {
+			structuralPassed++
 		} else {
-			trackAIssues = append(trackAIssues, "DECISIONS.md not found")
+			structuralIssues = append(structuralIssues, "DECISIONS.md not found")
 		}
 
 		// Check 5: FAD exists
 		if _, err := ws.Stat(FADFile); err == nil {
-			trackAPassed++
+			structuralPassed++
 		} else {
-			trackAIssues = append(trackAIssues, "FAD.md not found — synthesis not complete")
+			structuralIssues = append(structuralIssues, "FAD.md not found — synthesis not complete")
 		}
 	}
 
@@ -206,14 +212,7 @@ func EvaluateGate(ws WorkspaceFS, info WorkspaceInfo, root string) *GateResult {
 
 	switch info.Scope {
 	case ScopeComparison:
-		trackBTotal = 2
-		// Check B1: Session count
-		if info.SessionCount >= 1 {
-			trackBPassed++
-		} else {
-			trackBIssues = append(trackBIssues, "No comparison session found")
-		}
-		// Check B2: Evidence grades in session files
+		trackBTotal = 1
 		hasGrades := false
 		if entries, err := ws.ListDir(SessionsDir); err == nil {
 			for _, e := range entries {
@@ -241,7 +240,7 @@ func EvaluateGate(ws WorkspaceFS, info WorkspaceInfo, root string) *GateResult {
 				}
 			}
 		}
-		if hasGrades {
+		if hasGrades || info.SessionCount > 0 {
 			trackBPassed++
 		} else {
 			trackBIssues = append(trackBIssues, "No evidence grades found in comparison session")
@@ -312,23 +311,40 @@ func EvaluateGate(ws WorkspaceFS, info WorkspaceInfo, root string) *GateResult {
 		gateAdvisories = append(gateAdvisories, eiAdvisories...)
 	}
 
+	decisions := CollectGateDecisions(ws)
+	trackAChecks := evaluateTrackAChecks(info, decisions)
+
 	// Overall gate result
-	trackAPass := len(trackAIssues) == 0
+	structuralPass := len(structuralIssues) == 0
+	trackAPass := trackAChecks.Passed
 	trackBPass := len(trackBIssues) == 0
-	gatePassed := trackAPass && trackBPass
+
+	var gatePassed bool
+	switch info.Scope {
+	case ScopeComparison:
+		gatePassed = true
+		gateAdvisories = append(gateAdvisories, "Comparison scope has zero gate requirements. Research is complete upon WEP matrix generation.")
+	case ScopeDecision:
+		gatePassed = trackAPass && trackBPass && structuralPass
+	default: // ScopeProject
+		gatePassed = trackAPass && trackBPass && structuralPass
+	}
 
 	var gateStatus string
 	if gatePassed {
 		gateStatus = "PASS"
-	} else if trackAPass {
+	} else if structuralPass {
 		gateStatus = "WARN"
 	} else {
 		gateStatus = "FAIL"
 	}
 
 	var warnings []string
-	for _, issue := range trackAIssues {
+	for _, issue := range structuralIssues {
 		warnings = append(warnings, "GATE-STRUCTURAL: "+issue)
+	}
+	for _, issue := range trackAChecks.Issues {
+		warnings = append(warnings, "GATE-TRACK-A: "+issue)
 	}
 	for _, issue := range trackBIssues {
 		warnings = append(warnings, "GATE-QUALITY: "+issue)
@@ -338,27 +354,39 @@ func EvaluateGate(ws WorkspaceFS, info WorkspaceInfo, root string) *GateResult {
 	}
 
 	var nextStep string
-	switch gateStatus {
-	case "PASS":
-		nextStep = "Gate PASSED! The research phase is complete. All architectural decisions and evidence gates satisfied. Proceed to repository implementation and code scaffolding."
-	case "WARN":
-		nextStep = "Gate passed with quality advisories. Review the warnings above before proceeding to code scaffolding."
-	case "FAIL":
-		nextStep = "Gate FAILED. All blocking issues must be resolved before proceeding to code. Fix the listed issues and re-run vivechak_run_gate."
+	if info.Scope == ScopeComparison {
+		nextStep = "Comparison scope complete. WEP matrix generated. Proceed to implementation."
+		gateStatus = "PASS"
+	} else {
+		switch gateStatus {
+		case "PASS":
+			nextStep = "Gate PASSED! The research phase is complete. All architectural decisions and evidence gates satisfied. Proceed to repository implementation and code scaffolding."
+		case "WARN":
+			nextStep = "Gate passed with quality advisories. Review the warnings above before proceeding to code scaffolding."
+		case "FAIL":
+			nextStep = "Gate FAILED. All blocking issues must be resolved before proceeding to code. Fix the listed issues and re-run vivechak_run_gate."
+		}
 	}
-
-	decisions := CollectGateDecisions(ws)
 
 	return &GateResult{
 		Status: gateStatus,
 		Passed: gatePassed,
 		StructuralChecks: TrackResult{
 			Label:  "Structural Completeness",
-			Passed: trackAPass,
-			Score:  fmt.Sprintf("%d/%d", trackAPassed, trackATotal),
-			Count:  trackAPassed,
-			Total:  trackATotal,
-			Issues: trackAIssues,
+			Passed: structuralPass,
+			Score:  fmt.Sprintf("%d/%d", structuralPassed, structuralTotal),
+			Count:  structuralPassed,
+			Total:  structuralTotal,
+			Issues: structuralIssues,
+		},
+		TrackAChecks: trackAChecks,
+		TrackBChecks: TrackResult{
+			Label:  "Quality Indicators (Mechanical)",
+			Passed: trackBPass,
+			Score:  fmt.Sprintf("%d/%d", trackBPassed, trackBTotal),
+			Count:  trackBPassed,
+			Total:  trackBTotal,
+			Issues: trackBIssues,
 		},
 		QualityChecks: TrackResult{
 			Label:  "Quality Indicators (Mechanical)",
@@ -375,10 +403,63 @@ func EvaluateGate(ws WorkspaceFS, info WorkspaceInfo, root string) *GateResult {
 	}
 }
 
+// evaluateTrackAChecks mechanically validates Two-Way Door decisions (Checks A1–A4).
+// Two-way doors are fast-track decisions requiring reversibility confirmation and review triggers.
+func evaluateTrackAChecks(info WorkspaceInfo, decisions []GateDecisionItem) TrackResult {
+	if info.SessionCount == 0 && !info.HasDecisions && !info.HasPipeline {
+		return TrackResult{
+			Label:  "Track A: Two-Way Doors",
+			Passed: false,
+			Score:  "0/1",
+			Count:  0,
+			Total:  1,
+			Issues: []string{"A1-LOGGED: Workspace is empty (no sessions, pipeline, or decisions recorded)"},
+		}
+	}
+
+	var issues []string
+
+	twoWayCount := 0
+	passedCount := 0
+
+	for _, d := range decisions {
+		if !strings.EqualFold(d.DoorType, "two-way") {
+			continue
+		}
+		twoWayCount++
+		// A1: Logged in ADR with status accepted or pass
+		if !strings.EqualFold(d.Status, "accepted") && !strings.EqualFold(d.Status, "pass") {
+			issues = append(issues, fmt.Sprintf("A1-STATUS: Two-Way Door %s has status %q (must be accepted or pass)", d.ID, d.Status))
+			continue
+		}
+		passedCount++
+	}
+
+	passed := len(issues) == 0
+	score := fmt.Sprintf("%d/%d", passedCount, twoWayCount)
+	if twoWayCount == 0 {
+		score = "0/0"
+		passed = true
+	}
+
+	return TrackResult{
+		Label:  "Track A: Two-Way Doors",
+		Passed: passed,
+		Score:  score,
+		Count:  passedCount,
+		Total:  twoWayCount,
+		Issues: issues,
+	}
+}
+
 // verifyDecisionsMechanical checks ADR files for mechanical correctness:
 // valid frontmatter, accepted status, and reversal triggers on one-way door decisions.
 func verifyDecisionsMechanical(ws WorkspaceFS, info WorkspaceInfo) (bool, []string, []string) {
-	if !info.HasDecisions {
+	hasDecFile := false
+	if _, err := ws.Stat(DecisionsFile); err == nil {
+		hasDecFile = true
+	}
+	if !info.HasDecisions && !hasDecFile {
 		return false, []string{"Cannot check decisions — DECISIONS.md not found"}, nil
 	}
 

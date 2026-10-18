@@ -601,3 +601,347 @@ Memory consumption.
 		t.Errorf("expected Q-BIAS observation when Delta only updates from 'Unknown' priors")
 	}
 }
+
+// TestComprehensive_GuidedReplanAndReasonImpactMetadata tests vivechak_replan:
+// - Empty operation returns guided overview without mutating pipeline
+// - Valid operation with reason and impact modifies pipeline and logs history
+func TestComprehensive_GuidedReplanAndReasonImpactMetadata(t *testing.T) {
+	tmpDir := t.TempDir()
+	ctx := context.Background()
+
+	_, envInit, err := handleInit(ctx, nil, InitInput{ProjectRoot: tmpDir, Scope: "project"})
+	if err != nil || !envInit.Success {
+		t.Fatalf("init failed: %v", err)
+	}
+
+	pipelineContent := `# Research Pipeline
+### T1-01: Session 1
+| **ID** | T1-01 |
+| **Dependencies** | None |
+` + "```prompt\nprompt 1\n```\n"
+
+	_, envPlan, err := handleSavePlan(ctx, nil, SavePlanInput{
+		ProjectRoot:      tmpDir,
+		Content:          pipelineContent,
+		DecisionsContent: "# Decision Registry\n",
+	})
+	if err != nil || !envPlan.Success {
+		t.Fatalf("save plan failed: %v", err)
+	}
+
+	// 1. Guided replan with empty operation
+	_, envGuided, err := handleReplan(ctx, nil, ReplanInput{
+		ProjectRoot: tmpDir,
+	})
+	if err != nil || !envGuided.Success {
+		t.Fatalf("guided replan failed: %v, env: %+v", err, envGuided)
+	}
+	guidedData, ok := envGuided.Data.(map[string]any)
+	if !ok || guidedData["status"] != "guided" {
+		t.Errorf("expected status guided, got: %v", envGuided.Data)
+	}
+	if !strings.Contains(envGuided.NextStep, "Call vivechak_replan with operation") {
+		t.Errorf("expected guided next_step to guide user, got: %q", envGuided.NextStep)
+	}
+
+	// Verify pipeline file content was NOT changed by guided overview
+	pBytes, _ := os.ReadFile(filepath.Join(tmpDir, core.PipelineFile))
+	if strings.Contains(string(pBytes), "REPLAN HISTORY") {
+		t.Errorf("pipeline should not have replan history yet")
+	}
+
+	// 2. Concrete replan with reason and impact
+	_, envReplan, err := handleReplan(ctx, nil, ReplanInput{
+		ProjectRoot:  tmpDir,
+		Operation:    "add_session",
+		SessionID:    "T2-01",
+		Topic:        "Security Hardening",
+		Prompt:       "Security audit prompt",
+		Reason:       "SOC2 compliance requirement",
+		Impact:       "Adds required security research session",
+		Dependencies: "T1-01",
+	})
+	if err != nil || !envReplan.Success {
+		t.Fatalf("replan failed: %v, env: %+v", err, envReplan)
+	}
+
+	replanData := envReplan.Data.(map[string]any)
+	if replanData["reason"] != "SOC2 compliance requirement" {
+		t.Errorf("expected reason 'SOC2 compliance requirement' in replan data, got: %v", replanData["reason"])
+	}
+	if replanData["impact"] != "Adds required security research session" {
+		t.Errorf("expected impact in replan data, got: %v", replanData["impact"])
+	}
+
+	pUpdatedBytes, err := os.ReadFile(filepath.Join(tmpDir, core.PipelineFile))
+	if err != nil {
+		t.Fatalf("reading updated pipeline: %v", err)
+	}
+	pUpdatedStr := string(pUpdatedBytes)
+	if !strings.Contains(pUpdatedStr, "T2-01") {
+		t.Errorf("expected T2-01 in updated pipeline")
+	}
+}
+
+// TestComprehensive_MultiSessionDecisionChallengePreservation verifies that in multi-session decision scopes
+// (e.g. D-001-S1, D-001-S2), challenging a specific session preserves the exact session ID without overwriting it.
+func TestComprehensive_MultiSessionDecisionChallengePreservation(t *testing.T) {
+	tmpDir := t.TempDir()
+	ctx := context.Background()
+
+	_, envInit, err := handleInit(ctx, nil, InitInput{ProjectRoot: tmpDir, Scope: "decision"})
+	if err != nil || !envInit.Success {
+		t.Fatalf("init failed: %v", err)
+	}
+
+	// Create session D-001-S1 in research/sessions/
+	sessDir := filepath.Join(tmpDir, core.SessionsDir)
+	_ = os.MkdirAll(sessDir, 0o755)
+
+	s1Content := `---
+session_id: D-001-S1
+title: Auth Landscape
+status: complete
+date: 2026-10-18
+---
+## Key Findings
+- OAuth2 with PKCE is standard [Grade A] https://datatracker.ietf.org/doc/html/rfc7636
+## Discovered Concerns
+Refresh token rotation complexity.
+## Delta
+Confirmed PKCE requirement.
+`
+	if err := os.WriteFile(filepath.Join(sessDir, "D-001-S1.md"), []byte(s1Content), 0o644); err != nil {
+		t.Fatalf("writing D-001-S1: %v", err)
+	}
+
+	// Challenge D-001-S1
+	_, envChal, err := handleChallenge(ctx, nil, ChallengeInput{
+		ProjectRoot: tmpDir,
+		SessionID:   "D-001-S1",
+		Mode:        "red_team",
+	})
+	if err != nil || !envChal.Success {
+		t.Fatalf("challenge D-001-S1 failed: %v, env: %+v", err, envChal)
+	}
+	chalResult, ok := envChal.Data.(*core.ChallengeResult)
+	if !ok {
+		t.Fatalf("invalid challenge data type: %T", envChal.Data)
+	}
+	if chalResult.SessionID != "D-001-S1" {
+		t.Errorf("expected session_id 'D-001-S1', got: %v", chalResult.SessionID)
+	}
+}
+
+// TestComprehensive_SpecialResearchFileExclusionFromADRScan verifies that comparison files
+// (e.g. C-01-cmp-auth.md, COMPARISON.md) in research/ are never mistreated as ADRs by record_decision.
+func TestComprehensive_SpecialResearchFileExclusionFromADRScan(t *testing.T) {
+	tmpDir := t.TempDir()
+	researchDir := filepath.Join(tmpDir, core.ResearchDir)
+	_ = os.MkdirAll(researchDir, 0o755)
+	ctx := context.Background()
+
+	// Write a comparison matrix into research/
+	compContent := `# Comparison: JWT vs Sessions
+## Weighted Evaluation Protocol (WEP) Matrix
+| Option | Score |
+|---|---|
+| JWT | 4.2 |
+`
+	if err := os.WriteFile(filepath.Join(researchDir, "C-01-cmp-auth.md"), []byte(compContent), 0o644); err != nil {
+		t.Fatalf("write comparison file: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(researchDir, "COMPARISON.md"), []byte(compContent), 0o644); err != nil {
+		t.Fatalf("write COMPARISON.md: %v", err)
+	}
+
+	// Record legitimate decision D-001
+	d1Content := `---
+id: D-001
+title: Auth Strategy
+status: accepted
+door_type: two-way
+date: 2026-10-18
+---
+# Context
+Auth strategy.
+# Decision
+Adopt session cookies. Grade A (https://owasp.org)
+`
+	_, envRec, err := handleRecordDecision(ctx, nil, RecordDecisionInput{
+		ProjectRoot: tmpDir,
+		DecisionID:  "D-001",
+		Content:     d1Content,
+	})
+	if err != nil || !envRec.Success {
+		t.Fatalf("record_decision D-001 failed: %v, env: %+v", err, envRec)
+	}
+
+	// Inspect DECISIONS.md
+	regBytes, err := os.ReadFile(filepath.Join(tmpDir, core.DecisionsFile))
+	if err != nil {
+		t.Fatalf("read DECISIONS.md: %v", err)
+	}
+	regStr := string(regBytes)
+	if !strings.Contains(regStr, "D-001") {
+		t.Errorf("expected D-001 in registry")
+	}
+	if strings.Contains(regStr, "C-01") || strings.Contains(regStr, "COMPARISON") {
+		t.Errorf("comparison files must not be recorded in DECISIONS.md registry: %s", regStr)
+	}
+}
+
+// TestComprehensive_TrackFilterDecoupledGateClearance verifies that handleRunGate decouples Track A and Track B,
+// respects track filtering, and comparison scope receives zero-gate clearance with advisory.
+func TestComprehensive_TrackFilterDecoupledGateClearance(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("comparison scope receives zero-gate clearance", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		_, envInit, _ := handleInit(ctx, nil, InitInput{ProjectRoot: tmpDir, Scope: "comparison"})
+		if !envInit.Success {
+			t.Fatalf("init failed: %s", envInit.Message)
+		}
+
+		_, envGate, err := handleRunGate(ctx, nil, RunGateInput{
+			ProjectRoot: tmpDir,
+		})
+		if err != nil {
+			t.Fatalf("run_gate failed: %v", err)
+		}
+		gateData, ok := envGate.Data.(map[string]any)
+		if !ok || gateData["gate_passed"] != true {
+			t.Errorf("comparison scope must always pass gate, got: %+v", gateData)
+		}
+		foundZeroReq := false
+		for _, adv := range envGate.Warnings {
+			if strings.Contains(adv, "zero gate requirements") {
+				foundZeroReq = true
+				break
+			}
+		}
+		if !foundZeroReq {
+			t.Errorf("expected zero gate requirements advisory, got warnings: %v", envGate.Warnings)
+		}
+	})
+
+	t.Run("project scope track filters", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		_, envInit, _ := handleInit(ctx, nil, InitInput{ProjectRoot: tmpDir, Scope: "project"})
+		if !envInit.Success {
+			t.Fatalf("init failed: %s", envInit.Message)
+		}
+
+		// Invalid track returns error envelope
+		_, envInvalid, err := handleRunGate(ctx, nil, RunGateInput{
+			ProjectRoot: tmpDir,
+			Track:       "invalid_track",
+		})
+		if err == nil && envInvalid.Success {
+			t.Errorf("expected error for invalid track, got success")
+		}
+
+		// Track A filter on empty workspace
+		_, envTrackA, err := handleRunGate(ctx, nil, RunGateInput{
+			ProjectRoot: tmpDir,
+			Track:       "track_a",
+		})
+		if err != nil {
+			t.Fatalf("track_a run gate error: %v", err)
+		}
+		tAData := envTrackA.Data.(map[string]any)
+		if tAData["track_filter"] != "track_a" {
+			t.Errorf("expected track_filter 'track_a', got: %v", tAData["track_filter"])
+		}
+	})
+}
+
+// TestComprehensive_ComparisonScopeValidateAndVisualize tests ValidateComparison and
+// visualize for comparison workspaces.
+func TestComprehensive_ComparisonScopeValidateAndVisualize(t *testing.T) {
+	tmpDir := t.TempDir()
+	ctx := context.Background()
+
+	_, envInit, err := handleInit(ctx, nil, InitInput{ProjectRoot: tmpDir, Scope: "comparison"})
+	if err != nil || !envInit.Success {
+		t.Fatalf("init failed: %v", err)
+	}
+
+	wepMatrix := `---
+id: C-01-cmp-framework-shootout
+title: Fastify vs Express
+date: 2026-10-18
+status: complete
+---
+
+# COMPARISON: Fastify vs Express
+
+## Summary Recommendation
+Fastify is recommended for schema-validated routing and throughput based on benchmarks.
+
+## Evaluated Options
+- Option 1: Fastify (Grade A - https://fastify.io)
+- Option 2: Express (Grade A - https://expressjs.com)
+
+## Weighted Evaluation Protocol (WEP) Matrix
+| Criterion | Weight | Fastify (1-5) | Express (1-5) | Evidence |
+|---|---|---|---|---|
+| Throughput | 0.50 | 5 | 3 | Grade B (benchmarks) |
+| Middleware Ecosystem | 0.50 | 4 | 5 | Grade A (npm) |
+| **Weighted Total** | **1.00** | **4.50** | **4.00** | |
+
+## Sensitivity Analysis
+Varying Throughput weight keeps Fastify ahead.
+`
+	_, envPlan, err := handleSavePlan(ctx, nil, SavePlanInput{
+		ProjectRoot: tmpDir,
+		Scope:       "comparison",
+		DecisionID:  "C-01",
+		Slug:        "framework-shootout",
+		Content:     wepMatrix,
+	})
+	if err != nil || !envPlan.Success {
+		t.Fatalf("save plan failed: %v, env: %+v", err, envPlan)
+	}
+
+	// 1. Validate comparison artifact via workspace validation
+	_, envVal, err := handleValidate(ctx, nil, ValidateInput{
+		ProjectRoot: tmpDir,
+	})
+	if err != nil || !envVal.Success {
+		t.Fatalf("workspace validate failed: %v, env: %+v", err, envVal)
+	}
+	valData := envVal.Data.(map[string]any)
+	if valData["comparisons"] == nil && valData["comparison"] == nil {
+		t.Errorf("expected comparison validation in results: %+v", valData)
+	}
+
+	// 2. Direct ValidateComparison call
+	valDirect := core.ValidateComparison([]byte(wepMatrix))
+	if valDirect.HasBlocking() || (valDirect.Status != "valid" && valDirect.Status != "valid-with-warnings") {
+		t.Errorf("expected ValidateComparison valid, got: %v (issues: %+v)", valDirect.Status, valDirect.Issues)
+	}
+
+	// 3. Visualize comparison workspace
+	_, envVis, err := handleVisualize(ctx, nil, VisualizeInput{
+		ProjectRoot: tmpDir,
+		Format:      "table",
+	})
+	if err != nil || !envVis.Success {
+		t.Fatalf("visualize table failed: %v, env: %+v", err, envVis)
+	}
+	visData := envVis.Data.(map[string]any)
+	if visData["scope"] != core.ScopeComparison {
+		t.Errorf("expected scope comparison in visualize data, got: %v", visData["scope"])
+	}
+
+	// 4. Visualize comparison workspace as mermaid
+	_, envVisM, err := handleVisualize(ctx, nil, VisualizeInput{
+		ProjectRoot: tmpDir,
+		Format:      "mermaid",
+	})
+	if err != nil || !envVisM.Success {
+		t.Fatalf("visualize mermaid failed: %v, env: %+v", err, envVisM)
+	}
+}
+

@@ -81,3 +81,45 @@ func TestHandleChallenge_NotFound(t *testing.T) {
 		t.Errorf("expected error message in envelope")
 	}
 }
+
+func TestHandleChallenge_CrossSession_MultiSessionNoOverwrite(t *testing.T) {
+	tmpDir := t.TempDir()
+	sessionsDir := filepath.Join(tmpDir, core.SessionsDir)
+	if err := os.MkdirAll(sessionsDir, 0o755); err != nil {
+		t.Fatalf("failed to create sessions dir: %v", err)
+	}
+
+	s1 := `---
+id: D-001-S1
+title: Landscape Analysis
+---
+# Landscape
+Recommendation: Option A.
+`
+	s2 := `---
+id: D-001-S2
+title: Comparison Analysis
+---
+# Comparison
+Recommendation: Option B.
+`
+	if err := os.WriteFile(filepath.Join(sessionsDir, "D-001-S1-landscape.md"), []byte(s1), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(sessionsDir, "D-001-S2-comparison.md"), []byte(s2), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	ctx := context.Background()
+	res, env, err := handleChallenge(ctx, nil, ChallengeInput{
+		ProjectRoot: tmpDir,
+		SessionID:   "D-001-S1",
+		Mode:        "cross_session",
+	})
+	if err != nil {
+		t.Fatalf("handleChallenge failed: %v", err)
+	}
+	if res.IsError {
+		t.Fatalf("expected success, got error: %s", env.Message)
+	}
+}

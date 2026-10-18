@@ -146,8 +146,8 @@ func (d *DAG) ValidateDAG() error {
 // ExtractDeclaredSessionIDs extracts all candidate session IDs mentioned in
 // Markdown tables, Mermaid diagrams, or layer lists.
 func ExtractDeclaredSessionIDs(content string) []string {
-	// Matches session IDs like T0-01, T1-02, D-001, SYN-01, C-01, FAD
-	idRe := regexp.MustCompile(`\b([TCD]\d+[-_]\d+|SYN[-_]\d+|FAD)\b`)
+	// Matches session IDs like T0-01, T1-02, C-01, D-001-S1, SYN-01, FAD
+	idRe := regexp.MustCompile(`\b(T\d+[-_]\d+|S\d+[-_]\d+|C\d*[-_]\d+|D[-_]\d+[-_][A-Za-z0-9]+|CMP[-_]\d+|COMP[-_]\d+|SYN[-_]\d+|FAD)\b`)
 	matches := idRe.FindAllString(content, -1)
 	seen := make(map[string]bool)
 	var declared []string

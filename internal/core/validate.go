@@ -500,6 +500,82 @@ func ValidateFAD(data []byte) *ValidationResult {
 	return result
 }
 
+// ValidateComparison checks a comparison session or WEP matrix output.
+// It verifies frontmatter (id/session_id, title, date, status), substantive body content,
+// Weighted Evaluation Protocol (WEP) matrix presence, and inline evidence grades.
+func ValidateComparison(data []byte) *ValidationResult {
+	result := &ValidationResult{Status: "valid"}
+
+	if len(bytes.TrimSpace(data)) == 0 {
+		result.AddIssue(L2Block, "V-EMPTY", "Comparison content is empty")
+		result.Status = "invalid"
+		return result
+	}
+
+	fm, body, err := ParseFrontmatter(data)
+	if err != nil {
+		result.AddIssue(L2Block, "V-INVALID-FRONTMATTER", "YAML frontmatter is malformed: "+err.Error())
+		result.Status = "invalid"
+		return result
+	}
+
+	if fm == nil {
+		result.AddIssueWithHint(L2Block, "V-MISSING-FRONTMATTER",
+			"Comparison record has no YAML frontmatter",
+			"Add frontmatter with at least: id (or session_id), title, date, status")
+		result.Status = "draft"
+		return result
+	}
+
+	// L2: Required frontmatter fields
+	if !fm.Has("id") && !fm.Has("session_id") {
+		result.AddFieldIssueWithHint(L2Block, "V-MISSING-FIELD", "id",
+			"Required frontmatter field 'id' (or 'session_id') is missing",
+			"Add 'id: C-01-cmp-<slug>' to frontmatter")
+	}
+	if !fm.Has("title") || strings.TrimSpace(fm.GetString("title")) == "" {
+		result.AddFieldIssueWithHint(L2Block, "V-MISSING-FIELD", "title",
+			"Required frontmatter field 'title' is missing",
+			"Add 'title: [Comparison Title]' to frontmatter")
+	}
+	if !fm.Has("date") {
+		result.AddFieldIssueWithHint(L2Block, "V-MISSING-FIELD", "date",
+			"Required frontmatter field 'date' is missing",
+			"Add 'date: YYYY-MM-DD' to frontmatter")
+	}
+
+	// Check body length
+	bodyStr := strings.TrimSpace(string(body))
+	if len(bodyStr) < 100 {
+		result.AddIssueWithHint(L3Warn, "W-SHORT-BODY",
+			"Comparison body is very short (< 100 characters)",
+			"Ensure the comparison includes research question, recommendation, and evaluation matrix")
+	}
+
+	// Check for Weighted Evaluation Protocol or criteria matrix table
+	hasWEPTable := strings.Contains(bodyStr, "| Criteria |") ||
+		strings.Contains(bodyStr, "| Criterion |") ||
+		strings.Contains(bodyStr, "| Option |") ||
+		strings.Contains(bodyStr, "Weighted Evaluation") ||
+		strings.Contains(bodyStr, "Weighted Total")
+	if !hasWEPTable {
+		result.AddIssueWithHint(L3Warn, "W-MISSING-WEP-MATRIX",
+			"Comparison artifact lacks a structured Weighted Evaluation Protocol (WEP) matrix table",
+			"Include a criteria and score matrix per COMPARISON-SESSION.template.md")
+	}
+
+	// L3: Evidence grades and recalled grade cap checks
+	checkEvidenceGrades(bodyStr, result)
+	checkRecalledGradeCap(bodyStr, result)
+
+	if result.HasBlocking() {
+		result.Status = "draft"
+	} else if result.WarningCount() > 0 {
+		result.Status = "valid-with-warnings"
+	}
+
+	return result
+}
 
 // ValidatePlan validates a research plan or pipeline DAG.
 // Unlike sessions and decisions, plans do not require YAML frontmatter or evidence grades.

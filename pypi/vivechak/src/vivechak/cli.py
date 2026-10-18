@@ -88,7 +88,16 @@ def ensure_binary(prog_name):
     sys.stderr.flush()
 
     try:
-        urllib.request.urlretrieve(url, archive_path)
+        req = urllib.request.Request(url, headers={"User-Agent": f"vivechak-runner/{VERSION}"})
+        with urllib.request.urlopen(req) as resp:
+            if resp.status != 200:
+                raise RuntimeError(f"Download failed with HTTP status {resp.status} from {url}")
+            with open(archive_path, "wb") as f:
+                while True:
+                    chunk = resp.read(64 * 1024)
+                    if not chunk:
+                        break
+                    f.write(chunk)
         if archive.endswith(".zip"):
             with zipfile.ZipFile(archive_path, "r") as zf:
                 zf.extractall(cache_dir)

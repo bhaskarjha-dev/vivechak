@@ -19,7 +19,7 @@
 
 > **Transform high-stakes decisions from gut-feel and cached training data into structured, evidence-graded research — whether you're architecting a system or business venture, researching an irreversible decision, or comparing competing options, models, or algorithms.**
 
-> **What you're installing:** A single standalone Go binary (`vck`) with **zero runtime dependencies**, **zero cloud phone-home**, and **zero telemetry**. It runs 100% locally on your machine as both a developer CLI (`vck doctor`, `vck setup`) and an orchestration MCP server (`vck serve`) for AI coding agents.
+> **What you're installing:** A single standalone Go binary (`vck`) with **zero runtime dependencies**, **zero cloud phone-home**, and **zero telemetry**. It runs 100% locally on your machine as both a developer CLI (`vck doctor`, `vck setup`, `vck gate`) and an orchestration MCP server (`vck serve`) for AI coding agents.
 
 ---
 
@@ -80,8 +80,14 @@ vck setup claude                             # Claude Desktop
 vck setup agy                                # Google Antigravity
 vck setup                                    # auto-detect host in current workspace
 
-# Or output universal MCP JSON configuration:
+# Output universal MCP JSON configuration:
 vck mcp-config
+
+# Verify workspace health and diagnostic readiness:
+vck doctor
+
+# Headless Phase 0 exit gate evaluation (CI-ready):
+vck gate --track all
 ```
 
 Done. Your agent now has 13 MCP tools for evidence-grounded research. See [Host Setup Guide](docs/HOST-SETUP.md) for harness instructions, 21 desktop shortcuts, and manual setup details.
@@ -148,9 +154,10 @@ If you are using ChatGPT, Claude, or Gemini in your browser without an MCP agent
 ```
 vivechak/
 ├── cmd/vivechak/                   ← MCP server + CLI entry point
-│   ├── main.go                     ← Entry point (serve, setup, mcp-config, doctor, version)
+│   ├── main.go                     ← Entry point (serve, setup, mcp-config, doctor, gate, version)
 │   ├── config.go                   ← setup & mcp-config (auto-detection + 21 presets)
-│   └── doctor.go                   ← Workspace integrity checker
+│   ├── doctor.go                   ← Workspace integrity checker
+│   └── gate.go                     ← Headless Phase 0 exit gate evaluator (CI-ready)
 │
 ├── internal/                       ← Server implementation
 │   ├── core/                       ← Pure logic (workspace, DAG, validation)

@@ -40,6 +40,9 @@ You can run developer subcommands directly:
 # Workspace integrity checker
 npx -y vck doctor
 
+# Headless Phase 0 exit gate evaluation (CI-ready)
+npx -y vck gate --track all
+
 # 1-second host auto-configuration across 21 presets
 npx -y vck setup cursor
 npx -y vck setup claude

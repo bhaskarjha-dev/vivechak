@@ -124,3 +124,17 @@ Issues:
 3. **Rejected Alternatives (Check B5 & B10):** Ensure the ADR includes a `## Rejected Alternatives & Tradeoffs` section explaining why candidates were dismissed, with at least 200 characters of substantive rationale.
 4. **Reversal Triggers (Check B6):** Ensure frontmatter defines a measurable `review_trigger` (e.g. `"Throughput exceeds 50k req/sec or p99 latency > 200ms"`) and scheduled `review_date`.
 5. **Adversarial Red-Team Challenge (Check B11):** Run `vivechak_challenge(session_id="...", mode="red_team")` on the informing session to stress-test your conclusions. Document the disconfirming search results, edge case probes, and mitigations in a dedicated `## Challenge Findings & Red-Team Stress Test` section in the ADR.
+
+### Direct Terminal Evaluation via `vck gate`:
+You can also run gate evaluations directly from your terminal or CI pipeline without an active MCP agent:
+```sh
+# Run Phase 0 Gate on the current workspace:
+vck gate
+
+# Filter by track (e.g. focus solely on Two-Way Doors Track A or One-Way Doors Track B):
+vck gate --track track_a
+vck gate --track track_b
+
+# Output CI-ready JSON with machine-parseable diagnostics:
+vck gate --format json
+```

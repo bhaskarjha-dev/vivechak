@@ -1133,6 +1133,43 @@ graph TD
 	}
 }
 
+func TestExtractDeclaredSessionIDs_MultiScope(t *testing.T) {
+	content := `# Multi-Scope Pipeline & Decision Content
+Tables and references:
+| C-01 | Comparison |
+| CMP-02 | Comparison 2 |
+| D-001-S1 | Landscape |
+| D-01-S2 | Comparison |
+| T0-01 | Discovery |
+| SYN-01 | Synthesis |
+| FAD | Founding Doc |
+
+Non-sessions (should not match):
+D-001 is an ADR reference
+C-level executives
+T-shirt sizing
+`
+	declared := ExtractDeclaredSessionIDs(content)
+	expected := map[string]bool{
+		"C-01":     true,
+		"CMP-02":   true,
+		"D-001-S1": true,
+		"D-01-S2":  true,
+		"T0-01":    true,
+		"SYN-01":   true,
+		"FAD":      true,
+	}
+
+	if len(declared) != len(expected) {
+		t.Fatalf("expected %d extracted sessions, got %d: %v", len(expected), len(declared), declared)
+	}
+	for _, id := range declared {
+		if !expected[id] {
+			t.Errorf("unexpected extracted session ID: %s", id)
+		}
+	}
+}
+
 func TestNextSessions_TerminalSynthesisGuard(t *testing.T) {
 	dag := &DAG{
 		Sessions: []Session{

@@ -766,7 +766,7 @@ Defined in [`ValidateInput`](../internal/mcp/tool_validate.go):
 | Parameter | Type | Required | Description |
 |---|---|---|---|
 | `project_root` | `string` | Optional | Workspace root path (required for workspace-wide validation). |
-| `artifact_type` | `string` | Optional | What to validate: `session` \| `decision` \| `conflict-resolution` \| `plan` \| `fad` (omit for workspace validation). |
+| `artifact_type` | `string` | Optional | What to validate: `session` \| `decision` \| `comparison` \| `conflict-resolution` \| `plan` \| `fad` (omit for workspace validation). |
 | `content` | `string` | Optional | Content to validate (Markdown); omit with `project_root` for workspace-wide validation. |
 
 #### Response (`data` field)
@@ -1027,8 +1027,10 @@ Defined in [`ReplanInput`](../internal/mcp/tool_replan.go):
 | Parameter | Type | Required | Description |
 |---|---|---|---|
 | `project_root` | `string` | Optional | Workspace root path. |
-| `operation` | `string` | **Required** | Mutation operation: `add_session` \| `remove_session` \| `update_deps` \| `update_prompt`. |
-| `session_id` | `string` | **Required** | Session identifier being added, removed, or modified (e.g. `T1-02`). |
+| `operation` | `string` | Optional | Mutation operation: `add_session` \| `remove_session` \| `update_deps` \| `update_prompt` (omit to receive guided overview of uncompleted sessions). |
+| `session_id` | `string` | Optional* | Target session ID (e.g. `T1-02`; required when executing a mutation). |
+| `reason` | `string` | Optional | Contextual finding or organizational change triggering the replan. |
+| `impact` | `string` | Optional | Expected impact on pipeline topology or affected sessions. |
 | `topic` | `string` | Optional* | Session title/topic (required for `add_session`). |
 | `layer` | `string` | Optional | DAG execution layer (e.g. `"1"` for `add_session`). |
 | `door_type` | `string` | Optional | Decision irreversibility: `one-way` or `two-way` (default: `two-way`). |
@@ -1039,9 +1041,11 @@ Defined in [`ReplanInput`](../internal/mcp/tool_replan.go):
 | `new_dependencies` | `string` | Optional | Replacement comma-separated dependencies (for `update_deps`). |
 
 #### Response (`data` field)
-- `operation` (`string`): Performed operation.
-- `session_id` (`string`): Target session ID.
-- `total_sessions` (`integer`): New total session count in the pipeline DAG.
+- `operation` (`string`): Performed operation (or `available_operations` in guided mode).
+- `session_id` (`string`, optional): Target session ID.
+- `total_sessions` (`integer`, optional): New total session count in the pipeline DAG.
+- `uncompleted_sessions` (`string[]`, in guided mode): List of uncompleted sessions available for replanning.
+- `reason` / `impact` (`string`, optional): Preserved rationale and impact metadata.
 
 ---
 
@@ -1054,6 +1058,7 @@ Render the research pipeline DAG as a Mermaid graph or text status table.
 
 #### What It Does
 Computes the live execution status of every session node in the active pipeline and outputs a visual representation of progress and parallel execution paths.
+In **Comparison Scope**, visualizes the Weighted Evaluation Protocol (WEP) matrix as a comparative criteria/option Mermaid chart or ASCII table without requiring a pipeline DAG.
 
 Supported formats:
 - `mermaid` (default): Emits Mermaid TD flowchart syntax with color-coded nodes:
@@ -1061,7 +1066,7 @@ Supported formats:
   - Amber (`#f59e0b`): Unblocked, ready-to-run sessions (indicates parallel opportunities)
   - Gray (`#6b7280`): Blocked downstream sessions
   - Blue (`#3b82f6`): Grand synthesis sink (`SYN-01`)
-- `table`: Emits an ASCII status table with columns: ID, Title, Layer, Status, Dependencies, Output File.
+- `table`: Emits an ASCII status table with columns: ID, Title, Layer, Status, Dependencies, Output File (or comparative options and scores in Comparison Scope).
 
 #### Input Parameters
 Defined in [`VisualizeInput`](../internal/mcp/tool_visualize.go):
@@ -1105,6 +1110,7 @@ Vivechak organizes all artifact validation into a 4-level validation ladder defi
 | `W-MISSING-DOOR-TYPE` | L3 | `record_decision`, `validate` | ADR or conflict resolution lacks `door_type` frontmatter. Specify `door_type: one-way` or `two-way`. |
 | `W-SHORT-DECISION` | L3 | `record_decision`, `validate` | ADR body length is less than 100 characters. Expand Context and Consequences. |
 | `W-SHORT-BODY` | L3 | `record_decision`, `validate` | Conflict resolution or artifact body length is less than 100 characters. |
+| `W-MISSING-WEP-MATRIX` | L3 | `validate` | Comparison artifact lacks a structured Weighted Evaluation Protocol matrix table. |
 | `W-OUTPUT-SIZE` | L3 | `next_session` | Assembled prompt exceeds 10,000 tokens. Truncated unless `verbose: true`. |
 | `W-STALE-DOWNSTREAM` | L3 | `amend_session` | Amended session has completed downstream dependents; findings may be based on stale assumptions. |
 | `W-STALE-DECISION-REFERENCE` | L3 | `record_decision` | Superseded decision is referenced by existing completed sessions. |

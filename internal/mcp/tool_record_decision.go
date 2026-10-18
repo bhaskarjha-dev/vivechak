@@ -423,6 +423,9 @@ func compileDecisionsRegistry(ctx context.Context, ws *store.Workspace, root str
 		if core.IsSpecialResearchFile(name) {
 			continue
 		}
+		if strings.HasPrefix(strings.ToUpper(name), "C-") || strings.Contains(strings.ToLower(name), "-cmp-") {
+			continue
+		}
 		// Whitelist: D-* files or files with door_type in frontmatter
 		isCandidate := strings.HasPrefix(strings.ToUpper(name), "D-")
 		var data []byte
@@ -536,7 +539,8 @@ func updateOrAppendDecision(existing []byte, decisionID string, content string) 
 // into a collapsible <details> block with a YAML code fence inside.
 // This prevents markdown renderers from treating mid-file --- as horizontal rules.
 func wrapFrontmatterForRegistry(content string) string {
-	trimmed := strings.TrimSpace(content)
+	normalized := strings.ReplaceAll(content, "\r\n", "\n")
+	trimmed := strings.TrimSpace(normalized)
 	if strings.HasPrefix(trimmed, "<!-- DECISION:") {
 		if endIdx := strings.Index(trimmed, "-->"); endIdx != -1 {
 			trimmed = strings.TrimSpace(trimmed[endIdx+3:])

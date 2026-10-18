@@ -77,6 +77,9 @@ You can run developer subcommands directly:
 # Workspace integrity checker
 uvx vck doctor
 
+# Headless Phase 0 exit gate evaluation (CI-ready)
+uvx vck gate --track all
+
 # 1-second host auto-configuration (21 presets)
 uvx vck setup cursor
 uvx vck setup claude

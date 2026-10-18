@@ -292,3 +292,40 @@ func TestRunCLI_SetupAndInstall(t *testing.T) {
 	}
 }
 
+func TestRunCLI_Gate(t *testing.T) {
+	// 1. gate --help
+	var stdout, stderr bytes.Buffer
+	code := runCLI([]string{"vivechak", "gate", "--help"}, &stdout, &stderr)
+	if code != 0 {
+		t.Errorf("expected exit code 0 for gate --help, got %d", code)
+	}
+	if !strings.Contains(stdout.String(), "Usage: vivechak gate") {
+		t.Errorf("expected gate usage output, got stdout=%q, stderr=%q", stdout.String(), stderr.String())
+	}
+
+	// 2. gate with vck alias
+	stdout.Reset()
+	stderr.Reset()
+	code = runCLI([]string{"vck", "gate", "--help"}, &stdout, &stderr)
+	if code != 0 {
+		t.Errorf("expected exit code 0 for vck gate --help, got %d", code)
+	}
+
+	// 3. gate on fresh comparison directory
+	dir := t.TempDir()
+	_ = os.MkdirAll(filepath.Join(dir, core.ResearchDir), 0o755)
+	meta := core.WorkspaceMeta{Scope: core.ScopeComparison}
+	metaBytes, _ := json.Marshal(meta)
+	_ = os.WriteFile(filepath.Join(dir, core.MetadataFile), metaBytes, 0o644)
+
+	stdout.Reset()
+	stderr.Reset()
+	code = runCLI([]string{"vck", "gate", "--format", "json", dir}, &stdout, &stderr)
+	if code != 0 {
+		t.Errorf("expected exit code 0 on comparison workspace, got %d", code)
+	}
+	if !strings.Contains(stdout.String(), `"status": "PASS"`) {
+		t.Errorf("expected status PASS in stdout, got: %s", stdout.String())
+	}
+}
+

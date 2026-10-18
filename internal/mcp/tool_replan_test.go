@@ -180,3 +180,72 @@ func TestHandleReplan_RemoveSession_SluggedWithoutFrontmatterID(t *testing.T) {
 		t.Errorf("expected 'cannot remove completed session' message, got: %s", envComp.Message)
 	}
 }
+
+func TestHandleReplan_GuidedMode_EmptyOperation(t *testing.T) {
+	tmpDir := setupTestPipelineWorkspace(t)
+	ctx := context.Background()
+
+	// Calling replan with empty operation should return a guided response
+	res, env, err := handleReplan(ctx, nil, ReplanInput{
+		ProjectRoot: tmpDir,
+		Reason:      "Company directive: no MongoDB allowed",
+		Impact:      "Switch database evaluation session",
+	})
+	if err != nil {
+		t.Fatalf("unexpected handler err: %v", err)
+	}
+	if res.IsError {
+		t.Fatalf("expected guided success, got error: %s", env.Message)
+	}
+	data, ok := env.Data.(map[string]any)
+	if !ok {
+		t.Fatalf("expected map data in envelope")
+	}
+	if data["status"] != "guided" {
+		t.Errorf("expected status 'guided', got %v", data["status"])
+	}
+	if !strings.Contains(env.NextStep, "Call vivechak_replan with operation") {
+		t.Errorf("expected guided next_step, got: %s", env.NextStep)
+	}
+	if data["reason"] != "Company directive: no MongoDB allowed" {
+		t.Errorf("expected reason preserved in data, got %v", data["reason"])
+	}
+	if data["impact"] != "Switch database evaluation session" {
+		t.Errorf("expected impact preserved in data, got %v", data["impact"])
+	}
+	uncompleted, ok := data["uncompleted_sessions"].([]string)
+	if !ok || len(uncompleted) == 0 {
+		t.Errorf("expected uncompleted sessions list in data, got %v", data["uncompleted_sessions"])
+	}
+}
+
+func TestHandleReplan_WithReasonAndImpact(t *testing.T) {
+	tmpDir := setupTestPipelineWorkspace(t)
+	ctx := context.Background()
+
+	res, env, err := handleReplan(ctx, nil, ReplanInput{
+		ProjectRoot: tmpDir,
+		Operation:   "update_prompt",
+		SessionID:   "T1-01",
+		Reason:      "Strict enterprise compliance requirements",
+		Impact:      "Broaden scope to include Oracle",
+		NewPrompt:   "# T1-01 Oracle Evaluation\nBRIEF:\nResearch Oracle.\n",
+	})
+	if err != nil {
+		t.Fatalf("unexpected handler err: %v", err)
+	}
+	if res.IsError {
+		t.Fatalf("expected success, got error: %s", env.Message)
+	}
+	data, ok := env.Data.(map[string]any)
+	if !ok {
+		t.Fatalf("expected map data in envelope")
+	}
+	if data["reason"] != "Strict enterprise compliance requirements" {
+		t.Errorf("expected reason in resData, got %v", data["reason"])
+	}
+	if data["impact"] != "Broaden scope to include Oracle" {
+		t.Errorf("expected impact in resData, got %v", data["impact"])
+	}
+}
+

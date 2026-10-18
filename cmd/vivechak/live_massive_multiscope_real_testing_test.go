@@ -153,6 +153,40 @@ Shifting Raw Throughput weight by ±20% maintains Pino's lead (4.60 vs 3.70).
 		if !strings.Contains(string(docOut), "Workspace is healthy.") {
 			t.Errorf("expected 'Workspace is healthy.', got: %s", string(docOut))
 		}
+
+		// 1.3: Validate comparison workspace via vivechak_validate
+		valEnv := callTool("vivechak_validate", map[string]any{
+			"project_root": compRoot,
+		})
+		if !valEnv.Success {
+			t.Fatalf("vivechak_validate for comparison failed: %s", valEnv.Message)
+		}
+
+		// 1.4: Visualize comparison workspace via vivechak_visualize
+		visEnv := callTool("vivechak_visualize", map[string]any{
+			"project_root": compRoot,
+			"format":       "table",
+		})
+		if !visEnv.Success {
+			t.Fatalf("vivechak_visualize for comparison failed: %s", visEnv.Message)
+		}
+		if visEnv.Data == nil || visEnv.Data["scope"] != "comparison" {
+			t.Errorf("expected comparison scope in visualize data, got: %v", visEnv.Data)
+		}
+
+		// 1.5: Run CLI gate on comparison workspace via live subprocess (0 gate requirements -> exit code 0)
+		gateCmd := exec.CommandContext(ctx, binPath, "gate", "--format", "json", compRoot)
+		gateOut, gateErr := gateCmd.CombinedOutput()
+		if gateErr != nil {
+			t.Fatalf("vck gate failed on comparison workspace: %v\noutput: %s", gateErr, string(gateOut))
+		}
+		var gateJSON map[string]any
+		if err := json.Unmarshal(gateOut, &gateJSON); err != nil {
+			t.Fatalf("invalid json from vck gate: %v\noutput: %s", err, string(gateOut))
+		}
+		if gateJSON["status"] != "PASS" || gateJSON["passed"] != true {
+			t.Errorf("expected gate PASS on comparison workspace, got: %v", gateJSON)
+		}
 	})
 
 	// =========================================================================
@@ -205,7 +239,36 @@ Profile: R=2, N=1, B=2, X=1 -> One-Way Door.
 			t.Fatalf("decision plan file not found at %s: %v", planFile, err)
 		}
 
-		// 2.3: Stress test with adversarial red-team challenge
+		// 2.3: Execute and save decision research session D-020-S1
+		sContent := `---
+session_id: D-020-S1
+title: Datastore Landscape
+status: complete
+date: 2026-10-18
+door_type: one-way
+informs_decisions: [D-020]
+---
+
+## Key Findings
+- ClickHouse column storage yields 4x compression [Grade A] https://clickhouse.com/docs
+- PostgreSQL reaches write saturation at 10M events/day [Grade A] https://postgresql.org/docs
+
+## Discovered Concerns
+Operational complexity of managing ZooKeeper/Keeper cluster.
+
+## Delta
+Confirmed migration necessity.
+`
+		envSess := callTool("vivechak_save_session", map[string]any{
+			"project_root": decRoot,
+			"session_id":   "D-020-S1",
+			"content":      sContent,
+		})
+		if !envSess.Success {
+			t.Fatalf("save_session D-020-S1 failed: %s", envSess.Message)
+		}
+
+		// 2.4: Stress test with adversarial red-team challenge
 		envChal := callTool("vivechak_challenge", map[string]any{
 			"project_root": decRoot,
 			"decision_id":  "D-020",
@@ -215,7 +278,7 @@ Profile: R=2, N=1, B=2, X=1 -> One-Way Door.
 			t.Fatalf("vivechak_challenge failed: %s", envChal.Message)
 		}
 
-		// 2.4: Lock canonical ADR with One-Way Door and reversal triggers
+		// 2.5: Lock canonical ADR with One-Way Door and reversal triggers
 		adrContent := `---
 id: D-020
 title: Datastore Migration to ClickHouse
@@ -292,6 +355,16 @@ Reversal trigger: Re-evaluate if cluster maintenance requires dedicated SRE hire
 		}
 		if !strings.Contains(string(docOut), "Workspace is healthy.") {
 			t.Errorf("expected 'Workspace is healthy.', got: %s", string(docOut))
+		}
+
+		// 2.5: Run CLI gate on decision workspace via live subprocess (optional gate check)
+		gateCmd := exec.CommandContext(ctx, binPath, "gate", decRoot)
+		gateOut, gateErr := gateCmd.CombinedOutput()
+		if gateErr != nil {
+			t.Fatalf("vck gate failed on decision workspace: %v\noutput: %s", gateErr, string(gateOut))
+		}
+		if !strings.Contains(string(gateOut), "Phase 0 Gate: PASS") {
+			t.Errorf("expected Phase 0 Gate: PASS on decision workspace, got: %s", string(gateOut))
 		}
 	})
 
@@ -669,6 +742,30 @@ This document establishes the founding technical architecture for EventStream.
 		if !strings.Contains(string(docOut), "Workspace is healthy.") {
 			t.Errorf("expected 'Workspace is healthy.', got: %s", string(docOut))
 		}
+
+		// 3.13: Run CLI gate on project workspace via live subprocess
+		gateCmd := exec.CommandContext(ctx, binPath, "gate", "--format", "json", projRoot)
+		gateOut, gateErr := gateCmd.CombinedOutput()
+		if gateErr != nil {
+			t.Fatalf("vck gate failed on project workspace: %v\noutput: %s", gateErr, string(gateOut))
+		}
+		var pGateJSON map[string]any
+		if err := json.Unmarshal(gateOut, &pGateJSON); err != nil {
+			t.Fatalf("invalid json from vck gate on project: %v\noutput: %s", err, string(gateOut))
+		}
+		if pGateJSON["status"] != "PASS" || pGateJSON["passed"] != true {
+			t.Errorf("expected PASS on project gate, got: %v", pGateJSON)
+		}
+
+		// Test track filter
+		gateACmd := exec.CommandContext(ctx, binPath, "gate", "--track", "track_a", projRoot)
+		gateAOut, gateAErr := gateACmd.CombinedOutput()
+		if gateAErr != nil {
+			t.Fatalf("vck gate --track track_a failed: %v\noutput: %s", gateAErr, string(gateAOut))
+		}
+		if !strings.Contains(string(gateAOut), "Phase 0 Gate: PASS") {
+			t.Errorf("expected Track A PASS, got: %s", string(gateAOut))
+		}
 	})
 
 	// =========================================================================
@@ -707,6 +804,16 @@ This document establishes the founding technical architecture for EventStream.
 		}
 		if !strings.Contains(string(presetOut), "cursor") {
 			t.Errorf("expected setup output to reference cursor, got: %s", string(presetOut))
+		}
+
+		// 4.4: vck gate --help
+		gateHelpCmd := exec.CommandContext(ctx, binPath, "gate", "--help")
+		gateHelpOut, err := gateHelpCmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("vck gate --help failed: %v\noutput: %s", err, string(gateHelpOut))
+		}
+		if !strings.Contains(string(gateHelpOut), "Usage: vivechak gate") {
+			t.Errorf("expected gate usage output, got: %s", string(gateHelpOut))
 		}
 	})
 }

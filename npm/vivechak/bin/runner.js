@@ -14,7 +14,7 @@ const path = require('path');
 const os = require('os');
 const https = require('https');
 const http = require('http');
-const { spawnSync } = require('child_process');
+const { spawn, spawnSync } = require('child_process');
 
 const VERSION = '0.1.0';
 const REPO = 'bhaskarjha-dev/vivechak';
@@ -168,8 +168,27 @@ async function main() {
   try {
     const binPath = await ensureBinary();
     const args = process.argv.slice(2);
-    const result = spawnSync(binPath, args, { stdio: 'inherit' });
-    process.exit(result.status ?? 0);
+    const child = spawn(binPath, args, { stdio: 'inherit' });
+
+    child.on('error', (err) => {
+      process.stderr.write(`[vck] Failed to start native process: ${err.message}\n`);
+      process.exit(1);
+    });
+
+    const forwardSignal = (sig) => {
+      if (child.pid) {
+        try { child.kill(sig); } catch (_) {}
+      }
+    };
+    process.on('SIGINT', () => forwardSignal('SIGINT'));
+    process.on('SIGTERM', () => forwardSignal('SIGTERM'));
+
+    child.on('exit', (code, signal) => {
+      if (signal) {
+        process.kill(process.pid, signal);
+      }
+      process.exit(code ?? 0);
+    });
   } catch (err) {
     process.stderr.write(`Error: ${err.message}\n`);
     process.exit(1);

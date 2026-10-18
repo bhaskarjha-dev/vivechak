@@ -6,6 +6,7 @@
 //	vck                         # Start MCP server on stdio (default)
 //	vck serve                   # Explicit serve subcommand
 //	vck doctor                  # Check workspace integrity
+//	vck gate [flags] [path]     # Evaluate Phase 0 exit gate
 //	vck mcp-config              # Universal MCP config (pipeable)
 //	vck version                 # Print version
 package main
@@ -35,6 +36,7 @@ func printUsage(w io.Writer) {
 	fmt.Fprintf(w, "  setup <host|path>  Set up Vivechak in an AI host or config file (alias: install)\n")
 	fmt.Fprintf(w, "  serve              Start MCP server over stdio (default — connects to ANY MCP client)\n")
 	fmt.Fprintf(w, "  doctor [path]      Check workspace integrity (default: current workspace)\n")
+	fmt.Fprintf(w, "  gate [flags] [path] Evaluate Phase 0 exit gate (flags: --track, --format, --verbose)\n")
 	fmt.Fprintf(w, "  mcp-config         Output universal MCP JSON configuration (pipeable)\n")
 	fmt.Fprintf(w, "  version            Print version\n")
 }
@@ -93,6 +95,12 @@ func runCLIWithContext(ctx context.Context, args []string, stdout, stderr io.Wri
 			subArgs = args[2:]
 		}
 		return runDoctorWithArgs(subArgs, stdout, stderr)
+	case "gate", "run-gate":
+		var subArgs []string
+		if len(args) > 2 {
+			subArgs = args[2:]
+		}
+		return runGateWithArgs(subArgs, stdout, stderr)
 	case "help", "--help", "-h":
 		printUsage(stdout)
 		return 0

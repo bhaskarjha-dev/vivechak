@@ -132,14 +132,19 @@ func handleChallenge(ctx context.Context, _ *sdkmcp.CallToolRequest, in Challeng
 				if e.IsDir() || !strings.HasSuffix(strings.ToLower(e.Name()), ".md") {
 					continue
 				}
-				sid := strings.TrimSuffix(e.Name(), ".md")
-				if parts := strings.Split(sid, "-"); len(parts) >= 2 {
-					sid = parts[0] + "-" + parts[1]
-				}
 				data, rErr := ws.ReadFile(filepath.Join(core.SessionsDir, e.Name()))
-				if rErr == nil && len(data) > 0 {
-					allSessions[sid] = data
+				if rErr != nil || len(data) == 0 {
+					continue
 				}
+				sid := strings.TrimSuffix(e.Name(), ".md")
+				if fm, _, pErr := core.ParseFrontmatter(data); pErr == nil && fm != nil {
+					if idVal := fm.GetString("id"); idVal != "" {
+						sid = idVal
+					} else if sessID := fm.GetString("session_id"); sessID != "" {
+						sid = sessID
+					}
+				}
+				allSessions[sid] = data
 			}
 		}
 	}

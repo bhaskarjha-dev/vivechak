@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -387,21 +388,35 @@ If write volume exceeds 100k tx/sec requiring horizontal write sharding, re-eval
 	}
 }
 
-// TestMassive_CompiledBinary_RealCLI tests the compiled vck.exe (or native binary)
-// via real OS process execution to verify CLI commands work in real terminal environments.
-func TestMassive_CompiledBinary_RealCLI(t *testing.T) {
+func resolveOrBuildVck(t *testing.T) string {
+	t.Helper()
 	repoRoot, err := filepath.Abs("../..")
 	if err != nil {
 		t.Fatalf("resolving repo root: %v", err)
 	}
 
-	binPath := filepath.Join(repoRoot, "vck.exe")
-	if _, err := os.Stat(binPath); os.IsNotExist(err) {
-		binPath = filepath.Join(repoRoot, "vck")
-		if _, err := os.Stat(binPath); os.IsNotExist(err) {
-			t.Skip("vck executable not found in repo root; build it first to run native CLI test")
-		}
+	binName := "vck"
+	if runtime.GOOS == "windows" {
+		binName += ".exe"
 	}
+	binPath := filepath.Join(repoRoot, binName)
+	if _, err := os.Stat(binPath); err == nil {
+		return binPath
+	}
+
+	tempBin := filepath.Join(t.TempDir(), binName)
+	buildCmd := exec.Command("go", "build", "-o", tempBin, "./cmd/vivechak")
+	buildCmd.Dir = repoRoot
+	if out, err := buildCmd.CombinedOutput(); err != nil {
+		t.Fatalf("building vck binary for test: %v\noutput: %s", err, string(out))
+	}
+	return tempBin
+}
+
+// TestMassive_CompiledBinary_RealCLI tests the compiled vck.exe (or native binary)
+// via real OS process execution to verify CLI commands work in real terminal environments.
+func TestMassive_CompiledBinary_RealCLI(t *testing.T) {
+	binPath := resolveOrBuildVck(t)
 
 	// 1. Test version command
 	cmdVer := exec.Command(binPath, "version")
@@ -431,6 +446,16 @@ func TestMassive_CompiledBinary_RealCLI(t *testing.T) {
 	}
 	if !strings.Contains(string(outSetup), "Would write Vivechak configuration") {
 		t.Errorf("expected dry-run preview message, got: %s", string(outSetup))
+	}
+
+	// 4. Test gate --help
+	cmdGateHelp := exec.Command(binPath, "gate", "--help")
+	outGateHelp, err := cmdGateHelp.CombinedOutput()
+	if err != nil {
+		t.Fatalf("vck gate --help failed: %v, output: %s", err, string(outGateHelp))
+	}
+	if !strings.Contains(string(outGateHelp), "Usage: vivechak gate") {
+		t.Errorf("expected gate usage output, got: %s", string(outGateHelp))
 	}
 }
 
@@ -906,18 +931,7 @@ Katha ingests streaming audio via WebRTC [Grade A, RFC 7845], dispatches transcr
 
 // TestMassive_Doctor_RealCLI runs the compiled binary's doctor command on various workspace states.
 func TestMassive_Doctor_RealCLI(t *testing.T) {
-	repoRoot, err := filepath.Abs("../..")
-	if err != nil {
-		t.Fatalf("resolving repo root: %v", err)
-	}
-
-	binPath := filepath.Join(repoRoot, "vck.exe")
-	if _, err := os.Stat(binPath); os.IsNotExist(err) {
-		binPath = filepath.Join(repoRoot, "vck")
-		if _, err := os.Stat(binPath); os.IsNotExist(err) {
-			t.Skip("vck executable not found; skipping CLI doctor test")
-		}
-	}
+	binPath := resolveOrBuildVck(t)
 
 	cs := testServer(t)
 	ctx := context.Background()

@@ -724,5 +724,16 @@ Adopt PostgreSQL with pg_partman for scalable time-series events [Grade A: offic
 	}
 }
 
+func TestWrapFrontmatterForRegistry_CRLF(t *testing.T) {
+	crlfContent := "---\r\nid: D-001\r\ntitle: Storage Choice\r\ndoor_type: one-way\r\nstatus: accepted\r\n---\r\n# Body content\r\nSome text.\r\n"
+	wrapped := wrapFrontmatterForRegistry(crlfContent)
+	if strings.Contains(wrapped, "\r") {
+		t.Errorf("expected wrapped registry entry to contain no dangling carriage returns (\\r), got:\n%q", wrapped)
+	}
+	if !strings.Contains(wrapped, "<details>") || !strings.Contains(wrapped, "<strong>D-001</strong>") {
+		t.Errorf("expected wrapped details block with D-001, got:\n%s", wrapped)
+	}
+}
+
 
 

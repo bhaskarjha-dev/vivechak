@@ -17,7 +17,8 @@
             pname = "vivechak";
             version = "0.1.0";
             src = ./.;
-            vendorHash = null;
+            vendorHash = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
+            proxyVendor = true;
             ldflags = [ "-s" "-w" "-X main.version=0.1.0" ];
             postInstall = ''
               ln -s $out/bin/vivechak $out/bin/vck

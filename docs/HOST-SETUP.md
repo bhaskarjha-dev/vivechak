@@ -4,7 +4,7 @@ Configure Vivechak as an MCP server in your AI host.
 
 Vivechak is a **universal Model Context Protocol (MCP) server**. It communicates over standard `stdio` using JSON-RPC 2.0. Any IDE, agent CLI, or runtime that supports the open MCP standard can connect to Vivechak out of the box.
 
-> **💡 Shorthand CLI Alias (`vck`):** Vivechak installs the official 3-letter shorthand **`vck`** alongside `vivechak`. Both names are 100% identical and interchangeable across all subcommands (`vck setup`, `vck mcp-config`, `vck version`, `vck doctor`, `vck serve`).
+> **💡 Shorthand CLI Alias (`vck`):** Vivechak installs the official 3-letter shorthand **`vck`** alongside `vivechak`. Both names are 100% identical and interchangeable across all subcommands (`vck setup`, `vck mcp-config`, `vck version`, `vck doctor`, `vck gate`, `vck serve`).
 
 ---
 
@@ -556,6 +556,7 @@ Make sure the `command` field uses an **absolute path**. GUI applications on mac
 ```sh
 vck version
 vck doctor /path/to/your/project
+vck gate /path/to/your/project
 ```
 
 ### Test MCP Connection Interactively

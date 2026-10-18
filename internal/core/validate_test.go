@@ -980,3 +980,52 @@ Here is an example code block with sample evidence:
 		}
 	}
 }
+
+func TestValidateComparison(t *testing.T) {
+	validCmp := `---
+id: C-01-cmp-pino-vs-winston
+title: Pino vs Winston Comparison
+date: 2026-10-18
+status: final
+scope_level: comparison
+---
+# Pino vs Winston Comparison
+
+## Recommendation
+Pino is recommended for high-throughput microservices.
+
+## Weighted Evaluation Matrix
+| Criterion | Weight | Pino | Winston |
+|---|---|---|---|
+| Latency | 0.6 | 5 (Grade A: official benchmarks) | 3 (Grade B: local tests) |
+| Ecosystem | 0.4 | 4 (Grade A: npm stats) | 5 (Grade A: npm stats) |
+| **Weighted Total** | 1.0 | 4.6 | 3.8 |
+`
+	res := ValidateComparison([]byte(validCmp))
+	if res.Status != "valid" {
+		t.Errorf("expected valid comparison, got: %s (issues: %v)", res.Status, res.Issues)
+	}
+
+	// Missing WEP matrix should produce W-MISSING-WEP-MATRIX warning
+	noWEP := `---
+id: C-02-cmp-algo
+title: Algorithm Comparison
+date: 2026-10-18
+status: draft
+---
+# Algorithm Comparison
+Discussion of B-Tree vs LSM Tree without any evaluation matrix table or weights.
+Grade A: fetched from official paper.
+`
+	resNoWEP := ValidateComparison([]byte(noWEP))
+	foundWarn := false
+	for _, iss := range resNoWEP.Issues {
+		if iss.Code == "W-MISSING-WEP-MATRIX" {
+			foundWarn = true
+			break
+		}
+	}
+	if !foundWarn {
+		t.Errorf("expected W-MISSING-WEP-MATRIX for comparison lacking matrix table, got: %v", resNoWEP.Issues)
+	}
+}

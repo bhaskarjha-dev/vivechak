@@ -281,6 +281,26 @@ func TestInferScope(t *testing.T) {
 			input:    "vivechak adr event streaming architecture",
 			expected: ScopeDecision,
 		},
+		{
+			name:     "Compare options for new startup should be comparison not project",
+			input:    "compare pino vs winston for our new startup",
+			expected: ScopeComparison,
+		},
+		{
+			name:     "Which is better for building a platform should be comparison",
+			input:    "which is better: PostgreSQL vs MySQL for building a platform",
+			expected: ScopeComparison,
+		},
+		{
+			name:     "Decision for new product should be decision",
+			input:    "should we use rust or go for our new product",
+			expected: ScopeDecision,
+		},
+		{
+			name:     "Explicit full architecture for new startup should remain project",
+			input:    "full architecture for our new startup",
+			expected: ScopeProject,
+		},
 	}
 
 	for _, tt := range tests {
@@ -407,3 +427,27 @@ status: accepted
 		t.Fatalf("expected exactly 1 deduplicated decision, got %d: %+v", len(decisions), decisions)
 	}
 }
+
+func TestInspectWorkspace_EmptyDecisionsBoilerplate(t *testing.T) {
+	tmpDir := t.TempDir()
+	_ = os.MkdirAll(filepath.Join(tmpDir, ResearchDir), 0o755)
+
+	// 1. Initial boilerplate table (no substantive decision rows)
+	emptyBoilerplate := "# Architectural Decision Log\n\n| Decision | Title | Door Type | Status | Date |\n|---|---|---|---|---|\n"
+	_ = os.WriteFile(filepath.Join(tmpDir, DecisionsFile), []byte(emptyBoilerplate), 0o644)
+
+	info := InspectWorkspace(tmpDir)
+	if info.HasDecisions {
+		t.Errorf("expected HasDecisions = false for empty boilerplate table, got true")
+	}
+
+	// 2. Add substantive decision row into DECISIONS.md
+	withRow := emptyBoilerplate + "| D-01 | Storage Engine | two-way | accepted | 2026-10-18 |\n"
+	_ = os.WriteFile(filepath.Join(tmpDir, DecisionsFile), []byte(withRow), 0o644)
+
+	info = InspectWorkspace(tmpDir)
+	if !info.HasDecisions {
+		t.Errorf("expected HasDecisions = true after adding decision row, got false")
+	}
+}
+

@@ -97,3 +97,62 @@ Findings here.
 		t.Errorf("expected T0-01 to be recognized as Completed via knownIDs slug matching, got:\n%s", renderedTable)
 	}
 }
+
+func TestHandleVisualize_ComparisonScope(t *testing.T) {
+	tmpDir := t.TempDir()
+	rDir := filepath.Join(tmpDir, core.ResearchDir)
+	_ = os.MkdirAll(rDir, 0o755)
+
+	// Save comparison artifact
+	cmp := `---
+id: C-01-cmp-pino-vs-winston
+title: Pino vs Winston Comparison
+date: 2026-10-18
+status: final
+scope_level: comparison
+---
+# Pino vs Winston Comparison
+
+## Recommendation
+Pino is recommended.
+
+## Weighted Evaluation Matrix
+| Criterion | Weight | Pino | Winston |
+|---|---|---|---|
+| Latency | 0.6 | 5 | 3 |
+| Ecosystem | 0.4 | 4 | 5 |
+`
+	_ = os.WriteFile(filepath.Join(rDir, "C-01-comparison.md"), []byte(cmp), 0o644)
+	meta := `{"scope":"comparison"}`
+	_ = os.WriteFile(filepath.Join(tmpDir, core.MetadataFile), []byte(meta), 0o644)
+
+	ctx := context.Background()
+
+	// 1. Mermaid format
+	resM, envM, err := handleVisualize(ctx, nil, VisualizeInput{
+		ProjectRoot: tmpDir,
+		Format:      "mermaid",
+	})
+	if err != nil || resM.IsError {
+		t.Fatalf("comparison visualize mermaid failed: err=%v, env=%+v", err, envM)
+	}
+	dataM := envM.Data.(map[string]any)
+	renderedM := dataM["rendered"].(string)
+	if !strings.Contains(renderedM, "graph TD") {
+		t.Errorf("expected graph TD in comparison mermaid output, got: %s", renderedM)
+	}
+
+	// 2. Table format
+	resT, envT, err := handleVisualize(ctx, nil, VisualizeInput{
+		ProjectRoot: tmpDir,
+		Format:      "table",
+	})
+	if err != nil || resT.IsError {
+		t.Fatalf("comparison visualize table failed: err=%v, env=%+v", err, envT)
+	}
+	dataT := envT.Data.(map[string]any)
+	renderedT := dataT["rendered"].(string)
+	if !strings.Contains(renderedT, "| Criterion |") && !strings.Contains(renderedT, "| Option |") {
+		t.Errorf("expected table output, got: %s", renderedT)
+	}
+}
