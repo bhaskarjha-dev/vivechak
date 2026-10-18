@@ -66,7 +66,7 @@ def ensure_binary(prog_name):
         cache_dir.mkdir(parents=True, exist_ok=True)
         sys.stderr.write(f"[vck] Building local development binary in {cache_dir}...\n")
         sys.stderr.flush()
-        build_res = subprocess.call(["go", "build", "-trimpath", "-o", str(bin_path), "./cmd/vivechak"], cwd=str(repo_root))
+        build_res = subprocess.call(["go", "build", "-trimpath", "-o", str(bin_path), "./cmd/vivechak"], cwd=str(repo_root), stdout=sys.stderr)
         if build_res == 0 and bin_path.exists():
             if not is_win:
                 bin_path.chmod(0o755)

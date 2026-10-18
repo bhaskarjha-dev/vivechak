@@ -722,7 +722,7 @@ Defined in [`RecordDecisionInput`](../internal/mcp/tool_record_decision.go):
 Append a post-hoc amendment note to an existing session file. Preserves original content while documenting evolved understanding.
 
 #### What It Does
-Appends a formatted amendment section (`## Post-Hoc Amendment (appended by <amending_session_id>)`) with timestamp and content to the specified session, standalone ADR, or comparison matrix. Supports a two-tier lookup: first searches `research/sessions/`, then searches `research/` directly for standalone ADRs (`D-*.md`) and comparison matrices (`C-*-comparison.md`). Use when downstream sessions or reviews reveal that an earlier session's findings require modification or clarification. For synthesis sessions (`SYN-01`, `FAD`), the amendment atomically updates both `research/FAD.md` and the human-facing `FOUNDING-ARCHITECTURE.md` mirror at project root.
+Appends a formatted amendment section (`## Post-Hoc Amendment (appended by <amending_session_id>)`) with timestamp and content to the specified session, standalone ADR, or comparison matrix. Supports a two-tier lookup: first searches `research/sessions/`, then searches `research/` directly for standalone ADRs (`D-*.md`) and comparison matrices (`C-*-comparison.md`). Use when downstream sessions or reviews reveal that an earlier session's findings require modification or clarification. For synthesis sessions (`SYN-01`, `FAD`), the amendment atomically updates both `research/FAD.md` and the human-facing `FOUNDING-ARCHITECTURE.md` mirror at project root. Amending a standalone ADR (`research/D-*.md`) automatically recompiles the consolidated `research/DECISIONS.md` registry.
 
 #### Input Parameters
 Defined in [`AmendSessionInput`](../internal/mcp/tool_amend_session.go):
@@ -741,6 +741,7 @@ Defined in [`AmendSessionInput`](../internal/mcp/tool_amend_session.go):
 - `session_id` (`string`): Target session ID or decision ID.
 - `file_path` (`string`): Relative output file path.
 - `root_copy` (`string`, optional): Relative path of the mirrored human-facing copy (`FOUNDING-ARCHITECTURE.md`) when amending synthesis sessions.
+- `registry_recompiled` (`string`, optional): Relative path of `research/DECISIONS.md` when a standalone ADR amendment triggers registry recompilation.
 - `amendment_timestamp` (`string`): RFC3339 timestamp of the amendment.
 - `amending_session_id` (`string`, optional): Source session attribution.
 - `potentially_stale_sessions` (`string[]`, optional): List of completed downstream sessions in the DAG that may depend on the amended findings.
@@ -868,6 +869,7 @@ Defined in [`RunGateInput`](../internal/mcp/tool_run_gate.go):
 - `gate_passed` (`boolean`): `true` only if all structural and quality checks pass.
 - `track_a_result` (`string`): Fast-track gate result (`"PASS"` or `"FAIL"`).
 - `track_b_result` (`string`): Rigorous gate result (`"PASS"` or `"FAIL"`).
+- `track_filter` (`string`): Evaluated track filter (`"track_a"`, `"track_b"`, or `"all"`).
 - `decisions` (`object[]`): Collected ADR decisions evaluated (`id`, `title`, `door_type`, `status`).
 - `structural_checks` (`object`):
   - `label`: `"Structural Completeness"`

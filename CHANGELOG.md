@@ -72,12 +72,20 @@ Unified release delivering the 12 enforcement hardening tasks, quality audit fix
 - **Token-Optimized Generator Instructions (`GENERATOR.md`):** Updated execution guidance to instruct MCP-enabled agents to receive briefs directly from `vivechak_next_session` without redundant manual `view_file` calls to static templates, saving ~60k tokens and 30 tool calls per pipeline run.
 - **Embed Parity Synchronization (`internal/embed/generators/`):** 100% byte-for-byte synchronization across embedded and root generators.
 - **Decoupled Phase 0 Gate (`tool_run_gate.go`):** Fixed Track A/Track B semantic inversion; Track A strictly evaluates reversibility and blast radius bounds for Two-Way Doors, while Track B executes rigorous B1–B11 checks on One-Way Doors (including B11 adversarial red-team challenge).
+- **Active Track Filtering in Phase 0 Gate (`tool_run_gate.go`):** Added active filtering and validation for `track` parameter (`track_a`, `track_b`, `all`), isolating blocking issues and tailoring failure messages to the evaluated track.
+- **Comparison Scope Terminal NextStep (`tool_save_plan.go`, `tool_status.go`):** Emits terminal completion next_step upon WEP matrix save and status checks, eliminating infinite DAG session loops and false Phase 0 Gate referrals for 0-gate Comparison Scope.
+- **Scope-Aware Comparison Inspection (`workspace.go`, `gate.go`):** `InspectWorkspace` detects and counts standalone comparison files (`research/C-*.md`) when `sessions/` directory is absent; `EvaluateGate` uses direct `EvidenceGradePattern` regex matching across session and research comparison files.
+- **Stdio Protocol Stream Isolation (`runner.js`, `cli.py`):** Configured `childStdio = ['ignore', 2, 2]` in npm runner and `stdout=sys.stderr` in PyPI runner during child archive extraction and local binary build, preserving fd 1 exclusively for MCP JSON-RPC protocol transport.
 - **Documented 9-Section Session Body Skeleton (`FRAMEWORK.md` §6.2):** Aligned methodology specification with runtime templates and validation engine, formally standardizing `Prior`, `Discovered Concerns`, and `Delta` sections.
 - **ADR Door-Type Drafter (`draft_decision.go`):** Contextually infers `two-way` vs `one-way` door classifications from session text rather than defaulting to irreversible.
 - **Unambiguous Phase 0 Gate Framing (`tool_run_gate.go`):** Replaced polite completion phrasing with explicit failure stop-signals (`❌ PHASE 0 GATE FAILED`, `⛔ DO NOT PROCEED TO CODE`) when Track B requirements are not met.
 - **One-Way Door Challenge Mandate (`GENERATOR.md`, `DECISIONS.template.md`):** Removed all "(optional)" qualifiers from `vivechak_challenge` for irreversible decisions.
 
 ### Fixed
+- **Auto-Initialization Advisory Lock Guard (`tool_save_plan.go`):** Auto-initialized workspaces created on the fly automatically write `research/.gitignore` containing `*.lock` when `vivechak_init` was skipped.
+- **Automatic ADR Amendment Registry Synchronization (`tool_amend_session.go`):** Amending a standalone ADR (`research/D-*.md`) via `vivechak_amend_session` automatically recompiles `research/DECISIONS.md`.
+- **Colon-Separated Evidence Grade Notation (`validate_evidence.go`):** Expanded `EvidenceGradePattern` to support colon notation (e.g. `[Grade: A]`, `Grade: B`), eliminating false evidence warnings.
+- **Decoupled Track A Two-Way Door Gate Render (`gate_render.go`):** Decoupled Two-Way Door Track A result from structural FAD file presence, ensuring passing Two-Way Doors render `PASS` even before final FAD synthesis.
 - **RE2 Stale Date Regex Parsing (`quality.go`):** Replaced Perl-style lookahead `(?!)` with RE2-compliant character class negation `[^\s\S]`, resolving staticcheck `SA1000` lint failures.
 - **Leading Markdown Title Frontmatter Crash (`frontmatter.go`):** `skipLeadingWhitespaceAndComments` now skips markdown titles preceding frontmatter delimiters, fixing `V-MISSING-FRONTMATTER` crashes.
 - **ADR Supersession Duplicate Frontmatter (`tool_record_decision.go`):** Dynamically isolates existing YAML frontmatter boundaries, preventing duplicate frontmatter blocks on superseded ADRs.

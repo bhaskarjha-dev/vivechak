@@ -61,6 +61,10 @@ func handleStatus(_ context.Context, _ *sdkmcp.CallToolRequest, in StatusInput) 
 	var nextStep string
 	if !info.Initialized {
 		nextStep = fmt.Sprintf("Run vivechak_init at %s to create the workspace.", root)
+	} else if info.Scope == core.ScopeComparison && (info.HasPipeline || info.SessionCount >= 1) {
+		nextStep = "Comparison research and WEP matrix are complete. Comparison scope is finished. No further sessions or gate checks required."
+	} else if info.Scope == core.ScopeDecision && info.HasDecisions {
+		nextStep = "Decision research and ADR are finalized in research/DECISIONS.md. Decision scope is complete, or run vivechak_next_session if additional sessions remain."
 	} else if !info.HasPipeline && info.SessionCount == 0 {
 		nextStep = "Run vivechak_prepare_generator to get the generator prompt, execute it, " +
 			"then save the output with vivechak_save_plan."
@@ -74,10 +78,6 @@ func handleStatus(_ context.Context, _ *sdkmcp.CallToolRequest, in StatusInput) 
 
 		if hasFAD {
 			nextStep = "Research synthesis is complete (FAD.md exists). Run vivechak_run_gate to verify the Phase 0 exit gate before starting codebase construction."
-		} else if info.Scope == core.ScopeComparison && info.SessionCount >= 1 {
-			nextStep = "Comparison research session is complete. Run vivechak_run_gate to verify the exit gate."
-		} else if info.Scope == core.ScopeDecision && info.HasDecisions && info.SessionCount >= 1 {
-			nextStep = "Decision research and ADR are complete. Run vivechak_run_gate to verify the exit gate, or vivechak_next_session if more sessions remain."
 		} else {
 			nextStep = "Run vivechak_next_session for the next actionable session, or " +
 				"vivechak_record_decision to record decisions from completed sessions."

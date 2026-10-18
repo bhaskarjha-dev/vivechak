@@ -38,7 +38,7 @@ func registerRunGate(server *sdkmcp.Server) {
 				"decisions recorded, FAD compiled. Quality checks: session count, evidence grades in FAD, " +
 				"ADR lock status, reversal triggers, evidentiary threshold for one-way doors. " +
 				"Advisory: rejected alternatives, recalled verification, evidence grade distribution. " +
-				"Supports progressive disclosure via verbose parameter.",
+				"Supports progressive disclosure via verbose parameter and track filtering via track parameter ('track_a', 'track_b', or 'all').",
 			Annotations: &sdkmcp.ToolAnnotations{
 				ReadOnlyHint:    false,
 				IdempotentHint:  true,
@@ -74,6 +74,15 @@ func handleRunGate(_ context.Context, _ *sdkmcp.CallToolRequest, in RunGateInput
 	info := core.InspectWorkspace(root)
 	gateResult := core.EvaluateGate(ws, info, root)
 
+	trackFilter := strings.ToLower(strings.TrimSpace(in.Track))
+	if trackFilter == "" {
+		trackFilter = "all"
+	}
+	if trackFilter != "track_a" && trackFilter != "track_b" && trackFilter != "all" {
+		return ErrorResult(tool, fmt.Errorf("invalid track filter %q: must be 'track_a', 'track_b', or 'all'", in.Track),
+			"Specify 'track_a', 'track_b', or omit for all.")
+	}
+
 	trackAData := map[string]any{
 		"label":  gateResult.StructuralChecks.Label,
 		"passed": gateResult.StructuralChecks.Passed,
@@ -99,11 +108,31 @@ func handleRunGate(_ context.Context, _ *sdkmcp.CallToolRequest, in RunGateInput
 		trackBResult = "PASS"
 	}
 
+	gatePassed := gateResult.Passed
+	gateStatus := gateResult.Status
+	switch trackFilter {
+	case "track_a":
+		gatePassed = gateResult.StructuralChecks.Passed
+		if gatePassed {
+			gateStatus = "PASS"
+		} else {
+			gateStatus = "FAIL"
+		}
+	case "track_b":
+		gatePassed = gateResult.QualityChecks.Passed
+		if gatePassed {
+			gateStatus = "PASS"
+		} else {
+			gateStatus = "FAIL"
+		}
+	}
+
 	data := map[string]any{
 		"workspace_root":          root,
 		"scope":                   info.Scope,
-		"gate_status":             gateResult.Status,
-		"gate_passed":             gateResult.Passed,
+		"gate_status":             gateStatus,
+		"gate_passed":             gatePassed,
+		"track_filter":            trackFilter,
 		"track_a_result":          trackAResult,
 		"track_b_result":          trackBResult,
 		"structural_checks":       trackAData,
@@ -233,17 +262,26 @@ func handleRunGate(_ context.Context, _ *sdkmcp.CallToolRequest, in RunGateInput
 		}
 	}
 
-	if !gateResult.Passed {
+	if !gatePassed {
 		var blockingIssues []string
-		blockingIssues = append(blockingIssues, gateResult.StructuralChecks.Issues...)
-		blockingIssues = append(blockingIssues, gateResult.QualityChecks.Issues...)
-		issueCount := len(blockingIssues)
 		failureScope := "Track B"
-		if len(gateResult.StructuralChecks.Issues) > 0 && len(gateResult.QualityChecks.Issues) == 0 {
+		switch trackFilter {
+		case "track_a":
+			blockingIssues = append(blockingIssues, gateResult.StructuralChecks.Issues...)
 			failureScope = "Track A"
-		} else if len(gateResult.StructuralChecks.Issues) > 0 && len(gateResult.QualityChecks.Issues) > 0 {
-			failureScope = "Track A and Track B"
+		case "track_b":
+			blockingIssues = append(blockingIssues, gateResult.QualityChecks.Issues...)
+			failureScope = "Track B"
+		default:
+			blockingIssues = append(blockingIssues, gateResult.StructuralChecks.Issues...)
+			blockingIssues = append(blockingIssues, gateResult.QualityChecks.Issues...)
+			if len(gateResult.StructuralChecks.Issues) > 0 && len(gateResult.QualityChecks.Issues) > 0 {
+				failureScope = "Track A and Track B"
+			} else if len(gateResult.StructuralChecks.Issues) > 0 {
+				failureScope = "Track A"
+			}
 		}
+		issueCount := len(blockingIssues)
 		env := Envelope{
 			Success: true,
 			Message: fmt.Sprintf("❌ PHASE 0 GATE FAILED: %s requirements not met (%d blocking issue%s). Implementation is strictly prohibited.",
@@ -260,7 +298,7 @@ func handleRunGate(_ context.Context, _ *sdkmcp.CallToolRequest, in RunGateInput
 
 	env := Envelope{
 		Success:  true,
-		Message:  fmt.Sprintf("Phase 0 Gate: %s (Structural Completeness: %d/%d, Quality Indicators: %d/%d)", gateResult.Status, gateResult.StructuralChecks.Count, gateResult.StructuralChecks.Total, gateResult.QualityChecks.Count, gateResult.QualityChecks.Total),
+		Message:  fmt.Sprintf("Phase 0 Gate: %s (Structural Completeness: %d/%d, Quality Indicators: %d/%d)", gateStatus, gateResult.StructuralChecks.Count, gateResult.StructuralChecks.Total, gateResult.QualityChecks.Count, gateResult.QualityChecks.Total),
 		Data:     data,
 		Warnings: warnings,
 		NextStep: gateResult.NextStep,

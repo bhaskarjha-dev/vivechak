@@ -133,7 +133,7 @@ func handlePrepareGenerator(_ context.Context, _ *sdkmcp.CallToolRequest, in Pre
 					// Otherwise, preserve schema keys and inject into DECISION and CONTEXT slots, auto-filling DATE
 					placeholderDecision := "DECISION: [the question, as you'd ask it]"
 					placeholderContextDecision := "CONTEXT: [what's being built; workload, team, constraints, what's already decided]"
-					placeholderContextComparison := "CONTEXT: [what's being built; workload, team, constraints, stage]"
+					placeholderContextComparison := "CONTEXT: [what's being built, compared, or decided; workload, requirements, team, constraints, stage]"
 
 					newBlock := blockContent
 					if scope == core.ScopeDecision {

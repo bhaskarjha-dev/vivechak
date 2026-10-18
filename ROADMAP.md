@@ -74,6 +74,12 @@ Forensic audit and real-world multi-agent dogfooding telemetry uncovered 27 conc
 | **E-34** | Core / Scope | **Scope Auto-Inference & Shorthand (`scope.go`):** Added prefix matching for `vck`/`vivechak` commands (`plan`, `decide`, `compare`, `vs`), comparative signal precedence, and slang/typo resilience (`shud`, `bw`, etc.) to `InferScope`. | ✅ Resolved |
 | **E-35** | Validation | **Resilient Sources Header Regex (`validate_evidence.go`):** Replaced prefix matching with regex supporting numbered headings and H3 levels. | ✅ Resolved |
 | **E-36** | Packaging | **Scoop Manifest Binary Alignment (`scoop/vivechak.json`):** Aligned reference Scoop manifest to declare `["vivechak.exe", "vck.exe"]` directly. | ✅ Resolved |
+| **E-37** | Transport | **Stdio Protocol Stream Isolation (`runner.js`, `cli.py`):** Configured `childStdio = ['ignore', 2, 2]` in npm runner and `stdout=sys.stderr` in PyPI runner for child build/extraction processes, preserving fd 1 strictly for MCP JSON-RPC transport. | ✅ Resolved |
+| **E-38** | MCP / Ergonomics | **Comparison Scope Terminal NextStep (`tool_save_plan.go`, `tool_status.go`):** Emits terminal completion upon WEP matrix save, eliminating infinite DAG loops and false gate referrals for 0-gate Comparison Scope. | ✅ Resolved |
+| **E-39** | Workspace | **Auto-Initialization Advisory Lock Guard (`tool_save_plan.go`):** Auto-initialized workspaces now write `research/.gitignore` containing `*.lock` when `vivechak_init` is skipped. | ✅ Resolved |
+| **E-40** | Gate / MCP | **Active Track Filter Evaluation (`tool_run_gate.go`):** Implemented active validation and filtering for `track` (`track_a`, `track_b`, `all`), isolating blocking issues and failure reporting by track. | ✅ Resolved |
+| **E-41** | ADRs / Registry | **Automatic ADR Amendment Registry Synchronization (`tool_amend_session.go`):** Amending a standalone ADR in `research/` automatically triggers `compileDecisionsRegistry` to keep `research/DECISIONS.md` in sync. | ✅ Resolved |
+| **E-42** | Core / Scope | **Scope-Aware Comparison Inspection & Decoupled Fast-Track Gate (`workspace.go`, `gate.go`, `gate_render.go`):** `InspectWorkspace` counts `research/C-*.md` comparison files; `EvaluateGate` uses direct `EvidenceGradePattern` matching (supporting `Grade: A`); `gate_render.go` decouples Two-Way Door pass from structural FAD presence. | ✅ Resolved |
 
 ### 2.1 Near-Term Packaging & Workflows (Awaiting Demand Signal)
 

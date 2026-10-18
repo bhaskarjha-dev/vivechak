@@ -196,6 +196,16 @@ func handleAmendSession(ctx context.Context, _ *sdkmcp.CallToolRequest, in Amend
 	}
 
 	var warnings []string
+	// If an ADR file in research/ was amended, recompile DECISIONS.md registry
+	isADR := filepath.Clean(filepath.Dir(relPath)) == filepath.Clean(core.ResearchDir) && strings.HasPrefix(strings.ToUpper(filepath.Base(relPath)), "D-")
+	if isADR {
+		if compileErr := compileDecisionsRegistry(ctx, ws, root); compileErr != nil {
+			warnings = append(warnings, fmt.Sprintf("W-DECISIONS-COMPILE: failed to recompile DECISIONS.md: %v", compileErr))
+		} else {
+			dataMap["registry_recompiled"] = core.DecisionsFile
+		}
+	}
+
 	if core.IsSynthesisSession(in.SessionID) {
 		rootFAD := "FOUNDING-ARCHITECTURE.md"
 		if unlockRoot, lockErr := store.LockFile(ctx, filepath.Join(root, rootFAD), 5*time.Second); lockErr == nil {

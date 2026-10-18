@@ -93,7 +93,7 @@ func RenderGateArtifact(ws WorkspaceFS, tmplBytes []byte, root, projectName, gat
 
 	if !hasTwoWay {
 		tmpl = strings.Replace(tmpl, "**Track A Result:** `[PASS / FAIL]`", "**Track A Result:** PASS (0 two-way doors)", 1)
-	} else if trackAPass && allTwoWayAccepted {
+	} else if allTwoWayAccepted {
 		tmpl = strings.Replace(tmpl, "- [ ] Decision logged in ADR", "- [x] Decision logged in ADR", 1)
 		tmpl = strings.Replace(tmpl, "- [ ] Reversibility confirmed", "- [x] Reversibility confirmed", 1)
 		tmpl = strings.Replace(tmpl, "- [ ] At least one corroborated source", "- [x] At least one corroborated source", 1)

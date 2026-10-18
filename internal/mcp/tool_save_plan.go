@@ -168,6 +168,11 @@ func handleSavePlan(ctx context.Context, _ *sdkmcp.CallToolRequest, in SavePlanI
 		if metaBytes, err := json.MarshalIndent(meta, "", "  "); err == nil {
 			_ = os.WriteFile(filepath.Join(root, core.MetadataFile), metaBytes, 0o644)
 		}
+		// Write .gitignore to exclude operational advisory locks
+		gitignorePath := filepath.Join(root, core.ResearchDir, ".gitignore")
+		if _, err := os.Stat(gitignorePath); os.IsNotExist(err) {
+			_ = os.WriteFile(gitignorePath, []byte("# Vivechak operational files\n*.lock\n"), 0o644)
+		}
 	}
 
 
@@ -308,8 +313,17 @@ func handleSavePlan(ctx context.Context, _ *sdkmcp.CallToolRequest, in SavePlanI
 		dataMap["decisions_validation"] = decValidation
 	}
 
-	nextStep := "Run vivechak_next_session to get the first research session prompt. " +
-		"Execute it in a fresh AI session with web search, then save the output with vivechak_save_session."
+	var nextStep string
+	switch scope {
+	case core.ScopeComparison:
+		savedTarget := strings.Join(savedFiles, ", ")
+		nextStep = fmt.Sprintf("Comparison WEP matrix successfully saved to %s. Comparison scope is complete. No DAG sessions required.", savedTarget)
+	case core.ScopeDecision:
+		nextStep = "Decision plan initialized. Run vivechak_next_session to begin session 1, or record the ADR directly with vivechak_record_decision once finalized."
+	default:
+		nextStep = "Run vivechak_next_session to get the first research session prompt. " +
+			"Execute it in a fresh AI session with web search, then save the output with vivechak_save_session."
+	}
 	if planValidation != nil {
 		for _, issue := range planValidation.Issues {
 			if issue.Code == "W-PARSER-SESSION-MISMATCH" {

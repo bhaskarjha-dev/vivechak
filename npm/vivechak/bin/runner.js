@@ -68,19 +68,21 @@ function downloadFile(url, destPath) {
 
 function extractArchive(archivePath, targetDir) {
   const ext = path.extname(archivePath).toLowerCase();
+  // Reserve stdout exclusively for JSON-RPC in MCP mode; redirect child stdout to stderr
+  const childStdio = ['ignore', 2, 2];
   if (ext === '.zip') {
     // Windows 10/11 native tar.exe or PowerShell Expand-Archive
-    const res = spawnSync('tar', ['-xf', archivePath, '-C', targetDir], { stdio: 'inherit' });
+    const res = spawnSync('tar', ['-xf', archivePath, '-C', targetDir], { stdio: childStdio });
     if (res.status !== 0) {
       // Fallback for older Windows without tar.exe
-      const ps = spawnSync('powershell', ['-NoProfile', '-Command', `Expand-Archive -Path '${archivePath}' -DestinationPath '${targetDir}' -Force`], { stdio: 'inherit' });
+      const ps = spawnSync('powershell', ['-NoProfile', '-Command', `Expand-Archive -Path '${archivePath}' -DestinationPath '${targetDir}' -Force`], { stdio: childStdio });
       if (ps.status !== 0) {
         throw new Error(`Failed to extract ZIP archive ${archivePath}`);
       }
     }
   } else {
     // Unix tar handles tar.gz natively
-    const res = spawnSync('tar', ['-xzf', archivePath, '-C', targetDir], { stdio: 'inherit' });
+    const res = spawnSync('tar', ['-xzf', archivePath, '-C', targetDir], { stdio: childStdio });
     if (res.status !== 0) {
       throw new Error(`Failed to extract tar.gz archive ${archivePath}`);
     }
@@ -109,7 +111,7 @@ async function ensureBinary() {
     const localBinPath = path.join(cacheDir, binName);
     fs.mkdirSync(cacheDir, { recursive: true });
     process.stderr.write(`[vck] Compiling local development binary in ${cacheDir}...\n`);
-    const buildRes = spawnSync('go', ['build', '-trimpath', '-o', localBinPath, './cmd/vivechak'], { cwd: repoRoot, stdio: 'inherit' });
+    const buildRes = spawnSync('go', ['build', '-trimpath', '-o', localBinPath, './cmd/vivechak'], { cwd: repoRoot, stdio: ['ignore', 2, 2] });
     if (buildRes.status === 0 && fs.existsSync(localBinPath)) {
       if (!isWin) fs.chmodSync(localBinPath, 0o755);
       return localBinPath;

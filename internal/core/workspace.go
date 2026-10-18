@@ -424,6 +424,14 @@ func InspectWorkspace(root string) WorkspaceInfo {
 			info.SessionCount++
 		}
 	}
+	if info.Scope == ScopeComparison && info.SessionCount == 0 {
+		for _, e := range researchEntries {
+			name := e.Name()
+			if !e.IsDir() && strings.HasSuffix(name, ".md") && (strings.HasSuffix(name, "-comparison.md") || strings.Contains(name, "-cmp-") || strings.HasPrefix(strings.ToUpper(name), "C-")) {
+				info.SessionCount++
+			}
+		}
+	}
 
 	// Count templates (only non-hidden .md files)
 	templatesPath := filepath.Join(root, TemplatesDir)

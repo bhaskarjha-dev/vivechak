@@ -219,17 +219,23 @@ func EvaluateGate(ws WorkspaceFS, info WorkspaceInfo, root string) *GateResult {
 			for _, e := range entries {
 				if !e.IsDir() && strings.HasSuffix(e.Name(), ".md") {
 					if data, err := ws.ReadFile(filepath.Join(SessionsDir, e.Name())); err == nil {
-						v := ValidateSession(data)
-						hasNoGrades := false
-						for _, issue := range v.Issues {
-							if issue.Code == "W-NO-EVIDENCE-GRADES" {
-								hasNoGrades = true
-								break
-							}
-						}
-						if !hasNoGrades {
+						if EvidenceGradePattern.Match(data) {
 							hasGrades = true
 							break
+						}
+					}
+				}
+			}
+		}
+		if !hasGrades {
+			if entries, err := ws.ListDir(ResearchDir); err == nil {
+				for _, e := range entries {
+					if !e.IsDir() && strings.HasSuffix(e.Name(), ".md") && (strings.HasSuffix(e.Name(), "-comparison.md") || strings.Contains(e.Name(), "-cmp-") || strings.HasPrefix(strings.ToUpper(e.Name()), "C-")) {
+						if data, err := ws.ReadFile(filepath.Join(ResearchDir, e.Name())); err == nil {
+							if EvidenceGradePattern.Match(data) {
+								hasGrades = true
+								break
+							}
 						}
 					}
 				}
