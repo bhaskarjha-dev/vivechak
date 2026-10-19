@@ -1,4 +1,4 @@
-.PHONY: build test test-race bench lint vet embed-sync doctor gate clean release-check harness-probe harness-test harness-test-all harness-triage harness-clean
+.PHONY: build test test-race bench lint vet embed-sync doctor gate clean release-check harness-probe harness-test harness-test-all harness-triage harness-clean harness-clean-sandboxes
 
 build:
 	go build ./cmd/vivechak/
@@ -49,3 +49,6 @@ harness-triage:
 
 harness-clean:
 	node scripts/run_harness.mjs --clean
+
+harness-clean-sandboxes:
+	node scripts/run_harness.mjs --clean-sandboxes

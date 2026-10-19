@@ -4,7 +4,7 @@ import path from "node:path";
 import { AdapterRegistry } from "../tests/harness/runner/adapters/registry.mjs";
 import { runOrchestration } from "../tests/harness/runner/orchestrator.mjs";
 import { triageRuns } from "../tests/harness/runner/triage.mjs";
-import { SCENARIOS } from "../tests/harness/runner/types.mjs";
+import { getSandboxBaseDir, SCENARIOS } from "../tests/harness/runner/types.mjs";
 
 const CORE_BATCH = ["01", "02", "04", "05", "08", "21"];
 const EXTENDED_BATCH = ["03", "06", "07", "12", "13", "14", "16"];
@@ -23,6 +23,7 @@ COMMAND MODES:
   --probe                   Run pre-flight health & quota probes across all registered harnesses
   --triage                  Ingest and score all ephemeral runs in tests/harness/runs/
   --clean                   Wipe ephemeral run markdown files from tests/harness/runs/
+  --clean-sandboxes         Wipe all isolated sandbox directories from the OS temp directory
   --archive <version>       Compile active runs into tests/harness/reports/audit-<version>-<date>.md and clean
 
 EXECUTION OPTIONS:
@@ -62,6 +63,28 @@ function handleClean() {
     fs.unlinkSync(path.join(runsDir, file));
   }
   console.log(`\n🧹 Clean complete: Removed ${files.length} ephemeral run files from tests/harness/runs/\n`);
+}
+
+function handleCleanSandboxes() {
+  const baseDir = getSandboxBaseDir();
+  if (!fs.existsSync(baseDir)) {
+    console.log(`\n🧹 No sandbox directory found at ${baseDir}\n`);
+    return;
+  }
+  const entries = fs.readdirSync(baseDir);
+  let count = 0;
+  for (const entry of entries) {
+    if (entry.startsWith("s-")) {
+      const full = path.join(baseDir, entry);
+      try {
+        fs.rmSync(full, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+        count++;
+      } catch (err) {
+        console.warn(`Could not remove ${entry}: ${err.message}`);
+      }
+    }
+  }
+  console.log(`\n🧹 Sandbox Clean complete: Removed ${count} sandbox directories from ${baseDir}\n`);
 }
 
 async function handleArchive(version) {
@@ -158,6 +181,11 @@ async function main() {
     return;
   }
 
+  if (args.includes("--clean-sandboxes")) {
+    handleCleanSandboxes();
+    return;
+  }
+
   const archiveIdx = args.indexOf("--archive");
   if (archiveIdx !== -1) {
     const version = args[archiveIdx + 1];
@@ -187,13 +215,13 @@ async function main() {
     }
   }
 
-  let targets = [scenarioArg];
+  let targets = [scenarioArg.trim().padStart(2, "0")];
   if (isBatch) {
     if (batchMode === "extended") targets = EXTENDED_BATCH;
     else if (batchMode === "all") targets = ALL_BATCH;
     else targets = CORE_BATCH;
   } else if (scenarioArg.includes(",")) {
-    targets = scenarioArg.split(",").map((s) => s.trim());
+    targets = scenarioArg.split(",").map((s) => s.trim().padStart(2, "0"));
   }
 
   let harnesses = [harnessArg];

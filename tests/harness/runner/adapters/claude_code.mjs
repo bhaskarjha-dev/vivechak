@@ -3,7 +3,13 @@ import { BaseHarnessAdapter } from "./base.mjs";
 
 export class ClaudeCodeAdapter extends BaseHarnessAdapter {
   constructor() {
-    super("claude_code", "Claude Code CLI", "claude-3-5-sonnet", "cli");
+    super(
+      "claude_code",
+      "Claude Code CLI",
+      "claude-3-5-sonnet",
+      ["claude-3-5-sonnet", "claude-3-5-haiku"],
+      "cli"
+    );
   }
 
   async probe() {
@@ -30,17 +36,32 @@ export class ClaudeCodeAdapter extends BaseHarnessAdapter {
   }
 
   async runTurn(prompt, sandboxDir, model = this.defaultModel, timeoutMs = 90000) {
-    return await execWithWatchdog(
+    let res = await execWithWatchdog(
       "claude",
-      ["--dangerously-skip-permissions", "-p", JSON.stringify(prompt)],
+      ["--dangerously-skip-permissions", "-p", prompt],
       { cwd: sandboxDir, timeoutMs }
     );
+
+    if (this.isQuotaOrRateLimitError(res.stdout + " " + res.stderr)) {
+      const fallback = this.getNextCandidate(model);
+      if (fallback) {
+        console.warn(`\n[MODEL_FAILOVER] ⚠️ Claude Code model ${model} quota/rate limited. Auto-failing over to ${fallback}...`);
+        this.defaultModel = fallback;
+        res = await execWithWatchdog(
+          "claude",
+          ["--dangerously-skip-permissions", "-p", prompt],
+          { cwd: sandboxDir, timeoutMs }
+        );
+      }
+    }
+
+    return res;
   }
 
   async continueTurn(prompt, sandboxDir, timeoutMs = 90000) {
     return await execWithWatchdog(
       "claude",
-      ["--dangerously-skip-permissions", "--continue", "-p", JSON.stringify(prompt)],
+      ["--dangerously-skip-permissions", "--continue", "-p", prompt],
       { cwd: sandboxDir, timeoutMs }
     );
   }

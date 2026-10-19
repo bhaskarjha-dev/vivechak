@@ -3,14 +3,19 @@ import { BaseHarnessAdapter } from "./base.mjs";
 
 export class OpenCodeAdapter extends BaseHarnessAdapter {
   constructor() {
-    super("opencode", "OpenCode CLI", "opencode/beam-free", "cli");
-    this.fallbackModels = [
+    super(
+      "opencode",
+      "OpenCode CLI",
       "opencode/beam-free",
-      "opencode/big-pickle",
-      "opencode/nemotron-3.5-lightning-free",
-      "opencode/glm-5.3-flash-free",
-      "opencode/space-bunny-free"
-    ];
+      [
+        "opencode/beam-free",
+        "opencode/big-pickle",
+        "opencode/nemotron-3.5-lightning-free",
+        "opencode/glm-5.3-flash-free",
+        "opencode/space-bunny-free"
+      ],
+      "cli"
+    );
   }
 
   async probe(targetModel = this.defaultModel) {
@@ -26,7 +31,7 @@ export class OpenCodeAdapter extends BaseHarnessAdapter {
     const version = versionRes.stdout.trim();
 
     // Check candidate models starting with targetModel
-    const candidates = [targetModel, ...this.fallbackModels.filter(m => m !== targetModel)];
+    const candidates = [targetModel, ...this.candidateModels.filter(m => m !== targetModel)];
     let lastError = "";
 
     for (const modelCandidate of candidates) {
@@ -78,19 +83,18 @@ export class OpenCodeAdapter extends BaseHarnessAdapter {
   async runTurn(prompt, sandboxDir, model = this.defaultModel, timeoutMs = 90000) {
     let res = await execWithWatchdog(
       "opencode",
-      ["run", "--model", model, "--auto", JSON.stringify(prompt)],
+      ["run", "--model", model, "--auto", prompt],
       { cwd: sandboxDir, timeoutMs }
     );
 
-    const outLower = (res.stdout + " " + res.stderr).toLowerCase();
-    if (outLower.includes("credit expired") || outLower.includes("quota exceeded") || outLower.includes("out of credits")) {
-      const fallback = this.fallbackModels.find(m => m !== model);
+    if (this.isQuotaOrRateLimitError(res.stdout + " " + res.stderr)) {
+      const fallback = this.getNextCandidate(model);
       if (fallback) {
         console.warn(`\n[MODEL_FAILOVER] ⚠️ Model ${model} credits exhausted. Auto-failing over to ${fallback}...`);
         this.defaultModel = fallback;
         res = await execWithWatchdog(
           "opencode",
-          ["run", "--model", fallback, "--auto", JSON.stringify(prompt)],
+          ["run", "--model", fallback, "--auto", prompt],
           { cwd: sandboxDir, timeoutMs }
         );
       }
@@ -102,7 +106,7 @@ export class OpenCodeAdapter extends BaseHarnessAdapter {
   async continueTurn(prompt, sandboxDir, timeoutMs = 90000) {
     return await execWithWatchdog(
       "opencode",
-      ["run", "--continue", "--auto", JSON.stringify(prompt)],
+      ["run", "--continue", "--auto", prompt],
       { cwd: sandboxDir, timeoutMs }
     );
   }

@@ -7,13 +7,46 @@ export class BaseHarnessAdapter {
    * @param {string} name Short identifier (e.g. "agy", "opencode", "claude_code", "direct_mcp")
    * @param {string} displayName Human-readable label (e.g. "Google Antigravity CLI")
    * @param {string} defaultModel Default LLM model identifier
+   * @param {string[]} candidateModels Prioritized fallback models for failover
    * @param {"cli" | "headless-mcp" | "ide"} type Architectural classification
    */
-  constructor(name, displayName, defaultModel, type = "cli") {
+  constructor(name, displayName, defaultModel, candidateModels = [], type = "cli") {
     this.name = name;
     this.displayName = displayName;
     this.defaultModel = defaultModel;
+    this.candidateModels = candidateModels.length > 0 ? candidateModels : [defaultModel];
     this.type = type;
+  }
+
+  /**
+   * Returns the next candidate model in the cascade, or null if exhausted.
+   * @param {string} currentModel
+   * @returns {string | null}
+   */
+  getNextCandidate(currentModel) {
+    const idx = this.candidateModels.indexOf(currentModel);
+    if (idx !== -1 && idx + 1 < this.candidateModels.length) {
+      return this.candidateModels[idx + 1];
+    }
+    return null;
+  }
+
+  /**
+   * Detects whether command output indicates quota exhaustion or rate limits.
+   * @param {string} output
+   * @returns {boolean}
+   */
+  isQuotaOrRateLimitError(output) {
+    const lower = (output || "").toLowerCase();
+    return (
+      lower.includes("credit expired") ||
+      lower.includes("quota exceeded") ||
+      lower.includes("out of credits") ||
+      lower.includes("rate limit") ||
+      lower.includes("resource_exhausted") ||
+      lower.includes("too many requests") ||
+      lower.includes("429")
+    );
   }
 
   /**

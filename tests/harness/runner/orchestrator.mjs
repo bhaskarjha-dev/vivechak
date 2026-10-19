@@ -66,20 +66,30 @@ export async function runOrchestration(scenarioId, harnessName = "direct_mcp", m
   const turn1 = await adapter.runTurn(scenario.prompt, sandboxDir, model, turn1Timeout);
   console.log(`[Turn 1] Completed in ${turn1.timedOut ? "TIMEOUT" : "OK"} (Exit code: ${turn1.exitCode})`);
 
-  // Step 4: Turn 2 (Forensic Debrief)
-  console.log(`\n[Turn 2] Dispatching Forensic Audit Card...`);
-  const turn2 = await adapter.continueTurn(TURN2_PROMPT, sandboxDir);
-  console.log(`[Turn 2] Completed (Exit code: ${turn2.exitCode})`);
+  let turn2 = { stdout: "(Skipped: Turn 1 did not complete successfully)", exitCode: 0 };
+  let turn3 = { stdout: "(Skipped: Turn 1 did not complete successfully)", exitCode: 0 };
+  let turn4 = { stdout: "(Skipped: Turn 1 did not complete successfully)", exitCode: 0 };
 
-  // Step 5: Turn 3 (Comparative Reflection)
-  console.log(`\n[Turn 3] Dispatching Comparative Reflection...`);
-  const turn3 = await adapter.continueTurn(TURN3_PROMPT, sandboxDir);
-  console.log(`[Turn 3] Completed (Exit code: ${turn3.exitCode})`);
+  const isDeadSession = turn1.timedOut || (!turn1.stdout?.trim() && turn1.exitCode !== 0);
 
-  // Step 6: Turn 4 (Meta-Improvements Probe)
-  console.log(`\n[Turn 4] Dispatching Meta-Improvements Probe...`);
-  const turn4 = await adapter.continueTurn(TURN4_PROMPT, sandboxDir);
-  console.log(`[Turn 4] Completed (Exit code: ${turn4.exitCode})`);
+  if (isDeadSession) {
+    console.warn(`\n⚠️  [ORCHESTRATOR] Turn 1 aborted or produced zero output (timedOut=${turn1.timedOut}, exitCode=${turn1.exitCode}). Short-circuiting Turns 2-4 to prevent dead-session timeout cascade.`);
+  } else {
+    // Step 4: Turn 2 (Forensic Debrief)
+    console.log(`\n[Turn 2] Dispatching Forensic Audit Card...`);
+    turn2 = await adapter.continueTurn(TURN2_PROMPT, sandboxDir);
+    console.log(`[Turn 2] Completed (Exit code: ${turn2.exitCode})`);
+
+    // Step 5: Turn 3 (Comparative Reflection)
+    console.log(`\n[Turn 3] Dispatching Comparative Reflection...`);
+    turn3 = await adapter.continueTurn(TURN3_PROMPT, sandboxDir);
+    console.log(`[Turn 3] Completed (Exit code: ${turn3.exitCode})`);
+
+    // Step 6: Turn 4 (Meta-Improvements Probe)
+    console.log(`\n[Turn 4] Dispatching Meta-Improvements Probe...`);
+    turn4 = await adapter.continueTurn(TURN4_PROMPT, sandboxDir);
+    console.log(`[Turn 4] Completed (Exit code: ${turn4.exitCode})`);
+  }
 
   // Step 7: Inventory sandbox files
   const sandboxFiles = [];
@@ -186,7 +196,8 @@ ${doctorRes.stdout || doctorRes.stderr || "(Doctor check clean)"}
   console.log(`======================================================\n`);
 
   return {
-    success: true,
+    success: !isDeadSession,
+    status: isDeadSession ? "TURN1_FAIL" : "COMPLETE",
     runFile,
     scenarioId: scenario.id,
     harnessName,

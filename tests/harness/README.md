@@ -99,11 +99,16 @@ make harness-triage
 # or: node scripts/run_harness.mjs --triage
 ```
 
-### Clean Ephemeral Runs
+### Clean Ephemeral Runs & Sandboxes
 Resets the local testbed to prepare for a fresh testing cycle:
 ```bash
+# Clean ephemeral test run markdown files in tests/harness/runs/
 make harness-clean
 # or: node scripts/run_harness.mjs --clean
+
+# Clean isolated workspace sandboxes from OS temp directory
+make harness-clean-sandboxes
+# or: node scripts/run_harness.mjs --clean-sandboxes
 ```
 
 ### Archive Release Milestone Audit
@@ -116,7 +121,7 @@ node scripts/run_harness.mjs --archive v0.1.0
 
 ## 4. Model Selection, Free Tiers & Fallback Cascades
 
-The test runner supports overriding models per harness and provides automatic failover cascades if credits, quotas, or rate limits are encountered.
+The test runner supports overriding models per harness and provides automatic failover cascades across adapters (`opencode`, `agy`, `claude_code`) if credits, quotas, or rate limits are encountered.
 
 ### OpenCode Free Model Lineup:
 | Model ID | Provider | Context | Best Use Case |
@@ -137,8 +142,19 @@ node scripts/run_harness.mjs --harness opencode --model opencode/big-pickle --sc
 node scripts/run_harness.mjs --harness opencode --model opencode/nemotron-3.5-lightning-free --scenario 03
 ```
 
-### Automatic Model Failover Cascade:
-The `OpenCodeAdapter` includes a built-in fallback cascade (`beam-free` → `big-pickle` → `nemotron-3.5-lightning-free` → `glm-5.3-flash-free` → `space-bunny-free`). If a model encounters credit exhaustion or quota limits during pre-flight probe or mid-test execution, the runner automatically detects the failure, logs `[MODEL_FAILOVER]`, switches to the next healthy model, and retries the turn without failing the test run.
+### Automatic Model Failover Cascades:
+All AI adapters inherit automatic failover logic from `BaseHarnessAdapter`.
+- **OpenCode cascade:** `beam-free` → `big-pickle` → `nemotron-3.5-lightning-free` → `glm-5.3-flash-free` → `space-bunny-free`.
+- **Antigravity cascade:** `gemini-3.8-flash-high` → `gemini-3.8-flash` → `claude-sonnet-4-6`.
+- **Claude Code cascade:** `claude-3-5-sonnet` → `claude-3-5-haiku`.
+
+If a model encounters credit exhaustion or quota limits during pre-flight probe or mid-test execution, the runner automatically detects the failure, logs `[MODEL_FAILOVER]`, switches to the next healthy model, and retries the turn without failing the test run.
+
+### Dead-Session Short-Circuiting:
+If Turn 1 aborts, times out, or produces zero output, `orchestrator.mjs` marks the session as `TURN1_FAIL` and immediately short-circuits Turns 2–4. This avoids wasting up to 270 seconds on an already-dead process tree while still assembling the partial diagnostic report.
+
+### Full 21-Scenario Semantic Triage:
+`triage.mjs` implements scenario-specific semantic evaluation across all 21 scenarios, verifying the exact required invariants (e.g. WEP matrices for 01/02, ADRs for 04/05/10, DAG pipelines for 03/06, `vck challenge` for 08, `vck amend` for 09, `vck replan` for 11, `vck gate` for 12/17, `vck status` for 13, `vck validate` for 14, `vck setup` for 19, `vck doctor` for 20, and anti-pattern code authoring guardrails for 21) without false-negative file-existence failures.
 
 ---
 
