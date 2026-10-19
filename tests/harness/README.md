@@ -66,6 +66,14 @@ graph TD
 
 ## 3. Quickstart & Command Reference
 
+### ⚠️ Branch Isolation Policy (Protecting `main`)
+Always execute autonomous testing campaigns, iterative defect logging, and candidate bug fixes on a dedicated branch (e.g. `audit/harness-testing`). **Never run testing campaigns directly on `main`**:
+```bash
+# Create and switch to a testing branch before launching tests
+git checkout -b audit/harness-testing
+```
+Only merge back into `main` after all scenarios pass and `make release-check` passes cleanly.
+
 ### Run Pre-Flight Health & Quota Probes
 Checks all registered harnesses in parallel for binary presence, auth status, and active credit quota:
 ```bash

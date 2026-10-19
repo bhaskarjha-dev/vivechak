@@ -277,6 +277,8 @@ Vivechak includes an empirical multi-harness autonomous testing engine in `tests
    Pass `--model <id>` to target specific models. If a model encounters quota exhaustion, rate limits, or timeouts, adapters automatically fail over to the next healthy model (e.g. `beam-free` → `big-pickle` → `nemotron-3.5-lightning-free` → `glm-5.3-flash-free` for OpenCode, or `gemini-3.8-flash-high` → `gemini-3.8-flash` → `claude-sonnet-4-6` for Antigravity).
 9. **Dead-Session Short-Circuiting & 21-Scenario Semantic Triage:**
    Turn 1 failures short-circuit Turns 2–4 to prevent wasting 270s on dead processes. Triage accurately evaluates semantic invariants across all 21 scenarios without false-negative file traps.
+10. **Branch Isolation Policy (Protecting `main`):**
+    Always execute testing campaigns, iterative defect logging, and bug patches on a dedicated branch (e.g. `git checkout -b audit/harness-testing`). Keep `main` clean and untouched until all scenarios pass and release checks pass (`make release-check`).
 
-> **Rule for Agents:** Never commit raw run files in `tests/harness/runs/` to git. All empirical findings must be distilled into `tests/harness/defects/DEFECTS.md` or a release audit report.
+> **Rule for Agents:** Always execute testing campaigns on a dedicated branch (e.g. `audit/harness-testing`), never directly on `main`. Never commit raw run files in `tests/harness/runs/` to git. All empirical findings must be distilled into `tests/harness/defects/DEFECTS.md` or a release audit report.
 

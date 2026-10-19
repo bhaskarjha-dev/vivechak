@@ -13,6 +13,7 @@ This testing plan is governed by **Zero-Trust Falsification (Principle P8)**:
 2. **Total Isolation:** Every scenario run MUST execute in a completely fresh, isolated scratch workspace with zero memory bleed, zero prior context, and no shared state.
 3. **Small-Model Stress:** Testing is calibrated against small/fast models (`gemini-3.8-flash`, `gpt-4o-mini`, `claude-3.5-haiku`, `qwen-2.5-coder`) because their high susceptibility to hallucination and strict schema adherence exposes flaws that large frontier models silently work around.
 4. **Root-Cause Traceability:** Every observed symptom must be traced directly to lines of code in `internal/mcp/`, `internal/core/`, or `GENERATOR-*.md` prompts.
+5. **Branch Isolation:** Testing campaigns, defect investigations, and candidate engine patches are strictly performed on a dedicated branch (e.g. `audit/harness-testing`). `main` remains protected and is updated only through validated release merges.
 
 ---
 
