@@ -48,3 +48,7 @@ scratch/
 node_modules/
 __pycache__/
 *.egg-info/
+
+# Ephemeral Multi-Harness Autonomous Test Runs
+tests/harness/runs/*.md
+!tests/harness/runs/.gitkeep

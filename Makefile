@@ -1,4 +1,4 @@
-.PHONY: build test test-race bench lint vet embed-sync doctor gate clean release-check
+.PHONY: build test test-race bench lint vet embed-sync doctor gate clean release-check harness-probe harness-test harness-test-all harness-triage harness-clean
 
 build:
 	go build ./cmd/vivechak/
@@ -34,3 +34,18 @@ clean:
 
 release-check: vet lint test embed-sync
 	@echo "✓ Release checks passed"
+
+harness-probe:
+	node scripts/run_harness.mjs --probe
+
+harness-test:
+	node scripts/run_harness.mjs --auto --batch core
+
+harness-test-all:
+	node scripts/run_harness.mjs --auto --batch all
+
+harness-triage:
+	node scripts/run_harness.mjs --triage
+
+harness-clean:
+	node scripts/run_harness.mjs --clean

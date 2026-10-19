@@ -1,0 +1,136 @@
+# Vivechak Autonomous Multi-Harness Testing Subsystem
+### Empirical Multi-Agent Stress-Testing, Automated Watchdogs & Epistemic Hardening
+
+This directory contains Vivechak's **Autonomous Multi-Harness Testing Engine (AHTE)**. It subjects Vivechak to rigorous, zero-trust autonomous stress-testing across diverse AI agent host CLIs, models, and headless MCP clients.
+
+---
+
+## 1. Architecture & Mental Model
+
+```mermaid
+graph TD
+    subgraph Discovery["1. Discovery & Entry Points (Any Session / Any Agent)"]
+        AGENTS["AGENTS.md § 7 (Agent Operating Manual)"]
+        MAKE["Makefile (make harness-probe / test / triage / clean)"]
+        README["tests/harness/README.md (Subsystem Guide)"]
+    end
+
+    subgraph CoreEngine["2. Universal Test Runner (scripts/run_harness.mjs)"]
+        CLI["CLI Interface (--auto | --probe | --harness | --batch | --clean | --archive)"]
+        Registry["AdapterRegistry (Dynamic Auto-Discovery)"]
+        Watchdog["Watchdog Runner (stdin clamped, 90s/180s tree-kill)"]
+        Protocol["Universal 4-Turn Forensic Orchestrator"]
+        CLI --> Registry
+        Registry --> Watchdog
+        Watchdog --> Protocol
+    end
+
+    subgraph Adapters["3. Pluggable Harness Adapters (runner/adapters/)"]
+        Base["BaseHarnessAdapter (Abstract Contract)"]
+        Agy["AgyAdapter (Google Antigravity CLI)"]
+        OpenCode["OpenCodeAdapter (OpenCode CLI with Beam-Free probe)"]
+        ClaudeCode["ClaudeCodeAdapter (Claude Code CLI)"]
+        DirectMCP["DirectMcpAdapter (Headless JSON-RPC stdio, 0-tokens)"]
+        Base --> Agy
+        Base --> OpenCode
+        Base --> ClaudeCode
+        Base --> DirectMCP
+        Registry --> Base
+    end
+
+    subgraph Lifecycle["4. Continuous Testing Lifecycle & Clean Separation"]
+        Protocol --> ScratchRuns["tests/harness/runs/*.md (EPHEMERAL / GITIGNORED)"]
+        ScratchRuns --> Triage["triage.mjs (Dynamic Pattern Clustering)"]
+        Triage --> LivingLedger["tests/harness/defects/DEFECTS.md (LIVING DEFECT LEDGER)"]
+        Triage --> MilestoneReport["tests/harness/reports/audit-<version>-<date>.md (COMMITTED RELEASES)"]
+    end
+
+    Discovery --> CoreEngine
+```
+
+---
+
+## 2. Directory Layout & Roles
+
+| Path | Purpose | Git Status |
+|---|---|---|
+| `SCENARIOS.md` | 21 human-realistic test scenarios with messy typos, cross-domain problems, and checklists. | Committed |
+| `TEST-PLAN.md` | Theoretical methodology and zero-trust testing philosophy. | Committed |
+| `runner/` | Standalone engine: watchdog, orchestrator, triage, types, and pluggable adapters. | Committed |
+| `runner/adapters/` | Modular adapter definitions (`direct_mcp`, `agy`, `opencode`, `claude_code`). | Committed |
+| `reports/` | Immutable milestone audit reports compiled at major release points (e.g. `audit-v0.1.0-2026-10-19.md`). | Committed |
+| `defects/` | Living defect and polish ledger (`DEFECTS.md`) tracking discovered bugs, root causes, and fixes. | Committed |
+| `runs/` | Local ephemeral test outputs and conversation logs. | **Strictly Gitignored** (`.gitkeep` preserved) |
+
+---
+
+## 3. Quickstart & Command Reference
+
+### Run Pre-Flight Health & Quota Probes
+Checks all registered harnesses in parallel for binary presence, auth status, and active credit quota:
+```bash
+make harness-probe
+# or: node scripts/run_harness.mjs --probe
+```
+
+### Auto-Run on All Available & Funded Harnesses
+Automatically runs tests only across harnesses that are currently available and have active quota:
+```bash
+make harness-test
+# or: node scripts/run_harness.mjs --auto --batch core
+```
+
+### Run Zero-Token Headless MCP Conformance Test
+Tests all Vivechak tools deterministically over stdio JSON-RPC without requiring internet or AI credits:
+```bash
+node scripts/run_harness.mjs --harness direct_mcp --scenario 01
+```
+
+### Target a Specific Harness & Scenario
+```bash
+node scripts/run_harness.mjs --harness opencode --scenario 01,02,04
+node scripts/run_harness.mjs --harness agy --batch all
+```
+
+### Run Dynamic Triage
+Parses all active runs in `runs/`, calculates pass/fail rates, clusters Turn 4 feedback, and prints the scorecard:
+```bash
+make harness-triage
+# or: node scripts/run_harness.mjs --triage
+```
+
+### Clean Ephemeral Runs
+Resets the local testbed to prepare for a fresh testing cycle:
+```bash
+make harness-clean
+# or: node scripts/run_harness.mjs --clean
+```
+
+### Archive Release Milestone Audit
+Compiles current runs into an immutable release report in `reports/` and resets the testbed:
+```bash
+node scripts/run_harness.mjs --archive v0.1.0
+```
+
+---
+
+## 4. The 4-Turn Forensic Protocol
+
+Every test run executes in a pristine, isolated sandbox workspace (`os.tmpdir()/vivechak-sandboxes/s-<id>-<harness>-<timestamp>`) across 4 standardized turns:
+1. **Turn 1 (Scenario Prompt):** Human-realistic unprompted request (with typos/slang).
+2. **Turn 2 (Forensic Debrief):** Model debriefs tools called, arguments passed, workspace state, and `next_step`.
+3. **Turn 3 (Comparative Reflection):** Model compares answering with Vivechak vs. pure parametric memory.
+4. **Turn 4 (Meta-Improvement Probe):** Elicits feedback on DX friction, schema ambiguity, and file ergonomics.
+
+---
+
+## 5. Adding a New Harness Adapter
+
+To add a new AI agent CLI or MCP client (e.g. `cursor`, `windsurf`, `cline`, or a custom swarm):
+1. Create `tests/harness/runner/adapters/<name>.mjs` extending `BaseHarnessAdapter`.
+2. Implement:
+   - `probe()`: checks binary, auth, and token/quota health.
+   - `runTurn(prompt, sandboxDir, model, timeoutMs)`: starts a new session.
+   - `continueTurn(prompt, sandboxDir, timeoutMs)`: continues the session in the existing sandbox.
+3. Register the new adapter in `tests/harness/runner/adapters/registry.mjs`.
+4. Run `node scripts/run_harness.mjs --probe` to verify detection.
