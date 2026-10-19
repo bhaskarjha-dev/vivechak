@@ -285,16 +285,16 @@ func handleRecordDecision(ctx context.Context, _ *sdkmcp.CallToolRequest, in Rec
 		"workspace_root": root,
 		"decision_id":    in.DecisionID,
 		"artifact_type":  artifactType,
-		"file_path":      filepath.Join(core.ResearchDir, filename),
+		"file_path":      filepath.ToSlash(filepath.Join(core.ResearchDir, filename)),
 		"status":         validation.Status,
 		"validation":     validation,
 	}
 	if in.Supersedes != "" {
 		dataMap["supersedes"] = in.Supersedes
-		dataMap["superseded_file"] = supersededFile
+		dataMap["superseded_file"] = filepath.ToSlash(supersededFile)
 	}
 	if artifactType == "decision" {
-		dataMap["decisions_file"] = core.DecisionsFile
+		dataMap["decisions_file"] = filepath.ToSlash(core.DecisionsFile)
 	}
 
 	// Mini-status (eliminates need for separate status calls)

@@ -153,9 +153,11 @@ func ExtractDeclaredSessionIDs(content string) []string {
 	var declared []string
 	for _, m := range matches {
 		upper := strings.ToUpper(m)
-		if !seen[upper] {
-			seen[upper] = true
-			declared = append(declared, upper)
+		// Normalize underscores to hyphens for Mermaid-friendly node IDs (e.g., T0_01 -> T0-01)
+		normalized := strings.ReplaceAll(upper, "_", "-")
+		if !seen[normalized] {
+			seen[normalized] = true
+			declared = append(declared, normalized)
 		}
 	}
 	return declared
@@ -245,7 +247,7 @@ var (
 	// - #### S1: Landscape
 	// - #### D-001-S1 — Spike
 	// - ### FAD: Founding Architecture Document
-	sessionHeaderRe = regexp.MustCompile(`^#{1,4}\s+(?:(?:Session\s+([A-Za-z0-9]+(?:[-_][A-Za-z0-9]+)*))|([A-Za-z0-9]+(?:-[A-Za-z0-9]+)+)|([A-Za-z]+\d+|[A-Z]{2,10}))\s*[:—\-]\s*(.*)`)
+	sessionHeaderRe = regexp.MustCompile(`^#{2,4}\s+(?:(?:Session\s+([A-Za-z0-9]+(?:[-_][A-Za-z0-9]+)*))|([A-Za-z0-9]+(?:-[A-Za-z0-9]+)+)|([A-Za-z]+\d+|[A-Z]{2,10}))\s*[:—\-]\s*(.*)`)
 
 	// Matches metadata table rows like: | **ID** | T1-01 | or | ID | T1-01 |
 	metaFieldRe = regexp.MustCompile(`\|\s*(?:\*\*)?([^*|\s][^*|]*?)(?:\*\*)?\s*\|\s*([^|]+?)\s*\|`)
@@ -255,6 +257,9 @@ var (
 
 	// Matches words matching session ID pattern inside a brief header
 	briefIDRe = regexp.MustCompile(`[A-Za-z0-9]+(?:[-_][A-Za-z0-9]+)*`)
+
+	// Matches parenthetical qualifiers in dependency lists like: (constrains), (hard), (soft)
+	depCommentRe = regexp.MustCompile(`\s*\([^)]*\)`)
 
 	// Matches the prompt code block
 	promptStartRe = regexp.MustCompile("^`{3,}prompt")
@@ -387,6 +392,11 @@ func ParsePipeline(data []byte) (*DAG, error) {
 					break
 				}
 			}
+			// Skip document titles or filenames mistaken for sessions (e.g. D-001-PLAN, PLAN.md)
+			upperID := strings.ToUpper(id)
+			if strings.HasSuffix(upperID, "-PLAN") || strings.HasSuffix(upperID, ".MD") || strings.EqualFold(id, "PLAN") || strings.Contains(trimmed, "Research Plan") {
+				continue
+			}
 			title := strings.TrimSpace(strings.TrimPrefix(matches[4], "—"))
 			title = strings.TrimSpace(strings.TrimPrefix(title, "-"))
 			title = strings.TrimSpace(strings.TrimPrefix(title, ":"))
@@ -462,7 +472,7 @@ func ParsePipeline(data []byte) (*DAG, error) {
 					if currentSession != nil && currentSession.DecisionRef == "" {
 						currentSession.DecisionRef = value
 					}
-				case "dependencies":
+				case "dependencies", "depends":
 					if currentSession != nil {
 						parsedDeps := parseDependencies(value)
 						if len(parsedDeps) > 0 {
@@ -625,12 +635,9 @@ func parseDependencies(value string) []string {
 	var deps []string
 	for _, p := range parts {
 		p = strings.TrimSpace(p)
+		// Strip parenthetical comments/qualifiers e.g. "(constrains)", "(hard)"
+		p = depCommentRe.ReplaceAllString(p, "")
 		// Strip bullet markers (- or * or •)
-		p = strings.TrimLeft(p, "-*• \t")
-		p = strings.TrimSpace(p)
-		if idx := strings.Index(p, "("); idx > 0 {
-			p = strings.TrimSpace(p[:idx])
-		}
 		p = strings.TrimLeft(p, "-*• \t")
 		p = strings.Trim(p, " \t\r\n.,;:[]`'\"")
 		if p != "" && !strings.EqualFold(p, "none") && !strings.EqualFold(p, "n/a") && !strings.EqualFold(p, "nil") && !strings.EqualFold(p, "null") && !strings.EqualFold(p, "and") {

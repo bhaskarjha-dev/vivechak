@@ -614,6 +614,9 @@ func ValidatePlan(data []byte) *ValidationResult {
 			parsedMap[strings.ToUpper(s.ID)] = true
 		}
 		for _, declID := range declared {
+			if IsSynthesisSession(declID) && (parsedMap["SYN-01"] || parsedMap["FAD"]) {
+				continue
+			}
 			if !parsedMap[declID] {
 				result.AddIssueWithHint(L3Warn, "W-PARSER-SESSION-MISMATCH",
 					fmt.Sprintf("Session %s is declared in pipeline topology or DAG diagram, but lacks a parsed session entry with prompt block", declID),

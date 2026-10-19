@@ -184,7 +184,7 @@ func handlePrepareGenerator(_ context.Context, _ *sdkmcp.CallToolRequest, in Pre
 		nextStep = "Execute this prompt in a research session with web search. " +
 			"Save the decision plan and ADR skeleton using vivechak_save_plan."
 	default:
-		nextStep = "Execute this prompt in a fresh AI session to generate your research pipeline. " +
+		nextStep = "Execute the generated prompt (either directly in your next turn or by delegating to a research subagent) to generate your research pipeline. " +
 			"Save the output using vivechak_save_plan."
 	}
 

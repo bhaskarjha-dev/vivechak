@@ -162,7 +162,7 @@ func handleSaveSession(ctx context.Context, _ *sdkmcp.CallToolRequest, in SaveSe
 	dataMap := map[string]any{
 		"workspace_root":    root,
 		"session_id":        in.SessionID,
-		"file_path":         relPath,
+		"file_path":         filepath.ToSlash(relPath),
 		"status":            status,
 		"validation_passed": errorCount == 0,
 		"validation":        validation,

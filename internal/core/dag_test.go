@@ -1216,10 +1216,115 @@ func TestNextSessions_TerminalSynthesisGuard(t *testing.T) {
 	}
 }
 
+func TestParsePipeline_NoPhantomSessionFromPlanTitle(t *testing.T) {
+	planContent := `# D-001-PLAN.md — Decision Research Plan
 
+## Routing
+| Profile | Value | Rationale |
+|---|---|---|
+| R | 3 | High reversal cost |
 
+## Sessions
 
+### D-001-S1: Landscape — Architecture Options
+| Field | Value |
+|---|---|
+| ID | D-001-S1 |
+| Role | L |
+| Depends | none |
 
+` + "```prompt" + `
+Brief for S1
+` + "```" + `
 
+### D-001-S2: Comparison — Microservices vs Monolith
+| Field | Value |
+|---|---|
+| ID | D-001-S2 |
+| Role | C |
+| Depends | D-001-S1 (constrains) |
 
+` + "```prompt" + `
+Brief for S2
+` + "```" + `
+`
 
+	dag, err := ParsePipeline([]byte(planContent))
+	if err != nil {
+		t.Fatalf("ParsePipeline failed: %v", err)
+	}
+
+	// Must contain exactly 2 sessions: D-001-S1 and D-001-S2 (no phantom D-001 or D-001-PLAN)
+	if len(dag.Sessions) != 2 {
+		var ids []string
+		for _, s := range dag.Sessions {
+			ids = append(ids, s.ID)
+		}
+		t.Fatalf("expected 2 sessions, got %d: %v", len(dag.Sessions), ids)
+	}
+
+	s1 := dag.SessionByID("D-001-S1")
+	if s1 == nil {
+		t.Fatalf("expected D-001-S1 to exist")
+	}
+
+	s2 := dag.SessionByID("D-001-S2")
+	if s2 == nil {
+		t.Fatalf("expected D-001-S2 to exist")
+	}
+
+	// Verify dependency qualifier was stripped cleanly
+	if len(s2.Dependencies) != 1 || s2.Dependencies[0] != "D-001-S1" {
+		t.Fatalf("expected D-001-S2 dependency to be ['D-001-S1'], got: %v", s2.Dependencies)
+	}
+}
+
+func TestExtractDeclaredSessionIDs_MermaidUnderscoresAndFADAlias(t *testing.T) {
+	content := `# Pipeline
+` + "```mermaid" + `
+graph TD
+  T0_01[T0-01 Short Code] --> T1_01[T1-01 Redirect Hot Path]
+  T1_01 --> SYN_01[SYN-01 Grand Synthesis]
+` + "```" + `
+`
+	declared := ExtractDeclaredSessionIDs(content)
+	expected := map[string]bool{
+		"T0-01":  true,
+		"T1-01":  true,
+		"SYN-01": true,
+	}
+	for _, id := range declared {
+		if !expected[id] {
+			t.Errorf("unexpected extracted ID: %s", id)
+		}
+	}
+
+	pipelineMD := content + `
+### T0-01: Short Code
+| ID | T0-01 |
+
+` + "```prompt" + `
+Brief 1
+` + "```" + `
+
+### T1-01: Redirect Hot Path
+| ID | T1-01 |
+
+` + "```prompt" + `
+Brief 2
+` + "```" + `
+
+### SYN-01: Grand Synthesis
+| ID | SYN-01 |
+
+` + "```prompt" + `
+Synthesis Brief
+` + "```" + `
+`
+	res := ValidatePlan([]byte(pipelineMD))
+	for _, issue := range res.Issues {
+		if issue.Code == "W-PARSER-SESSION-MISMATCH" {
+			t.Errorf("spurious W-PARSER-SESSION-MISMATCH found for Mermaid underscore IDs: %v", issue.Message)
+		}
+	}
+}

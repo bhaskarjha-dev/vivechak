@@ -13,6 +13,7 @@ import (
 // StatusInput holds the arguments for vivechak_status.
 type StatusInput struct {
 	ProjectRoot string `json:"project_root,omitempty" jsonschema:"workspace root path"`
+	Root        string `json:"root,omitempty"         jsonschema:"alias for project_root"`
 }
 
 func registerStatus(server *sdkmcp.Server) {
@@ -38,15 +39,20 @@ func registerStatus(server *sdkmcp.Server) {
 func handleStatus(_ context.Context, _ *sdkmcp.CallToolRequest, in StatusInput) (*sdkmcp.CallToolResult, Envelope, error) {
 	const tool = "vivechak_status"
 
+	targetRoot := in.ProjectRoot
+	if targetRoot == "" {
+		targetRoot = in.Root
+	}
+
 	// Resolve workspace (don't error if not found — just report)
-	root, err := core.ResolveWorkspace(in.ProjectRoot)
+	root, err := core.ResolveWorkspace(targetRoot)
 	if err != nil {
 		env := Envelope{
 			Success: true,
 			Message: "No workspace found. Vivechak is ready to initialize a new workspace.",
 			Data: map[string]any{
 				"initialized": false,
-				"error":       err.Error(),
+				"status":      "uninitialized",
 			},
 			NextStep: "Run vivechak_init with your project directory to create a workspace, then " +
 				"vivechak_prepare_generator to get the generator prompt.",

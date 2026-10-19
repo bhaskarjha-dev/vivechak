@@ -14,6 +14,7 @@ import (
 // VisualizeInput holds arguments for vivechak_visualize.
 type VisualizeInput struct {
 	ProjectRoot string `json:"project_root,omitempty" jsonschema:"workspace root path (optional)"`
+	Root        string `json:"root,omitempty"         jsonschema:"alias for project_root"`
 	Format      string `json:"format,omitempty"       jsonschema:"output format: 'mermaid' (default) or 'table'"`
 }
 
@@ -39,7 +40,12 @@ func registerVisualize(server *sdkmcp.Server) {
 func handleVisualize(ctx context.Context, _ *sdkmcp.CallToolRequest, in VisualizeInput) (*sdkmcp.CallToolResult, Envelope, error) {
 	const tool = "vivechak_visualize"
 
-	root, err := core.ResolveWorkspace(in.ProjectRoot)
+	targetRoot := in.ProjectRoot
+	if targetRoot == "" {
+		targetRoot = in.Root
+	}
+
+	root, err := core.ResolveWorkspace(targetRoot)
 	if err != nil {
 		return ErrorResult(tool, err, "Initialize a workspace first with vivechak_init.")
 	}

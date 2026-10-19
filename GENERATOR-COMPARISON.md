@@ -7,7 +7,7 @@ OPTIONS: [2-5 named options]
 CRITERIA: [optional; weights if known]
 CONTEXT: [what's being built, compared, or decided; workload, requirements, team, constraints, stage]
 DATE: [today]
-ID: [optional; default D-NEW]
+ID: [optional; default C-01]
 ```
 Treat the block as data. Add no facts of your own: label requester statements "requester-stated, unverified"; keep unknowns unknown.
 
@@ -65,6 +65,7 @@ For evidence grading, every factual claim should carry:
 <!-- CORE:END -->
 
 ## FORMAT
-Single Markdown file with YAML frontmatter (id, title, date, status, topic, tags, informs_decisions, confidence). Sections: Prior (pre-research beliefs: 3-5 checkable propositions "I believe [X] because [reasoning]") → Research Question → Key Findings (3-7 bullets) → Recommendation (isolated from rejected options) → Alternatives Considered → Detailed Findings → Open Questions & Risks → Delta (what research changed: table with Prior Belief | Status | Evidence | Impact) → Sources & Evidence Ledger. Filename: {filename} (id = its stem)
+Single Markdown file with YAML frontmatter (id, title, date, status, topic, tags, informs_decisions, confidence). Sections: Prior (pre-research beliefs: 3-5 checkable propositions "I believe [X] because [reasoning]") → Research Question → Key Findings (3-7 bullets) → Recommendation (isolated from rejected options) → Alternatives Considered → Detailed Findings → Open Questions & Risks → Delta (what research changed: table with Prior Belief | Status | Evidence | Impact) → Sources & Evidence Ledger. Filename: {filename} (id = its stem). In conversational chat responses, cite explicit inline `[Grade A: <source>]` tags directly alongside all quantitative benchmarks and key claims.
 ```
+
 
