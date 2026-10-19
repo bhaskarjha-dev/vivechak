@@ -180,7 +180,32 @@ Everyone uses Gin. No downsides found.`
     name: "ast-code-fence-truncation-immunity",
     scope: "project",
     title: "AST Code Fence Truncation Immunity (CommonMark Fence Tracking)",
-    prompt: "save this session with code block containing bash comments # in discovered concerns"
+    prompt: `save this session output for T0-01:
+---
+session_id: T0-01
+title: Kernel Buffer Tuning
+door_type: one-way
+status: draft
+date: "2026-10-18"
+---
+# T0-01: Kernel Buffer Tuning
+## Key Findings
+- FoundationDB achieves sub-5ms commit latency with Redwood engine [Grade A: https://apple.github.io/foundationdb/].
+
+## Discovered Concerns
+Here are the primary production operating risks and kernel configuration commands:
+\`\`\`bash
+# Check current system file descriptor limits
+cat /proc/sys/fs/file-max
+# Verify socket buffer limits
+sysctl net.core.rmem_max
+# Ensure no silent truncation occurs here
+ulimit -n 65536
+\`\`\`
+These buffer configuration parameters must be carefully benchmarked under load.
+
+## Recommendation
+Adopt FoundationDB with Redwood engine [Grade A: https://apple.github.io/foundationdb/].`
   },
   "16": {
     id: "16",
@@ -201,7 +226,30 @@ Everyone uses Gin. No downsides found.`
     name: "evidence-ledger-cross-referencing",
     scope: "project",
     title: "Evidence Ledger URL Cross-Referencing",
-    prompt: "save session citing CLAIM-01 with Grade A where URL is in Sources Ledger table"
+    prompt: `save this session output for T0-01:
+---
+session_id: T0-01
+title: Postgres Storage Engine
+door_type: two-way
+status: draft
+date: "2026-10-18"
+---
+# T0-01: Postgres Storage Engine
+## Key Findings
+- [CLAIM-01] PostgreSQL 16 introduces btree indexing speedups [Grade: A | corroborated | fetched].
+- [CLAIM-02] Sequential scan memory overhead reduced by 30% [Grade: B | fresh | test].
+
+## Discovered Concerns
+Vacuum freeze overhead on multi-terabyte tables requires scheduled maintenance windows.
+
+## 5. Sources & Evidence Ledger
+| # | Claim | Grade | Modifiers | Status | Source |
+|---|---|---|---|---|---|
+| 1 | CLAIM-01 | Grade A | corroborated | fetched | https://www.postgresql.org/docs/16/release-16.html |
+| 2 | CLAIM-02 | Grade B | fresh | test | Internal hardware benchmark |
+
+## Recommendation
+Adopt PostgreSQL 16 [Grade A: https://www.postgresql.org/docs/16/release-16.html].`
   },
   "19": {
     id: "19",

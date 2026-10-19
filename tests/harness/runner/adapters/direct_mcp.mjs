@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { resolveVckBinary } from "../types.mjs";
+import { execWithWatchdog } from "../watchdog.mjs";
 import { BaseHarnessAdapter } from "./base.mjs";
 
 export class DirectMcpAdapter extends BaseHarnessAdapter {
@@ -152,6 +153,32 @@ export class DirectMcpAdapter extends BaseHarnessAdapter {
       };
     }
 
+    // Scenario 19: Universal Host Auto-Configuration (CLI setup command)
+    if (p.includes("vck setup") || p.includes("setup cursor")) {
+      const vckBin = resolveVckBinary();
+      const res = await execWithWatchdog(vckBin, ["setup", "cursor", sandboxDir], { timeoutMs: 5000 });
+      return {
+        stdout: `Executed CLI setup cursor command:\n${res.stdout || res.stderr || "Cursor MCP config created."}`,
+        stderr: res.stderr,
+        exitCode: res.exitCode,
+        timedOut: false,
+        killed: false
+      };
+    }
+
+    // Scenario 20: Pre-Coding Workspace Integrity Check (CLI doctor command)
+    if (p.includes("vck doctor")) {
+      const vckBin = resolveVckBinary();
+      const res = await execWithWatchdog(vckBin, ["doctor", sandboxDir], { timeoutMs: 5000 });
+      return {
+        stdout: `Executed CLI doctor command:\n${res.stdout || res.stderr || "Workspace clean."}`,
+        stderr: res.stderr,
+        exitCode: res.exitCode,
+        timedOut: false,
+        killed: false
+      };
+    }
+
     // Determine tool sequence based on prompt intent
     const toolCalls = [];
 
@@ -201,21 +228,83 @@ export class DirectMcpAdapter extends BaseHarnessAdapter {
         name: "vivechak_challenge",
         args: { decision_id: "D-001", mode: "red_team" }
       });
+    } else if (p.includes("update session") || p.includes("amend")) {
+      // Incremental amendment (S-09)
+      toolCalls.push({ name: "vivechak_init", args: { scope: "project" } });
+      toolCalls.push({
+        name: "vivechak_save_session",
+        args: {
+          session_id: "T0-01",
+          content: `# T0-01: Framework Evaluation\nInitial benchmarks.`
+        }
+      });
+      toolCalls.push({
+        name: "vivechak_amend_session",
+        args: {
+          session_id: "T0-01",
+          content: "pino latency is 12ms under load",
+          reason: "benchmark update"
+        }
+      });
+    } else if (p.includes("lock decision") || p.includes("record decision")) {
+      // Formal ADR recording (S-10)
+      toolCalls.push({ name: "vivechak_init", args: { scope: "decision" } });
+      toolCalls.push({
+        name: "vivechak_record_decision",
+        args: {
+          decision_id: "D-01",
+          title: "Primary Database Selection",
+          door_type: "one-way",
+          status: "accepted",
+          review_trigger: ">50k concurrent writes",
+          content: `# D-01: Primary Database Selection\nAccepted with postgres.`
+        }
+      });
+    } else if (p.includes("oracle only") || p.includes("replan")) {
+      // Dynamic replanning (S-11)
+      toolCalls.push({ name: "vivechak_init", args: { scope: "project" } });
+      toolCalls.push({
+        name: "vivechak_save_plan",
+        args: {
+          scope: "project",
+          content: `# Project Pipeline\n| ID | Layer | Door Type | Dependencies |\n|---|---|---|---|\n| T0-01 | 0 | two-way | none |\n`
+        }
+      });
+      toolCalls.push({
+        name: "vivechak_replan",
+        args: {
+          operation: "update_prompt",
+          session_id: "T0-01",
+          new_prompt: "Evaluate Oracle DB for enterprise compliance",
+          reason: "boss said no postgres allowed, oracle only",
+          impact: "database layer"
+        }
+      });
+    } else if (p.includes("standalone d-01.md and registry decisions.md")) {
+      // Dual-source decision resolution (S-17)
+      toolCalls.push({ name: "vivechak_init", args: { scope: "decision" } });
+      toolCalls.push({
+        name: "vivechak_record_decision",
+        args: {
+          decision_id: "D-01",
+          title: "Standalone ADR",
+          door_type: "two-way",
+          status: "accepted",
+          content: `# D-01: Standalone ADR`
+        }
+      });
+      toolCalls.push({
+        name: "vivechak_run_gate",
+        args: { track: "all" }
+      });
     } else if (p.includes("gate") || p.includes("coding the backend")) {
       // Mechanical Gate (S-12)
       toolCalls.push({
         name: "vivechak_run_gate",
         args: { track: "all" }
       });
-    } else if (p.includes("status") || p.includes("visual graph")) {
-      // Status & Visualize (S-13)
-      toolCalls.push({ name: "vivechak_status", args: {} });
-      toolCalls.push({ name: "vivechak_visualize", args: {} });
-    } else if (p.includes("validate")) {
-      // Workspace audit (S-14)
-      toolCalls.push({ name: "vivechak_validate", args: {} });
     } else if (p.includes("save this session")) {
-      // Session save & quality coaching (S-07)
+      // Session save & quality coaching (S-07, S-15, S-18)
       toolCalls.push({
         name: "vivechak_init",
         args: { scope: "project" }
@@ -227,6 +316,13 @@ export class DirectMcpAdapter extends BaseHarnessAdapter {
           content: prompt
         }
       });
+    } else if (p.includes("vivechak status") || p.includes("visual graph") || p.startsWith("status")) {
+      // Status & Visualize (S-13)
+      toolCalls.push({ name: "vivechak_status", args: {} });
+      toolCalls.push({ name: "vivechak_visualize", args: {} });
+    } else if (p.includes("validate")) {
+      // Workspace audit (S-14)
+      toolCalls.push({ name: "vivechak_validate", args: {} });
     } else if (p.includes("decide:") || p.includes("mongo vs postgres") || p.includes("server actions")) {
       // Decision scope (S-04, S-05)
       toolCalls.push({
