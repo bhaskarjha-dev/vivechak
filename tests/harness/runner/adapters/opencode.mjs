@@ -4,9 +4,16 @@ import { BaseHarnessAdapter } from "./base.mjs";
 export class OpenCodeAdapter extends BaseHarnessAdapter {
   constructor() {
     super("opencode", "OpenCode CLI", "opencode/beam-free", "cli");
+    this.fallbackModels = [
+      "opencode/beam-free",
+      "opencode/big-pickle",
+      "opencode/nemotron-3.5-lightning-free",
+      "opencode/glm-5.3-flash-free",
+      "opencode/space-bunny-free"
+    ];
   }
 
-  async probe() {
+  async probe(targetModel = this.defaultModel) {
     const versionRes = await execWithWatchdog("opencode", ["--version"], { timeoutMs: 5000 });
     if (versionRes.timedOut || versionRes.exitCode !== 0) {
       return {
@@ -18,57 +25,78 @@ export class OpenCodeAdapter extends BaseHarnessAdapter {
 
     const version = versionRes.stdout.trim();
 
-    // Pre-flight check with beam-free model to verify authentication and credit availability
-    const testRes = await execWithWatchdog(
-      "opencode",
-      ["run", "--model", this.defaultModel, "--auto", "ping"],
-      { timeoutMs: 10000 }
-    );
+    // Check candidate models starting with targetModel
+    const candidates = [targetModel, ...this.fallbackModels.filter(m => m !== targetModel)];
+    let lastError = "";
 
-    if (testRes.timedOut) {
+    for (const modelCandidate of candidates) {
+      const testRes = await execWithWatchdog(
+        "opencode",
+        ["run", "--model", modelCandidate, "--auto", "ping"],
+        { timeoutMs: 10000 }
+      );
+
+      if (testRes.timedOut) {
+        lastError = `Model ${modelCandidate} ping timed out`;
+        continue;
+      }
+
+      const combinedOutput = (testRes.stdout + " " + testRes.stderr).toLowerCase();
+      if (combinedOutput.includes("credit expired") || combinedOutput.includes("quota exceeded") || combinedOutput.includes("out of credits")) {
+        lastError = `Quota exhausted for ${modelCandidate}`;
+        continue;
+      }
+      if (combinedOutput.includes("unauthenticated") || combinedOutput.includes("sign in required") || combinedOutput.includes("401")) {
+        return {
+          available: false,
+          version,
+          model: modelCandidate,
+          quotaState: "unknown",
+          error: "OpenCode requires authentication: " + testRes.stderr.trim()
+        };
+      }
+
+      // Found a working model!
+      this.defaultModel = modelCandidate;
       return {
         available: true,
         version,
-        model: this.defaultModel,
-        quotaState: "unknown",
-        error: "opencode model test timed out (daemon or network delay)"
-      };
-    }
-
-    const combinedOutput = (testRes.stdout + " " + testRes.stderr).toLowerCase();
-    if (combinedOutput.includes("credit expired") || combinedOutput.includes("quota exceeded") || combinedOutput.includes("out of credits")) {
-      return {
-        available: false,
-        version,
-        model: this.defaultModel,
-        quotaState: "exhausted",
-        error: "OpenCode free credits/quota exhausted for model " + this.defaultModel
-      };
-    }
-    if (combinedOutput.includes("unauthenticated") || combinedOutput.includes("sign in required") || combinedOutput.includes("401")) {
-      return {
-        available: false,
-        version,
-        model: this.defaultModel,
-        quotaState: "unknown",
-        error: "OpenCode requires authentication: " + testRes.stderr.trim()
+        model: modelCandidate,
+        quotaState: "active"
       };
     }
 
     return {
-      available: true,
+      available: false,
       version,
-      model: this.defaultModel,
-      quotaState: "active"
+      model: targetModel,
+      quotaState: "exhausted",
+      error: `All OpenCode candidate models exhausted or timed out (${lastError})`
     };
   }
 
   async runTurn(prompt, sandboxDir, model = this.defaultModel, timeoutMs = 90000) {
-    return await execWithWatchdog(
+    let res = await execWithWatchdog(
       "opencode",
       ["run", "--model", model, "--auto", JSON.stringify(prompt)],
       { cwd: sandboxDir, timeoutMs }
     );
+
+    const outLower = (res.stdout + " " + res.stderr).toLowerCase();
+    if (outLower.includes("credit expired") || outLower.includes("quota exceeded") || outLower.includes("out of credits")) {
+      const fallback = this.fallbackModels.find(m => m !== model);
+      if (fallback) {
+        console.warn(`\n[MODEL_FAILOVER] ⚠️ Model ${model} credits exhausted. Auto-failing over to ${fallback}...`);
+        this.defaultModel = fallback;
+        res = await execWithWatchdog(
+          "opencode",
+          ["run", "--model", fallback, "--auto", JSON.stringify(prompt)],
+          { cwd: sandboxDir, timeoutMs }
+        );
+      }
+    }
+
+    return res;
   }
 
   async continueTurn(prompt, sandboxDir, timeoutMs = 90000) {

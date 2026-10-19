@@ -273,6 +273,8 @@ Vivechak includes an empirical multi-harness autonomous testing engine in `tests
    *Compiles active runs into an immutable audit report in `tests/harness/reports/audit-<version>-<date>.md` and updates index.*
 7. **Living Defect Ledger:**
    All empirical findings, defects, and upstream engine fixes are permanently tracked in `tests/harness/defects/DEFECTS.md`.
+8. **Model Overrides & Automatic Failover Cascades:**
+   Pass `--model <id>` to target specific models (e.g. `opencode/big-pickle`, `opencode/nemotron-3.5-lightning-free`). If a model encounters quota exhaustion, rate limits, or timeouts, the runner automatically detects the failure and fails over to the next healthy model (`beam-free` → `big-pickle` → `nemotron-3.5-lightning-free` → `glm-5.3-flash-free`).
 
 > **Rule for Agents:** Never commit raw run files in `tests/harness/runs/` to git. All empirical findings must be distilled into `tests/harness/defects/DEFECTS.md` or a release audit report.
 

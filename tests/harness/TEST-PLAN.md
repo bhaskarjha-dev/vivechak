@@ -99,7 +99,7 @@ Based on your execution experience in this session, suggest all potential improv
 
 ## 4. Defect Categorization & Severity Scale
 
-Every defect discovered during testing is logged in [`audit_defects_and_polish.md`](audit_defects_and_polish.md) using this taxonomy:
+Every defect discovered during testing is logged in [`defects/DEFECTS.md`](defects/DEFECTS.md) using this taxonomy:
 
 * **Category:**
   - `CAT-TOOL`: Tool parameter naming, alias support, jsonschema descriptions, return envelope data.
@@ -114,7 +114,17 @@ Every defect discovered during testing is logged in [`audit_defects_and_polish.m
 
 ---
 
-## 5. The Iterative Hardening Flywheel
+## 5. Model Resilience & Dynamic Failover Policy
+
+To prevent test execution from stalling due to upstream model credit exhaustion, quota limits, or API rate limiting, the testing subsystem implements **Dynamic Model Failover**:
+
+1. **Pre-Flight Health Probing:** Adapters probe candidate models before dispatching test turns.
+2. **Automatic Fallback Cascades:** When a model returns quota-exhaustion indicators (`credit expired`, `quota exceeded`, `out of credits`), the runner logs `[MODEL_FAILOVER]`, automatically switches to the next available free model in the cascade, and re-executes the turn.
+3. **Model Overrides:** Any scenario can be targeted at a specific model using `--model <id>` (e.g. `opencode/big-pickle`, `opencode/nemotron-3.5-lightning-free`).
+
+---
+
+## 6. The Iterative Hardening Flywheel
 
 ```
 [Execute Scenario in Isolation]
@@ -126,7 +136,7 @@ Every defect discovered during testing is logged in [`audit_defects_and_polish.m
    [Forensic Audit & Trace]
               │
               ▼
- [Log Defect & Root Cause in Log]
+ [Log Defect & Root Cause in DEFECTS.md]
               │
               ▼
  [Patch Go Code / Generator Prompts]

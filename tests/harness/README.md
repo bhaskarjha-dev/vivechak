@@ -114,7 +114,35 @@ node scripts/run_harness.mjs --archive v0.1.0
 
 ---
 
-## 4. The 4-Turn Forensic Protocol
+## 4. Model Selection, Free Tiers & Fallback Cascades
+
+The test runner supports overriding models per harness and provides automatic failover cascades if credits, quotas, or rate limits are encountered.
+
+### OpenCode Free Model Lineup:
+| Model ID | Provider | Context | Best Use Case |
+|---|---|:---:|---|
+| `opencode/beam-free` *(Default)* | OpenCode Zen | **1M** | Fastest execution, low congestion, default for batch testing |
+| `opencode/big-pickle` | Stealth (GLM-5) | 200K | High-quality Markdown prose, natural ADR synthesis |
+| `opencode/nemotron-3.5-lightning-free` | NVIDIA | **1M** | Hybrid Mamba-2; massive context stability for large repos |
+| `opencode/glm-5.3-flash-free` | Zhipu AI | 200K | Heavy-duty logical reasoning and complex DAG replanning |
+| `opencode/space-bunny-free` | Stealth | 128K | Aggressive terminal tool-calling and active file edits |
+
+### Overriding the Target Model:
+Pass the `--model` flag to target any model:
+```bash
+# Run with Big Pickle
+node scripts/run_harness.mjs --harness opencode --model opencode/big-pickle --scenario 01
+
+# Run with NVIDIA Nemotron
+node scripts/run_harness.mjs --harness opencode --model opencode/nemotron-3.5-lightning-free --scenario 03
+```
+
+### Automatic Model Failover Cascade:
+The `OpenCodeAdapter` includes a built-in fallback cascade (`beam-free` → `big-pickle` → `nemotron-3.5-lightning-free` → `glm-5.3-flash-free` → `space-bunny-free`). If a model encounters credit exhaustion or quota limits during pre-flight probe or mid-test execution, the runner automatically detects the failure, logs `[MODEL_FAILOVER]`, switches to the next healthy model, and retries the turn without failing the test run.
+
+---
+
+## 5. The 4-Turn Forensic Protocol
 
 Every test run executes in a pristine, isolated sandbox workspace (`os.tmpdir()/vivechak-sandboxes/s-<id>-<harness>-<timestamp>`) across 4 standardized turns:
 1. **Turn 1 (Scenario Prompt):** Human-realistic unprompted request (with typos/slang).
@@ -124,7 +152,7 @@ Every test run executes in a pristine, isolated sandbox workspace (`os.tmpdir()/
 
 ---
 
-## 5. Adding a New Harness Adapter
+## 6. Adding a New Harness Adapter
 
 To add a new AI agent CLI or MCP client (e.g. `cursor`, `windsurf`, `cline`, or a custom swarm):
 1. Create `tests/harness/runner/adapters/<name>.mjs` extending `BaseHarnessAdapter`.
@@ -134,3 +162,4 @@ To add a new AI agent CLI or MCP client (e.g. `cursor`, `windsurf`, `cline`, or 
    - `continueTurn(prompt, sandboxDir, timeoutMs)`: continues the session in the existing sandbox.
 3. Register the new adapter in `tests/harness/runner/adapters/registry.mjs`.
 4. Run `node scripts/run_harness.mjs --probe` to verify detection.
+
