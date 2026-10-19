@@ -173,7 +173,7 @@ vivechak/
 ├── examples/                       ← Concrete adoption walkthroughs
 │   ├── SAMPLE-COMPARISON.md        ← Comparison scope walkthrough (Pino vs Winston WEP matrix)
 │   ├── SAMPLE-DECISION.md          ← Decision scope walkthrough (ClickHouse migration ADR)
-│   └── SAMPLE-PIPELINE.md          ← Project scope walkthrough (Katha full pipeline)
+│   └── SAMPLE-PROJECT.md           ← Project scope walkthrough (Katha full pipeline)
 │
 ├── docs/                           ← Documentation
 │   ├── QUICKSTART.md               ← Vivechak in 5 Minutes
@@ -198,6 +198,17 @@ vivechak/
 │           ├── D-UX-01-cli-design.md
 │           ├── D-UX-02-validation-depth.md
 │           └── D-UX-03-hybrid-workflow.md
+│
+├── tests/harness/                  ← Autonomous multi-harness stress-testing subsystem
+│   ├── README.md                   ← Architecture, commands & lifecycle policy
+│   ├── SCENARIOS.md                ← 21 human-realistic stress scenarios
+│   ├── TEST-PLAN.md                ← Autonomous test harness strategy & execution model
+│   ├── runner/                     ← Watchdog, dynamic triage & pluggable adapters
+│   ├── reports/                    ← Permanent milestone audit reports (audit-v0.1.0-...)
+│   ├── defects/DEFECTS.md          ← Living defect and polish ledger
+│   └── runs/                       ← Ephemeral local test runs (gitignored)
+│
+├── scripts/run_harness.mjs         ← Multi-harness test runner CLI (--auto, --probe, etc.)
 │
 ├── Formula/ · scoop/ · winget/     ← Package manager manifests
 │
@@ -234,4 +245,34 @@ When modifying Go code in `cmd/` or `internal/`:
 - **Qualified provenance:** Grade A claims require canonical URLs, domain anchors, RFCs, or specific doc titles. Computing memory (RAM/caching) is never penalized as model recall.
 - **Two-Way Doors move fast:** Don't over-research reversible decisions. Spike or decide by convention.
 - **One-Way Doors move carefully:** Require corroborated Grade A/B evidence with qualified provenance, substantive Discovered Concerns (≥50 chars), red-team challenge before commitment, locked ADR with rejected alternatives, and premortem.
+
+---
+
+## 7. Autonomous Multi-Harness Testing Subsystem
+
+Vivechak includes an empirical multi-harness autonomous testing engine in `tests/harness/` to stress-test Vivechak against diverse agent hosts, models, and headless MCP clients.
+
+### Key Operational Workflows:
+1. **Probe Active Harnesses & Quota:**
+   `make harness-probe` or `node scripts/run_harness.mjs --probe`
+   *Checks all registered harnesses in parallel for binary presence, auth status, and active token quota.*
+2. **Auto-Run Across All Funded/Available Harnesses:**
+   `make harness-test` (core batch) or `node scripts/run_harness.mjs --auto --batch all`
+   *Runs tests only on harnesses with active tokens/credits.*
+3. **Run Zero-Token Headless MCP Conformance Test (CI / Offline):**
+   `node scripts/run_harness.mjs --harness direct_mcp --scenario 01`
+   *Tests all 13 tools deterministically over JSON-RPC stdio with zero external token expenditure.*
+4. **Ingest Dynamic Triage & Extract Polish:**
+   `make harness-triage` or `node scripts/run_harness.mjs --triage`
+   *Dynamically parses runs, evaluates pass/fail status, and clusters Turn 4 feedback.*
+5. **Clean Workspace for Fresh Iteration:**
+   `make harness-clean` or `node scripts/run_harness.mjs --clean`
+   *Wipes ephemeral runs in `tests/harness/runs/` to reset the testbed.*
+6. **Archive Release Milestone Audit:**
+   `node scripts/run_harness.mjs --archive <version>`
+   *Compiles active runs into an immutable audit report in `tests/harness/reports/audit-<version>-<date>.md` and updates index.*
+7. **Living Defect Ledger:**
+   All empirical findings, defects, and upstream engine fixes are permanently tracked in `tests/harness/defects/DEFECTS.md`.
+
+> **Rule for Agents:** Never commit raw run files in `tests/harness/runs/` to git. All empirical findings must be distilled into `tests/harness/defects/DEFECTS.md` or a release audit report.
 

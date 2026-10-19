@@ -1,8 +1,13 @@
-# Sample Adoption Walkthrough: Katha (MCP Workflow)
+# Sample Adoption Walkthrough: Project Scope (Katha Platform Architecture)
+
+> **Scope:** Project Scope (`ScopeProject`)  
+> **Investment:** 4–30 Sessions (Hours–Days)  
+> **Overhead:** Full DAG, Mandatory Track A / Track B Phase 0 Gate  
+> **Deliverables:** `research/RESEARCH-PIPELINE.md`, `research/DECISIONS.md`, `research/FAD.md` (Founding Architecture)  
 
 > **Note:** This example demonstrates the automated MCP server workflow. For the manual copy-paste workflow without the server, see [`docs/MANUAL-WORKFLOW.md`](../docs/MANUAL-WORKFLOW.md).
 
-This document shows a complete, concrete walkthrough of an AI coding agent applying Vivechak to a hypothetical project (**Katha** — an AI-assisted interactive storytelling platform for indie authors). 
+This document shows a complete, concrete walkthrough of an AI coding agent applying Vivechak to architect a brand-new system from scratch (**Katha** — an AI-assisted interactive storytelling platform for indie authors). 
 
 Instead of manual copy-pasting, the agent uses Vivechak's orchestration tools autonomously.
 

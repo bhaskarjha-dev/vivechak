@@ -256,7 +256,7 @@ linux/arm64   ──────▷ vivechak_linux_arm64 (tar.gz, deb, rpm)
 
 | Deliverable | What | Why |
 |---|---|---|
-| **Real case study** | Run full Vivechak pipeline (via MCP server) on a real project. Publish complete `research/` directory. | Current SAMPLE-PIPELINE.md is synthetic. Real artifacts are 10× more compelling. |
+| **Real case study** | Run full Vivechak pipeline (via MCP server) on a real project. Publish complete `research/` directory. | Current SAMPLE-PROJECT.md is synthetic. Real artifacts are 10× more compelling. |
 | **Free wedge skill** | Single-file `SKILL.md` for Cursor skills / skills marketplaces. Top-of-funnel. | Zero-cost distribution through existing marketplaces. `grill-me` (12.9K–460K installs) proves skills marketplace is a viable discovery channel. |
 | **Blog post #1** | "Why your AI architecture decisions are wrong (and how to fix them)" | Content marketing targeting post-vibe developers |
 | **README overhaul** | Show, don't tell. Before/after comparison. Time-to-value metric. "Install → first research in 5 minutes." | Current README is documentation pitch. Needs to be a product pitch. |
