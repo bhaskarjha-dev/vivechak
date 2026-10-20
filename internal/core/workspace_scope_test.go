@@ -297,6 +297,26 @@ func TestInferScope(t *testing.T) {
 			expected: ScopeDecision,
 		},
 		{
+			name:     "Should we use X vs Y with vs operator should route to decision",
+			input:    "should we use kafka vs rabbitmq for our async notifications pipeline",
+			expected: ScopeDecision,
+		},
+		{
+			name:     "Should we migrate X vs Y with vs operator should route to decision",
+			input:    "should we migrate our event storage from postgres to clickhouse vs keeping postgres",
+			expected: ScopeDecision,
+		},
+		{
+			name:     "Comparison with on preposition should remain comparison",
+			input:    "pino vs winston on node 22",
+			expected: ScopeComparison,
+		},
+		{
+			name:     "Comparison with as preposition should remain comparison",
+			input:    "kafka vs rabbitmq as event bus",
+			expected: ScopeComparison,
+		},
+		{
 			name:     "Explicit full architecture for new startup should remain project",
 			input:    "full architecture for our new startup",
 			expected: ScopeProject,

@@ -93,7 +93,7 @@ def ensure_binary(prog_name):
 
     try:
         req = urllib.request.Request(url, headers={"User-Agent": f"vivechak-runner/{VERSION}"})
-        with urllib.request.urlopen(req) as resp:
+        with urllib.request.urlopen(req, timeout=30.0) as resp:
             if resp.status != 200:
                 raise RuntimeError(f"Download failed with HTTP status {resp.status} from {url}")
             with open(archive_path, "wb") as f:

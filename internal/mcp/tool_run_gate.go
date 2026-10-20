@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
-	"regexp"
 	"strings"
 
 	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
@@ -165,100 +164,6 @@ func handleRunGate(_ context.Context, _ *sdkmcp.CallToolRequest, in RunGateInput
 	}
 
 	warnings := gateResult.Warnings
-
-	// Track B Check B11 (Red-Team Challenge Verification):
-	// For any One-Way Door decision, inspect whether the session markdown or ADR
-	// includes a "## Challenge Findings" or "## Red-Team Stress Test" section.
-	for _, d := range decisions {
-		if !strings.EqualFold(d.DoorType, "one-way") {
-			continue
-		}
-		hasChallenge := false
-		var adrData []byte
-		if b, err := ws.ReadFile(filepath.Join(core.ResearchDir, d.ID+".md")); err == nil {
-			adrData = b
-		} else if b, err := ws.ReadFile(filepath.Join(core.ResearchDir, d.ID+"-decision.md")); err == nil {
-			adrData = b
-		} else if entries, lErr := ws.ListDir(core.ResearchDir); lErr == nil {
-			for _, e := range entries {
-				name := e.Name()
-				if (strings.HasPrefix(name, d.ID+"-") || strings.HasPrefix(name, d.ID+"_") || strings.EqualFold(name, d.ID+".md")) && strings.HasSuffix(name, ".md") && !core.IsSpecialResearchFile(name) {
-					adrData, _ = ws.ReadFile(filepath.Join(core.ResearchDir, name))
-					break
-				}
-			}
-		}
-		if len(adrData) == 0 {
-			if decAll, err := ws.ReadFile(core.DecisionsFile); err == nil {
-				anchoredRe := regexp.MustCompile(fmt.Sprintf(`(?s)<!-- DECISION:\s*%s\s*-->\s*(.*?)\s*<!-- /DECISION:\s*%s\s*-->`, regexp.QuoteMeta(d.ID), regexp.QuoteMeta(d.ID)))
-				if m := anchoredRe.FindSubmatch(decAll); len(m) > 1 {
-					adrData = m[1]
-				}
-			}
-		}
-
-		checkChallengeText := func(text string) bool {
-			lower := strings.ToLower(text)
-			return strings.Contains(lower, "## challenge findings") ||
-				strings.Contains(lower, "## red-team stress test") ||
-				strings.Contains(lower, "## red team stress test") ||
-				strings.Contains(lower, "challenge findings") ||
-				strings.Contains(lower, "red-team stress test")
-		}
-
-		if len(adrData) > 0 && checkChallengeText(string(adrData)) {
-			hasChallenge = true
-		}
-
-		if !hasChallenge {
-			fm, _, _ := core.ParseFrontmatter(adrData)
-			var sessIDs []string
-			if fm != nil {
-				sessIDs = fm.GetStringSlice("informed_by_sessions")
-			}
-			if len(sessIDs) == 0 {
-				if sEntries, sErr := ws.ListDir(core.SessionsDir); sErr == nil {
-					for _, se := range sEntries {
-						if se.IsDir() || !strings.HasSuffix(se.Name(), ".md") {
-							continue
-						}
-						sData, _ := ws.ReadFile(filepath.Join(core.SessionsDir, se.Name()))
-						if sFm, _, _ := core.ParseFrontmatter(sData); sFm != nil {
-							for _, inf := range sFm.GetStringSlice("informs_decisions") {
-								if strings.EqualFold(inf, d.ID) {
-									sessIDs = append(sessIDs, core.ExtractSessionID(se.Name(), sFm))
-								}
-							}
-						}
-					}
-				}
-			}
-			for _, sid := range sessIDs {
-				var sData []byte
-				if sd, err := ws.ReadFile(filepath.Join(core.SessionsDir, sid+".md")); err == nil {
-					sData = sd
-				} else if sEntries, lErr := ws.ListDir(core.SessionsDir); lErr == nil {
-					sidUpper := strings.ToUpper(sid)
-					for _, se := range sEntries {
-						nameUpper := strings.ToUpper(strings.TrimSuffix(se.Name(), ".md"))
-						if nameUpper == sidUpper || strings.HasPrefix(nameUpper, sidUpper+"-") || strings.HasPrefix(nameUpper, sidUpper+"_") {
-							sData, _ = ws.ReadFile(filepath.Join(core.SessionsDir, se.Name()))
-							break
-						}
-					}
-				}
-				if len(sData) > 0 && checkChallengeText(string(sData)) {
-					hasChallenge = true
-					break
-				}
-			}
-		}
-
-		if !hasChallenge {
-			warnings = append(warnings, fmt.Sprintf("W-OWD-NO-CHALLENGE: One-Way Door decision %s was not subjected to adversarial red-team challenge before commitment.", d.ID))
-		}
-	}
-
 	allAdvisories := append(append([]string{}, gateResult.Advisories...), warnings...)
 	gateContent := core.RenderGateArtifact(ws, tmplBytes, root, projectName, gateResult.Status, gateResult.TrackAChecks.Passed, gateResult.TrackBChecks.Passed, gateResult.TrackAChecks.Issues, gateResult.TrackBChecks.Issues, decisions, allAdvisories...)
 	if len(gateContent) > 0 {

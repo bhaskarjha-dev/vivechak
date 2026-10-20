@@ -344,6 +344,51 @@ PostgreSQL is chosen.
 		if !foundB3 {
 			t.Errorf("expected failure for B3-EVIDENTIARY, got issues: %v", res.QualityChecks.Issues)
 		}
+		if res.TrackBChecks.Passed {
+			t.Errorf("expected Track B to fail for B3, got passed=true")
+		}
+		if res.TrackBChecks.Score == "3/3" || res.TrackBChecks.Count >= res.TrackBChecks.Total {
+			t.Errorf("arithmetic contradiction: Track B failed but score is %s (count=%d, total=%d)",
+				res.TrackBChecks.Score, res.TrackBChecks.Count, res.TrackBChecks.Total)
+		}
+	})
+
+	t.Run("produces W-OWD-NO-CHALLENGE advisory when One-Way Door lacks red-team challenge (B11)", func(t *testing.T) {
+		dir, ws := setupTestWorkspace(t, ScopeProject)
+		setupOneWayDoorFixture(dir)
+
+		dContent := `---
+decision_id: D-001
+door_type: one-way
+status: accepted
+review_trigger: "Storage cost exceeds budget by 50%"
+---
+# D-001: Storage Engine
+## Context
+Selecting the datastore.
+## Decision Rationale
+PostgreSQL is selected.
+## Rejected Alternatives
+- MySQL: does not support the required JSONB indexing performance.
+## Reversal Triggers
+- Storage cost exceeds budget by 50%
+`
+		_ = os.WriteFile(filepath.Join(dir, "research", "D-001.md"), []byte(dContent), 0o644)
+		_ = os.WriteFile(filepath.Join(dir, DecisionsFile), []byte(dContent), 0o644)
+
+		info := InspectWorkspace(dir)
+		res := EvaluateGate(ws, info, dir)
+
+		foundB11 := false
+		for _, adv := range res.Advisories {
+			if strings.Contains(adv, "W-OWD-NO-CHALLENGE") {
+				foundB11 = true
+				break
+			}
+		}
+		if !foundB11 {
+			t.Errorf("expected W-OWD-NO-CHALLENGE in advisories for un-challenged One-Way Door, got: %v", res.Advisories)
+		}
 	})
 }
 

@@ -125,9 +125,9 @@ func InferScope(contextText string) Scope {
 		}
 	}
 
-	// Bounded comparison signals: "vs", "versus", "compare X and Y", "which is better", "shootout"
-	compSignals := []string{
-		" vs ", " vs. ", " versus ", "compare ", "comparison between", "comparison of",
+	// Bounded comparison questions and confusion signals: "compare X and Y", "which is better", "shootout"
+	compQuestions := []string{
+		"compare ", "comparison between", "comparison of",
 		"which is better", "which one is better", "which is faster", "which one is faster",
 		"which one should", "which one shud", "which should", "which shud",
 		"confused between", "confused bw",
@@ -135,7 +135,7 @@ func InferScope(contextText string) Scope {
 		"which approach", "which option", "which strategy", "which vendor", "which provider",
 		"shootout", "benchmark between",
 	}
-	for _, sig := range compSignals {
+	for _, sig := range compQuestions {
 		if strings.Contains(lower, sig) {
 			return ScopeComparison
 		}
@@ -158,6 +158,16 @@ func InferScope(contextText string) Scope {
 	for _, sig := range decisionSignals {
 		if strings.Contains(lower, sig) {
 			return ScopeDecision
+		}
+	}
+
+	// Bounded comparison operator: "vs", "versus"
+	compSignals := []string{
+		" vs ", " vs. ", " versus ",
+	}
+	for _, sig := range compSignals {
+		if strings.Contains(lower, sig) {
+			return ScopeComparison
 		}
 	}
 

@@ -51,7 +51,7 @@ function getCacheDir() {
 function downloadFile(url, destPath) {
   return new Promise((resolve, reject) => {
     const proto = url.startsWith('https') ? https : http;
-    proto.get(url, (res) => {
+    const req = proto.get(url, (res) => {
       if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
         return downloadFile(res.headers.location, destPath).then(resolve).catch(reject);
       }
@@ -62,7 +62,13 @@ function downloadFile(url, destPath) {
       res.pipe(fileStream);
       fileStream.on('finish', () => fileStream.close(resolve));
       fileStream.on('error', reject);
-    }).on('error', reject);
+      res.on('error', reject);
+    });
+    req.setTimeout(30000, () => {
+      req.destroy();
+      reject(new Error(`Download timed out after 30 seconds from ${url}`));
+    });
+    req.on('error', reject);
   });
 }
 

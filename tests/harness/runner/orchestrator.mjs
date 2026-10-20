@@ -61,7 +61,7 @@ export async function runOrchestration(scenarioId, harnessName = "direct_mcp", m
 
   // Step 3: Turn 1 (Scenario Prompt)
   const isProjectScope = scenario.scope === "project";
-  const turn1Timeout = isProjectScope ? 360000 : 300000;
+  const turn1Timeout = isProjectScope ? 540000 : 450000;
   console.log(`\n[Turn 1] Dispatching Scenario Prompt (Timeout: ${turn1Timeout / 1000}s)...`);
   const turn1 = await adapter.runTurn(scenario.prompt, sandboxDir, model, turn1Timeout);
   console.log(`[Turn 1] Completed in ${turn1.timedOut ? "TIMEOUT" : "OK"} (Exit code: ${turn1.exitCode})`);

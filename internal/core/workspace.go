@@ -270,6 +270,10 @@ func ResolveWorkspace(explicit string) (string, error) {
 		if info, err := os.Stat(researchPath); err == nil && info.IsDir() {
 			return cached, nil
 		}
+		// If the cached directory itself exists, is not a system/app dir, and is valid, accept it so auto-init tools can initialize it
+		if fi, err := os.Stat(cached); err == nil && fi.IsDir() && !IsSystemOrAppDir(cached) {
+			return cached, nil
+		}
 	}
 
 	// Step 5: Error

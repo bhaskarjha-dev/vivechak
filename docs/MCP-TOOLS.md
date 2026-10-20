@@ -842,13 +842,12 @@ Execute the Phase 0 exit gate check (Track A + Track B).
 Executes the mechanical verification checks for the Phase 0 Exit Gate, tailored to the workspace scope:
 - **Project Scope:**
   - **Structural Completeness (5 checks):** Confirms presence of `RESEARCH-PIPELINE.md`, all DAG sessions completed, all 6 template files, `DECISIONS.md`, and `research/FAD.md`.
-  - **Quality Indicators (3 checks):** Confirms at least 3 completed sessions for pipeline significance, verifies that `FAD.md` contains valid evidence grades, and mechanically validates ADRs (all decisions accepted, all one-way doors define explicit reversal triggers, substantive alternative analysis via check B10, and red-team challenge verification via check B11).
+  - **Quality Indicators (4 checks):** Confirms at least 3 completed sessions for pipeline significance, verifies that `FAD.md` contains valid evidence grades, mechanically validates ADRs (all decisions accepted, reversal triggers assigned, substantive causal rationale), and enforces evidentiary integrity (B3 threshold, B4 verification method, B5 rejected alternatives, and B11 adversarial red-team challenge).
 - **Decision Scope:**
   - **Structural Completeness (3 checks):** Confirms at least 1 completed session, template directory present, and decision record/ADR exists (`[ID]-[slug].md` or `DECISIONS.md`).
-  - **Quality Indicators (2 checks):** Confirms completed decision session, and verifies decision record is substantive (>100 bytes), accepted, with reversal triggers present for one-way doors.
+  - **Quality Indicators (3 checks):** Confirms completed decision session, verifies decision record is substantive (>100 bytes), accepted, with reversal triggers present for one-way doors, and verifies evidentiary integrity.
 - **Comparison Scope:**
-  - **Structural Completeness (2 checks):** Confirms at least 1 completed session and template directory present.
-  - **Quality Indicators (2 checks):** Confirms completed comparison session and valid inline evidence grades.
+  - **Zero Gate Overhead:** Comparison scope has zero gate requirements. Research is complete upon WEP matrix generation.
 
 > [!IMPORTANT]
 > `vivechak_run_gate` performs **mechanical validation only**. Semantic quality assessment (e.g., whether premortems are substantive, whether alternatives were genuinely explored) is the responsibility of the host AI agent.
@@ -898,7 +897,7 @@ Defined in [`RunGateInput`](../internal/mcp/tool_run_gate.go):
 ```json
 {
   "success": true,
-  "message": "Phase 0 Gate: PASS (Structural Completeness: 5/5, Quality Indicators: 3/3)",
+  "message": "Phase 0 Gate: PASS (Structural Completeness: 5/5, Quality Indicators: 4/4)",
   "data": {
     "workspace_root": "d:/dev/pro/my-cloud-app",
     "scope": "project",
@@ -913,7 +912,7 @@ Defined in [`RunGateInput`](../internal/mcp/tool_run_gate.go):
     "quality_checks": {
       "label": "Quality Indicators (Mechanical)",
       "passed": true,
-      "score": "3/3",
+      "score": "4/4",
       "issues": []
     },
     "structural_completeness": {
@@ -925,7 +924,7 @@ Defined in [`RunGateInput`](../internal/mcp/tool_run_gate.go):
     "mechanical_quality": {
       "label": "Quality Indicators (Mechanical)",
       "passed": true,
-      "score": "3/3",
+      "score": "4/4",
       "issues": []
     },
     "track_a": {
@@ -937,7 +936,7 @@ Defined in [`RunGateInput`](../internal/mcp/tool_run_gate.go):
     "track_b": {
       "label": "Quality Indicators (Mechanical)",
       "passed": true,
-      "score": "3/3",
+      "score": "4/4",
       "issues": []
     },
     "scope_note": "This gate performs automated MECHANICAL checks only (Structural Completeness and Quality Indicators). Track A (Two-Way Door fast track) and Track B (One-Way Door rigorous gate) semantic decisions and human sign-off per PHASE-0-GATE.template.md are the host architect's responsibility."

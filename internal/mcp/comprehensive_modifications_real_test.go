@@ -10,6 +10,7 @@ import (
 
 	"github.com/bhaskarjha-dev/vivechak/internal/core"
 	"github.com/bhaskarjha-dev/vivechak/internal/store"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 // TestComprehensive_PermissiveFrontmatterWithLeadingHeaders verifies that frontmatter parsing
@@ -944,4 +945,604 @@ Varying Throughput weight keeps Fastify ahead.
 		t.Fatalf("visualize mermaid failed: %v, env: %+v", err, envVisM)
 	}
 }
+
+// TestComprehensive_TrackBArithmeticAndAdversarialChallenge verifies:
+// 1. In Project Scope, Track B has 4 indicators (B3, B4, B5, B10).
+//    - When all pass, Score is "4/4", Count=4, Total=4, Passed=true.
+//    - When B5 (rejected alternatives) is missing, Count=3, Total=4, Score="3/4", Passed=false (Count < Total).
+//    - When B3 (evidence grade) is weak, Count=3, Total=4, Score="3/4", Passed=false (Count < Total).
+// 2. In Decision Scope, Track B has 3 indicators (B3, B4, B5).
+//    - When all pass, Score is "3/3", Count=3, Total=3.
+//    - When B3 is weak, Count=2, Total=3, Score="2/3", Passed=false (Count < Total).
+// 3. Adversarial Red-Team Challenge (B11):
+//    - Emits W-OWD-NO-CHALLENGE advisory when a One-Way Door has not undergone challenge.
+//    - Advisory is cleared when the One-Way Door ADR includes red-team challenge sections.
+func TestComprehensive_TrackBArithmeticAndAdversarialChallenge(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("Project Scope - Full Pass with Adversarial Challenge produces 4/4 and clears B11", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		_, envInit, err := handleInit(ctx, nil, InitInput{ProjectRoot: tmpDir, Scope: "project"})
+		if err != nil || !envInit.Success {
+			t.Fatalf("init failed: %v", err)
+		}
+
+		pipelineContent := `# Research Pipeline
+### T1-01: Storage
+| **ID** | T1-01 |
+| **Dependencies** | None |
+` + "```prompt\nstorage prompt\n```\n" + `
+### T1-02: Transport
+| **ID** | T1-02 |
+| **Dependencies** | None |
+` + "```prompt\ntransport prompt\n```\n" + `
+### SYN-01: Synthesis
+| **ID** | SYN-01 |
+| **Dependencies** | T1-01, T1-02 |
+` + "```prompt\nsynthesis prompt\n```\n"
+
+		_, envPlan, err := handleSavePlan(ctx, nil, SavePlanInput{
+			ProjectRoot:      tmpDir,
+			Content:          pipelineContent,
+			DecisionsContent: "# Decisions\n",
+		})
+		if err != nil || !envPlan.Success {
+			t.Fatalf("save plan failed: %v", err)
+		}
+
+		sess1Content := `---
+session_id: T1-01
+title: Storage
+status: complete
+date: 2026-10-18
+---
+## Key Findings
+- SQLite WAL mode is high performance [Grade A] https://sqlite.org/wal.html
+## Discovered Concerns
+Concurrency limit on multi-writer transactions.
+## Delta
+Confirmed WAL mode suitability.
+## Recommendation
+Adopt SQLite WAL mode based on Grade A evidence (https://sqlite.org/wal.html).
+`
+		_, envSess1, err := handleSaveSession(ctx, nil, SaveSessionInput{
+			ProjectRoot: tmpDir,
+			SessionID:   "T1-01",
+			Content:     sess1Content,
+		})
+		if err != nil || !envSess1.Success {
+			t.Fatalf("save session T1-01: %v", err)
+		}
+
+		sess2Content := `---
+session_id: T1-02
+title: Transport
+status: complete
+date: 2026-10-18
+---
+## Key Findings
+- QUIC transport standard [Grade A] https://quicwg.org
+## Discovered Concerns
+UDP blocking.
+## Delta
+Confirmed QUIC suitability.
+## Recommendation
+Use QUIC based on Grade A (https://quicwg.org).
+`
+		_, envSess2, err := handleSaveSession(ctx, nil, SaveSessionInput{
+			ProjectRoot: tmpDir,
+			SessionID:   "T1-02",
+			Content:     sess2Content,
+		})
+		if err != nil || !envSess2.Success {
+			t.Fatalf("save session T1-02: %v", err)
+		}
+
+		fadContent := `---
+id: FAD-001
+session_id: SYN-01
+title: Founding Architecture
+synthesis_date: "2026-10-18"
+date: "2026-10-18"
+status: complete
+---
+# Founding Architecture Document
+This comprehensive architectural blueprint synthesizes all session findings into a unified system design.
+All major subsystems, data boundaries, and protocols are rigorously specified [Grade A: official docs https://sqlite.org].
+System uses SQLite for local persistence and QUIC for high throughput event transport.
+`
+		_, envFAD, err := handleSaveSession(ctx, nil, SaveSessionInput{
+			ProjectRoot: tmpDir,
+			SessionID:   "SYN-01",
+			Content:     fadContent,
+		})
+		if err != nil || !envFAD.Success {
+			t.Fatalf("save FAD: %v", err)
+		}
+
+		// One-Way Door with Grade A evidence, substantive rejected alternatives, and Red-Team Challenge section
+		adrContent := `---
+id: D-001
+title: Storage Engine
+status: accepted
+door_type: one-way
+date: 2026-10-18
+human_reviewed: true
+informed_by_sessions:
+  - T1-01
+review_trigger: "Data exceeds 100 GB"
+---
+# Context
+High performance embedded transactional store.
+# Decision
+Adopt SQLite with WAL mode. Grade A (https://sqlite.org/wal.html)
+## Rejected Alternatives
+- PostgreSQL: rejected due to operational daemon footprint and excessive RAM usage for edge devices.
+## Red-Team Stress Test
+Challenged lock contention under 100 concurrent writers. WAL mode sustains required throughput with busy handler retry.
+## Reversal Triggers
+- Data size exceeds 100 GB.
+`
+		_, envADR, err := handleRecordDecision(ctx, nil, RecordDecisionInput{
+			ProjectRoot: tmpDir,
+			DecisionID:  "D-001",
+			Content:     adrContent,
+		})
+		if err != nil || !envADR.Success {
+			t.Fatalf("record decision: %v", err)
+		}
+
+		_, envGate, err := handleRunGate(ctx, nil, RunGateInput{ProjectRoot: tmpDir})
+		if err != nil || !envGate.Success {
+			t.Fatalf("run gate failed: %v", err)
+		}
+
+		gateData := envGate.Data.(map[string]any)
+		if gateData["gate_passed"] != true {
+			t.Fatalf("expected gate_passed true, got false. Warnings: %v", envGate.Warnings)
+		}
+		if gateData["gate_status"] != "PASS" {
+			t.Errorf("expected gate_status 'PASS', got: %v", gateData["gate_status"])
+		}
+
+		trackBData := gateData["track_b"].(map[string]any)
+		if trackBData["score"] != "4/4" {
+			t.Errorf("expected Track B score '4/4', got: %v", trackBData["score"])
+		}
+		if trackBData["passed"] != true {
+			t.Errorf("expected Track B passed true, got: %v", trackBData["passed"])
+		}
+
+		// Verify B11 advisory is NOT present because Red-Team Stress Test exists
+		for _, w := range envGate.Warnings {
+			if strings.Contains(w, "W-OWD-NO-CHALLENGE") {
+				t.Errorf("unexpected W-OWD-NO-CHALLENGE advisory when red-team challenge was documented: %s", w)
+			}
+		}
+	})
+
+	t.Run("Project Scope - Missing Challenge produces W-OWD-NO-CHALLENGE advisory but preserves 4/4 score", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		_, _, _ = handleInit(ctx, nil, InitInput{ProjectRoot: tmpDir, Scope: "project"})
+
+		pContent := "# Research Pipeline\n### T1-01: Storage\n| **ID** | T1-01 |\n| **Dependencies** | None |\n```prompt\nstorage\n```\n### T1-02: Transport\n| **ID** | T1-02 |\n| **Dependencies** | None |\n```prompt\ntransport\n```\n### SYN-01: Synthesis\n| **ID** | SYN-01 |\n| **Dependencies** | T1-01, T1-02 |\n```prompt\nsynthesis\n```\n"
+		_, _, _ = handleSavePlan(ctx, nil, SavePlanInput{ProjectRoot: tmpDir, Content: pContent, DecisionsContent: "# Decisions\n"})
+
+		s1Content := "---\nsession_id: T1-01\ntitle: Storage\nstatus: complete\n---\n## Key Findings\n- Finding [Grade A] https://sqlite.org\n## Discovered Concerns\nLocking.\n## Delta\nUpdated.\n## Recommendation\nUse SQLite. Grade A (https://sqlite.org)\n"
+		_, _, _ = handleSaveSession(ctx, nil, SaveSessionInput{ProjectRoot: tmpDir, SessionID: "T1-01", Content: s1Content})
+
+		s2Content := "---\nsession_id: T1-02\ntitle: Transport\nstatus: complete\n---\n## Key Findings\n- Transport [Grade A] https://quicwg.org\n## Discovered Concerns\nUDP blocking.\n## Delta\nUpdated.\n## Recommendation\nUse QUIC. Grade A (https://quicwg.org)\n"
+		_, _, _ = handleSaveSession(ctx, nil, SaveSessionInput{ProjectRoot: tmpDir, SessionID: "T1-02", Content: s2Content})
+
+		fadContent := `---
+id: FAD-001
+session_id: SYN-01
+title: Founding Architecture
+synthesis_date: "2026-10-18"
+date: "2026-10-18"
+status: complete
+---
+# Founding Architecture Document
+This comprehensive architectural blueprint synthesizes all session findings into an unified system design.
+All major subsystems, interfaces, data layers, and security controls are specified with inline evidence grades [Grade A: official docs https://sqlite.org].
+`
+		_, _, _ = handleSaveSession(ctx, nil, SaveSessionInput{ProjectRoot: tmpDir, SessionID: "SYN-01", Content: fadContent})
+
+		// One-Way Door WITHOUT Red-Team Challenge
+		adrContent := `---
+id: D-001
+title: Storage Engine
+status: accepted
+door_type: one-way
+date: 2026-10-18
+human_reviewed: true
+informed_by_sessions:
+  - T1-01
+review_trigger: "Data exceeds 100 GB"
+---
+# Context
+High performance storage.
+# Decision
+Adopt SQLite with WAL mode. Grade A (https://sqlite.org/wal.html)
+## Rejected Alternatives
+- PostgreSQL: rejected due to operational daemon footprint.
+## Reversal Triggers
+- Data size exceeds 100 GB.
+`
+		_, _, _ = handleRecordDecision(ctx, nil, RecordDecisionInput{ProjectRoot: tmpDir, DecisionID: "D-001", Content: adrContent})
+
+		_, envGate, err := handleRunGate(ctx, nil, RunGateInput{ProjectRoot: tmpDir})
+		if err != nil || !envGate.Success {
+			t.Fatalf("run gate failed: %v", err)
+		}
+
+		gateData := envGate.Data.(map[string]any)
+		trackBData := gateData["track_b"].(map[string]any)
+		// Core 4 indicators still pass
+		if trackBData["score"] != "4/4" {
+			t.Errorf("expected score 4/4, got: %v", trackBData["score"])
+		}
+
+		// Adversarial challenge advisory MUST be emitted
+		foundB11 := false
+		for _, w := range envGate.Warnings {
+			if strings.Contains(w, "W-OWD-NO-CHALLENGE") {
+				foundB11 = true
+				break
+			}
+		}
+		if !foundB11 {
+			t.Errorf("expected W-OWD-NO-CHALLENGE advisory in warnings: %v", envGate.Warnings)
+		}
+	})
+
+	t.Run("Decision Scope - Track B Arithmetic shows 3/3 on pass and Count < Total on failure", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		_, _, _ = handleInit(ctx, nil, InitInput{ProjectRoot: tmpDir, Scope: "decision"})
+
+		// Session with weak Grade C evidence
+		sContent := "---\nsession_id: D-001-S1\ntitle: Auth\nstatus: complete\n---\n## Key Findings\n- Finding [Grade C] personal blog\n## Discovered Concerns\nSecurity.\n## Delta\nUpdated.\n## Recommendation\nUse Custom Auth. Grade C (unverified blog)\n"
+		sDir := filepath.Join(tmpDir, core.SessionsDir)
+		_ = os.MkdirAll(sDir, 0o755)
+		_ = os.WriteFile(filepath.Join(sDir, "D-001-S1.md"), []byte(sContent), 0o644)
+
+		// Decision plan
+		_ = os.WriteFile(filepath.Join(tmpDir, core.ResearchDir, "D-001-plan.md"), []byte("# Plan\n"), 0o644)
+
+		// One-Way Door ADR
+		adrContent := `---
+id: D-001
+title: Auth Architecture
+status: accepted
+door_type: one-way
+date: 2026-10-18
+informed_by_sessions:
+  - D-001-S1
+review_trigger: "Breach event occurs"
+---
+# Context
+Authentication.
+# Decision
+Custom Auth.
+## Rejected Alternatives
+- Auth0: rejected due to monthly active user pricing curve.
+## Reversal Triggers
+- Breach event occurs.
+`
+		_ = os.WriteFile(filepath.Join(tmpDir, core.ResearchDir, "D-001.md"), []byte(adrContent), 0o644)
+
+		ws, err := store.OpenWorkspace(tmpDir)
+		if err != nil {
+			t.Fatalf("open workspace: %v", err)
+		}
+		defer ws.Close()
+
+		info := core.InspectWorkspace(tmpDir)
+		res := core.EvaluateGate(ws, info, tmpDir)
+
+		// Verification: Track B Total in Decision Scope must be 3 (B3, B4, B5)
+		if res.TrackBChecks.Total != 3 {
+			t.Errorf("expected TrackB Total 3 in Decision Scope, got: %d", res.TrackBChecks.Total)
+		}
+		// Because B3 fails (Grade C), Track B must NOT pass, and Count must be strictly less than Total
+		if res.TrackBChecks.Passed {
+			t.Errorf("expected Track B to fail due to Grade C evidence")
+		}
+		if res.TrackBChecks.Count >= res.TrackBChecks.Total {
+			t.Errorf("arithmetic contradiction: Track B failed but Count (%d) >= Total (%d), Score: %s",
+				res.TrackBChecks.Count, res.TrackBChecks.Total, res.TrackBChecks.Score)
+		}
+		if res.TrackBChecks.Score != "2/3" {
+			t.Errorf("expected Track B score '2/3', got: %s", res.TrackBChecks.Score)
+		}
+
+		// Now fix the session to Grade A evidence and re-evaluate
+		sContentFixed := "---\nsession_id: D-001-S1\ntitle: Auth\nstatus: complete\n---\n## Key Findings\n- Finding [Grade A] https://tools.ietf.org/rfc/rfc7636\n## Discovered Concerns\nPKCE rotation complexity.\n## Delta\nUpdated.\n## Recommendation\nUse OAuth2 with PKCE. Grade A (https://tools.ietf.org/rfc/rfc7636)\n"
+		_ = os.WriteFile(filepath.Join(sDir, "D-001-S1.md"), []byte(sContentFixed), 0o644)
+
+		resFixed := core.EvaluateGate(ws, info, tmpDir)
+		if !resFixed.TrackBChecks.Passed {
+			t.Errorf("expected Track B to pass after fixing evidence, got issues: %v", resFixed.TrackBChecks.Issues)
+		}
+		if resFixed.TrackBChecks.Score != "3/3" {
+			t.Errorf("expected Track B score '3/3' on full pass, got: %s", resFixed.TrackBChecks.Score)
+		}
+		if resFixed.TrackBChecks.Count != 3 || resFixed.TrackBChecks.Total != 3 {
+			t.Errorf("expected Count=3 and Total=3, got Count=%d, Total=%d", resFixed.TrackBChecks.Count, resFixed.TrackBChecks.Total)
+		}
+	})
+}
+
+// TestComprehensive_ScopeInferenceAndPrepositionStrippingMCP verifies that live MCP tool calls
+// accurately infer scope using 3-tier precedence and cleanly strip prepositional phrases.
+func TestComprehensive_ScopeInferenceAndPrepositionStrippingMCP(t *testing.T) {
+	cs := testServer(t)
+	ctx := context.Background()
+	tmpDir := t.TempDir()
+
+	cases := []struct {
+		name           string
+		inputContext   string
+		expectedScope  string
+		checkPromptSub string
+	}{
+		{
+			name:           "Pino vs Winston with 'on' preposition phrase",
+			inputContext:   "Pino vs Winston on Node 22",
+			expectedScope:  "comparison",
+			checkPromptSub: "OPTIONS: Pino, Winston",
+		},
+		{
+			name:           "Architectural dilemma with 'vs' routes to Decision scope",
+			inputContext:   "should we use kafka vs rabbitmq for our async notifications pipeline",
+			expectedScope:  "decision",
+			checkPromptSub: "Decision Research Plan",
+		},
+		{
+			name:           "Colloquial prompt with slang/typos routes to Comparison scope",
+			inputContext:   "hey im confused bw winston and pino for my express app which one shud i use?? need fast json logging pls help",
+			expectedScope:  "comparison",
+			checkPromptSub: "Comparison Research Prompt",
+		},
+		{
+			name:           "Migration question with slang routes to Decision scope",
+			inputContext:   "shuld we migrate our event storage from mysql to clickhouse",
+			expectedScope:  "decision",
+			checkPromptSub: "Decision Research Plan",
+		},
+		{
+			name:           "Frontend framework dilemma with slang routes to Decision scope",
+			inputContext:   "bro shuld i use react 19 server actions or tanstack react query for fetching data in my nextjs dashboard? im totally confused",
+			expectedScope:  "decision",
+			checkPromptSub: "Decision Research Plan",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			res, err := cs.CallTool(ctx, &mcp.CallToolParams{
+				Name: "vivechak_prepare_generator",
+				Arguments: map[string]any{
+					"project_root": tmpDir,
+					"context":      tc.inputContext,
+				},
+			})
+			if err != nil {
+				t.Fatalf("prepare_generator failed: %v", err)
+			}
+			env := parseEnvelope(t, res)
+			if !env.Success {
+				t.Fatalf("prepare_generator returned error: %s", env.Message)
+			}
+			data := env.Data.(map[string]any)
+			if data["scope"] != tc.expectedScope {
+				t.Errorf("context %q: expected scope %q, got %q", tc.inputContext, tc.expectedScope, data["scope"])
+			}
+			prompt, _ := data["prompt"].(string)
+			if !strings.Contains(prompt, tc.checkPromptSub) {
+				t.Errorf("context %q: expected prompt to contain %q, got: %s", tc.inputContext, tc.checkPromptSub, prompt[:300])
+			}
+		})
+	}
+}
+
+// TestComprehensive_WorkspaceAnchoringAcrossCalls verifies that when project_root is passed
+// once to vivechak_prepare_generator, subsequent tool calls that omit project_root inherit
+// the anchored workspace from session memory.
+func TestComprehensive_WorkspaceAnchoringAcrossCalls(t *testing.T) {
+	cs := testServer(t)
+	ctx := context.Background()
+	tmpDir := t.TempDir()
+
+	// 1. Prepare generator with explicit project_root
+	res1, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_prepare_generator",
+		Arguments: map[string]any{
+			"project_root": tmpDir,
+			"scope":        "comparison",
+			"context":      "Pino vs Winston on Node 22",
+		},
+	})
+	if err != nil {
+		t.Fatalf("prepare_generator: %v", err)
+	}
+	env1 := parseEnvelope(t, res1)
+	if !env1.Success {
+		t.Fatalf("prepare_generator returned error: %s", env1.Message)
+	}
+
+	// Verify project_root was anchored in session memory
+	lastResolved := core.GetLastResolvedWorkspace()
+	if !strings.EqualFold(lastResolved, tmpDir) {
+		t.Fatalf("core.GetLastResolvedWorkspace() = %q, want %q", lastResolved, tmpDir)
+	}
+
+	// 2. Call vivechak_save_plan with project_root OMITTED
+	wepContent := `# Comparison: Pino vs Winston
+| Metric | Pino | Winston |
+|---|---|---|
+| Speed | 5 | 3 |
+`
+	res2, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_save_plan",
+		Arguments: map[string]any{
+			"scope":       "comparison",
+			"decision_id": "C-01",
+			"slug":        "pino-vs-winston",
+			"content":     wepContent,
+		},
+	})
+	if err != nil {
+		t.Fatalf("save_plan: %v", err)
+	}
+	env2 := parseEnvelope(t, res2)
+	if !env2.Success {
+		t.Fatalf("save_plan without project_root failed: %s", env2.Message)
+	}
+
+	// Verify plan was saved inside the anchored tmpDir
+	expectedPlanPath := filepath.Join(tmpDir, core.ResearchDir, "C-01-cmp-pino-vs-winston.md")
+	if _, err := os.Stat(expectedPlanPath); os.IsNotExist(err) {
+		t.Fatalf("expected plan file to exist at anchored path %s, but not found", expectedPlanPath)
+	}
+
+	// 3. Call vivechak_status with project_root OMITTED
+	res3, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "vivechak_status",
+		Arguments: map[string]any{},
+	})
+	if err != nil {
+		t.Fatalf("status: %v", err)
+	}
+	env3 := parseEnvelope(t, res3)
+	if !env3.Success {
+		t.Fatalf("status without project_root failed: %s", env3.Message)
+	}
+	data3 := env3.Data.(map[string]any)
+	if data3["scope"] != "comparison" {
+		t.Errorf("expected scope 'comparison' in status data, got: %v", data3["scope"])
+	}
+}
+
+// TestComprehensive_GateStatusTextAndTransitions tests that gate_status and next_step
+// accurately transition through the state machine:
+// FAIL (structural failure) -> WARN (structural pass, quality failure) -> PASS (both pass).
+func TestComprehensive_GateStatusTextAndTransitions(t *testing.T) {
+	ctx := context.Background()
+
+	// State 1: FAIL — Empty workspace has structural failures
+	tmpDir1 := t.TempDir()
+	_, _, _ = handleInit(ctx, nil, InitInput{ProjectRoot: tmpDir1, Scope: "project"})
+	_, envGate1, _ := handleRunGate(ctx, nil, RunGateInput{ProjectRoot: tmpDir1})
+	data1 := envGate1.Data.(map[string]any)
+	if data1["gate_status"] != "FAIL" {
+		t.Errorf("State 1: expected gate_status 'FAIL', got: %v", data1["gate_status"])
+	}
+	if data1["gate_passed"] != false {
+		t.Errorf("State 1: expected gate_passed false, got: %v", data1["gate_passed"])
+	}
+	if !strings.Contains(envGate1.NextStep, "⛔ DO NOT PROCEED TO CODE") {
+		t.Errorf("State 1: expected blocking next_step, got: %q", envGate1.NextStep)
+	}
+
+	// State 2: WARN — Structural pass, but Quality checks fail (One-Way Door missing B5 rejected alternatives)
+	tmpDir2 := t.TempDir()
+	_, _, _ = handleInit(ctx, nil, InitInput{ProjectRoot: tmpDir2, Scope: "project"})
+	pContent := "# Research Pipeline\n### T1-01: S1\n| **ID** | T1-01 |\n| **Dependencies** | None |\n```prompt\np1\n```\n### T1-02: S2\n| **ID** | T1-02 |\n| **Dependencies** | None |\n```prompt\np2\n```\n### SYN-01: FAD\n| **ID** | SYN-01 |\n| **Dependencies** | T1-01, T1-02 |\n```prompt\np3\n```\n"
+	_, _, _ = handleSavePlan(ctx, nil, SavePlanInput{ProjectRoot: tmpDir2, Content: pContent, DecisionsContent: "# Decisions\n"})
+	s1Content := "---\nsession_id: T1-01\ntitle: S1\nstatus: complete\n---\n## Key Findings\n- Finding [Grade A] https://sqlite.org\n## Discovered Concerns\nWrite contention.\n## Delta\nUpdated.\n## Recommendation\nUse SQLite. Grade A (https://sqlite.org)\n"
+	_, _, _ = handleSaveSession(ctx, nil, SaveSessionInput{ProjectRoot: tmpDir2, SessionID: "T1-01", Content: s1Content})
+	s2Content := "---\nsession_id: T1-02\ntitle: S2\nstatus: complete\n---\n## Key Findings\n- Finding 2 [Grade A] https://quicwg.org\n## Discovered Concerns\nUDP blocking.\n## Delta\nUpdated.\n## Recommendation\nUse QUIC. Grade A (https://quicwg.org)\n"
+	_, _, _ = handleSaveSession(ctx, nil, SaveSessionInput{ProjectRoot: tmpDir2, SessionID: "T1-02", Content: s2Content})
+	fadContent := `---
+id: FAD-001
+session_id: SYN-01
+title: Founding Architecture Document
+synthesis_date: "2026-10-18"
+date: "2026-10-18"
+status: complete
+---
+# Founding Architecture Document
+This comprehensive architectural blueprint synthesizes all session findings into an unified system design.
+All major subsystems, data boundaries, and protocols are rigorously specified [Grade A: official docs https://sqlite.org].
+`
+	_, _, _ = handleSaveSession(ctx, nil, SaveSessionInput{ProjectRoot: tmpDir2, SessionID: "SYN-01", Content: fadContent})
+	// One-Way Door missing B5 (rejected alternatives)
+	adrBad := `---
+id: D-001
+title: Storage
+status: accepted
+door_type: one-way
+date: 2026-10-18
+informed_by_sessions:
+  - T1-01
+review_trigger: "Data > 100 GB"
+---
+# Context
+Storage choice.
+# Decision
+Adopt SQLite. Grade A (https://sqlite.org)
+## Reversal Triggers
+- Data > 100 GB.
+`
+	_, _, _ = handleRecordDecision(ctx, nil, RecordDecisionInput{ProjectRoot: tmpDir2, DecisionID: "D-001", Content: adrBad})
+
+	ws2, err := store.OpenWorkspace(tmpDir2)
+	if err != nil {
+		t.Fatalf("open workspace: %v", err)
+	}
+	defer ws2.Close()
+	info2 := core.InspectWorkspace(tmpDir2)
+	res2 := core.EvaluateGate(ws2, info2, tmpDir2)
+
+	if !res2.StructuralChecks.Passed {
+		t.Errorf("State 2: expected StructuralChecks to pass, got: %v", res2.StructuralChecks.Issues)
+	}
+	if res2.TrackBChecks.Passed {
+		t.Errorf("State 2: expected TrackBChecks to fail due to missing B5")
+	}
+	if res2.Status != "WARN" {
+		t.Errorf("State 2: expected core GateResult.Status to be 'WARN', got: %s", res2.Status)
+	}
+	if res2.Passed != false {
+		t.Errorf("State 2: expected core GateResult.Passed to be false, got: %v", res2.Passed)
+	}
+	if !strings.Contains(res2.NextStep, "Gate quality checks incomplete") {
+		t.Errorf("State 2: expected NextStep to warn about quality checks, got: %q", res2.NextStep)
+	}
+
+	// State 3: PASS — Both Structural and Quality pass
+	adrGood := `---
+id: D-001
+title: Storage
+status: accepted
+door_type: one-way
+date: 2026-10-18
+informed_by_sessions:
+  - T1-01
+review_trigger: "Data > 100 GB"
+---
+# Context
+Storage choice.
+# Decision
+Adopt SQLite. Grade A (https://sqlite.org)
+## Rejected Alternatives
+- PostgreSQL: rejected due to daemon resource footprint and high operational complexity.
+## Reversal Triggers
+- Data > 100 GB.
+`
+	_, _, _ = handleRecordDecision(ctx, nil, RecordDecisionInput{ProjectRoot: tmpDir2, DecisionID: "D-001", Content: adrGood})
+	res3 := core.EvaluateGate(ws2, info2, tmpDir2)
+	if !res3.Passed {
+		t.Errorf("State 3: expected core GateResult.Passed to be true, got false. Issues: %v", res3.QualityChecks.Issues)
+	}
+	if res3.Status != "PASS" {
+		t.Errorf("State 3: expected core GateResult.Status to be 'PASS', got: %s", res3.Status)
+	}
+	if !strings.Contains(res3.NextStep, "Gate PASSED!") {
+		t.Errorf("State 3: expected NextStep to celebrate Gate PASSED, got: %q", res3.NextStep)
+	}
+}
+
+
 

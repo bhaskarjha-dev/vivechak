@@ -45,6 +45,13 @@ func registerPrepareGenerator(server *sdkmcp.Server) {
 func handlePrepareGenerator(_ context.Context, _ *sdkmcp.CallToolRequest, in PrepareGeneratorInput) (*sdkmcp.CallToolResult, Envelope, error) {
 	const tool = "vivechak_prepare_generator"
 
+	// Anchor workspace in session memory if project_root was provided
+	if in.ProjectRoot != "" {
+		if ws, err := core.ResolveWorkspace(in.ProjectRoot); err == nil {
+			core.SetLastResolvedWorkspace(ws)
+		}
+	}
+
 	// Parse scope
 	scope := core.ScopeProject
 	if in.Scope != "" {
@@ -224,7 +231,7 @@ func extractComparisonOptions(ctx string) string {
 					break
 				}
 			}
-			suffixes := []string{" for ", " in ", " with ", " when ", " under "}
+			suffixes := []string{" for ", " in ", " with ", " when ", " under ", " on ", " as ", " to ", " across ", " over ", " within "}
 			for _, s := range suffixes {
 				if sIdx := strings.Index(strings.ToLower(right), s); sIdx != -1 {
 					right = strings.TrimSpace(right[:sIdx])

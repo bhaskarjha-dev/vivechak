@@ -84,7 +84,7 @@ export function execWithWatchdog(cmd, args = [], options = {}) {
         if (options.onStderr) options.onStderr(text);
       });
 
-      p.on("close", (code) => {
+      const finalize = (code) => {
         if (!finished) {
           finished = true;
           clearTimeout(timer);
@@ -96,6 +96,15 @@ export function execWithWatchdog(cmd, args = [], options = {}) {
             killed: false
           });
         }
+      };
+
+      p.on("exit", (code) => {
+        // When the primary process exits, allow brief grace period for stream buffer flush
+        setTimeout(() => finalize(code), 250);
+      });
+
+      p.on("close", (code) => {
+        finalize(code);
       });
     };
 

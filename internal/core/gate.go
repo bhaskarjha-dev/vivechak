@@ -304,10 +304,15 @@ func EvaluateGate(ws WorkspaceFS, info WorkspaceInfo, root string) *GateResult {
 		}
 	}
 
-	// Evidence integrity checks (B3/B4/B5) — strict blocking for One-Way Doors
+	// Evidence integrity checks (B3/B4/B5/B11) — strict blocking for One-Way Doors
 	if info.Scope == ScopeProject || info.Scope == ScopeDecision {
+		trackBTotal++
 		eiBlocking, eiAdvisories := verifyEvidentiaryIntegrity(ws, info)
-		trackBIssues = append(trackBIssues, eiBlocking...)
+		if len(eiBlocking) == 0 {
+			trackBPassed++
+		} else {
+			trackBIssues = append(trackBIssues, eiBlocking...)
+		}
 		gateAdvisories = append(gateAdvisories, eiAdvisories...)
 	}
 
@@ -362,7 +367,7 @@ func EvaluateGate(ws WorkspaceFS, info WorkspaceInfo, root string) *GateResult {
 		case "PASS":
 			nextStep = "Gate PASSED! The research phase is complete. All architectural decisions and evidence gates satisfied. Proceed to repository implementation and code scaffolding."
 		case "WARN":
-			nextStep = "Gate passed with quality advisories. Review the warnings above before proceeding to code scaffolding."
+			nextStep = "Gate quality checks incomplete. Resolve the listed quality warnings before proceeding to code scaffolding."
 		case "FAIL":
 			nextStep = "Gate FAILED. All blocking issues must be resolved before proceeding to code. Fix the listed issues and re-run vivechak_run_gate."
 		}
@@ -724,6 +729,17 @@ func verifyEvidentiaryIntegrity(ws WorkspaceFS, info WorkspaceInfo) ([]string, [
 			}
 		}
 
+		// B11: Check red-team challenge verification
+		checkChallengeText := func(text string) bool {
+			lower := strings.ToLower(text)
+			return strings.Contains(lower, "## challenge findings") ||
+				strings.Contains(lower, "## red-team stress test") ||
+				strings.Contains(lower, "## red team stress test") ||
+				strings.Contains(lower, "challenge findings") ||
+				strings.Contains(lower, "red-team stress test")
+		}
+		hasChallenge := checkChallengeText(bodyStr)
+
 		for _, sid := range sessIDs {
 			var sData []byte
 			if sd, err := ws.ReadFile(filepath.Join(SessionsDir, sid+".md")); err == nil {
@@ -743,6 +759,9 @@ func verifyEvidentiaryIntegrity(ws WorkspaceFS, info WorkspaceInfo) ([]string, [
 				continue
 			}
 			sessStr := string(sData)
+			if !hasChallenge && checkChallengeText(sessStr) {
+				hasChallenge = true
+			}
 			checkStr := extractRecommendationText(sessStr)
 			if len(strings.TrimSpace(checkStr)) < 20 {
 				advisories = append(advisories, fmt.Sprintf(
@@ -767,6 +786,11 @@ func verifyEvidentiaryIntegrity(ws WorkspaceFS, info WorkspaceInfo) ([]string, [
 						"One-way decisions require fetched/cached verification. (help: fetch primary evidence and update via vivechak_amend_session(session_id=%q))",
 					sid, d.ID, recalledCount, sid))
 			}
+		}
+
+		if !hasChallenge {
+			advisories = append(advisories, fmt.Sprintf(
+				"W-OWD-NO-CHALLENGE: One-Way Door decision %s was not subjected to adversarial red-team challenge before commitment.", d.ID))
 		}
 	}
 	return blocking, advisories
