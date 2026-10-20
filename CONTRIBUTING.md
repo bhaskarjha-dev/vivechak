@@ -33,7 +33,12 @@ Vivechak was created by applying its own methodology to itself — 11 meta-resea
 
 ### Building
 ```bash
-go build ./cmd/vivechak/
+# Standard build (uses Makefile with -trimpath and -ldflags="-s -w"):
+make build
+
+# Or manual production build:
+go build -trimpath -ldflags="-s -w -X main.version=0.1.0" -o vck ./cmd/vivechak/
+go build -trimpath -ldflags="-s -w -X main.version=0.1.0" -o vivechak ./cmd/vivechak/
 ```
 
 ### Running Tests

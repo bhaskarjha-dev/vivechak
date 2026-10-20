@@ -58,8 +58,23 @@ nix run github:bhaskarjha-dev/vivechak
 # Direct Shell Installers
 curl -fsSL https://raw.githubusercontent.com/bhaskarjha-dev/vivechak/main/install.sh | sh      # macOS/Linux
 irm https://raw.githubusercontent.com/bhaskarjha-dev/vivechak/main/install.ps1 | iex           # Windows
+```
 
-# Go Toolchain (Go 1.25+)
+**Or Build from Source (Go 1.25+):**
+```sh
+# Clone and build locally with zero external C dependencies:
+git clone https://github.com/bhaskarjha-dev/vivechak.git
+cd vivechak
+make build                                    # builds production-optimized vck and vivechak binaries (-s -w stripped)
+
+# Or manually:
+# go build -trimpath -ldflags="-s -w -X main.version=0.1.0" -o vck ./cmd/vivechak/
+
+# Optional: Install to PATH or run directly
+./vck version                                 # (or .\vck.exe on Windows)
+```
+Or install via Go toolchain:
+```sh
 go install github.com/bhaskarjha-dev/vivechak/cmd/vivechak@latest
 ```
 

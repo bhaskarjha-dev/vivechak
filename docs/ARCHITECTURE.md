@@ -479,11 +479,12 @@ In [`internal/mcp/server_test.go`](../internal/mcp/server_test.go):
 ### Compiling the Binary
 To build the server executable:
 ```bash
-# Standard build
-go build -o bin/vivechak ./cmd/vivechak
+# Standard build using Makefile (builds both vck and vivechak with -trimpath and -s -w stripping)
+make build
 
-# Release build with version injection via ldflags
-go build -ldflags "-X main.version=v0.1.0" -o bin/vivechak ./cmd/vivechak
+# Or manual production build:
+go build -trimpath -ldflags="-s -w -X main.version=0.1.0" -o vck ./cmd/vivechak
+go build -trimpath -ldflags="-s -w -X main.version=0.1.0" -o vivechak ./cmd/vivechak
 ```
 
 ### Running Tests

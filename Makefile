@@ -1,7 +1,18 @@
 .PHONY: build test test-race bench lint vet embed-sync doctor gate clean release-check harness-probe harness-test harness-test-all harness-triage harness-clean harness-clean-sandboxes
 
+VERSION ?= 0.1.0
+LDFLAGS ?= -s -w -X main.version=$(VERSION)
+export CGO_ENABLED ?= 0
+
+ifeq ($(OS),Windows_NT)
+  EXE := .exe
+else
+  EXE :=
+endif
+
 build:
-	go build ./cmd/vivechak/
+	go build -trimpath -ldflags "$(LDFLAGS)" -o vck$(EXE) ./cmd/vivechak/
+	go build -trimpath -ldflags "$(LDFLAGS)" -o vivechak$(EXE) ./cmd/vivechak/
 
 doctor:
 	go run ./cmd/vivechak doctor

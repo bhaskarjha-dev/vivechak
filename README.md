@@ -60,8 +60,42 @@ nix run github:bhaskarjha-dev/vivechak
 # Direct Shell Installers
 curl -fsSL https://raw.githubusercontent.com/bhaskarjha-dev/vivechak/main/install.sh | sh      # macOS/Linux
 irm https://raw.githubusercontent.com/bhaskarjha-dev/vivechak/main/install.ps1 | iex           # Windows
+```
 
-# Go Toolchain (Go 1.25+)
+### 3. Build from Source (Go 1.25+)
+If you prefer not to use package managers or pre-built binaries, build directly from source with zero C dependencies:
+
+```sh
+# 1. Clone repository
+git clone https://github.com/bhaskarjha-dev/vivechak.git
+cd vivechak
+
+# 2. Build both vck and vivechak binaries:
+make build
+
+# Or manually with production optimization flags:
+# (-trimpath strips paths; -s -w strips debug symbols & DWARF info for ~35% smaller binary)
+# macOS / Linux:
+CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -X main.version=0.1.0" -o vck ./cmd/vivechak/
+CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -X main.version=0.1.0" -o vivechak ./cmd/vivechak/
+
+# Windows (PowerShell):
+$env:CGO_ENABLED="0"; go build -trimpath -ldflags="-s -w -X main.version=0.1.0" -o vck.exe ./cmd/vivechak/
+$env:CGO_ENABLED="0"; go build -trimpath -ldflags="-s -w -X main.version=0.1.0" -o vivechak.exe ./cmd/vivechak/
+
+# 3. (Optional) Verify binary and test suite:
+./vck version                                 # displays: vivechak 0.1.0 (or .\vck.exe version on Windows)
+make test                                     # runs 100% of unit tests
+
+# 4. (Optional) Install to your system PATH:
+# macOS / Linux:
+sudo cp vck vivechak /usr/local/bin/
+# Windows (PowerShell - copy to user bin or add repo folder to PATH):
+Copy-Item vck.exe, vivechak.exe -Destination "$env:USERPROFILE\bin\"
+```
+
+Or install directly into your `$GOPATH/bin` via the Go toolchain:
+```sh
 go install github.com/bhaskarjha-dev/vivechak/cmd/vivechak@latest
 ```
 
