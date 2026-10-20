@@ -70,7 +70,10 @@ func ParseFrontmatter(data []byte) (Frontmatter, []byte, error) {
 					if yamlEnd != -1 {
 						yamlBlock := detailsContent[yamlContentStart : yamlContentStart+yamlEnd]
 						fm := make(Frontmatter)
-						if err := yaml.Unmarshal(yamlBlock, &fm); err == nil && len(fm) > 0 {
+						if err := yaml.Unmarshal(yamlBlock, &fm); err != nil {
+							return nil, nil, fmt.Errorf("malformed frontmatter in details block: %w", err)
+						}
+						if len(fm) > 0 {
 							fenceEnd := yamlContentStart + yamlEnd + 3
 							for fenceEnd < len(detailsContent) && detailsContent[fenceEnd] != '\n' {
 								fenceEnd++
@@ -150,7 +153,10 @@ func ParseFrontmatter(data []byte) (Frontmatter, []byte, error) {
 					if closeIdx != -1 {
 						yamlBlock := detailsContent[openEnd:closeIdx]
 						fm := make(Frontmatter)
-						if err := yaml.Unmarshal(yamlBlock, &fm); err == nil && len(fm) > 0 {
+						if err := yaml.Unmarshal(yamlBlock, &fm); err != nil {
+							return nil, nil, fmt.Errorf("malformed frontmatter in details block: %w", err)
+						}
+						if len(fm) > 0 {
 							closeEnd := closeIdx + 3
 							for closeEnd < len(detailsContent) && detailsContent[closeEnd] != '\n' {
 								closeEnd++
@@ -451,6 +457,63 @@ func SetFrontmatterField(data []byte, key, value string) []byte {
 					if yamlEnd != -1 {
 						blockStart := start + yamlContentStart
 						blockEnd := start + yamlContentStart + yamlEnd
+						return replaceOrInsertInBlock(data, d, bomLen, blockStart, blockEnd, key, value)
+					}
+				}
+			} else {
+				// 2. Standard --- delimited frontmatter inside <details>
+				openIdx := -1
+				pos := 0
+				for pos < len(detailsContent) {
+					lineStart := pos
+					lineEnd := pos
+					for lineEnd < len(detailsContent) && detailsContent[lineEnd] != '\n' {
+						lineEnd++
+					}
+					lineTrim := bytes.TrimRight(detailsContent[lineStart:lineEnd], " \t\r")
+					if bytes.Equal(lineTrim, []byte("---")) {
+						openIdx = lineStart
+						break
+					}
+					if lineEnd < len(detailsContent) {
+						pos = lineEnd + 1
+					} else {
+						break
+					}
+				}
+
+				if openIdx != -1 {
+					openEnd := openIdx + 3
+					for openEnd < len(detailsContent) && detailsContent[openEnd] != '\n' {
+						openEnd++
+					}
+					if openEnd < len(detailsContent) {
+						openEnd++
+					}
+
+					closeIdx := -1
+					pos = openEnd
+					for pos < len(detailsContent) {
+						lineStart := pos
+						lineEnd := pos
+						for lineEnd < len(detailsContent) && detailsContent[lineEnd] != '\n' {
+							lineEnd++
+						}
+						lineTrim := bytes.TrimRight(detailsContent[lineStart:lineEnd], " \t\r")
+						if bytes.Equal(lineTrim, []byte("---")) {
+							closeIdx = lineStart
+							break
+						}
+						if lineEnd < len(detailsContent) {
+							pos = lineEnd + 1
+						} else {
+							break
+						}
+					}
+
+					if closeIdx != -1 {
+						blockStart := start + openEnd
+						blockEnd := start + closeIdx
 						return replaceOrInsertInBlock(data, d, bomLen, blockStart, blockEnd, key, value)
 					}
 				}

@@ -367,6 +367,7 @@ func ExtractUnanchoredDecisionBlocks(content []byte) [][]byte {
 		// Look ahead for the closing fence and verify an id or decision_id exists
 		closeLine := -1
 		hasID := false
+		rawID := ""
 		for j := i + 1; j < len(lines); j++ {
 			tr := strings.TrimSpace(lines[j])
 			if tr == "---" {
@@ -375,20 +376,27 @@ func ExtractUnanchoredDecisionBlocks(content []byte) [][]byte {
 			}
 			if strings.HasPrefix(tr, "id:") || strings.HasPrefix(tr, "decision_id:") {
 				hasID = true
+				parts := strings.SplitN(tr, ":", 2)
+				if len(parts) == 2 {
+					rawID = strings.TrimSpace(parts[1])
+					rawID = strings.Trim(rawID, `"'`)
+				}
 			}
 		}
 
 		if closeLine != -1 && hasID {
 			fmText := strings.Join(lines[i:closeLine+1], "\n")
+			id := rawID
 			if fm, _, err := ParseFrontmatter([]byte(fmText)); err == nil && fm != nil {
-				id := fm.GetString("id")
-				if id == "" {
-					id = fm.GetString("decision_id")
+				if parsedID := fm.GetString("id"); parsedID != "" {
+					id = parsedID
+				} else if parsedID := fm.GetString("decision_id"); parsedID != "" {
+					id = parsedID
 				}
-				if id != "" && !strings.HasPrefix(strings.ToUpper(id), "CHK-") {
-					decs = append(decs, decLoc{startLine: i, fmEndLine: closeLine, id: id})
-					i = closeLine // advance past this frontmatter
-				}
+			}
+			if id != "" && !strings.HasPrefix(strings.ToUpper(id), "CHK-") {
+				decs = append(decs, decLoc{startLine: i, fmEndLine: closeLine, id: id})
+				i = closeLine // advance past this frontmatter
 			}
 		}
 	}
@@ -472,15 +480,31 @@ func ValidateDecisionRegistry(data []byte) *ValidationResult {
 	}
 
 	for _, block := range ExtractUnanchoredDecisionBlocks(data) {
+		id := ""
 		if fm, _, err := ParseFrontmatter(block); err == nil && fm != nil {
-			id := fm.GetString("id")
+			id = fm.GetString("id")
 			if id == "" {
 				id = fm.GetString("decision_id")
 			}
-			if id != "" && !seenDecIDs[strings.ToUpper(id)] && !strings.HasPrefix(strings.ToUpper(id), "CHK-") {
-				seenDecIDs[strings.ToUpper(id)] = true
-				validateSingleDec(id, block)
+		}
+		if id == "" {
+			// Extract rawID if ParseFrontmatter failed (e.g. malformed YAML syntax)
+			lines := strings.Split(string(block), "\n")
+			for _, line := range lines {
+				tr := strings.TrimSpace(line)
+				if strings.HasPrefix(tr, "id:") || strings.HasPrefix(tr, "decision_id:") {
+					parts := strings.SplitN(tr, ":", 2)
+					if len(parts) == 2 {
+						id = strings.TrimSpace(parts[1])
+						id = strings.Trim(id, `"'`)
+						break
+					}
+				}
 			}
+		}
+		if id != "" && !seenDecIDs[strings.ToUpper(id)] && !strings.HasPrefix(strings.ToUpper(id), "CHK-") {
+			seenDecIDs[strings.ToUpper(id)] = true
+			validateSingleDec(id, block)
 		}
 	}
 

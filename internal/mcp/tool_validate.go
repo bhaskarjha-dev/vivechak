@@ -269,12 +269,15 @@ func handleWorkspaceValidate(tool string, projectRoot string) (*sdkmcp.CallToolR
 
 	// Also validate decisions in consolidated DECISIONS.md (deduplicating already validated IDs)
 	if data, err := ws.ReadFile(core.DecisionsFile); err == nil && len(data) > 0 {
-		anchoredRe := regexp.MustCompile(`(?s)<!-- DECISION:\s*([A-Za-z0-9_-]+)\s*-->\s*(.*?)\s*<!-- /DECISION:\s*[A-Za-z0-9_-]+\s*-->`)
-		unanchoredRe := regexp.MustCompile(`(?s)(?:^|\n)(---\s*\n.*?\n---)`)
+		anchoredRe := regexp.MustCompile(`(?s)<!--\s*DECISION:\s*([A-Za-z0-9_-]+)\s*-->\s*(.*?)\s*<!--\s*/DECISION:\s*([A-Za-z0-9_-]+)\s*-->`)
 
 		matches := anchoredRe.FindAllSubmatch(data, -1)
 		for _, m := range matches {
 			id := string(m[1])
+			closeID := string(m[3])
+			if !strings.EqualFold(id, closeID) {
+				continue
+			}
 			if seenIDs[strings.ToUpper(id)] {
 				continue
 			}
@@ -292,26 +295,41 @@ func handleWorkspaceValidate(tool string, projectRoot string) (*sdkmcp.CallToolR
 			}
 		}
 
-		// Also check unanchored frontmatter blocks in DECISIONS.md
-		for _, m := range unanchoredRe.FindAllSubmatch(data, -1) {
-			if fm, _, err := core.ParseFrontmatter(m[1]); err == nil && fm != nil {
-				id := fm.GetString("id")
+		// Also check unanchored decision blocks in DECISIONS.md
+		for _, block := range core.ExtractUnanchoredDecisionBlocks(data) {
+			id := ""
+			if fm, _, err := core.ParseFrontmatter(block); err == nil && fm != nil {
+				id = fm.GetString("id")
 				if id == "" {
 					id = fm.GetString("decision_id")
 				}
-				if id != "" && !seenIDs[strings.ToUpper(id)] && !strings.HasPrefix(strings.ToUpper(id), "CHK-") {
-					seenIDs[strings.ToUpper(id)] = true
-					v := core.ValidateDecision(m[1])
-					if v.HasBlocking() {
-						decisionsErrors++
-						for _, issue := range v.BlockingIssues() {
-							allWarnings = append(allWarnings, fmt.Sprintf("DECISION %s: %s", id, issue.String()))
+			}
+			if id == "" {
+				lines := strings.Split(string(block), "\n")
+				for _, line := range lines {
+					tr := strings.TrimSpace(line)
+					if strings.HasPrefix(tr, "id:") || strings.HasPrefix(tr, "decision_id:") {
+						parts := strings.SplitN(tr, ":", 2)
+						if len(parts) == 2 {
+							id = strings.TrimSpace(parts[1])
+							id = strings.Trim(id, `"'`)
+							break
 						}
-					} else if v.WarningCount() > 0 {
-						decisionsWarnings++
-					} else {
-						decisionsValid++
 					}
+				}
+			}
+			if id != "" && !seenIDs[strings.ToUpper(id)] && !strings.HasPrefix(strings.ToUpper(id), "CHK-") {
+				seenIDs[strings.ToUpper(id)] = true
+				v := core.ValidateDecision(block)
+				if v.HasBlocking() {
+					decisionsErrors++
+					for _, issue := range v.BlockingIssues() {
+						allWarnings = append(allWarnings, fmt.Sprintf("DECISION %s: %s", id, issue.String()))
+					}
+				} else if v.WarningCount() > 0 {
+					decisionsWarnings++
+				} else {
+					decisionsValid++
 				}
 			}
 		}

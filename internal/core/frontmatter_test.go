@@ -868,6 +868,73 @@ status: draft
 			t.Errorf("expected leading title to remain at top of document")
 		}
 	})
+
+	t.Run("updates field inside details block with --- frontmatter", func(t *testing.T) {
+		input := `<details>
+<summary><b>D-002: Storage Layer</b></summary>
+
+---
+id: D-002
+title: Storage Layer
+door_type: two-way
+status: draft
+---
+
+# D-002: Storage Layer
+Details here.
+</details>
+`
+		out := SetFrontmatterField([]byte(input), "status", "complete")
+		fm, body, err := ParseFrontmatter(out)
+		if err != nil || fm == nil {
+			t.Fatalf("failed to parse frontmatter from details with --- frontmatter: %v", err)
+		}
+		if fm.GetString("status") != "complete" {
+			t.Errorf("expected status 'complete', got %q", fm.GetString("status"))
+		}
+		if !strings.Contains(string(out), "<details>") || !strings.Contains(string(out), "</details>") {
+			t.Errorf("details block tags must be preserved in output:\n%s", string(out))
+		}
+		if !strings.Contains(string(body), "Details here.") {
+			t.Errorf("body must be preserved in output:\n%s", string(body))
+		}
+	})
+}
+
+func TestParseFrontmatter_DetailsError(t *testing.T) {
+	t.Run("malformed yaml in details code fence returns error", func(t *testing.T) {
+		input := `<details>
+<summary>Bad YAML</summary>
+
+` + "```yaml" + `
+id: D-01
+title: [unclosed bracket
+` + "```" + `
+
+</details>
+`
+		_, _, err := ParseFrontmatter([]byte(input))
+		if err == nil {
+			t.Fatal("expected error parsing malformed YAML inside details code fence, got nil")
+		}
+	})
+
+	t.Run("malformed yaml in details --- delimiter returns error", func(t *testing.T) {
+		input := `<details>
+<summary>Bad YAML</summary>
+
+---
+id: D-01
+title: [unclosed bracket
+---
+
+</details>
+`
+		_, _, err := ParseFrontmatter([]byte(input))
+		if err == nil {
+			t.Fatal("expected error parsing malformed YAML inside details --- delimiter, got nil")
+		}
+	})
 }
 
 

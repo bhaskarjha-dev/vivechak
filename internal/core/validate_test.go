@@ -1158,5 +1158,38 @@ Body without title.
 	if !resEmpty.HasBlocking() {
 		t.Errorf("expected blocking error for empty registry, got: %s", resEmpty.Status)
 	}
+
+	// 5. Registry with one valid decision and one decision containing malformed YAML syntax
+	malformed := `# Architectural Decisions
+---
+id: D-01
+title: Valid Decision
+status: proposed
+door_type: two-way
+---
+Valid decision body.
+
+---
+id: D-02
+title: [malformed unclosed bracket
+status: proposed
+door_type: one-way
+---
+Body for D-02.
+`
+	resMalformed := ValidateDecisionRegistry([]byte(malformed))
+	if !resMalformed.HasBlocking() {
+		t.Fatalf("expected blocking error for registry containing malformed decision, got status: %s", resMalformed.Status)
+	}
+	foundD02Error := false
+	for _, iss := range resMalformed.Issues {
+		if (iss.Prefix == "DECISION D-02: " || strings.HasPrefix(iss.String(), "DECISION D-02:")) && iss.Code == "V-INVALID-FRONTMATTER" {
+			foundD02Error = true
+			break
+		}
+	}
+	if !foundD02Error {
+		t.Errorf("expected V-INVALID-FRONTMATTER for D-02, got issues: %v", resMalformed.Issues)
+	}
 }
 
