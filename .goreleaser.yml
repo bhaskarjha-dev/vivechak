@@ -236,7 +236,7 @@ release:
   prerelease: auto
   name_template: "v{{.Version}}"
 
-brews:
+homebrew_casks:
   - name: vivechak
     ids:
       - default
@@ -245,20 +245,13 @@ brews:
       owner: bhaskarjha-dev
       name: homebrew-tap
       token: "{{ if index .Env \"TAP_GITHUB_TOKEN\" }}{{ .Env.TAP_GITHUB_TOKEN }}{{ else }}{{ .Env.GITHUB_TOKEN }}{{ end }}"
-    directory: Formula
+    directory: Casks
     homepage: https://github.com/bhaskarjha-dev/vivechak
     description: Evidence-grounded research for technical decisions — MCP server
     license: MIT
-    install: |
-      bin.install "vivechak"
-      if File.exist?("vck")
-        bin.install "vck"
-      else
-        bin.install_symlink "vivechak" => "vck"
-      end
-    test: |
-      system "#{bin}/vivechak", "version"
-      system "#{bin}/vck", "version"
+    binaries:
+      - vivechak
+      - vck
 
   - name: vck
     ids:
@@ -268,20 +261,13 @@ brews:
       owner: bhaskarjha-dev
       name: homebrew-tap
       token: "{{ if index .Env \"TAP_GITHUB_TOKEN\" }}{{ .Env.TAP_GITHUB_TOKEN }}{{ else }}{{ .Env.GITHUB_TOKEN }}{{ end }}"
-    directory: Formula
+    directory: Casks
     homepage: https://github.com/bhaskarjha-dev/vivechak
     description: Shorthand CLI for Vivechak — evidence-grounded research MCP server
     license: MIT
-    install: |
-      bin.install "vck"
-      if File.exist?("vivechak")
-        bin.install "vivechak"
-      else
-        bin.install_symlink "vck" => "vivechak"
-      end
-    test: |
-      system "#{bin}/vck", "version"
-      system "#{bin}/vivechak", "version"
+    binaries:
+      - vck
+      - vivechak
 
 scoops:
   - name: vivechak
