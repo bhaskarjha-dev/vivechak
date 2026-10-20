@@ -149,10 +149,12 @@ universal_binaries:
 archives:
   - id: default
     name_template: "vivechak_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
-    format: tar.gz
+    formats:
+      - tar.gz
     format_overrides:
       - goos: windows
-        format: zip
+        formats:
+          - zip
     files:
       - LICENSE
       - README.md
@@ -186,16 +188,12 @@ nfpms:
         dst: /usr/share/doc/vivechak/README.md
         file_info:
           mode: 0644
-    deb:
-      provides:
-        - vck
-      conflicts:
-        - vck
-      replaces:
-        - vck
-    rpm:
-      provides:
-        - vck
+    provides:
+      - vck
+    conflicts:
+      - vck
+    replaces:
+      - vck
 
 checksum:
   name_template: checksums.txt
@@ -297,9 +295,6 @@ scoops:
     homepage: https://github.com/bhaskarjha-dev/vivechak
     description: Evidence-grounded research for technical decisions — MCP server
     license: MIT
-    bin:
-      - "vivechak.exe"
-      - "vck.exe"
 
   - name: vck
     ids:
@@ -312,6 +307,3 @@ scoops:
     homepage: https://github.com/bhaskarjha-dev/vivechak
     description: Shorthand CLI for Vivechak — evidence-grounded research MCP server
     license: MIT
-    bin:
-      - "vck.exe"
-      - "vivechak.exe"
