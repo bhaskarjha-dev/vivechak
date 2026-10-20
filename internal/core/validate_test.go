@@ -1048,3 +1048,115 @@ Grade A: fetched from official paper.
 		t.Errorf("expected W-MISSING-WEP-MATRIX for comparison lacking matrix table, got: %v", resNoWEP.Issues)
 	}
 }
+
+func TestValidateDecisionRegistry(t *testing.T) {
+	// 1. Registry with markdown preamble and anchored blocks in status: proposed
+	content := `# Architectural Decision Log
+
+| Decision | Title | Status |
+|---|---|---|
+| D-01 | DB Choice | proposed |
+| D-02 | Cache Choice | proposed |
+
+<!-- DECISION: D-01 -->
+<details>
+<summary><b>D-01: DB Choice</b></summary>
+
+---
+id: D-01
+title: DB Choice
+status: proposed
+door_type: one-way
+date: 2026-10-21
+---
+Short skeleton body for seed decision.
+</details>
+<!-- /DECISION: D-01 -->
+
+<!-- DECISION: D-02 -->
+<details>
+<summary><b>D-02: Cache Choice</b></summary>
+
+---
+id: D-02
+title: Cache Choice
+status: proposed
+door_type: two-way
+date: 2026-10-21
+---
+Another short skeleton body.
+</details>
+<!-- /DECISION: D-02 -->
+`
+	res := ValidateDecisionRegistry([]byte(content))
+	if res.Status != "valid" {
+		t.Fatalf("expected valid status for multi-decision registry, got: %s (issues: %v)", res.Status, res.Issues)
+	}
+	if res.ErrorCount() != 0 {
+		t.Errorf("expected 0 errors, got: %d (%v)", res.ErrorCount(), res.Issues)
+	}
+	if res.WarningCount() != 0 {
+		t.Errorf("expected 0 warnings for proposed seed decisions, got: %d (%v)", res.WarningCount(), res.Issues)
+	}
+
+	// 2. Registry with unanchored decision blocks
+	unanchored := `# Decision Registry
+### D-01: Storage Engine
+---
+id: D-01
+title: Storage Engine
+status: proposed
+door_type: one-way
+date: 2026-10-21
+---
+Context for D-01.
+
+### D-02: Caching Layer
+---
+id: D-02
+title: Caching Layer
+status: proposed
+door_type: two-way
+date: 2026-10-21
+---
+Context for D-02.
+`
+	resUnanchored := ValidateDecisionRegistry([]byte(unanchored))
+	if resUnanchored.Status != "valid" {
+		t.Fatalf("expected valid for unanchored registry, got: %s (issues: %v)", resUnanchored.Status, resUnanchored.Issues)
+	}
+
+	// 3. Registry with a defective decision block (missing required title)
+	defective := `# Decisions Log
+<!-- DECISION: D-01 -->
+---
+id: D-01
+status: proposed
+door_type: one-way
+date: 2026-10-21
+---
+Body without title.
+<!-- /DECISION: D-01 -->
+`
+	resDefective := ValidateDecisionRegistry([]byte(defective))
+	if !resDefective.HasBlocking() {
+		t.Fatalf("expected blocking error for decision missing title, got status: %s", resDefective.Status)
+	}
+	foundPrefixed := false
+	for _, iss := range resDefective.Issues {
+		if strings.HasPrefix(iss.Prefix, "DECISION D-01:") || strings.HasPrefix(iss.String(), "DECISION D-01:") {
+			foundPrefixed = true
+			break
+		}
+	}
+	if !foundPrefixed {
+		t.Errorf("expected issue prefixed with 'DECISION D-01:', got: %v", resDefective.Issues)
+	}
+
+	// 4. Empty registry content
+	resEmpty := ValidateDecisionRegistry([]byte(""))
+	if !resEmpty.HasBlocking() {
+		t.Errorf("expected blocking error for empty registry, got: %s", resEmpty.Status)
+	}
+}
+

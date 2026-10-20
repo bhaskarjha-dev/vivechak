@@ -3261,6 +3261,76 @@ Review if write transactions exceed 500 ops/sec.
 	}
 }
 
+func TestValidate_DecisionRegistryWithPreamble(t *testing.T) {
+	ctx := context.Background()
+	cs := testServer(t)
+
+	decisionsContent := `# Architectural Decision Records
+
+This log documents all technical choices for the platform.
+
+| Decision | Title | Door Type | Status | Date |
+|---|---|---|---|---|
+| D-01 | Primary Database | one-way | proposed | 2026-10-21 |
+
+<!-- DECISION: D-01 -->
+<details>
+<summary><b>D-01: Primary Database</b></summary>
+
+---
+id: D-01
+title: Primary Database
+status: proposed
+door_type: one-way
+date: 2026-10-21
+---
+Initial proposed ADR skeleton for D-01.
+</details>
+<!-- /DECISION: D-01 -->
+`
+
+	// 1. Validate with artifact_type="decision"
+	res1, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_validate",
+		Arguments: map[string]any{
+			"artifact_type": "decision",
+			"content":       decisionsContent,
+		},
+	})
+	if err != nil {
+		t.Fatalf("call validate: %v", err)
+	}
+	env1 := parseEnvelope(t, res1)
+	if !env1.Success {
+		t.Fatalf("expected success, got: %s", env1.Message)
+	}
+	data1, _ := env1.Data.(map[string]any)
+	if data1["status"] != "valid" {
+		t.Errorf("expected valid status, got %v (warnings: %v)", data1["status"], env1.Warnings)
+	}
+
+	// 2. Validate with artifact_type="decisions"
+	res2, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_validate",
+		Arguments: map[string]any{
+			"artifact_type": "decisions",
+			"content":       decisionsContent,
+		},
+	})
+	if err != nil {
+		t.Fatalf("call validate: %v", err)
+	}
+	env2 := parseEnvelope(t, res2)
+	if !env2.Success {
+		t.Fatalf("expected success, got: %s", env2.Message)
+	}
+	data2, _ := env2.Data.(map[string]any)
+	if data2["status"] != "valid" {
+		t.Errorf("expected valid status for artifact_type=decisions, got %v (warnings: %v)", data2["status"], env2.Warnings)
+	}
+}
+
+
 
 
 

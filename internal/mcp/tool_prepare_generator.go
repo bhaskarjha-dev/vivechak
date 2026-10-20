@@ -203,7 +203,7 @@ func handlePrepareGenerator(_ context.Context, _ *sdkmcp.CallToolRequest, in Pre
 	default:
 		nextStep = "Use the prompt above as instructions to generate your research pipeline (RESEARCH-PIPELINE.md and DECISIONS.md). " +
 			"IMPORTANT: Pass both outputs directly to vivechak_save_plan(content=..., decisions_content=...). " +
-			"Do NOT write to local artifact/brain files or external paths first."
+			"Do NOT write to local artifact/brain files or workspace files outside research/. (For large Tier 2/3 pipelines where output exceeds single-turn token limits, you may assemble sections in internal scratch before passing to vivechak_save_plan)."
 	}
 
 	env := Envelope{

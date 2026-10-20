@@ -775,7 +775,7 @@ Defined in [`ValidateInput`](../internal/mcp/tool_validate.go):
 | Parameter | Type | Required | Description |
 |---|---|---|---|
 | `project_root` | `string` | Optional | Workspace root path (required for workspace-wide validation). |
-| `artifact_type` | `string` | Optional | What to validate: `session` \| `decision` \| `comparison` \| `conflict-resolution` \| `plan` \| `fad` (omit for workspace validation). |
+| `artifact_type` | `string` | Optional | What to validate: `session` \| `decision` \| `decisions` \| `comparison` \| `conflict-resolution` \| `plan` \| `fad` (omit for workspace validation). Use `decisions` for multi-decision registries like `DECISIONS.md`. |
 | `content` | `string` | Optional | Content to validate (Markdown); omit with `project_root` for workspace-wide validation. |
 
 #### Response (`data` field)

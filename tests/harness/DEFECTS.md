@@ -449,7 +449,23 @@
 
 ---
 
-<!-- End of Milestone Multi-Harness Empirical Audit (64 Runs Ingested, 81.3% Aggregate Pass, 100% Deterministic Pass) -->
+## Run 29: Tier 3 Complex Project Execution Trace & Registry Validation (Audit E-58 through E-60)
+* **Date:** 2026-10-21
+* **Scope:** Universal (Project, Decision, and Multi-Decision Registry Validation)
+* **Target:** Dogfooding Tier 3 Real-World Project Execution (Career Research Trace: 20 sessions, 8 ADRs, 111 KB pipeline)
+* **Score:** **100/100 (Clean PASS)**
+
+### Defects & Polish Items Catalog
+
+| # | Severity | Category | Defect Description | Empirical Root Cause | Resolution Implemented |
+|---|---|---|---|---|---|
+| **D-29-01** | Medium | Agent Guidance | Cognitive dissonance between token completion limits (8k tokens) on massive Tier 3 pipelines (111 KB) and anti-local spill directives. | `tool_prepare_generator` strictly prohibited local files without clarifying that internal scratch buffers or multi-step staging before `vivechak_save_plan` is permitted for large pipelines. | **RESOLVED**: Updated `nextStep` guidance in `tool_prepare_generator` to clarify that workspace files outside `research/` are prohibited, while explicitly allowing section assembly in internal scratch before passing to `vivechak_save_plan`. |
+| **D-29-02** | Low | Engine / Docs | Advisory lock files (`RESEARCH-PIPELINE.md.lock`, 0 bytes) persist indefinitely after mutating operations, raising false alarm of deadlock or lingering lock leaks. | `flock` on Windows/POSIX leaves 0-byte advisory lock files by design to avoid TOCTOU creation/deletion races across concurrent processes. | **RESOLVED**: Documented the advisory lock lifecycle and safe cleanup guidelines in `docs/TROUBLESHOOTING.md`. |
+| **D-29-03** | High | Tool Validation | Validating multi-decision registries (`DECISIONS.md`) via `vivechak_validate(artifact_type="decision")` produced false `V-MISSING-FRONTMATTER` errors due to preamble and unanchored `<details>` blocks. | `ValidateDecision` expected frontmatter at byte 0 and lacked registry-aware chunking, and `ParseFrontmatter` inside `<details>` only supported ````yaml` rather than standard `---` frontmatter. | **RESOLVED**: Added `core.ValidateDecisionRegistry` and `core.ExtractUnanchoredDecisionBlocks`, updated `ParseFrontmatter` to support both ````yaml` and `---` inside `<details>`, unified validation across `tool_validate` and `tool_save_plan`, and added `artifact_type="decisions"` schema support. |
+
+---
+
+<!-- End of Milestone Multi-Harness Empirical Audit (65 Runs Ingested, 82.0% Aggregate Pass, 100% Deterministic Pass) -->
 
 
 

@@ -60,7 +60,7 @@ func ParseFrontmatter(data []byte) (Frontmatter, []byte, error) {
 		detailsClose := bytes.Index(trimmed, []byte("</details>"))
 		if detailsClose != -1 {
 			detailsContent := trimmed[:detailsClose]
-			// Look for ```yaml inside <details>...</details>
+			// 1. Look for ```yaml inside <details>...</details>
 			yamlStart := bytes.Index(detailsContent, []byte("```yaml"))
 			if yamlStart != -1 {
 				yamlStartLine := yamlStart + 7
@@ -71,11 +71,107 @@ func ParseFrontmatter(data []byte) (Frontmatter, []byte, error) {
 						yamlBlock := detailsContent[yamlContentStart : yamlContentStart+yamlEnd]
 						fm := make(Frontmatter)
 						if err := yaml.Unmarshal(yamlBlock, &fm); err == nil && len(fm) > 0 {
-							bodyStart := detailsClose + 10 // len("</details>")
-							for bodyStart < len(trimmed) && (trimmed[bodyStart] == '\r' || trimmed[bodyStart] == '\n' || trimmed[bodyStart] == ' ' || trimmed[bodyStart] == '\t') {
-								bodyStart++
+							fenceEnd := yamlContentStart + yamlEnd + 3
+							for fenceEnd < len(detailsContent) && detailsContent[fenceEnd] != '\n' {
+								fenceEnd++
 							}
-							return fm, trimmed[bodyStart:], nil
+							if fenceEnd < len(detailsContent) {
+								fenceEnd++
+							}
+							innerBody := bytes.TrimSpace(detailsContent[fenceEnd:])
+							outerBody := []byte{}
+							if detailsClose+10 < len(trimmed) {
+								outerBody = bytes.TrimSpace(trimmed[detailsClose+10:])
+							}
+							var body []byte
+							if len(innerBody) > 0 && len(outerBody) > 0 {
+								body = append(innerBody, append([]byte("\n\n"), outerBody...)...)
+							} else if len(innerBody) > 0 {
+								body = innerBody
+							} else {
+								body = outerBody
+							}
+							return fm, body, nil
+						}
+					}
+				}
+			} else {
+				// 2. Look for standard --- delimited frontmatter inside <details>...</details>
+				// (e.g. <summary>...</summary> followed by --- frontmatter)
+				openIdx := -1
+				pos := 0
+				for pos < len(detailsContent) {
+					lineStart := pos
+					lineEnd := pos
+					for lineEnd < len(detailsContent) && detailsContent[lineEnd] != '\n' {
+						lineEnd++
+					}
+					lineTrim := bytes.TrimRight(detailsContent[lineStart:lineEnd], " \t\r")
+					if bytes.Equal(lineTrim, []byte("---")) {
+						openIdx = lineStart
+						break
+					}
+					if lineEnd < len(detailsContent) {
+						pos = lineEnd + 1
+					} else {
+						break
+					}
+				}
+
+				if openIdx != -1 {
+					openEnd := openIdx + 3
+					for openEnd < len(detailsContent) && detailsContent[openEnd] != '\n' {
+						openEnd++
+					}
+					if openEnd < len(detailsContent) {
+						openEnd++
+					}
+
+					closeIdx := -1
+					pos = openEnd
+					for pos < len(detailsContent) {
+						lineStart := pos
+						lineEnd := pos
+						for lineEnd < len(detailsContent) && detailsContent[lineEnd] != '\n' {
+							lineEnd++
+						}
+						lineTrim := bytes.TrimRight(detailsContent[lineStart:lineEnd], " \t\r")
+						if bytes.Equal(lineTrim, []byte("---")) {
+							closeIdx = lineStart
+							break
+						}
+						if lineEnd < len(detailsContent) {
+							pos = lineEnd + 1
+						} else {
+							break
+						}
+					}
+
+					if closeIdx != -1 {
+						yamlBlock := detailsContent[openEnd:closeIdx]
+						fm := make(Frontmatter)
+						if err := yaml.Unmarshal(yamlBlock, &fm); err == nil && len(fm) > 0 {
+							closeEnd := closeIdx + 3
+							for closeEnd < len(detailsContent) && detailsContent[closeEnd] != '\n' {
+								closeEnd++
+							}
+							if closeEnd < len(detailsContent) {
+								closeEnd++
+							}
+							innerBody := bytes.TrimSpace(detailsContent[closeEnd:])
+							outerBody := []byte{}
+							if detailsClose+10 < len(trimmed) {
+								outerBody = bytes.TrimSpace(trimmed[detailsClose+10:])
+							}
+							var body []byte
+							if len(innerBody) > 0 && len(outerBody) > 0 {
+								body = append(innerBody, append([]byte("\n\n"), outerBody...)...)
+							} else if len(innerBody) > 0 {
+								body = innerBody
+							} else {
+								body = outerBody
+							}
+							return fm, body, nil
 						}
 					}
 				}

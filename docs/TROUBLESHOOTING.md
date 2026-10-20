@@ -146,3 +146,21 @@ vck gate --track track_b
 # Output CI-ready JSON with machine-parseable diagnostics:
 vck gate --format json
 ```
+
+---
+
+## 6. Concurrency & Advisory Lock Files (`*.lock`)
+
+### Why do 0-byte `.lock` files remain in `research/`?
+During mutating operations (such as `vivechak_save_plan`, `vivechak_replan`, and `vivechak_save_session`), Vivechak acquires OS-level advisory file locks (`RESEARCH-PIPELINE.md.lock`, `fad_root.lock`) to prevent concurrent subagents or parallel swarm workers from clobbering research artifacts simultaneously.
+
+- **Advisory Lock Lifecycle:** When a tool call finishes, the process automatically releases the lock. However, the empty 0-byte `.lock` file remains on disk. This is **intentional by design** in standard operating system locking patterns (`flock` on POSIX and `LockFileEx` on Windows) to prevent Time-of-Check to Time-of-Use (TOCTOU) file deletion race conditions across concurrent processes.
+- **Git Tracking:** Vivechak automatically writes `research/.gitignore` containing `*.lock` upon workspace initialization, ensuring lock files are never committed to git history.
+- **Deadlock Diagnostics:** A 0-byte `.lock` file does **not** mean a lock is currently active or stuck. OS advisory locks are tied to active file descriptors and are freed instantly by the kernel when an MCP tool finishes or when a process exits.
+- **Safe Cleanup:** If no MCP server or agent is actively writing to the workspace, `.lock` files can be safely deleted at any time with zero impact on research state:
+  ```sh
+  # Optional cleanup (bash/zsh):
+  rm -f research/*.lock
+  # Optional cleanup (PowerShell):
+  Remove-Item -Path research/*.lock -Force
+  ```

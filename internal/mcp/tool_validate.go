@@ -15,7 +15,7 @@ import (
 // ValidateInput holds the arguments for vivechak_validate.
 type ValidateInput struct {
 	ProjectRoot  string `json:"project_root,omitempty" jsonschema:"workspace root path"`
-	ArtifactType string `json:"artifact_type,omitempty" jsonschema:"what to validate: session | decision | comparison | plan | fad | conflict (omit for workspace-wide validation)"`
+	ArtifactType string `json:"artifact_type,omitempty" jsonschema:"what to validate: session | decision | decisions | comparison | plan | fad | conflict (omit for workspace-wide validation)"`
 	Content      string `json:"content,omitempty"        jsonschema:"content to validate (Markdown); omit with project_root for workspace-wide validation"`
 }
 
@@ -59,8 +59,14 @@ func handleValidate(_ context.Context, _ *sdkmcp.CallToolRequest, in ValidateInp
 	switch artifactType {
 	case "session":
 		validation = core.ValidateSession([]byte(in.Content))
-	case "decision":
-		validation = core.ValidateDecision([]byte(in.Content))
+	case "decision", "decisions":
+		contentBytes := []byte(in.Content)
+		// Auto-detect multi-decision registries (such as DECISIONS.md with introductory preambles or HTML comment blocks)
+		if artifactType == "decisions" || strings.Contains(in.Content, "<!-- DECISION:") || len(core.ExtractUnanchoredDecisionBlocks(contentBytes)) > 1 || (strings.Contains(in.Content, "#") && !strings.HasPrefix(strings.TrimSpace(in.Content), "---")) {
+			validation = core.ValidateDecisionRegistry(contentBytes)
+		} else {
+			validation = core.ValidateDecision(contentBytes)
+		}
 	case "conflict-resolution", "conflict":
 		validation = core.ValidateConflictResolution([]byte(in.Content))
 	case "comparison", "comp":
@@ -71,7 +77,7 @@ func handleValidate(_ context.Context, _ *sdkmcp.CallToolRequest, in ValidateInp
 		validation = core.ValidateFAD([]byte(in.Content))
 	default:
 		return ErrorResult(tool, fmt.Errorf("unknown artifact_type %q", artifactType),
-			"Use 'session', 'decision', 'comparison', 'plan', 'fad', or 'conflict'.")
+			"Use 'session', 'decision', 'decisions', 'comparison', 'plan', 'fad', or 'conflict'.")
 	}
 
 	var warnings []string

@@ -40,6 +40,9 @@ func (l ValidationLevel) String() string {
 
 // ValidationIssue is a single finding from validation.
 type ValidationIssue struct {
+	// Prefix is an optional scope/entity prefix (e.g. "DECISION D-001: ").
+	Prefix string `json:"prefix,omitempty"`
+
 	// Level is the severity of this issue.
 	Level ValidationLevel `json:"level"`
 
@@ -60,6 +63,9 @@ func (v ValidationIssue) String() string {
 	s := fmt.Sprintf("[%s] %s: %s", v.Level, v.Code, v.Message)
 	if v.FixHint != "" {
 		s += " (fix: " + v.FixHint + ")"
+	}
+	if v.Prefix != "" {
+		s = v.Prefix + s
 	}
 	return s
 }
@@ -340,6 +346,159 @@ func ValidateDecision(data []byte) *ValidationResult {
 		result.Status = "valid-with-warnings"
 	}
 
+	return result
+}
+
+// ExtractUnanchoredDecisionBlocks finds all individual decision blocks in a multi-decision file (e.g. DECISIONS.md).
+// Each block includes its YAML frontmatter and the associated body text up to the next block or EOF.
+func ExtractUnanchoredDecisionBlocks(content []byte) [][]byte {
+	lines := strings.Split(string(content), "\n")
+	type decLoc struct {
+		startLine int
+		fmEndLine int
+		id        string
+	}
+	var decs []decLoc
+
+	for i := 0; i < len(lines); i++ {
+		if strings.TrimSpace(lines[i]) != "---" {
+			continue
+		}
+		// Look ahead for the closing fence and verify an id or decision_id exists
+		closeLine := -1
+		hasID := false
+		for j := i + 1; j < len(lines); j++ {
+			tr := strings.TrimSpace(lines[j])
+			if tr == "---" {
+				closeLine = j
+				break
+			}
+			if strings.HasPrefix(tr, "id:") || strings.HasPrefix(tr, "decision_id:") {
+				hasID = true
+			}
+		}
+
+		if closeLine != -1 && hasID {
+			fmText := strings.Join(lines[i:closeLine+1], "\n")
+			if fm, _, err := ParseFrontmatter([]byte(fmText)); err == nil && fm != nil {
+				id := fm.GetString("id")
+				if id == "" {
+					id = fm.GetString("decision_id")
+				}
+				if id != "" && !strings.HasPrefix(strings.ToUpper(id), "CHK-") {
+					decs = append(decs, decLoc{startLine: i, fmEndLine: closeLine, id: id})
+					i = closeLine // advance past this frontmatter
+				}
+			}
+		}
+	}
+
+	if len(decs) == 0 {
+		return nil
+	}
+
+	var blocks [][]byte
+	for i := 0; i < len(decs); i++ {
+		start := decs[i].startLine
+		var end int
+		if i+1 < len(decs) {
+			end = decs[i+1].startLine
+			// Look backwards from next decision startLine to trim preceding divider and heading
+			for end > decs[i].fmEndLine+1 {
+				tr := strings.TrimSpace(lines[end-1])
+				if tr == "" || tr == "---" || strings.HasPrefix(tr, "#") {
+					end--
+				} else {
+					break
+				}
+			}
+		} else {
+			end = len(lines)
+		}
+		blockStr := strings.Join(lines[start:end], "\n")
+		blocks = append(blocks, []byte(blockStr))
+	}
+	return blocks
+}
+
+// ValidateDecisionRegistry checks a multi-decision registry file (e.g. DECISIONS.md)
+// containing one or more decision records (anchored in HTML comments or unanchored with YAML frontmatters).
+// It validates each decision block individually and aggregates issues with "DECISION D-NNN: " prefixes.
+func ValidateDecisionRegistry(data []byte) *ValidationResult {
+	result := &ValidationResult{Status: "valid"}
+	if len(strings.TrimSpace(string(data))) == 0 {
+		result.AddIssue(L2Block, "V-EMPTY", "Decision registry content is empty")
+		result.Status = "draft"
+		return result
+	}
+
+	anchoredRe := regexp.MustCompile(`(?s)<!--\s*DECISION:\s*([A-Za-z0-9_-]+)\s*-->\s*(.*?)\s*<!--\s*/DECISION:\s*([A-Za-z0-9_-]+)\s*-->`)
+	matches := anchoredRe.FindAllSubmatch(data, -1)
+	seenDecIDs := make(map[string]bool)
+
+	validateSingleDec := func(id string, block []byte) {
+		v := ValidateDecision(block)
+		for _, issue := range v.Issues {
+			// Suppress short body warning during initial plan saving (ADR skeletons in DECISIONS.md are concise)
+			if issue.Code == "W-SHORT-DECISION" {
+				continue
+			}
+			prefix := ""
+			if id != "" {
+				prefix = fmt.Sprintf("DECISION %s: ", id)
+			}
+			issueWithPrefix := issue
+			issueWithPrefix.Prefix = prefix
+			result.Issues = append(result.Issues, issueWithPrefix)
+		}
+		if v.HasBlocking() {
+			result.Status = "draft"
+		} else if v.WarningCount() > 0 && result.Status != "draft" {
+			result.Status = "valid-with-warnings"
+		}
+	}
+
+	for _, m := range matches {
+		id := string(m[1])
+		closeID := string(m[3])
+		if !strings.EqualFold(id, closeID) {
+			continue
+		}
+		if seenDecIDs[strings.ToUpper(id)] {
+			continue
+		}
+		seenDecIDs[strings.ToUpper(id)] = true
+		validateSingleDec(id, m[2])
+	}
+
+	for _, block := range ExtractUnanchoredDecisionBlocks(data) {
+		if fm, _, err := ParseFrontmatter(block); err == nil && fm != nil {
+			id := fm.GetString("id")
+			if id == "" {
+				id = fm.GetString("decision_id")
+			}
+			if id != "" && !seenDecIDs[strings.ToUpper(id)] && !strings.HasPrefix(strings.ToUpper(id), "CHK-") {
+				seenDecIDs[strings.ToUpper(id)] = true
+				validateSingleDec(id, block)
+			}
+		}
+	}
+
+	// Fallback for single standalone ADR (e.g. in decision scope or single D-*.md)
+	if len(seenDecIDs) == 0 {
+		v := ValidateDecision(data)
+		for _, issue := range v.Issues {
+			if issue.Code == "W-SHORT-DECISION" {
+				continue
+			}
+			result.Issues = append(result.Issues, issue)
+		}
+		result.Status = v.Status
+	}
+
+	if len(result.Issues) == 0 {
+		result.Status = "valid"
+	}
 	return result
 }
 
