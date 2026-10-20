@@ -1140,25 +1140,45 @@ func TestPrepareGenerator_ExtractComparisonOptions(t *testing.T) {
 	cs := testServer(t)
 	ctx := context.Background()
 
-	res, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_prepare_generator",
-		Arguments: map[string]any{
-			"scope":   "comparison",
-			"context": "Compare Pino vs Winston for high-throughput microservices",
+	cases := []struct {
+		context  string
+		expected string
+	}{
+		{
+			context:  "Compare Pino vs Winston for high-throughput microservices",
+			expected: "OPTIONS: Pino, Winston",
 		},
-	})
-	if err != nil {
-		t.Fatalf("prepare_generator: %v", err)
+		{
+			context:  "compare Gemni 4 Argon vs GPT 6 Astra vs Opus 5.5 for CI pipeline",
+			expected: "OPTIONS: Gemni 4 Argon, GPT 6 Astra, Opus 5.5",
+		},
+		{
+			context:  "Auth0 vs Clerk versus Supabase for mobile authentication",
+			expected: "OPTIONS: Auth0, Clerk, Supabase",
+		},
 	}
 
-	env := parseEnvelope(t, res)
-	data, ok := env.Data.(map[string]any)
-	if !ok {
-		t.Fatalf("expected env.Data map, got %T", env.Data)
-	}
-	prompt, _ := data["prompt"].(string)
-	if !strings.Contains(prompt, "OPTIONS: Pino, Winston") {
-		t.Errorf("expected prompt to contain 'OPTIONS: Pino, Winston', got:\n%s", prompt)
+	for _, tc := range cases {
+		res, err := cs.CallTool(ctx, &mcp.CallToolParams{
+			Name: "vivechak_prepare_generator",
+			Arguments: map[string]any{
+				"scope":   "comparison",
+				"context": tc.context,
+			},
+		})
+		if err != nil {
+			t.Fatalf("prepare_generator(%q): %v", tc.context, err)
+		}
+
+		env := parseEnvelope(t, res)
+		data, ok := env.Data.(map[string]any)
+		if !ok {
+			t.Fatalf("expected env.Data map, got %T", env.Data)
+		}
+		prompt, _ := data["prompt"].(string)
+		if !strings.Contains(prompt, tc.expected) {
+			t.Errorf("for context %q, expected prompt to contain %q, got:\n%s", tc.context, tc.expected, prompt)
+		}
 	}
 }
 

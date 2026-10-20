@@ -231,6 +231,18 @@ func extractComparisonOptions(ctx string) string {
 					break
 				}
 			}
+
+			// Normalize any additional intermediate comparison delimiters in right (e.g. A vs B vs C)
+			for _, mid := range []string{" vs. ", " vs ", " versus ", " or "} {
+				for {
+					mIdx := strings.Index(strings.ToLower(right), mid)
+					if mIdx == -1 {
+						break
+					}
+					right = strings.TrimSpace(right[:mIdx]) + ", " + strings.TrimSpace(right[mIdx+len(mid):])
+				}
+			}
+
 			left = strings.Trim(left, "?!.,:;")
 			right = strings.Trim(right, "?!.,:;")
 			if left != "" && right != "" {
