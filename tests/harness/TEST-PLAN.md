@@ -100,7 +100,7 @@ Based on your execution experience in this session, suggest all potential improv
 
 ## 4. Defect Categorization & Severity Scale
 
-Every defect discovered during testing is logged in [`defects/DEFECTS.md`](defects/DEFECTS.md) using this taxonomy:
+Every defect discovered during testing is logged in [`DEFECTS.md`](DEFECTS.md) using this taxonomy:
 
 * **Category:**
   - `CAT-TOOL`: Tool parameter naming, alias support, jsonschema descriptions, return envelope data.

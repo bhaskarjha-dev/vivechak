@@ -134,7 +134,7 @@ This section applies only when improving the meta-framework — editing FRAMEWOR
 ```
 vivechak/
 ├── README.md                       ← Overview + install + quickstart
-├── GENERATOR.md                    ← Project-scope generator (full pipeline → FAD)
+├── GENERATOR-PROJECT.md · GENERATOR.md ← Project-scope generator (full pipeline → FAD)
 ├── GENERATOR-DECISION.md           ← Decision-scope generator (1–3 sessions → ADR)
 ├── GENERATOR-COMPARISON.md         ← Comparison-scope generator (1 session → WEP matrix)
 ├── FRAMEWORK.md                    ← Complete methodology spec (for development only)
@@ -205,7 +205,7 @@ vivechak/
 │   ├── TEST-PLAN.md                ← Autonomous test harness strategy & execution model
 │   ├── runner/                     ← Watchdog, dynamic triage & pluggable adapters
 │   ├── reports/                    ← Permanent milestone audit reports (audit-v0.1.0-...)
-│   ├── defects/DEFECTS.md          ← Living defect and polish ledger
+│   ├── DEFECTS.md                  ← Living defect and polish ledger
 │   └── runs/                       ← Ephemeral local test runs (gitignored)
 │
 ├── scripts/run_harness.mjs         ← Multi-harness test runner CLI (--auto, --probe, etc.)
@@ -272,7 +272,7 @@ Vivechak includes an empirical multi-harness autonomous testing engine in `tests
    `node scripts/run_harness.mjs --archive <version>`
    *Compiles active runs into an immutable audit report in `tests/harness/reports/audit-<version>-<date>.md` and updates index.*
 7. **Living Defect Ledger:**
-   All empirical findings, defects, and upstream engine fixes are permanently tracked in `tests/harness/defects/DEFECTS.md`.
+   All empirical findings, defects, and upstream engine fixes are permanently tracked in `tests/harness/DEFECTS.md`.
 8. **Universal Model Overrides & Automatic Failover Cascades:**
    Pass `--model <id>` to target specific models. If a model encounters quota exhaustion, rate limits, or timeouts, adapters automatically fail over to the next healthy model (e.g. `beam-free` → `big-pickle` → `nemotron-3.5-lightning-free` → `glm-5.3-flash-free` for OpenCode, or `gemini-3.8-flash-high` → `gemini-3.8-flash` → `claude-sonnet-4-6` for Antigravity).
 9. **Dead-Session Short-Circuiting & 21-Scenario Semantic Triage:**
@@ -280,5 +280,5 @@ Vivechak includes an empirical multi-harness autonomous testing engine in `tests
 10. **Branch Isolation Policy (Protecting `main`):**
     Always execute testing campaigns, iterative defect logging, and bug patches on a dedicated branch (e.g. `git checkout -b audit/harness-testing`). Keep `main` clean and untouched until all scenarios pass and release checks pass (`make release-check`).
 
-> **Rule for Agents:** Always execute testing campaigns on a dedicated branch (e.g. `audit/harness-testing`), never directly on `main`. Never commit raw run files in `tests/harness/runs/` to git. All empirical findings must be distilled into `tests/harness/defects/DEFECTS.md` or a release audit report.
+> **Rule for Agents:** Always execute testing campaigns on a dedicated branch (e.g. `audit/harness-testing`), never directly on `main`. Never commit raw run files in `tests/harness/runs/` to git. All empirical findings must be distilled into `tests/harness/DEFECTS.md` or a release audit report.
 

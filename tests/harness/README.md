@@ -41,7 +41,7 @@ graph TD
     subgraph Lifecycle["4. Continuous Testing Lifecycle & Clean Separation"]
         Protocol --> ScratchRuns["tests/harness/runs/*.md (EPHEMERAL / GITIGNORED)"]
         ScratchRuns --> Triage["triage.mjs (Dynamic Pattern Clustering)"]
-        Triage --> LivingLedger["tests/harness/defects/DEFECTS.md (LIVING DEFECT LEDGER)"]
+        Triage --> LivingLedger["tests/harness/DEFECTS.md (LIVING DEFECT LEDGER)"]
         Triage --> MilestoneReport["tests/harness/reports/audit-<version>-<date>.md (COMMITTED RELEASES)"]
     end
 
@@ -56,10 +56,10 @@ graph TD
 |---|---|---|
 | `SCENARIOS.md` | 21 human-realistic test scenarios with messy typos, cross-domain problems, and checklists. | Committed |
 | `TEST-PLAN.md` | Theoretical methodology and zero-trust testing philosophy. | Committed |
+| `DEFECTS.md` | Living defect and polish ledger tracking discovered bugs, root causes, and fixes. | Committed |
 | `runner/` | Standalone engine: watchdog, orchestrator, triage, types, and pluggable adapters. | Committed |
 | `runner/adapters/` | Modular adapter definitions (`direct_mcp`, `agy`, `opencode`, `claude_code`). | Committed |
 | `reports/` | Immutable milestone audit reports compiled at major release points (e.g. `audit-v0.1.0-2026-10-19.md`). | Committed |
-| `defects/` | Living defect and polish ledger (`DEFECTS.md`) tracking discovered bugs, root causes, and fixes. | Committed |
 | `runs/` | Local ephemeral test outputs and conversation logs. | **Strictly Gitignored** (`.gitkeep` preserved) |
 
 ---

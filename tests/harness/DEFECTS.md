@@ -1,6 +1,6 @@
 # Vivechak Autonomous Testing: Living Defect & Polish Ledger
 ### Empirical Defect Tracking, Root Causes & Remediation Across Releases
-**Workspace:** `vivechak` · **Target Release:** `v0.1.0` · **Location:** `tests/harness/defects/DEFECTS.md`
+**Workspace:** `vivechak` · **Target Release:** `v0.1.0` · **Location:** `tests/harness/DEFECTS.md`
 
 > **Living Document Policy:** This ledger tracks all defects, formatting inconsistencies, engine bugs, and developer experience friction surfaced by autonomous multi-harness test runs. When a defect is discovered, log it here. When fixed, mark it `[RESOLVED in vX.Y.Z]` and document the remediation.
 

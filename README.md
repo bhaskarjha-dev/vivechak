@@ -208,7 +208,7 @@ vivechak/
 │   ├── ci.yml                      ← Test + vet + build on push/PR
 │   └── release.yml                 ← Decoupled release workflow
 │
-├── GENERATOR.md                    ← Project-scope generator (full pipeline → FAD)
+├── GENERATOR-PROJECT.md · GENERATOR.md ← Project-scope generator (full pipeline → FAD)
 ├── GENERATOR-DECISION.md           ← Decision-scope generator (1–3 sessions → ADR)
 ├── GENERATOR-COMPARISON.md         ← Comparison-scope generator (1 session → WEP matrix)
 ├── FRAMEWORK.md                    ← Deep methodology reference
@@ -225,6 +225,24 @@ vivechak/
 ├── LICENSE · Makefile              ← MIT License · Developer shortcuts
 └── go.mod · go.sum                 ← Go 1.25+ module
 ```
+
+---
+
+## Documentation & Guides
+
+| Category | Guide | Description |
+|---|---|---|
+| **Getting Started** | [**Quickstart Guide**](docs/QUICKSTART.md) | Vivechak in 5 Minutes across comparison, decision, and project scopes |
+| | [**Host Setup Guide**](docs/HOST-SETUP.md) | Universal MCP setup across 21 AI harnesses (Cursor, Claude Desktop, Antigravity, etc.) |
+| | [**Manual Workflow**](docs/MANUAL-WORKFLOW.md) | Zero-install guide for running Vivechak in web chat without the MCP server |
+| | [**Troubleshooting**](docs/TROUBLESHOOTING.md) | Diagnostic runbooks and comprehensive error code catalog |
+| **Architecture & MCP** | [**Architecture Internals**](docs/ARCHITECTURE.md) | Server internals, package dependency diagrams, and concurrency model |
+| | [**MCP Tools Reference**](docs/MCP-TOOLS.md) | Complete 13-tool API reference with example JSON-RPC payloads and schemas |
+| | [**Harness Compatibility**](docs/HARNESS-COMPATIBILITY.md) | Compatibility matrix across 8 AI agent harness categories |
+| **Advanced Workflows** | [**Parallel Execution**](docs/PARALLEL-EXECUTION.md) | Concurrent subagents and advisory file locking (`flock`) architecture |
+| | [**Hybrid Execution**](docs/HYBRID-EXECUTION.md) | Native hybrid operations combining MCP automation with manual human browser research |
+| | [**Brand Identity**](docs/BRAND.md) | Brand identity, optical sizing, geometry blueprints, and design tokens |
+| **Scientific Provenance** | [**Meta-Research Base**](docs/meta-research/) | Empirical evidence base with all 14 locked ADRs (D-001–D-014) and UX decisions |
 
 ---
 
@@ -272,7 +290,7 @@ Vivechak includes an autonomous multi-harness empirical testing engine in [`test
   make harness-test                           # runs core test batch
   make harness-triage                         # clusters dynamic Turn 4 feedback
   ```
-* **Empirical Ledger & Audit Reports:** All empirical findings and engine hardenings are permanently tracked in [`tests/harness/defects/DEFECTS.md`](tests/harness/defects/DEFECTS.md) and frozen in versioned milestone audit reports in [`tests/harness/reports/`](tests/harness/reports/).
+* **Empirical Ledger & Audit Reports:** All empirical findings and engine hardenings are permanently tracked in [`tests/harness/DEFECTS.md`](tests/harness/DEFECTS.md) and frozen in versioned milestone audit reports in [`tests/harness/reports/`](tests/harness/reports/).
 
 ---
 
