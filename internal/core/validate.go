@@ -325,16 +325,16 @@ func ValidateDecision(data []byte) *ValidationResult {
 			"Add 'door_type: one-way' or 'door_type: two-way' per P2")
 	}
 
-	// L3: Body should not be trivially short
+	// L3: Body should not be trivially short (suppressed for proposed candidate decisions)
+	status := strings.ToLower(fm.GetString("status"))
 	bodyStr := strings.TrimSpace(string(body))
-	if len(bodyStr) < 100 {
+	if status != "proposed" && len(bodyStr) < 100 {
 		result.AddIssueWithHint(L3Warn, "W-SHORT-DECISION",
 			"Decision body is very short — may lack sufficient context",
 			"Include Context, Decision, Consequences, and Evidence sections")
 	}
 
 	// L3: Evidence grades and recalled grade cap checks (only for researched/accepted decisions)
-	status := strings.ToLower(fm.GetString("status"))
 	if status != "proposed" {
 		checkEvidenceGrades(bodyStr, result)
 		checkRecalledGradeCap(bodyStr, result)

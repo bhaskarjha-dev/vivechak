@@ -2103,6 +2103,212 @@ func TestComprehensive_PrepareGenerator_AntiLocalSpillGuidance_AllScopes(t *test
 	}
 }
 
+// TestComprehensive_MultiDecisionRegistry_FullLifecycle_And_DetailsFrontmatter comprehensively verifies
+// multi-decision registry validation, collapsible <details> blocks with both ```yaml and --- frontmatter,
+// status synchronization, error reporting on malformed YAML, and workspace mode ADR discovery.
+func TestComprehensive_MultiDecisionRegistry_FullLifecycle_And_DetailsFrontmatter(t *testing.T) {
+	ctx := context.Background()
+	tmpDir := t.TempDir()
+
+	// 1. Initialize project scope
+	_, envInit, err := handleInit(ctx, nil, InitInput{
+		ProjectRoot: tmpDir,
+		Scope:       "project",
+	})
+	if err != nil || !envInit.Success {
+		t.Fatalf("init failed: %v", err)
+	}
+
+	// 2. Prepare generator and verify Tier 3 scratch staging guidance
+	_, envPrep, err := handlePrepareGenerator(ctx, nil, PrepareGeneratorInput{
+		ProjectRoot: tmpDir,
+		Scope:       "project",
+		Context:     "Enterprise career recommendation engine with distributed graph store",
+	})
+	if err != nil || !envPrep.Success {
+		t.Fatalf("prepare generator failed: %v", err)
+	}
+	if !strings.Contains(envPrep.NextStep, "For large Tier 2/3 pipelines where output exceeds single-turn token limits") {
+		t.Errorf("expected Tier 2/3 scratch staging guidance in nextStep: %s", envPrep.NextStep)
+	}
+
+	// 3. Construct multi-decision registry with varied formats:
+	// - D-01: Anchored <details> block with ```yaml
+	// - D-02: Anchored <details> block with --- frontmatter
+	// - D-03: Unanchored decision block with markdown header and --- frontmatter
+	registryContent := `# Architectural Decisions Log
+This log captures all founding architecture decisions for the enterprise career platform.
+
+| Decision | Title | Door Type | Status | Date |
+|---|---|---|---|---|
+| D-01 | Primary Database | one-way | proposed | 2026-10-21 |
+| D-02 | Cache & In-Memory Store | two-way | proposed | 2026-10-21 |
+| D-03 | Graph Engine Selection | one-way | proposed | 2026-10-21 |
+
+<!-- DECISION: D-01 -->
+<details>
+<summary><b>D-01: Primary Database</b></summary>
+
+` + "```yaml" + `
+id: D-01
+title: Primary Database
+door_type: one-way
+status: proposed
+date: 2026-10-21
+` + "```" + `
+
+### Context
+We evaluated CockroachDB and PostgreSQL.
+</details>
+<!-- /DECISION: D-01 -->
+
+---
+
+<!-- DECISION: D-02 -->
+<details>
+<summary><b>D-02: Cache & In-Memory Store</b></summary>
+
+---
+id: D-02
+title: Cache & In-Memory Store
+door_type: two-way
+status: proposed
+date: 2026-10-21
+---
+
+### Context
+Redis vs Dragonfly for ephemeral user sessions.
+</details>
+<!-- /DECISION: D-02 -->
+
+---
+
+### D-03: Graph Engine Selection
+---
+id: D-03
+title: Graph Engine Selection
+door_type: one-way
+status: proposed
+date: 2026-10-21
+---
+
+### Context
+Evaluating Neo4j vs Memgraph for knowledge graph traversal.
+`
+
+	// 4. Test direct validation via handleValidate with artifact_type="decisions"
+	_, envValDecisions, err := handleValidate(ctx, nil, ValidateInput{
+		ProjectRoot:  tmpDir,
+		ArtifactType: "decisions",
+		Content:      registryContent,
+	})
+	if err != nil || !envValDecisions.Success {
+		t.Fatalf("handleValidate with artifact_type=decisions failed: %v", err)
+	}
+	valData, _ := envValDecisions.Data.(map[string]any)
+	if valData["status"] != "valid" {
+		t.Errorf("expected status 'valid' for clean multi-decision registry, got: %v (warnings: %v)", valData["status"], envValDecisions.Warnings)
+	}
+
+	// 5. Test auto-detection via handleValidate with artifact_type="decision"
+	_, envValDecisionAuto, err := handleValidate(ctx, nil, ValidateInput{
+		ProjectRoot:  tmpDir,
+		ArtifactType: "decision",
+		Content:      registryContent,
+	})
+	if err != nil || !envValDecisionAuto.Success {
+		t.Fatalf("handleValidate with artifact_type=decision auto-detect failed: %v", err)
+	}
+	valDataAuto, _ := envValDecisionAuto.Data.(map[string]any)
+	if valDataAuto["status"] != "valid" {
+		t.Errorf("expected status 'valid' under auto-detection, got: %v (warnings: %v)", valDataAuto["status"], envValDecisionAuto.Warnings)
+	}
+
+	// 6. Save plan with multi-decision registry into workspace
+	pipelineContent := `# Research Pipeline: Career Platform
+**Complexity Score:** 18 / 24 → **Tier 3 (17–30 Sessions)**
+
+## Sessions
+#### T0-01: Graph Schema Definition
+| Field | Value |
+|---|---|
+| ID | T0-01 |
+| Layer | 0 |
+| Door Type | One-Way |
+| Dependencies | None |
+
+` + "```prompt" + `
+Define ontology and vertex relationships for career skills.
+` + "```" + `
+`
+	_, envSave, err := handleSavePlan(ctx, nil, SavePlanInput{
+		ProjectRoot:      tmpDir,
+		Scope:            "project",
+		Content:          pipelineContent,
+		DecisionsContent: registryContent,
+	})
+	if err != nil || !envSave.Success {
+		t.Fatalf("handleSavePlan failed: %v", err)
+	}
+	if len(envSave.Warnings) != 0 {
+		t.Errorf("expected 0 warnings on clean plan save, got: %v", envSave.Warnings)
+	}
+
+	// 7. Test workspace-mode validation discovering DECISIONS.md
+	_, envWsVal, err := handleValidate(ctx, nil, ValidateInput{
+		ProjectRoot: tmpDir,
+	})
+	if err != nil || !envWsVal.Success {
+		t.Fatalf("workspace validate failed: %v", err)
+	}
+	wsData, _ := envWsVal.Data.(map[string]any)
+	decGroup, ok := wsData["decisions"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected decisions group in workspace validate data: %v", wsData)
+	}
+	// All 3 decisions should be discovered and reported as valid
+	if decGroup["valid"] != 3 {
+		t.Errorf("expected 3 valid decisions discovered from DECISIONS.md, got: %v", decGroup["valid"])
+	}
+	if decGroup["errors"] != 0 {
+		t.Errorf("expected 0 errors in decisions group, got: %v", decGroup["errors"])
+	}
+
+	// 8. Test malformed decision detection in multi-decision registry
+	registryWithMalformed := registryContent + `
+---
+id: D-04
+title: [unclosed malformed bracket
+door_type: one-way
+status: proposed
+date: 2026-10-21
+---
+Body for D-04.
+`
+	_, envValMalformed, err := handleValidate(ctx, nil, ValidateInput{
+		ProjectRoot:  tmpDir,
+		ArtifactType: "decisions",
+		Content:      registryWithMalformed,
+	})
+	if err != nil || !envValMalformed.Success {
+		t.Fatalf("handleValidate on malformed registry failed: %v", err)
+	}
+	malData, _ := envValMalformed.Data.(map[string]any)
+	if malData["status"] != "draft" && malData["status"] != "invalid" {
+		t.Errorf("expected draft or invalid status for malformed decision registry, got: %v", malData["status"])
+	}
+	foundD04Issue := false
+	for _, w := range envValMalformed.Warnings {
+		if strings.Contains(w, "DECISION D-04:") && strings.Contains(w, "V-INVALID-FRONTMATTER") {
+			foundD04Issue = true
+			break
+		}
+	}
+	if !foundD04Issue {
+		t.Errorf("expected DECISION D-04 V-INVALID-FRONTMATTER warning, got: %v", envValMalformed.Warnings)
+	}
+}
+
 
 
 

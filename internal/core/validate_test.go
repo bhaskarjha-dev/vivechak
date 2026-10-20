@@ -517,6 +517,46 @@ This is a seed hypothesis to be researched during pipeline execution.
 	}
 }
 
+func TestValidateDecision_StatusProposed_SuppressesShortBodyWarning(t *testing.T) {
+	// 1. Proposed status with short body should NOT emit W-SHORT-DECISION
+	proposedShort := `---
+id: D-001
+title: Initial Cache Architecture
+status: proposed
+door_type: two-way
+---
+Short seed body.
+`
+	resProposed := ValidateDecision([]byte(proposedShort))
+	for _, iss := range resProposed.Issues {
+		if iss.Code == "W-SHORT-DECISION" {
+			t.Errorf("spurious W-SHORT-DECISION for proposed decision: %v", iss)
+		}
+	}
+
+	// 2. Accepted status with short body SHOULD emit W-SHORT-DECISION
+	acceptedShort := `---
+id: D-001
+title: Initial Cache Architecture
+status: accepted
+door_type: two-way
+---
+Short accepted body.
+`
+	resAccepted := ValidateDecision([]byte(acceptedShort))
+	foundShortWarn := false
+	for _, iss := range resAccepted.Issues {
+		if iss.Code == "W-SHORT-DECISION" {
+			foundShortWarn = true
+			break
+		}
+	}
+	if !foundShortWarn {
+		t.Errorf("expected W-SHORT-DECISION for accepted decision with short body (<100 chars), got issues: %v", resAccepted.Issues)
+	}
+}
+
+
 func TestValidateConflictResolution_EvidentiaryGrounding(t *testing.T) {
 	// Missing evidence grades should produce W-NO-EVIDENCE-GRADES
 	noGrades := `---

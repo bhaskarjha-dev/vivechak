@@ -734,4 +734,165 @@ Pino asynchronous logging may lose trailing log lines on unhandled process crash
 			t.Errorf("missing mcpServers key in mcp-config output: %s", string(cfgOut))
 		}
 	})
+
+	// =========================================================================
+	// 5. LIVE SUBPROCESS: MULTI-DECISION REGISTRY, DETAILS FRONTMATTER & DOCTOR
+	// =========================================================================
+	t.Run("05_ProjectScope_MultiDecisionRegistry_LiveSubprocess", func(t *testing.T) {
+		projectDir := t.TempDir()
+
+		cs, cleanup := startLiveMCPServer(t, ctx, binPath, projectDir)
+		t.Cleanup(cleanup)
+
+		callTool := func(toolName string, args map[string]any) testEnvelope {
+			t.Helper()
+			res, err := cs.CallTool(ctx, &mcp.CallToolParams{
+				Name:      toolName,
+				Arguments: args,
+			})
+			if err != nil {
+				t.Fatalf("call to %s failed: %v", toolName, err)
+			}
+			return parseTestEnvelope(t, res)
+		}
+
+		// 5.1 Initialize workspace
+		envInit := callTool("vivechak_init", map[string]any{
+			"project_root": projectDir,
+			"scope":        "project",
+		})
+		if !envInit.Success {
+			t.Fatalf("live init failed: %s", envInit.Message)
+		}
+
+		// 5.2 Prepare generator and verify Tier 3 scratch staging guidance
+		envPrep := callTool("vivechak_prepare_generator", map[string]any{
+			"project_root": projectDir,
+			"scope":        "project",
+			"context":      "Distributed graph analytics engine",
+		})
+		if !envPrep.Success {
+			t.Fatalf("live prepare_generator failed: %s", envPrep.Message)
+		}
+		if !strings.Contains(envPrep.NextStep, "assemble sections in internal scratch") {
+			t.Errorf("expected scratch guidance in next_step: %s", envPrep.NextStep)
+		}
+
+		// 5.3 Save plan with multi-decision registry
+		decisionsRegistry := `# Architectural Decision Records
+Overview of system architectural choices.
+
+| Decision | Title | Door Type | Status | Date |
+|---|---|---|---|---|
+| D-01 | Primary Graph Engine | one-way | proposed | 2026-10-21 |
+| D-02 | Ingest Buffer | two-way | proposed | 2026-10-21 |
+
+<!-- DECISION: D-01 -->
+<details>
+<summary><b>D-01: Primary Graph Engine</b></summary>
+
+---
+id: D-01
+title: Primary Graph Engine
+door_type: one-way
+status: proposed
+date: 2026-10-21
+---
+
+### Context
+Evaluating Cypher vs Gremlin based engines.
+</details>
+<!-- /DECISION: D-01 -->
+
+---
+
+<!-- DECISION: D-02 -->
+<details>
+<summary><b>D-02: Ingest Buffer</b></summary>
+
+` + "```yaml" + `
+id: D-02
+title: Ingest Buffer
+door_type: two-way
+status: proposed
+date: 2026-10-21
+` + "```" + `
+
+### Context
+Evaluating NATS JetStream vs Apache Kafka.
+</details>
+<!-- /DECISION: D-02 -->
+`
+		pipelineContent := `# Research Pipeline: Graph Analytics
+**Complexity Score:** 18 / 24 → **Tier 3 (17–30 Sessions)**
+
+## Sessions
+#### T0-01: Protocol Benchmark
+| Field | Value |
+|---|---|
+| ID | T0-01 |
+| Layer | 0 |
+| Door Type | Two-Way |
+| Dependencies | None |
+
+` + "```prompt" + `
+Investigate gRPC vs Arrow Flight for graph query results.
+` + "```" + `
+`
+		envSave := callTool("vivechak_save_plan", map[string]any{
+			"project_root":      projectDir,
+			"scope":             "project",
+			"content":           pipelineContent,
+			"decisions_content": decisionsRegistry,
+		})
+		if !envSave.Success {
+			t.Fatalf("live save_plan failed: %s", envSave.Message)
+		}
+		if len(envSave.Warnings) != 0 {
+			t.Errorf("expected 0 warnings on clean plan save, got: %v", envSave.Warnings)
+		}
+
+		// 5.4 Validate registry directly via artifact_type="decisions"
+		envValDec := callTool("vivechak_validate", map[string]any{
+			"project_root":  projectDir,
+			"artifact_type": "decisions",
+			"content":       decisionsRegistry,
+		})
+		if !envValDec.Success {
+			t.Fatalf("live validate decisions failed: %s", envValDec.Message)
+		}
+		valData := envValDec.Data
+		if valData["status"] != "valid" {
+			t.Errorf("expected status 'valid', got: %v (warnings: %v)", valData["status"], envValDec.Warnings)
+		}
+
+		// 5.5 Validate entire workspace via workspace discovery mode
+		envValWs := callTool("vivechak_validate", map[string]any{
+			"project_root": projectDir,
+		})
+		if !envValWs.Success {
+			t.Fatalf("live workspace validate failed: %s", envValWs.Message)
+		}
+		wsData := envValWs.Data
+		decMap, ok := wsData["decisions"].(map[string]any)
+		if !ok {
+			t.Fatalf("expected decisions map in workspace validate data: %v", wsData)
+		}
+		if decMap["valid"] != float64(2) && decMap["valid"] != 2 {
+			t.Errorf("expected 2 valid decisions discovered in workspace DECISIONS.md, got: %v (%T)", decMap["valid"], decMap["valid"])
+		}
+		if decMap["errors"] != float64(0) && decMap["errors"] != 0 {
+			t.Errorf("expected 0 errors in workspace DECISIONS.md, got: %v (%T)", decMap["errors"], decMap["errors"])
+		}
+
+		// 5.6 Execute vck doctor child process and verify healthy workspace
+		docCmd := exec.CommandContext(ctx, binPath, "doctor", projectDir)
+		docOut, err := docCmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("vck doctor failed: %v\noutput: %s", err, string(docOut))
+		}
+		if !strings.Contains(string(docOut), "Workspace is healthy") {
+			t.Errorf("expected 'Workspace is healthy' in doctor output, got:\n%s", string(docOut))
+		}
+	})
 }
