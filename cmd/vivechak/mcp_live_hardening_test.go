@@ -367,7 +367,7 @@ Chose option for ` + id + `. Grade A (docs)
 		if idxD1 == -1 || idxD2 == -1 || idxD10 == -1 {
 			t.Fatalf("missing decision entries in DECISIONS.md:\n%s", content)
 		}
-		if !(idxD1 < idxD2 && idxD2 < idxD10) {
+		if idxD1 >= idxD2 || idxD2 >= idxD10 {
 			t.Errorf("expected natural order D-1 < D-2 < D-10, got positions: D-1=%d, D-2=%d, D-10=%d",
 				idxD1, idxD2, idxD10)
 		}
