@@ -1135,6 +1135,33 @@ func TestPrepareGenerator_ScopeAwareNextStep(t *testing.T) {
 	}
 }
 
+// TestPrepareGenerator_ExtractComparisonOptions verifies that Comparison scope auto-populates candidate options from context.
+func TestPrepareGenerator_ExtractComparisonOptions(t *testing.T) {
+	cs := testServer(t)
+	ctx := context.Background()
+
+	res, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_prepare_generator",
+		Arguments: map[string]any{
+			"scope":   "comparison",
+			"context": "Compare Pino vs Winston for high-throughput microservices",
+		},
+	})
+	if err != nil {
+		t.Fatalf("prepare_generator: %v", err)
+	}
+
+	env := parseEnvelope(t, res)
+	data, ok := env.Data.(map[string]any)
+	if !ok {
+		t.Fatalf("expected env.Data map, got %T", env.Data)
+	}
+	prompt, _ := data["prompt"].(string)
+	if !strings.Contains(prompt, "OPTIONS: Pino, Winston") {
+		t.Errorf("expected prompt to contain 'OPTIONS: Pino, Winston', got:\n%s", prompt)
+	}
+}
+
 // TestServerInstructions_MultiScopeAndOutofScope verifies the instruction prompt includes
 // multi-scope workflows, out-of-scope boundaries, and fits within size limits.
 func TestServerInstructions_MultiScopeAndOutofScope(t *testing.T) {

@@ -55,27 +55,18 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Download Linux Binaries via GitHub CLI
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          mkdir -p docker-dist
-          gh release download ${{ github.ref_name }} --pattern "vivechak_*_linux_*.tar.gz" --dir docker-dist
-
-      - name: Extract Binaries for Multi-Arch Container
-        run: |
-          mkdir -p docker-dist/amd64 docker-dist/arm64
-          tar -xzf docker-dist/vivechak_*_linux_amd64.tar.gz -C docker-dist/amd64
-          tar -xzf docker-dist/vivechak_*_linux_arm64.tar.gz -C docker-dist/arm64
-
       - name: Build and Push Multi-Arch Image
         run: |
           OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
           docker buildx build \
             --platform linux/amd64,linux/arm64 \
+            --build-arg VERSION="${TAG_VERSION}" \
             -t ghcr.io/${OWNER}/vivechak:${{ github.ref_name }} \
+            -t ghcr.io/${OWNER}/vivechak:${TAG_VERSION} \
             -t ghcr.io/${OWNER}/vivechak:latest \
             -t ghcr.io/${OWNER}/vck:${{ github.ref_name }} \
+            -t ghcr.io/${OWNER}/vck:${TAG_VERSION} \
             -t ghcr.io/${OWNER}/vck:latest \
             --push .
 

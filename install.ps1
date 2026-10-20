@@ -9,7 +9,7 @@ $InstallDir = Join-Path $env:LOCALAPPDATA 'Programs\vivechak'
 
 # Detect architecture
 $Arch = if ([Environment]::Is64BitOperatingSystem) {
-    if ($env:PROCESSOR_ARCHITECTURE -eq 'ARM64' -or $env:PROCESSOR_IDENTIFIER -match 'ARM') {
+    if ($env:PROCESSOR_ARCHITECTURE -eq 'ARM64' -or $env:PROCESSOR_ARCHITEW6432 -eq 'ARM64' -or $env:PROCESSOR_IDENTIFIER -match 'ARM') {
         'arm64'
     } else {
         'amd64'
@@ -27,11 +27,26 @@ try {
     $Release = Invoke-RestMethod -Uri "https://api.github.com/repos/$Repo/releases/latest" -UseBasicParsing
     $Tag = $Release.tag_name
 } catch {
-    # Fallback to redirect URL on API rate limits
-    $Resp = Invoke-WebRequest -Uri "https://github.com/$Repo/releases/latest" -MaximumRedirection 0 -ErrorAction SilentlyContinue
-    if ($Resp.Headers.Location) {
-        $Tag = Split-Path $Resp.Headers.Location -Leaf
-    } else {
+    # Fallback to redirect URL on API rate limits (using .NET HttpWebRequest to avoid IE COM engine dependency and properly capture 302 location)
+    try {
+        $Req = [System.Net.HttpWebRequest]::Create("https://github.com/$Repo/releases/latest")
+        $Req.AllowAutoRedirect = $false
+        $Resp = $Req.GetResponse()
+        $Loc = $Resp.Headers['Location']
+        $Resp.Close()
+        if ($Loc) {
+            $Tag = Split-Path $Loc -Leaf
+        }
+    } catch [System.Net.WebException] {
+        if ($_.Exception.Response) {
+            $Loc = $_.Exception.Response.Headers['Location']
+            $_.Exception.Response.Close()
+            if ($Loc) {
+                $Tag = Split-Path $Loc -Leaf
+            }
+        }
+    }
+    if (-not $Tag -or $Tag -eq 'releases' -or $Tag -eq 'latest') {
         Write-Error "Could not determine latest release: $_"
         return
     }

@@ -43,6 +43,12 @@ acceptable behavior and will take appropriate and fair corrective action in
 response to any behavior that they deem inappropriate, threatening, offensive,
 or harmful.
 
+## Enforcement
+
+Instances of abusive, harassing, or otherwise unacceptable behavior may be
+reported to the project team at `me@bhaskarjha.dev`. All complaints will be
+reviewed and investigated promptly and fairly.
+
 ## Scope
 
 This Code of Conduct applies within all community spaces, and also applies when

@@ -134,14 +134,22 @@ func handlePrepareGenerator(_ context.Context, _ *sdkmcp.CallToolRequest, in Pre
 					placeholderDecision := "DECISION: [the question, as you'd ask it]"
 					placeholderContextDecision := "CONTEXT: [what's being built; workload, team, constraints, what's already decided]"
 					placeholderContextComparison := "CONTEXT: [what's being built, compared, or decided; workload, requirements, team, constraints, stage]"
+					placeholderOptions := "OPTIONS: [2-5 named options]"
 
 					newBlock := blockContent
-					if scope == core.ScopeDecision {
+					switch scope {
+					case core.ScopeDecision:
 						if strings.Contains(newBlock, placeholderDecision) {
 							newBlock = strings.Replace(newBlock, placeholderDecision, "DECISION: "+in.Context, 1)
 						} else if strings.Contains(newBlock, "DECISION:") {
 							re := regexp.MustCompile(`(?m)^DECISION:.*$`)
 							newBlock = re.ReplaceAllString(newBlock, "DECISION: "+in.Context)
+						}
+					case core.ScopeComparison:
+						if strings.Contains(newBlock, placeholderOptions) {
+							if opts := extractComparisonOptions(in.Context); opts != "" {
+								newBlock = strings.Replace(newBlock, placeholderOptions, "OPTIONS: "+opts, 1)
+							}
 						}
 					}
 
@@ -197,3 +205,39 @@ func handlePrepareGenerator(_ context.Context, _ *sdkmcp.CallToolRequest, in Pre
 	}
 	return env.ToResult()
 }
+
+// extractComparisonOptions attempts to extract 2-5 candidate options from comparison prompts like "Pino vs Winston"
+func extractComparisonOptions(ctx string) string {
+	lower := strings.ToLower(ctx)
+	delims := []string{" vs. ", " vs ", " versus "}
+	for _, delim := range delims {
+		if idx := strings.Index(lower, delim); idx != -1 {
+			left := strings.TrimSpace(ctx[:idx])
+			right := strings.TrimSpace(ctx[idx+len(delim):])
+			prefixes := []string{
+				"compare ", "evaluate ", "benchmark ", "choose between ", "decide between ",
+				"which one is better: ", "which is better, ", "which is better: ",
+			}
+			for _, p := range prefixes {
+				if strings.HasPrefix(strings.ToLower(left), p) {
+					left = strings.TrimSpace(left[len(p):])
+					break
+				}
+			}
+			suffixes := []string{" for ", " in ", " with ", " when ", " under "}
+			for _, s := range suffixes {
+				if sIdx := strings.Index(strings.ToLower(right), s); sIdx != -1 {
+					right = strings.TrimSpace(right[:sIdx])
+					break
+				}
+			}
+			left = strings.Trim(left, "?!.,:;")
+			right = strings.Trim(right, "?!.,:;")
+			if left != "" && right != "" {
+				return left + ", " + right
+			}
+		}
+	}
+	return ""
+}
+

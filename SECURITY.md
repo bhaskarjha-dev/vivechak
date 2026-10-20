@@ -49,7 +49,7 @@ If you discover a security vulnerability or sandbox boundary escape in Vivechak,
 
 Instead, report it directly via private security advisory:
 1. Open a **Private Security Advisory** on GitHub: Navigate to the repository's **Security** tab and click **Report a vulnerability**.
-2. Or contact the maintainers directly via email: `bhaskar@jha.dev` (Subject: `[SECURITY] Vivechak Vulnerability Report`).
+2. Or contact the maintainers directly via email: `me@bhaskarjha.dev` (Subject: `[SECURITY] Vivechak Vulnerability Report`).
 
 Please include:
 - A description of the vulnerability and attack vector.
