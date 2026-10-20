@@ -22,7 +22,7 @@ var Generators embed.FS
 var Templates embed.FS
 
 // ReadGenerator returns the contents of a generator file by name.
-// Valid names: "GENERATOR.md", "GENERATOR-PROJECT.md", "GENERATOR-DECISION.md", "GENERATOR-COMPARISON.md"
+// Valid names: "GENERATOR-PROJECT.md", "GENERATOR-DECISION.md", "GENERATOR-COMPARISON.md"
 func ReadGenerator(name string) ([]byte, error) {
 	data, err := fs.ReadFile(Generators, "generators/"+name)
 	if err != nil {

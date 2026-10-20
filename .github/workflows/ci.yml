@@ -36,7 +36,6 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: |
           # Verify embedded generators match root-level generators
-          diff GENERATOR.md internal/embed/generators/GENERATOR.md
           diff GENERATOR-PROJECT.md internal/embed/generators/GENERATOR-PROJECT.md
           diff GENERATOR-DECISION.md internal/embed/generators/GENERATOR-DECISION.md
           diff GENERATOR-COMPARISON.md internal/embed/generators/GENERATOR-COMPARISON.md

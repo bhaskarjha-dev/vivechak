@@ -38,8 +38,8 @@ func TestScopeFromString_And_GeneratorFile(t *testing.T) {
 	if gen := GeneratorFile(ScopeComparison); gen != "GENERATOR-COMPARISON.md" {
 		t.Errorf("expected GENERATOR-COMPARISON.md, got %q", gen)
 	}
-	if gen := GeneratorFile(ScopeProject); gen != "GENERATOR.md" {
-		t.Errorf("expected GENERATOR.md, got %q", gen)
+	if gen := GeneratorFile(ScopeProject); gen != "GENERATOR-PROJECT.md" {
+		t.Errorf("expected GENERATOR-PROJECT.md, got %q", gen)
 	}
 	if gen := GeneratorFile("unknown"); gen != "" {
 		t.Errorf("expected empty string for unknown generator, got %q", gen)

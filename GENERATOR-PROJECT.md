@@ -261,7 +261,7 @@ weighted evaluation matrix with project-derived criteria, evidence
 references per score, and a sensitivity check. Add a "Discovered Concerns"
 criterion if research reveals material concerns beyond stated scope.
 
-<!-- CORE:BEGIN — shared methodology kernel (must stay identical across GENERATOR.md, GENERATOR-DECISION.md, GENERATOR-COMPARISON.md) -->
+<!-- CORE:BEGIN — shared methodology kernel (must stay identical across GENERATOR-PROJECT.md, GENERATOR-DECISION.md, GENERATOR-COMPARISON.md) -->
 For evidence grading, every factual claim should carry:
 - Base grade: A (official docs/RFCs/peer-reviewed studies) | B (empirical/benchmarks) | C (vendor claims) | D (blog/tutorial/AI recall) | E (unverifiable)
 - Modifiers: corroboration (single/corroborated/contested), recency (fresh/aging/stale), directness (direct/indirect)

@@ -136,7 +136,7 @@ You're making a high-stakes decision — whether architecting a full system, des
 
 | Scope | Entry Point | What You Get |
 |---|---|---|
-| **Project** | [GENERATOR.md](GENERATOR.md) | Full research pipeline → Founding Architecture Document |
+| **Project** | [GENERATOR-PROJECT.md](GENERATOR-PROJECT.md) | Full research pipeline → Founding Architecture Document |
 | **Decision** | [GENERATOR-DECISION.md](GENERATOR-DECISION.md) | 1–3 focused sessions → proposed ADR |
 | **Comparison** | [GENERATOR-COMPARISON.md](GENERATOR-COMPARISON.md) | 1 structured comparison → WEP matrix |
 
@@ -177,7 +177,7 @@ If you are using ChatGPT, Claude, or Gemini in your browser without an MCP agent
 1. **Choose Your Scope Generator:**
    - **Comparison:** Open [GENERATOR-COMPARISON.md](GENERATOR-COMPARISON.md), inject options & criteria, run in a web search chat, and save the resulting WEP matrix into `research/COMPARISON.md`.
    - **Decision:** Open [GENERATOR-DECISION.md](GENERATOR-DECISION.md), paste the dilemma, execute 1–3 sessions, and record the ADR in `research/D-NNN.md` using `templates/DECISIONS.template.md`.
-   - **Project:** Open [GENERATOR.md](GENERATOR.md), paste your vision, save `RESEARCH-PIPELINE.md` (DAG) and `DECISIONS.md`, copy all 6 templates, execute sessions into `research/sessions/`, synthesize `FAD.md`, and pass `templates/PHASE-0-GATE.template.md` before coding.
+   - **Project:** Open [GENERATOR-PROJECT.md](GENERATOR-PROJECT.md), paste your vision, save `RESEARCH-PIPELINE.md` (DAG) and `DECISIONS.md`, copy all 6 templates, execute sessions into `research/sessions/`, synthesize `FAD.md`, and pass `templates/PHASE-0-GATE.template.md` before coding.
 
 ---
 
@@ -208,7 +208,7 @@ vivechak/
 │   ├── ci.yml                      ← Test + vet + build on push/PR
 │   └── release.yml                 ← Decoupled release workflow
 │
-├── GENERATOR-PROJECT.md · GENERATOR.md ← Project-scope generator (full pipeline → FAD)
+├── GENERATOR-PROJECT.md            ← Project-scope generator (full pipeline → FAD)
 ├── GENERATOR-DECISION.md           ← Decision-scope generator (1–3 sessions → ADR)
 ├── GENERATOR-COMPARISON.md         ← Comparison-scope generator (1 session → WEP matrix)
 ├── FRAMEWORK.md                    ← Deep methodology reference
@@ -338,7 +338,7 @@ Vivechak's most distinctive property: it was validated by the methodology it pre
 
 ### FRAMEWORK.md — The Deep Reference
 
-[FRAMEWORK.md](FRAMEWORK.md) contains the complete methodology specification — 8 principles, evidence grading system, pipeline topology, prompt anatomy, and synthesis workflows. **You do not need to read it to use Vivechak.** GENERATOR.md is self-contained; all methodology is operationalized inline in the generator prompt. FRAMEWORK.md is the definitive reference for understanding *why* the methodology works and for anyone improving the framework itself.
+[FRAMEWORK.md](FRAMEWORK.md) contains the complete methodology specification — 8 principles, evidence grading system, pipeline topology, prompt anatomy, and synthesis workflows. **You do not need to read it to use Vivechak.** GENERATOR-PROJECT.md is self-contained; all methodology is operationalized inline in the generator prompt. FRAMEWORK.md is the definitive reference for understanding *why* the methodology works and for anyone improving the framework itself.
 
 ---
 

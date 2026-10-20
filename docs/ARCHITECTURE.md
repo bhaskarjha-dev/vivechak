@@ -6,7 +6,7 @@
 Welcome to the internal architecture guide for **Vivechak** (विवेचक). This document is written for Go developers and contributors who want to understand, extend, or maintain the Vivechak MCP server codebase.
 
 Vivechak is an evidence-grounded research meta-framework for technical decisions. It operates across three distinct research scopes:
-1. **Project** ([`GENERATOR.md`](../GENERATOR.md)) — Full research pipeline producing a Founding Architecture Document (FAD) across 4–30 DAG-ordered sessions.
+1. **Project** ([`GENERATOR-PROJECT.md`](../GENERATOR-PROJECT.md)) — Full research pipeline producing a Founding Architecture Document (FAD) across 4–30 DAG-ordered sessions.
 2. **Decision** ([`GENERATOR-DECISION.md`](../GENERATOR-DECISION.md)) — Single architectural decision producing an Architectural Decision Record (ADR) across 1–3 sessions.
 3. **Comparison** ([`GENERATOR-COMPARISON.md`](../GENERATOR-COMPARISON.md)) — Bounded technology evaluation producing a Weighted Evaluation Protocol (WEP) matrix in a single session.
 
@@ -285,7 +285,7 @@ var Generators embed.FS
 //go:embed templates/*.md
 var Templates embed.FS
 ```
-- [`ReadGenerator(name)`](../internal/embed/embed.go#L26-L32): Retrieves generator prompts by filename (`GENERATOR.md`, `GENERATOR-DECISION.md`, `GENERATOR-COMPARISON.md`).
+- [`ReadGenerator(name)`](../internal/embed/embed.go#L26-L32): Retrieves generator prompts by filename (`GENERATOR-PROJECT.md`, `GENERATOR-DECISION.md`, `GENERATOR-COMPARISON.md`).
 - [`ReadTemplate(name)`](../internal/embed/embed.go#L38-L44): Retrieves output templates (`DECISIONS.template.md`, `CONFLICT-RESOLUTION.template.md`, `COMPARISON-SESSION.template.md`, `FOUNDING-ARCHITECTURE.template.md`, `PHASE-0-GATE.template.md`, `SESSION.template.md`).
 
 ### Synchronization with Root Markdown Files
@@ -293,7 +293,7 @@ Vivechak maintains canonical human-readable files at the repository root and ide
 
 | Canonical Root File | Embedded Copy |
 |---|---|
-| `GENERATOR.md` | `internal/embed/generators/GENERATOR.md` |
+| `GENERATOR-PROJECT.md` | `internal/embed/generators/GENERATOR-PROJECT.md` |
 | `GENERATOR-DECISION.md` | `internal/embed/generators/GENERATOR-DECISION.md` |
 | `GENERATOR-COMPARISON.md` | `internal/embed/generators/GENERATOR-COMPARISON.md` |
 | `templates/*.template.md` | `internal/embed/templates/*.template.md` |

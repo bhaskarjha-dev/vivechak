@@ -7,7 +7,7 @@ The Model Context Protocol (MCP) server for [Vivechak](../README.md) exposes 13 
 
 Vivechak supports two execution models:
 1. **MCP Server Workflow**: Autonomous or semi-autonomous execution where the host agent calls MCP tools to prepare prompts, manage DAG session progression, validate outputs, record ADRs, and verify Phase 0 exit gates.
-2. **Manual Workflow**: Copying static generator prompts ([`GENERATOR.md`](../GENERATOR.md), [`GENERATOR-DECISION.md`](../GENERATOR-DECISION.md), [`GENERATOR-COMPARISON.md`](../GENERATOR-COMPARISON.md)) into browser-based AI chats and tracking markdown deliverables by hand.
+2. **Manual Workflow**: Copying static generator prompts ([`GENERATOR-PROJECT.md`](../GENERATOR-PROJECT.md), [`GENERATOR-DECISION.md`](../GENERATOR-DECISION.md), [`GENERATOR-COMPARISON.md`](../GENERATOR-COMPARISON.md)) into browser-based AI chats and tracking markdown deliverables by hand.
 
 ---
 
@@ -125,7 +125,7 @@ flowchart TD
 8. Persist the generated `research/FAD.md` using `vivechak_save_session` (or `vivechak_record_decision`).
 9. Call `vivechak_run_gate` to perform automated verification of the Phase 0 Exit Gate (Track A structural completeness and Track B mechanical quality).
 
-*Manual Alternative:* Copy [`GENERATOR.md`](../GENERATOR.md), replace the placeholder with your project vision, run it in an AI web session, and manually save outputs to `research/RESEARCH-PIPELINE.md`.
+*Manual Alternative:* Copy [`GENERATOR-PROJECT.md`](../GENERATOR-PROJECT.md), replace the placeholder with your project vision, run it in an AI web session, and manually save outputs to `research/RESEARCH-PIPELINE.md`.
 
 ---
 
@@ -274,7 +274,7 @@ When called on an existing workspace, returns [`WorkspaceInfo`](../internal/core
 MANDATORY research entrypoint: Call this tool whenever the user asks to compare two or more options, alternatives, approaches, technologies, models, or algorithms (e.g., 'A vs B', 'which should I choose'), or asks for an evaluative decision, trade-off analysis, or system architecture plan.
 
 #### What It Does
-Loads the embedded generator template corresponding to the requested scope ([`GENERATOR.md`](../GENERATOR.md) for `project`, [`GENERATOR-DECISION.md`](../GENERATOR-DECISION.md) for `decision`, or [`GENERATOR-COMPARISON.md`](../GENERATOR-COMPARISON.md) for `comparison`) and injects the caller's context into the prompt's context placeholders. It computes character and token count estimates and returns the fully assembled prompt ready for execution in an AI browser or search session. This tool is read-only and does not write to disk.
+Loads the embedded generator template corresponding to the requested scope ([`GENERATOR-PROJECT.md`](../GENERATOR-PROJECT.md) for `project`, [`GENERATOR-DECISION.md`](../GENERATOR-DECISION.md) for `decision`, or [`GENERATOR-COMPARISON.md`](../GENERATOR-COMPARISON.md) for `comparison`) and injects the caller's context into the prompt's context placeholders. It computes character and token count estimates and returns the fully assembled prompt ready for execution in an AI browser or search session. This tool is read-only and does not write to disk.
 
 #### Input Parameters
 Defined in [`PrepareGeneratorInput`](../internal/mcp/tool_prepare_generator.go):

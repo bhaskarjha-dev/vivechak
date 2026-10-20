@@ -57,7 +57,7 @@ This session is complete when:
 4. "What would change this recommendation" is answered.
 5. Open risks and reversal triggers are stated; if a decisive unknown depends on the requester's workload, the smallest probe that would settle it.
 6. Discovered Concerns, including any stronger unlisted option (omit if none).
-<!-- CORE:BEGIN — shared methodology kernel (must stay identical across GENERATOR.md, GENERATOR-DECISION.md, GENERATOR-COMPARISON.md) -->
+<!-- CORE:BEGIN — shared methodology kernel (must stay identical across GENERATOR-PROJECT.md, GENERATOR-DECISION.md, GENERATOR-COMPARISON.md) -->
 For evidence grading, every factual claim should carry:
 - Base grade: A (official docs/RFCs/peer-reviewed studies) | B (empirical/benchmarks) | C (vendor claims) | D (blog/tutorial/AI recall) | E (unverifiable)
 - Modifiers: corroboration (single/corroborated/contested), recency (fresh/aging/stale), directness (direct/indirect)

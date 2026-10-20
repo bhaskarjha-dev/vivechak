@@ -87,7 +87,7 @@ When releasing a new version, update ALL of the following references:
 - [ ] `CHANGELOG.md` — add new release entry
 - [ ] `README.md` — header version, tree diagram version, roadmap table
 - [ ] `AGENTS.md` — header version
-- [ ] `GENERATOR.md` — title version, Design Notes version
+- [ ] `GENERATOR-PROJECT.md` — title version, Design Notes version
 - [ ] `FRAMEWORK.md` — header version (if applicable)
 - [ ] `templates/` — header version in all 6 templates, `schema_version` in templates if schema changed
 - [ ] `internal/embed/` — verify 1:1 embed sync with root generators and templates
@@ -97,16 +97,16 @@ When releasing a new version, update ALL of the following references:
 
 ## Change Propagation Map
 
-**Why this matters:** FRAMEWORK.md is the specification. GENERATOR.md is the implementation (the prompt that produces actual output). Templates are the contracts users fill out. Changing the spec without updating the implementation means improvements exist only in documentation but never affect generated pipelines. This is the Vivechak equivalent of updating a language spec without updating the compiler.
+**Why this matters:** FRAMEWORK.md is the specification. GENERATOR-PROJECT.md is the implementation (the prompt that produces actual output). Templates are the contracts users fill out. Changing the spec without updating the implementation means improvements exist only in documentation but never affect generated pipelines. This is the Vivechak equivalent of updating a language spec without updating the compiler.
 
 **Rule: When you modify any file listed below, you MUST check every file in its propagation set.** Not every change will require propagation, but every change MUST be checked.
 
 ### FRAMEWORK.md → check these files
 
-| If you changed... | Check GENERATOR.md | Check templates/ | Check README.md |
+| If you changed... | Check GENERATOR-PROJECT.md | Check templates/ | Check README.md |
 |---|---|---|---|
 | Core Principles (§2) | ✅ If the principle affects how pipelines are generated | — | ✅ If it changes user-facing behavior |
-| Pipeline Architecture (§3) — scaling, tiers, session budgets | ✅ Scoring rubric and tier mapping are duplicated in GENERATOR.md Step 2 | — | — |
+| Pipeline Architecture (§3) — scaling, tiers, session budgets | ✅ Scoring rubric and tier mapping are duplicated in GENERATOR-PROJECT.md Step 2 | — | — |
 | Pipeline Architecture (§3) — failure modes, termination, checkpoints | ✅ "How to Execute" section must reflect new guidance | — | — |
 | Prompt Design (§4) — 8-block anatomy, output rubric | ✅ Step 4 writes prompts using this anatomy | — | — |
 | Evidence System (§5) — grading, modifiers, citation format | ✅ Evidence grading is inlined in every generated prompt | — | — |
@@ -116,7 +116,7 @@ When releasing a new version, update ALL of the following references:
 
 ### templates/ → check these files
 
-| If you changed... | Check GENERATOR.md | Check FRAMEWORK.md |
+| If you changed... | Check GENERATOR-PROJECT.md | Check FRAMEWORK.md |
 |---|---|---|
 | DECISIONS.template.md — YAML schema fields | ✅ DECISIONS.md generation spec (DELIVERABLE §2) must list new fields | ✅ §5.7 ADR section must match |
 | DECISIONS.template.md — body sections | ✅ If new sections should appear in generated DECISIONS.md | — |
@@ -124,7 +124,7 @@ When releasing a new version, update ALL of the following references:
 | PHASE-0-GATE.template.md | — | ✅ §7 Gate section must match |
 | CONFLICT-RESOLUTION.template.md | — | — (self-contained) |
 
-### GENERATOR.md → check these files
+### GENERATOR-PROJECT.md → check these files
 
 | If you changed... | Check FRAMEWORK.md | Check templates/ |
 |---|---|---|
@@ -140,13 +140,13 @@ These elements exist in MORE THAN ONE file and MUST stay synchronized:
 
 | Element | Lives In | Also Referenced In |
 |---|---|---|
-| 8-dimension complexity rubric | FRAMEWORK.md §3.2 | GENERATOR.md Step 2 (intentionally abbreviated labels for prompt economy — substantively identical) |
-| Tier mapping (score → session budget) | FRAMEWORK.md §3.2 | GENERATOR.md Step 2 |
-| Per-decision routing matrix | FRAMEWORK.md §3.2 | GENERATOR.md Step 3 |
-| 8-block prompt anatomy | FRAMEWORK.md §4 | GENERATOR.md Step 4 |
-| Evidence grading tiers (A-E) | FRAMEWORK.md §5.1 | GENERATOR.md Step 4 (inlined in every prompt), GENERATOR-DECISION.md, GENERATOR-COMPARISON.md — marked by `CORE:BEGIN/END` blocks |
-| ADR YAML schema (18 fields) | templates/DECISIONS.template.md (canonical) | GENERATOR.md DELIVERABLE §2 (full schema inlined), GENERATOR-DECISION.md, FRAMEWORK.md §5.7 (example) |
-| Template filenames (6 templates) | templates/ directory | GENERATOR.md "How to Execute", README.md Step 2, AGENTS.md §2 |
+| 8-dimension complexity rubric | FRAMEWORK.md §3.2 | GENERATOR-PROJECT.md Step 2 (intentionally abbreviated labels for prompt economy — substantively identical) |
+| Tier mapping (score → session budget) | FRAMEWORK.md §3.2 | GENERATOR-PROJECT.md Step 2 |
+| Per-decision routing matrix | FRAMEWORK.md §3.2 | GENERATOR-PROJECT.md Step 3 |
+| 8-block prompt anatomy | FRAMEWORK.md §4 | GENERATOR-PROJECT.md Step 4 |
+| Evidence grading tiers (A-E) | FRAMEWORK.md §5.1 | GENERATOR-PROJECT.md Step 4 (inlined in every prompt), GENERATOR-DECISION.md, GENERATOR-COMPARISON.md — marked by `CORE:BEGIN/END` blocks |
+| ADR YAML schema (18 fields) | templates/DECISIONS.template.md (canonical) | GENERATOR-PROJECT.md DELIVERABLE §2 (full schema inlined), GENERATOR-DECISION.md, FRAMEWORK.md §5.7 (example) |
+| Template filenames (6 templates) | templates/ directory | GENERATOR-PROJECT.md "How to Execute", README.md Step 2, AGENTS.md §2 |
 | Multi-scope routing (R/N/B/X) | FRAMEWORK.md §9.3 | GENERATOR-DECISION.md (operational implementation) |
 | Methodology invariants (I1-I9) | FRAMEWORK.md §9.2 | `CORE:BEGIN/END` blocks in all three generators |
 

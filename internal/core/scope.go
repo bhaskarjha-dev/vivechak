@@ -11,7 +11,7 @@ type Scope string
 
 const (
 	// ScopeProject is a full research pipeline (→ FAD).
-	// Uses GENERATOR.md, produces RESEARCH-PIPELINE.md + DECISIONS.md.
+	// Uses GENERATOR-PROJECT.md, produces RESEARCH-PIPELINE.md + DECISIONS.md.
 	ScopeProject Scope = "project"
 
 	// ScopeDecision is a single architectural decision (→ ADR).
@@ -42,7 +42,7 @@ func ScopeFromString(s string) (Scope, bool) {
 func GeneratorFile(scope Scope) string {
 	switch scope {
 	case ScopeProject:
-		return "GENERATOR.md"
+		return "GENERATOR-PROJECT.md"
 	case ScopeDecision:
 		return "GENERATOR-DECISION.md"
 	case ScopeComparison:

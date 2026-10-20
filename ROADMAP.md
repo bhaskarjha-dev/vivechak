@@ -14,7 +14,7 @@ Vivechak delivers a unified, evidence-grounded research methodology powered by a
 | Component | State | Description |
 |---|---|---|
 | **13 Atomic MCP Tools** | ✅ Shipped | Full lifecycle support: `init`, `prepare_generator`, `save_plan`, `status`, `next_session`, `save_session`, `record_decision` (with ADR supersession), `amend_session`, `validate`, `run_gate`, `challenge` (adversarial red-teaming), `replan` (in-flight DAG mutation), and `visualize` (Mermaid graph + status table) |
-| **Multi-Scope Generators** | ✅ Shipped | `GENERATOR.md` (Project), `GENERATOR-DECISION.md` (Decision), `GENERATOR-COMPARISON.md` (Comparison) with synchronized `CORE:BEGIN/END` methodology kernels, Research Depth Mandates, and token-optimized execution guidance |
+| **Multi-Scope Generators** | ✅ Shipped | `GENERATOR-PROJECT.md` (Project), `GENERATOR-DECISION.md` (Decision), `GENERATOR-COMPARISON.md` (Comparison) with synchronized `CORE:BEGIN/END` methodology kernels, Research Depth Mandates, and token-optimized execution guidance |
 | **Unified AST-Aware Markdown Parser** | ✅ Shipped | CommonMark heading-level and code-fence-aware extraction for recommendations, alternatives, and frontmatters; eliminates sibling truncation, code comment false positives, and parser fragility |
 | **Strict Decoupled Phase 0 Exit Gate** | ✅ Shipped | Non-negotiable blocking on One-Way Door evidentiary defects (B3), verification gaps (B4), and missing alternatives (B5), preventing Potemkin passes while preserving fast spikes for Two-Way Doors |
 | **Permissive Frontmatter & ADR Supersession** | ✅ Shipped | Zero-crash frontmatter extraction for documents starting with `# Heading` or blank lines; robust non-destructive ADR supersession |

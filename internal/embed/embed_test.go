@@ -8,7 +8,7 @@ import (
 )
 
 func TestEmbedIntegrity_Generators(t *testing.T) {
-	expected := []string{"GENERATOR-COMPARISON.md", "GENERATOR-DECISION.md", "GENERATOR-PROJECT.md", "GENERATOR.md"}
+	expected := []string{"GENERATOR-COMPARISON.md", "GENERATOR-DECISION.md", "GENERATOR-PROJECT.md"}
 
 	names, err := ListGenerators()
 	if err != nil {
@@ -64,7 +64,7 @@ func TestEmbedIntegrity_Templates(t *testing.T) {
 
 func TestEmbeddedFilesMatchRoot(t *testing.T) {
 	rootGenDir := filepath.Join("..", "..")
-	for _, name := range []string{"GENERATOR.md", "GENERATOR-PROJECT.md", "GENERATOR-DECISION.md", "GENERATOR-COMPARISON.md"} {
+	for _, name := range []string{"GENERATOR-PROJECT.md", "GENERATOR-DECISION.md", "GENERATOR-COMPARISON.md"} {
 		rootPath := filepath.Join(rootGenDir, name)
 		rootData, err := os.ReadFile(rootPath)
 		if os.IsNotExist(err) {
@@ -108,7 +108,7 @@ func TestEmbeddedFilesMatchRoot(t *testing.T) {
 }
 
 func TestCoreMarkersMatchAcrossGenerators(t *testing.T) {
-	generators := []string{"GENERATOR.md", "GENERATOR-DECISION.md", "GENERATOR-COMPARISON.md"}
+	generators := []string{"GENERATOR-PROJECT.md", "GENERATOR-DECISION.md", "GENERATOR-COMPARISON.md"}
 	var extractedCores [][]byte
 
 	startMarker := []byte("<!-- CORE:BEGIN")

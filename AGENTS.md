@@ -12,7 +12,7 @@
 - **Decision Scope (`ScopeDecision`):** Architectural dilemma in an active codebase (→ ADR in 1–3 sessions, ~30 minutes, 0 project DAG, 0 FAD).
 - **Project Scope (`ScopeProject`):** Greenfield architecture or major rewrite (→ FAD across 4–30 DAG sessions, Phase 0 Gate).
 
-**The methodology generators are [GENERATOR.md](GENERATOR.md), [GENERATOR-DECISION.md](GENERATOR-DECISION.md), and [GENERATOR-COMPARISON.md](GENERATOR-COMPARISON.md).** The MCP server (`cmd/vivechak/`, binary alias `vck`) automates orchestration — workspace initialization, scope inference, DAG resolution, context injection, validation, and exit gates. Everything else supports them.
+**The methodology generators are [GENERATOR-PROJECT.md](GENERATOR-PROJECT.md), [GENERATOR-DECISION.md](GENERATOR-DECISION.md), and [GENERATOR-COMPARISON.md](GENERATOR-COMPARISON.md).** The MCP server (`cmd/vivechak/`, binary alias `vck`) automates orchestration — workspace initialization, scope inference, DAG resolution, context injection, validation, and exit gates. Everything else supports them.
 
 ---
 
@@ -77,7 +77,7 @@ Use when architecting a brand new project, platform, or massive subsystem rewrit
 6. Run `vivechak_run_gate` to verify Track A and Track B exit criteria before starting implementation.
 
 **Manual Flow:**
-1. Open [GENERATOR.md](GENERATOR.md) and extract prompt inside ```` ````markdown ```` fences.
+1. Open [GENERATOR-PROJECT.md](GENERATOR-PROJECT.md) and extract prompt inside ```` ````markdown ```` fences.
 2. Replace `[PASTE YOUR PROJECT DESCRIPTION HERE]` with vision and execute with web search.
 3. Save `RESEARCH-PIPELINE.md` and `DECISIONS.md` to `research/`. Copy all 6 templates from `templates/` to `research/templates/`:
    - `DECISIONS.template.md` — for recording architectural decisions
@@ -106,11 +106,11 @@ Vivechak must **never** be invoked for:
 
 ## 3. Developing Vivechak Itself
 
-This section applies only when improving the meta-framework — editing FRAMEWORK.md, GENERATOR.md, or templates/.
+This section applies only when improving the meta-framework — editing FRAMEWORK.md, GENERATOR-PROJECT.md, or templates/.
 
 1. **Read [FRAMEWORK.md](FRAMEWORK.md)** — the complete methodology specification (8 principles, evidence grading, pipeline topology, prompt anatomy).
 2. **Read [CONTRIBUTING.md](CONTRIBUTING.md)** — all changes must be traceable to evidence.
-3. **⚠️ Run the Change Propagation Map** (CONTRIBUTING.md § Change Propagation Map) before committing. FRAMEWORK.md is the specification; GENERATOR.md is the implementation. Changing the spec without updating the implementation means improvements exist in documentation but never affect generated pipelines. Every change to FRAMEWORK.md, GENERATOR.md, or templates/ MUST be checked against the propagation map.
+3. **⚠️ Run the Change Propagation Map** (CONTRIBUTING.md § Change Propagation Map) before committing. FRAMEWORK.md is the specification; GENERATOR-PROJECT.md is the implementation. Changing the spec without updating the implementation means improvements exist in documentation but never affect generated pipelines. Every change to FRAMEWORK.md, GENERATOR-PROJECT.md, or templates/ MUST be checked against the propagation map.
 4. All changes must follow the 8 Core Principles (summarized below).
 5. The sealed `docs/meta-research/` directory contains the empirical evidence base — 15 research artifacts validating every design decision.
 
@@ -134,7 +134,7 @@ This section applies only when improving the meta-framework — editing FRAMEWOR
 ```
 vivechak/
 ├── README.md                       ← Overview + install + quickstart
-├── GENERATOR-PROJECT.md · GENERATOR.md ← Project-scope generator (full pipeline → FAD)
+├── GENERATOR-PROJECT.md            ← Project-scope generator (full pipeline → FAD)
 ├── GENERATOR-DECISION.md           ← Decision-scope generator (1–3 sessions → ADR)
 ├── GENERATOR-COMPARISON.md         ← Comparison-scope generator (1 session → WEP matrix)
 ├── FRAMEWORK.md                    ← Complete methodology spec (for development only)

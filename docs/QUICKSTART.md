@@ -6,7 +6,7 @@ Vivechak runs at three scope levels depending on what you are deciding:
 
 | Scope | Entry Generator | Output Artifact | Typical Investment |
 |---|---|---|---|
-| **Full Project** | [`GENERATOR.md`](../GENERATOR.md) | Founding Architecture Document (FAD) | 4–30 sessions (DAG-ordered) |
+| **Full Project** | [`GENERATOR-PROJECT.md`](../GENERATOR-PROJECT.md) | Founding Architecture Document (FAD) | 4–30 sessions (DAG-ordered) |
 | **Single Decision** | [`GENERATOR-DECISION.md`](../GENERATOR-DECISION.md) | Architecture Decision Record (ADR) | 1–3 sessions |
 | **Bounded Comparison** | [`GENERATOR-COMPARISON.md`](../GENERATOR-COMPARISON.md) | Weighted Evaluation (WEP) Matrix | 1 session |
 
@@ -118,7 +118,7 @@ Open your agent chat in your project repository and choose your scope:
 [Agent: vivechak_init (scope: 'project')]
   └─ Creates research/ workspace and copies all 6 operational templates
 [Agent: vivechak_prepare_generator]
-  └─ Injects your vision into GENERATOR.md
+  └─ Injects your vision into GENERATOR-PROJECT.md
 [Agent: executes generator prompt]
   └─ Generates RESEARCH-PIPELINE.md (DAG) & DECISIONS.md (registry)
 [Agent: vivechak_save_plan]
@@ -143,7 +143,7 @@ See the [MCP Tools Reference](MCP-TOOLS.md) for full tool schemas, parameter spe
 No binaries or CLI required. Works in ChatGPT, Gemini, or Claude web browsers with web search enabled.
 
 ### 1. Copy the Generator Prompt
-Open [`GENERATOR.md`](../GENERATOR.md) and copy the generator prompt inside the markdown code block.
+Open [`GENERATOR-PROJECT.md`](../GENERATOR-PROJECT.md) and copy the generator prompt inside the markdown code block.
 
 ### 2. Paste & Run with Your Project Vision
 Paste the prompt into Claude, ChatGPT Plus, or Gemini Advanced (with search enabled). Fill in `[PASTE YOUR PROJECT DESCRIPTION HERE]`:

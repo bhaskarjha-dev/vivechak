@@ -46,8 +46,8 @@ The agent begins by initializing the workspace for a full project and providing 
 ```json
 {
   "success": true,
-  "message": "Project vision injected into GENERATOR.md.",
-  "next_step": "Execute the GENERATOR.md prompt using your frontier LLM capabilities to generate the pipeline."
+  "message": "Project vision injected into GENERATOR-PROJECT.md.",
+  "next_step": "Execute the GENERATOR-PROJECT.md prompt using your frontier LLM capabilities to generate the pipeline."
 }
 ```
 

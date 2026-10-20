@@ -30,7 +30,7 @@ Vivechak operates at three distinct scope levels calibrated to decision blast ra
 
 1. **Comparison Scope (`GENERATOR-COMPARISON.md`):** Rapid evaluation between 2–5 options producing an evidence-graded Weighted Evaluation Protocol (WEP) matrix in a single session without DAG or gate overhead.
 2. **Decision Scope (`GENERATOR-DECISION.md`):** Focused investigation for an architectural dilemma in an existing project, producing a validated Architectural Decision Record (ADR) in 1–3 sessions.
-3. **Project Scope (`GENERATOR.md`):** Greenfield system architecture or major platform rewrite, decomposing uncertainty into an information DAG, synthesizing findings into a Founding Architecture Document (FAD), and verifying pre-codebase exit criteria via the Phase 0 Gate.
+3. **Project Scope (`GENERATOR-PROJECT.md`):** Greenfield system architecture or major platform rewrite, decomposing uncertainty into an information DAG, synthesizing findings into a Founding Architecture Document (FAD), and verifying pre-codebase exit criteria via the Phase 0 Gate.
 
 *(For detailed scope methodology, invariants I1–I9, and decision routing, see [§9. Multi-Scope Research](#9-multi-scope-research).)*
 
@@ -657,7 +657,7 @@ For any session that evaluates 2+ competing options:
 
 ## 8. Generator Architecture
 
-The pipeline generator uses a **deterministic/AI hybrid** architecture that produces two documents: a unified pipeline containing the execution plan and copy-paste-ready research prompts, plus a separate decision registry that evolves during execution. See [GENERATOR.md](GENERATOR.md) for the working generator prompt.
+The pipeline generator uses a **deterministic/AI hybrid** architecture that produces two documents: a unified pipeline containing the execution plan and copy-paste-ready research prompts, plus a separate decision registry that evolves during execution. See [GENERATOR-PROJECT.md](GENERATOR-PROJECT.md) for the working generator prompt.
 
 The long-term vision is a 5-layer code-based tool:
 
@@ -710,7 +710,7 @@ Vivechak operates at three scope levels. Scope and depth are **independent axes*
 
 | Scope | Entry Point | Sessions | Output | When to Use |
 |---|---|---|---|---|
-| **Project** | `GENERATOR.md` | Tier-determined (1–30) | Full pipeline → FAD | New project, major pivot, or system-wide re-evaluation |
+| **Project** | `GENERATOR-PROJECT.md` | Tier-determined (1–30) | Full pipeline → FAD | New project, major pivot, or system-wide re-evaluation |
 | **Decision** | `GENERATOR-DECISION.md` | 1–3 (capped; escalate if more) | Research plan + proposed ADR | Single architectural decision, standalone or mid-project |
 | **Comparison** | `GENERATOR-COMPARISON.md` | 1 (always) | WEP comparison matrix | Bounded comparison of 2–5 named options |
 

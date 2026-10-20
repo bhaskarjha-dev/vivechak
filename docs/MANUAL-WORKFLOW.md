@@ -35,7 +35,7 @@ Choose the entry point that matches the size and blast radius of your decision s
 ```mermaid
 flowchart TD
     Start["What are you researching?"] --> Choice{"Scope of decision"}
-    Choice -->|"Entire new system or major architectural overhaul"| P["1. Project Scope<br/>GENERATOR.md<br/>(4–30 sessions → FAD)"]
+    Choice -->|"Entire new system or major architectural overhaul"| P["1. Project Scope<br/>GENERATOR-PROJECT.md<br/>(4–30 sessions → FAD)"]
     Choice -->|"Single architectural fork with trade-offs"| D["2. Decision Scope<br/>GENERATOR-DECISION.md<br/>(1–3 sessions → ADR)"]
     Choice -->|"Bounded selection between 2–5 named tools/libraries"| C["3. Comparison Scope<br/>GENERATOR-COMPARISON.md<br/>(1 session → WEP Matrix)"]
 ```
@@ -51,7 +51,7 @@ Use this workflow when designing a new product, platform, or large-scale subsyst
 
 ### Step 1: Get the Generator Prompt
 
-1. Open [`GENERATOR.md`](../GENERATOR.md) in your editor or browser.
+1. Open [`GENERATOR-PROJECT.md`](../GENERATOR-PROJECT.md) in your editor or browser.
 2. Locate the prompt inside the outer Markdown code fence (starting at `# GENERATE: Research Pipeline for a Technical Project` and ending before the closing fence and `## Set Up Your Project`).
 3. Copy the entire contents of that prompt.
 
