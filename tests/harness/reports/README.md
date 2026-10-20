@@ -17,3 +17,4 @@ node scripts/run_harness.mjs --archive <version>
 # Example: node scripts/run_harness.mjs --archive v0.1.1
 ```
 This automatically compiles active runs in `tests/harness/runs/` into an immutable audit report in this directory, updates this catalog index, and clears the local testbed for the next iteration.
+- **[audit-v0.1.0-2026-10-20.md](audit-v0.1.0-2026-10-20.md):** Release v0.1.0 milestone audit (18 runs, 100.0% pass).
