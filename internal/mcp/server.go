@@ -17,12 +17,12 @@ const ServerInstructions = "Vivechak (vck) — Evidence-grounded research for te
 	"## Workflows by Scope:\n" +
 	"- Comparison ('A vs B', 1 session): prepare_generator(scope='comparison') → execute → save_plan (WEP matrix). 5m! No DAG/gate/init.\n" +
 	"- Decision (ADR, 1–3 sessions): prepare_generator(scope='decision') → execute → record_decision (ADR). 30m! No project DAG.\n" +
-	"- Project (Full Pipeline): init → prepare_generator(scope='project') → save_plan → session loop → FAD → run_gate.\n\n" +
+	"- Project (Full Pipeline): init → prepare_generator(scope='project') → save_plan → session loop → FAD → run_gate (if plan-only, stop after save_plan/visualize; do not call next_session).\n\n" +
 	"## Rules\n" +
 	"- project_root defaults to CWD; follow next_step in every response\n" +
 	"- ⚡ = parallel sessions; execute concurrently\n" +
-	"- Use vivechak_challenge for stress-tests; vivechak_replan for DAG mutations; vivechak_visualize for graph\n" +
-	"- Content format: YAML frontmatter Markdown\n\n" +
+	"- Use challenge for stress-tests; replan for DAG mutations; visualize for graph\n" +
+	"- Format: YAML frontmatter Markdown\n\n" +
 	"## Evidence Grades (use in session findings)\n" +
 	"Grade A: Primary/Authoritative (specs/docs + URL).\n" +
 	"Grade B: Empirical/Experimental (benchmarks, postmortems).\n" +
@@ -36,7 +36,7 @@ const ServerInstructions = "Vivechak (vck) — Evidence-grounded research for te
 	"Discovered Concerns → Delta (belief changes table) → Evidence Ledger table\n\n" +
 	"## Token Efficiency\n" +
 	"- next_session injects context; don't read templates\n" +
-	"- save_session auto-validates; vivechak_validate for dry-runs\n" +
+	"- save_session auto-validates; validate for dry-runs\n" +
 	"- Use auto_draft_from in record_decision\n"
 
 // NewServer creates and configures the Vivechak MCP server with all 13 tools.

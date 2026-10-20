@@ -76,6 +76,13 @@ Use when architecting a brand new project, platform, or massive subsystem rewrit
 5. Run grand synthesis session `SYN-01` to compile `research/FAD.md`.
 6. Run `vivechak_run_gate` to verify Track A and Track B exit criteria before starting implementation.
 
+> **Planning-Only / Deferred Research Requests:** If the user asks only to plan, scaffold, or decompose the project architecture without executing research sessions immediately (e.g., *"create the research pipeline for X, do not run research yet"* or *"plan my architecture in Vivechak"*):
+> 1. Call `vivechak_init(scope="project")`.
+> 2. Call `vivechak_prepare_generator(scope="project", context="<project vision>")`.
+> 3. Synthesize the DAG and call `vivechak_save_plan(content=..., scope="project")` to write `RESEARCH-PIPELINE.md`.
+> 4. (Optional) Call `vivechak_visualize()` to display the Mermaid dependency graph.
+> 5. **STOP here.** Do NOT call `vivechak_next_session` until the user explicitly directs you to begin research.
+
 **Manual Flow:**
 1. Open [GENERATOR-PROJECT.md](GENERATOR-PROJECT.md) and extract prompt inside ```` ````markdown ```` fences.
 2. Replace `[PASTE YOUR PROJECT DESCRIPTION HERE]` with vision and execute with web search.

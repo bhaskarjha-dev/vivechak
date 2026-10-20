@@ -359,7 +359,7 @@ func handleSavePlan(ctx context.Context, _ *sdkmcp.CallToolRequest, in SavePlanI
 	case core.ScopeDecision:
 		nextStep = "Decision plan initialized. Run vivechak_next_session to begin session 1, or record the ADR directly with vivechak_record_decision once finalized."
 	default:
-		nextStep = "Run vivechak_next_session to get the first research session prompt. " +
+		nextStep = "Run vivechak_next_session to get the first research session prompt (or stop here if the user requested planning only). " +
 			"Execute it in a fresh AI session with web search, then save the output with vivechak_save_session."
 	}
 	if planValidation != nil {

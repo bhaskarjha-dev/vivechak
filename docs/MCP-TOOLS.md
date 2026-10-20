@@ -127,6 +127,15 @@ flowchart TD
 
 *Manual Alternative:* Copy [`GENERATOR-PROJECT.md`](../GENERATOR-PROJECT.md), replace the placeholder with your project vision, run it in an AI web session, and manually save outputs to `research/RESEARCH-PIPELINE.md`.
 
+#### Planning-Only (Deferred Execution Flow)
+When the user wants to decompose and plan the architecture pipeline without executing research immediately (e.g. *"create research pipeline for X, do not run research yet"*):
+1. `vivechak_init(scope="project")`
+2. `vivechak_prepare_generator(scope="project", context="<project vision>")`
+3. Host agent runs the generator prompt and synthesizes the session DAG and initial decisions.
+4. `vivechak_save_plan(content="<pipeline markdown>", scope="project")`
+5. `vivechak_visualize()` (Optional: render Mermaid dependency graph for visual verification)
+6. **STOP** — The agent reports the plan and pauses. It does **not** call `vivechak_next_session` until the user explicitly directs it to begin research.
+
 ---
 
 ### 2. Decision Scope (Single Architectural Decision &rarr; ADR)
