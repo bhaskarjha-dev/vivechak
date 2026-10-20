@@ -18,7 +18,7 @@ graph TD
     subgraph CoreEngine["2. Universal Test Runner (scripts/run_harness.mjs)"]
         CLI["CLI Interface (--auto | --probe | --harness | --batch | --clean | --archive)"]
         Registry["AdapterRegistry (Dynamic Auto-Discovery)"]
-        Watchdog["Watchdog Runner (stdin clamped, 90s/180s tree-kill)"]
+        Watchdog["Watchdog Runner (stdin clamped, 300s/360s tree-kill)"]
         Protocol["Universal 4-Turn Forensic Orchestrator"]
         CLI --> Registry
         Registry --> Watchdog

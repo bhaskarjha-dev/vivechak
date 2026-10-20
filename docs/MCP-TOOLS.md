@@ -1,6 +1,6 @@
 # MCP Tools Reference
 
-> **Last verified against code:** 2026-10-17 (v0.1.0)
+> **Last verified against code:** 2026-10-20 (v0.1.0)
 > Tool schemas and behaviors described here match `internal/mcp/server.go`. If you find discrepancies, please file an issue.
 
 The Model Context Protocol (MCP) server for [Vivechak](../README.md) exposes 13 specialized tools designed to run evidence-grounded research pipelines directly inside any MCP-compatible AI host, agent runtime, or IDE.
@@ -345,14 +345,14 @@ Defined in [`SavePlanInput`](../internal/mcp/tool_save_plan.go):
 | `scope` | `string` | Optional | Research scope: `project` \| `decision` \| `comparison` (auto-detected from workspace if omitted). |
 | `content` | `string` | **Required** | The generated plan content (Markdown). |
 | `decisions_content` | `string` | Optional | Initial decision registry content (project) or proposed ADR content (decision). |
-| `decision_id` | `string` | Optional | Decision identifier for decision/comparison scope (e.g., `D-01`, `C-01`). Auto-recovered from plan tables/headers or defaults to `D-01` / `C-01` if omitted. |
-| `slug` | `string` | Optional | URL-safe slug for the decision (e.g., `database-selection`). |
+| `decision_id` | `string` | Optional | Decision identifier for decision/comparison scope (e.g., `D-01`, `C-01`). Aliases accepted: `id`, `comparison_id`. Auto-recovered from plan tables/headers or defaults to `D-01` / `C-01` if omitted. |
+| `slug` | `string` | Optional | URL-safe slug for the decision (e.g., `database-selection`). Auto-extracted from H1/H2 headings if omitted. |
 
 #### Response (`data` field)
 - `workspace_root` (`string`): Path to workspace root.
 - `scope` (`string`): Research scope of the saved plan.
 - `saved_files` (`string[]`): Array of relative paths written (e.g., `["research/RESEARCH-PIPELINE.md", "research/DECISIONS.md"]`).
-- `validation` ([`ValidationResult`](../internal/core/validate.go)): Result of validating the plan content (e.g., DAG cycle checks, empty prompts).
+- `validation` ([`ValidationResult`](../internal/core/validate.go)): Result of validating the plan content (e.g., DAG cycle checks, empty prompts, or L1–L2 comparison validation block).
 - `decisions_validation` ([`ValidationResult`](../internal/core/validate.go)): Optional result of validating `decisions_content` when provided.
 
 #### Example
@@ -385,7 +385,7 @@ Defined in [`SavePlanInput`](../internal/mcp/tool_save_plan.go):
 ```
 
 #### Common Warnings
-- Returns an error if `decision_id` is omitted when `scope` is `decision` or `comparison`.
+- Automatically recovers `decision_id` and `slug` from markdown content if omitted, never returning a blocking error for omitted IDs.
 - Returns an error if the file lock cannot be acquired within 5 seconds (`"could not acquire lock: another process may be writing"`).
 - Emits advisory warning `W-PARSER-SESSION-MISMATCH` if sessions declared in the pipeline topology or DAG diagram lack a parsed section with a complete prompt block.
 
@@ -406,7 +406,7 @@ Defined in [`StatusInput`](../internal/mcp/tool_status.go):
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
-| `project_root` | `string` | Optional | Workspace root path. |
+| `project_root` | `string` | Optional | Workspace root path. Alias accepted: `root`. |
 
 #### Response (`data` field)
 When initialized ([`WorkspaceInfo`](../internal/core/workspace.go)):
@@ -420,7 +420,7 @@ When initialized ([`WorkspaceInfo`](../internal/core/workspace.go)):
 
 When uninitialized:
 - `initialized` (`boolean`): `false`.
-- `error` (`string`): Error message explaining resolution failure.
+- `status` (`string`): `"uninitialized"`. Clean semantic status without ambiguous error keys.
 
 #### Example
 **Request:**
@@ -1073,7 +1073,7 @@ Defined in [`VisualizeInput`](../internal/mcp/tool_visualize.go):
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
-| `project_root` | `string` | Optional | Workspace root path. |
+| `project_root` | `string` | Optional | Workspace root path. Alias accepted: `root`. |
 | `format` | `string` | Optional | Output format: `mermaid` (default) \| `table`. |
 
 #### Response (`data` field)

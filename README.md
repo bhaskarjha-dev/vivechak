@@ -220,6 +220,28 @@ The agent calls these tools in sequence. The server handles context injection, D
 
 ---
 
+## Autonomous Multi-Harness Verification & Stress Testing
+
+Vivechak includes an autonomous multi-harness empirical testing engine in [`tests/harness/`](tests/harness/) that subjects the framework to zero-trust, continuous stress-testing across diverse AI host CLIs (Google Antigravity, OpenCode, Claude Code) and headless MCP environments:
+
+* **21 Realistic Scenarios:** Evaluates messy, adversarial, and real-world developer inputs across all three scopes (comparison, decision, project) and enforces the out-of-scope code authoring boundary.
+* **Deterministic Offline Verification (0 Tokens, ~1.5s):** Tests all 13 MCP tools over JSON-RPC stdio with zero network or AI credit expenditure:
+  ```bash
+  node scripts/run_harness.mjs --harness direct_mcp --batch all
+  ```
+* **Parallel Pre-Flight Health & Quota Probing:**
+  ```bash
+  make harness-probe                          # or: node scripts/run_harness.mjs --probe
+  ```
+* **Auto-Run Across Available & Funded Harnesses:**
+  ```bash
+  make harness-test                           # runs core test batch
+  make harness-triage                         # clusters dynamic Turn 4 feedback
+  ```
+* **Empirical Ledger & Audit Reports:** All empirical findings and engine hardenings are permanently tracked in [`tests/harness/defects/DEFECTS.md`](tests/harness/defects/DEFECTS.md) and frozen in versioned milestone audit reports in [`tests/harness/reports/`](tests/harness/reports/).
+
+---
+
 ## Key Capabilities
 
 | Capability | How It Works |

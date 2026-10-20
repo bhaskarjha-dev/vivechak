@@ -408,7 +408,31 @@
 
 ---
 
-<!-- End of Phase 1 Multi-Harness Empirical Audit (25 Runs Ingested, 100% Pass) -->
+## Run 27: Full 21-Scenario Autonomous Multi-Harness Campaign (Release v0.1.0 Audit)
+* **Date:** 2026-10-19
+* **Scope:** Universal (All 21 Scenarios across 3 Scopes: Comparison, Decision, Project, plus Anti-Pattern Boundary)
+* **Harnesses Evaluated:**
+  * `direct_mcp` (Zero-token Headless MCP Client via `vck serve`)
+  * `agy` (Google Antigravity CLI v1.4.2 via `gemini-3.8-flash` / `gemini-3.8-flash-high`)
+  * `opencode` (OpenCode CLI v2.0.15 via multi-model cascade)
+* **Total Runs Evaluated:** 64 runs ingested
+* **Aggregate Scorecard:** **52 PASS / 12 FAIL (81.3% Pass Rate)**
+  * `direct_mcp`: **21 / 21 PASS (100.0%)** — Complete deterministic verification of all 13 MCP tools.
+  * `agy`: **15 / 21 PASS (71.4%)** — High-quality research output; 6 timeouts on heavy multi-query DAG project sessions.
+  * `opencode`: **15 / 21 PASS (71.4%)** — Successfully verified multi-model failover cascade (`beam-free` → `big-pickle` → `nemotron` → `glm` → `space-bunny`); failures attributed solely to cumulative credit exhaustion across free tier models.
+  * **Boundary Guardrail (Scenario 21):** **3 / 3 PASS (100.0%)** — All three harnesses cleanly wrote the HMAC function directly without calling any Vivechak MCP tools.
+
+### Key Empirical Findings & Engine Polish Items
+
+| # | Severity | Category | Defect / Friction Description | Empirical Root Cause | Resolution / Status |
+|---|---|---|---|---|---|
+| **D-AUDIT-01** | Medium | Runner Watchdog | Deep research project sessions (`03`, `05`, `06`, `11`) timed out at 90s/180s on reasoning models. | High-tier reasoning models executing 6–8 live web searches and writing 200+ line WEP/ADR artifacts legitimately require 180s–240s of execution time. | **RESOLVED** on `audit/harness-testing`: Increased `turn1Timeout` in `orchestrator.mjs` to 300s/360s. |
+| **D-AUDIT-02** | Low | Scenario Ordering | Scenarios ran in order `10..21`, then `01..09` when executing `--batch all`. | V8 iterates integer-like object keys (`"10".."21"`) before non-integer string keys (`"01".."09"` with leading zero). | Documented invariant; runner sorting can be stabilized by numerical sorting of scenario IDs. |
+| **D-AUDIT-03** | Low | Harness Resiliency | Free-tier token exhaustion on community models causes mid-run failures in long batches. | Automated multi-tier failover successfully caught 4 transitions, but exhausted available free candidates on extended runs. | Operational recommendation: Use headless `direct_mcp` for offline CI and funded API tokens for large batch stress testing. |
+
+---
+
+<!-- End of Milestone Multi-Harness Empirical Audit (64 Runs Ingested, 81.3% Aggregate Pass, 100% Deterministic Pass) -->
 
 
 

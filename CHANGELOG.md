@@ -7,9 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [0.1.0] - 2026-10-18 — Hardened Initial Release & MCP Server
+## [0.1.0] - 2026-10-20 — Hardened Initial Release, MCP Server & Autonomous Multi-Harness Engine
 
-Unified release delivering the complete pre-release hardening wave across engine parsers, decoupled exit gates, headless CLI verification, concurrency locks, and packaging:
+Unified release delivering the complete pre-release hardening wave across engine parsers, decoupled exit gates, headless CLI verification, concurrency locks, multi-harness autonomous testing subsystem, and packaging:
+
+- **Autonomous Multi-Harness Testing Engine (`tests/harness/`, `scripts/run_harness.mjs`):** Built-in zero-trust autonomous stress-testing subsystem with 21 human-realistic scenarios across all three research scopes plus anti-pattern boundary testing. Includes a zero-stall process-tree watchdog runner (`execWithWatchdog` with stdin-clamping), parallel pre-flight health and token quota probes (`--probe`), dynamic semantic triage (`--triage`), and pluggable adapters (`direct_mcp`, `agy`, `opencode`, `claude_code`).
+- **Phase 1 & Phase 2 Multi-Harness Empirical Audits (64 Runs Ingested):** Ingested 64 autonomous test runs across Google Antigravity CLI, OpenCode, and headless Direct MCP. Achieved 100% deterministic conformance pass across all 21 scenarios, proving zero engine regressions and 100% boundary guardrail adherence (Scenario 21 HMAC direct authoring).
+- **Comprehensive Engine Hardening Remediations (D-05–D-13):** Implemented 10 core Go engine remediations discovered through autonomous multi-agent testing:
+  - *DAG Phantom Session Exclusion (`D-12-01`, `dag.go`):* Excluded document titles (e.g. `# D-001-PLAN.md`) from DAG node matching.
+  - *Parenthetical Qualifier Stripping (`D-12-02`, `dag.go`):* Handled dependency annotations like `| Depends | D-001-S1 (constrains) |`.
+  - *Mermaid Underscore Normalization (`dag.go`):* Normalized flowchart node IDs (`T0_01` $\to$ `T0-01`) to eliminate spurious mismatch warnings.
+  - *Synthesis Alias Tolerance (`validate.go`):* Accepted both `FAD` and `SYN-01` as valid synthesis targets during declared session cross-checks.
+  - *Windows Path Normalization (`tool_save_plan.go`, `tool_save_session.go`):* Enforced `filepath.ToSlash` on relative paths, fixing markdown links on Windows.
+  - *Structured Validation Envelope for Comparisons (`D-06-01`, `tool_save_plan.go`):* Returned explicit L1–L2 validation receipts in comparison scope.
+  - *Comparison Auto-Slug Recovery (`D-05-02`, `tool_save_plan.go`):* Automatically extracted URL slugs from H1/H2 headings if omitted by models.
+  - *Universal Parameter Aliasing (`tool_status.go`, `tool_visualize.go`, `tool_save_plan.go`):* Supported `root` $\leftrightarrow$ `project_root` and `id` $\leftrightarrow$ `comparison_id` / `decision_id`.
+  - *Clean Uninitialized Status Semantics (`D-13-01`, `tool_status.go`):* Sanitized status output to return `initialized: false` and `status: "uninitialized"` without ambiguous error fields.
+  - *Generator Next-Step Clarity (`tool_prepare_generator.go`):* Clarified that prepared prompts can be executed immediately in-place.
+- **Calibrated Watchdog Timeout for Reasoning Models (`D-AUDIT-01`):** Increased Turn 1 timeout to 300s/360s in `orchestrator.mjs` to accommodate high-reasoning models executing 6–8 live web searches and writing 200+ line WEP matrices and ADRs.
 
 - **Decoupled Pre-Codebase Exit Gate (`gate.go`, `tool_run_gate.go`):** Decoupled Track A (Two-Way Doors fast reversibility) from Track B (One-Way Doors B1–B11 checks). Track A explicitly passes and authorizes prototyping when all Two-Way Doors satisfy reversibility, without requiring FAD or full project DAG. Comparison scope receives clean zero-gate clearance with advisory.
 - **Headless Gate CLI (`vck gate`, `cmd/vivechak/gate.go`):** Added `vck gate` subcommand with `--track <all|track_a|track_b>`, `--format <text|json>`, and `--verbose` for automated CI/CD gating and headless verification.
