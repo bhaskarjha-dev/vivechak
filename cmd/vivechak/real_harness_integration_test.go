@@ -25,18 +25,8 @@ func TestLiveHarness_EndToEnd_All21Hosts_Simulation(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 180*time.Second)
 	t.Cleanup(cancel)
 
-	// Build the live vivechak binary
-	binDir := t.TempDir()
-	binName := "vivechak_harness_tester"
-	if runtime.GOOS == "windows" {
-		binName += ".exe"
-	}
-	binPath := filepath.Join(binDir, binName)
-
-	buildCmd := exec.CommandContext(ctx, "go", "build", "-o", binPath, ".")
-	if out, err := buildCmd.CombinedOutput(); err != nil {
-		t.Fatalf("failed to build test binary: %v\noutput: %s", err, string(out))
-	}
+	// Resolve the live vivechak binary
+	binPath := resolveOrBuildTestBinary(t)
 
 	all21Presets := []struct {
 		preset        string
@@ -580,17 +570,7 @@ func TestLiveHarness_Adversarial_EdgeCases(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	t.Cleanup(cancel)
 
-	binDir := t.TempDir()
-	binName := "vivechak_edge_bin"
-	if runtime.GOOS == "windows" {
-		binName += ".exe"
-	}
-	binPath := filepath.Join(binDir, binName)
-
-	buildCmd := exec.CommandContext(ctx, "go", "build", "-o", binPath, ".")
-	if out, err := buildCmd.CombinedOutput(); err != nil {
-		t.Fatalf("failed to build test binary: %v\noutput: %s", err, string(out))
-	}
+	binPath := resolveOrBuildTestBinary(t)
 
 	// 1. Comments and trailing commas in JSON (Cursor / VS Code style JSONC)
 	t.Run("JSONC_Comments_And_Trailing_Commas", func(t *testing.T) {

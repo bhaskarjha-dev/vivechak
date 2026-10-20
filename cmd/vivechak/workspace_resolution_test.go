@@ -6,7 +6,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -29,18 +28,8 @@ func TestMassive_LiveIDEInheritance_RejectionAndGuidance(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	t.Cleanup(cancel)
 
-	// 1. Build live binary
-	binDir := t.TempDir()
-	binName := "vck_massive_test"
-	if runtime.GOOS == "windows" {
-		binName += ".exe"
-	}
-	binPath := filepath.Join(binDir, binName)
-
-	buildCmd := exec.CommandContext(ctx, "go", "build", "-o", binPath, ".")
-	if out, err := buildCmd.CombinedOutput(); err != nil {
-		t.Fatalf("failed to build binary: %v\noutput: %s", err, string(out))
-	}
+	// 1. Resolve live binary
+	binPath := resolveOrBuildTestBinary(t)
 
 	// 2. Create simulated IDE program folder
 	mockIDEDir := filepath.Join(t.TempDir(), "AppData", "Local", "Programs", "Antigravity IDE")
@@ -512,17 +501,7 @@ func TestMassive_SandboxesAndEnterprisePaths_LiveMCPMatrix(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	t.Cleanup(cancel)
 
-	binDir := t.TempDir()
-	binName := "vck_sandbox_matrix"
-	if runtime.GOOS == "windows" {
-		binName += ".exe"
-	}
-	binPath := filepath.Join(binDir, binName)
-
-	buildCmd := exec.CommandContext(ctx, "go", "build", "-o", binPath, ".")
-	if out, err := buildCmd.CombinedOutput(); err != nil {
-		t.Fatalf("failed to build binary: %v\noutput: %s", err, string(out))
-	}
+	binPath := resolveOrBuildTestBinary(t)
 
 	serverCmd := exec.CommandContext(ctx, binPath, "serve")
 	transport := &mcp.CommandTransport{Command: serverCmd}
@@ -620,17 +599,7 @@ func TestMassive_ContainerEnvironmentVariables_LiveMCP(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	t.Cleanup(cancel)
 
-	binDir := t.TempDir()
-	binName := "vck_env_test"
-	if runtime.GOOS == "windows" {
-		binName += ".exe"
-	}
-	binPath := filepath.Join(binDir, binName)
-
-	buildCmd := exec.CommandContext(ctx, "go", "build", "-o", binPath, ".")
-	if out, err := buildCmd.CombinedOutput(); err != nil {
-		t.Fatalf("failed to build binary: %v\noutput: %s", err, string(out))
-	}
+	binPath := resolveOrBuildTestBinary(t)
 
 	envCases := []struct {
 		envKey string
@@ -723,17 +692,7 @@ func TestMassive_CLICommands_RealExec(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	t.Cleanup(cancel)
 
-	binDir := t.TempDir()
-	binName := "vck_cli_massive"
-	if runtime.GOOS == "windows" {
-		binName += ".exe"
-	}
-	binPath := filepath.Join(binDir, binName)
-
-	buildCmd := exec.CommandContext(ctx, "go", "build", "-o", binPath, ".")
-	if out, err := buildCmd.CombinedOutput(); err != nil {
-		t.Fatalf("failed to build binary: %v\noutput: %s", err, string(out))
-	}
+	binPath := resolveOrBuildTestBinary(t)
 
 	// 1. Test vck doctor on application program folder -> must exit 1 with descriptive error
 	mockAppDir := filepath.Join(t.TempDir(), "AppData", "Local", "Programs", "Antigravity IDE")

@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -144,18 +143,8 @@ func TestMassive_LiveMCP_DiamondDAG_And_DownstreamCascades(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 180*time.Second)
 	t.Cleanup(cancel)
 
-	// 1. Build live binary
-	binDir := t.TempDir()
-	binName := "vck_diamond_live"
-	if runtime.GOOS == "windows" {
-		binName += ".exe"
-	}
-	binPath := filepath.Join(binDir, binName)
-
-	buildCmd := exec.CommandContext(ctx, "go", "build", "-o", binPath, ".")
-	if out, err := buildCmd.CombinedOutput(); err != nil {
-		t.Fatalf("failed to build binary: %v\noutput: %s", err, string(out))
-	}
+	// 1. Resolve live binary
+	binPath := resolveOrBuildTestBinary(t)
 
 	// 2. Connect to live MCP server
 	serverCmd := exec.CommandContext(ctx, binPath, "serve")
@@ -572,17 +561,7 @@ func TestMassive_LiveMCP_HighConcurrencyStress(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	t.Cleanup(cancel)
 
-	binDir := t.TempDir()
-	binName := "vck_conc_bin"
-	if runtime.GOOS == "windows" {
-		binName += ".exe"
-	}
-	binPath := filepath.Join(binDir, binName)
-
-	buildCmd := exec.CommandContext(ctx, "go", "build", "-o", binPath, ".")
-	if out, err := buildCmd.CombinedOutput(); err != nil {
-		t.Fatalf("build failed: %v\noutput: %s", err, string(out))
-	}
+	binPath := resolveOrBuildTestBinary(t)
 
 	serverCmd := exec.CommandContext(ctx, binPath, "serve")
 	transport := &mcp.CommandTransport{Command: serverCmd}
@@ -775,17 +754,7 @@ func TestMassive_LiveMCP_MultiScopeFullRoundtrips(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	t.Cleanup(cancel)
 
-	binDir := t.TempDir()
-	binName := "vck_multiscope_bin"
-	if runtime.GOOS == "windows" {
-		binName += ".exe"
-	}
-	binPath := filepath.Join(binDir, binName)
-
-	buildCmd := exec.CommandContext(ctx, "go", "build", "-o", binPath, ".")
-	if out, err := buildCmd.CombinedOutput(); err != nil {
-		t.Fatalf("build failed: %v\noutput: %s", err, string(out))
-	}
+	binPath := resolveOrBuildTestBinary(t)
 
 	serverCmd := exec.CommandContext(ctx, binPath, "serve")
 	transport := &mcp.CommandTransport{Command: serverCmd}
@@ -1064,17 +1033,7 @@ func TestMassive_CLI_SubcommandMatrix(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	t.Cleanup(cancel)
 
-	binDir := t.TempDir()
-	binName := "vck_cli_matrix"
-	if runtime.GOOS == "windows" {
-		binName += ".exe"
-	}
-	binPath := filepath.Join(binDir, binName)
-
-	buildCmd := exec.CommandContext(ctx, "go", "build", "-o", binPath, ".")
-	if out, err := buildCmd.CombinedOutput(); err != nil {
-		t.Fatalf("build failed: %v\noutput: %s", err, string(out))
-	}
+	binPath := resolveOrBuildTestBinary(t)
 
 	// 1. Test version
 	cmdVer := exec.CommandContext(ctx, binPath, "version")
@@ -1128,7 +1087,7 @@ func TestMassive_CLI_SubcommandMatrix(t *testing.T) {
 	}
 
 	// 5. Test doctor on non-existent directory -> must fail
-	cmdDocFail := exec.CommandContext(ctx, binPath, "doctor", filepath.Join(binDir, "non_existent_workspace_dir"))
+	cmdDocFail := exec.CommandContext(ctx, binPath, "doctor", filepath.Join(t.TempDir(), "non_existent_workspace_dir"))
 	outDocFail, errDocFail := cmdDocFail.CombinedOutput()
 	if errDocFail == nil {
 		t.Errorf("doctor on non-existent directory should have failed, but passed: %s", string(outDocFail))

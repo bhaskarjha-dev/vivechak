@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -21,6 +22,71 @@ type testEnvelope struct {
 	Warnings []string       `json:"warnings,omitempty"`
 	NextStep string         `json:"next_step,omitempty"`
 	Meta     map[string]any `json:"meta,omitempty"`
+}
+
+var (
+	sharedBinMutex sync.Mutex
+	sharedBinPath  string
+)
+
+// resolveOrBuildTestBinary returns a path to a compiled vivechak binary,
+// compiling it at most once across the entire test execution.
+func resolveOrBuildTestBinary(t *testing.T) string {
+	t.Helper()
+	sharedBinMutex.Lock()
+	defer sharedBinMutex.Unlock()
+
+	if sharedBinPath != "" {
+		if _, err := os.Stat(sharedBinPath); err == nil {
+			return sharedBinPath
+		}
+	}
+
+	repoRoot, err := filepath.Abs("../..")
+	if err == nil {
+		binName := "vck"
+		if runtime.GOOS == "windows" {
+			binName += ".exe"
+		}
+		candidate := filepath.Join(repoRoot, binName)
+		if fi, err := os.Stat(candidate); err == nil && fi.Size() > 1000000 {
+			sharedBinPath = candidate
+			return candidate
+		}
+	}
+
+	binDir, err := os.MkdirTemp("", "vck_shared_bin_*")
+	if err != nil {
+		t.Fatalf("creating temp dir for test binary: %v", err)
+	}
+	binName := "vck_test"
+	if runtime.GOOS == "windows" {
+		binName += ".exe"
+	}
+	target := filepath.Join(binDir, binName)
+	cmd := exec.Command("go", "build", "-trimpath", "-o", target, ".")
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("building shared test binary: %v\noutput: %s", err, string(out))
+	}
+	sharedBinPath = target
+	return target
+}
+
+// startLiveMCPServer connects an MCP client session to a live vck serve subprocess.
+func startLiveMCPServer(t *testing.T, ctx context.Context, binPath string, dir string) (*mcp.ClientSession, func()) {
+	t.Helper()
+	cmd := exec.CommandContext(ctx, binPath, "serve")
+	if dir != "" {
+		cmd.Dir = dir
+	}
+	transport := &mcp.CommandTransport{Command: cmd}
+	client := mcp.NewClient(&mcp.Implementation{Name: "vck-test-client", Version: "1.0.0"}, nil)
+	cs, err := client.Connect(ctx, transport, nil)
+	if err != nil {
+		t.Fatalf("connecting to live MCP server: %v", err)
+	}
+	cleanup := func() { _ = cs.Close() }
+	return cs, cleanup
 }
 
 func parseTestEnvelope(t *testing.T, res *mcp.CallToolResult) testEnvelope {
@@ -50,18 +116,8 @@ func TestLiveMCPServer_EndToEnd(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
 	t.Cleanup(cancel)
 
-	// 1. Build vivechak binary in a temporary directory
-	binDir := t.TempDir()
-	binName := "vivechak_test_bin"
-	if runtime.GOOS == "windows" {
-		binName += ".exe"
-	}
-	binPath := filepath.Join(binDir, binName)
-
-	buildCmd := exec.CommandContext(ctx, "go", "build", "-o", binPath, ".")
-	if out, err := buildCmd.CombinedOutput(); err != nil {
-		t.Fatalf("failed to build vivechak binary for test: %v\noutput: %s", err, string(out))
-	}
+	// 1. Resolve shared vivechak binary
+	binPath := resolveOrBuildTestBinary(t)
 
 	// 2. Setup temporary workspace
 	workDir := t.TempDir()
