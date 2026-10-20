@@ -224,9 +224,74 @@ func handleSavePlan(ctx context.Context, _ *sdkmcp.CallToolRequest, in SavePlanI
 
 	var decValidation *core.ValidationResult
 	if in.DecisionsContent != "" {
-		decValidation = core.ValidateDecision([]byte(in.DecisionsContent))
-		for _, issue := range decValidation.Issues {
-			warnings = append(warnings, issue.String())
+		decValidation = &core.ValidationResult{Status: "valid"}
+		decBytes := []byte(in.DecisionsContent)
+		anchoredRe := regexp.MustCompile(`(?s)<!-- DECISION:\s*([A-Za-z0-9_-]+)\s*-->\s*(.*?)\s*<!-- /DECISION:\s*[A-Za-z0-9_-]+\s*-->`)
+
+		matches := anchoredRe.FindAllSubmatch(decBytes, -1)
+		seenDecIDs := make(map[string]bool)
+
+		validateSingleDec := func(id string, data []byte) {
+			v := core.ValidateDecision(data)
+			for _, issue := range v.Issues {
+				// Suppress short body warning during initial plan saving (ADR skeletons in DECISIONS.md are concise)
+				if issue.Code == "W-SHORT-DECISION" {
+					continue
+				}
+				prefix := ""
+				if id != "" {
+					prefix = fmt.Sprintf("DECISION %s: ", id)
+				}
+				issueWithPrefix := issue
+				issueWithPrefix.Message = prefix + issue.Message
+				decValidation.Issues = append(decValidation.Issues, issueWithPrefix)
+				warnings = append(warnings, prefix+issue.String())
+			}
+			if v.HasBlocking() {
+				decValidation.Status = "draft"
+			} else if v.WarningCount() > 0 && decValidation.Status != "draft" {
+				decValidation.Status = "valid-with-warnings"
+			}
+		}
+
+		for _, m := range matches {
+			id := string(m[1])
+			if seenDecIDs[strings.ToUpper(id)] {
+				continue
+			}
+			seenDecIDs[strings.ToUpper(id)] = true
+			validateSingleDec(id, m[2])
+		}
+
+		// Also check unanchored decision blocks with their frontmatter and body in DECISIONS.md
+		for _, block := range extractUnanchoredDecisionBlocks(decBytes) {
+			if fm, _, err := core.ParseFrontmatter(block); err == nil && fm != nil {
+				id := fm.GetString("id")
+				if id == "" {
+					id = fm.GetString("decision_id")
+				}
+				if id != "" && !seenDecIDs[strings.ToUpper(id)] && !strings.HasPrefix(strings.ToUpper(id), "CHK-") {
+					seenDecIDs[strings.ToUpper(id)] = true
+					validateSingleDec(id, block)
+				}
+			}
+		}
+
+		// Fallback for single standalone ADR (e.g. in decision scope)
+		if len(seenDecIDs) == 0 {
+			v := core.ValidateDecision(decBytes)
+			for _, issue := range v.Issues {
+				if issue.Code == "W-SHORT-DECISION" {
+					continue
+				}
+				decValidation.Issues = append(decValidation.Issues, issue)
+				warnings = append(warnings, issue.String())
+			}
+			decValidation.Status = v.Status
+		}
+
+		if len(decValidation.Issues) == 0 {
+			decValidation.Status = "valid"
 		}
 	}
 
@@ -382,4 +447,76 @@ func handleSavePlan(ctx context.Context, _ *sdkmcp.CallToolRequest, in SavePlanI
 		Meta: NewMeta(tool),
 	}
 	return env.ToResult()
+}
+
+// extractUnanchoredDecisionBlocks finds all individual decision blocks in a DECISIONS.md file.
+// Each block includes its YAML frontmatter and the associated body text up to the next block or EOF.
+func extractUnanchoredDecisionBlocks(content []byte) [][]byte {
+	lines := strings.Split(string(content), "\n")
+	type decLoc struct {
+		startLine int
+		fmEndLine int
+		id        string
+	}
+	var decs []decLoc
+
+	for i := 0; i < len(lines); i++ {
+		if strings.TrimSpace(lines[i]) != "---" {
+			continue
+		}
+		// Look ahead for the closing fence and verify an id or decision_id exists
+		closeLine := -1
+		hasID := false
+		for j := i + 1; j < len(lines); j++ {
+			tr := strings.TrimSpace(lines[j])
+			if tr == "---" {
+				closeLine = j
+				break
+			}
+			if strings.HasPrefix(tr, "id:") || strings.HasPrefix(tr, "decision_id:") {
+				hasID = true
+			}
+		}
+
+		if closeLine != -1 && hasID {
+			fmText := strings.Join(lines[i:closeLine+1], "\n")
+			if fm, _, err := core.ParseFrontmatter([]byte(fmText)); err == nil && fm != nil {
+				id := fm.GetString("id")
+				if id == "" {
+					id = fm.GetString("decision_id")
+				}
+				if id != "" && !strings.HasPrefix(strings.ToUpper(id), "CHK-") {
+					decs = append(decs, decLoc{startLine: i, fmEndLine: closeLine, id: id})
+					i = closeLine // advance past this frontmatter
+				}
+			}
+		}
+	}
+
+	if len(decs) == 0 {
+		return nil
+	}
+
+	var blocks [][]byte
+	for i := 0; i < len(decs); i++ {
+		start := decs[i].startLine
+		var end int
+		if i+1 < len(decs) {
+			end = decs[i+1].startLine
+			// Look backwards from next decision startLine to trim preceding divider and heading
+			for end > decs[i].fmEndLine+1 {
+				tr := strings.TrimSpace(lines[end-1])
+				if tr == "" || tr == "---" || strings.HasPrefix(tr, "#") {
+					end--
+				} else {
+					break
+				}
+			}
+		} else {
+			end = len(lines)
+		}
+		blockStr := strings.Join(lines[start:end], "\n")
+		blocks = append(blocks, []byte(blockStr))
+	}
+	return blocks
 }

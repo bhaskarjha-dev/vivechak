@@ -432,6 +432,23 @@
 
 ---
 
+## Run 28: Pre-Release Forensic Hardening Wave (Audit E-54 through E-57)
+* **Date:** 2026-10-20
+* **Scope:** Universal (Project, Decision, and Comparison Scopes)
+* **Target:** Pre-Release Hardening of DAG Topology, Planning Validation, and Local Spillage
+* **Score:** **100/100 (Clean PASS)**
+
+### Defects & Polish Items Catalog
+
+| # | Severity | Category | Defect Description | Empirical Root Cause | Resolution Implemented |
+|---|---|---|---|---|---|
+| **D-28-01** | Medium | DAG Parser | Natural language synthesis dependencies (`ALL prior sessions (hard)`, `all previous sessions`, `*`) rejected by `ParsePipeline`, `AddSession`, and `UpdateDependencies`. | `parseDependencies` treated multi-word dependency descriptions as single literal session IDs, and dynamic replan methods checked raw dependency maps before placeholder expansion. | **RESOLVED**: Added `isAllPriorSessions()` with dynamic `__ALL_PRIOR__` expansion across `ParsePipeline`, `ValidateDAG`, `AddSession`, and `UpdateDependencies`. |
+| **D-28-02** | Low | Validation | Initial seed decisions in `DECISIONS.md` produced premature `W-NO-EVIDENCE-GRADES` warnings before research sessions commenced. | `core.ValidateDecision` evaluated evidentiary grounding on all decisions unconditionally, regardless of whether `status == "proposed"`. | **RESOLVED**: Suppressed `W-NO-EVIDENCE-GRADES` in `core.ValidateDecision` when `status == "proposed"`. |
+| **D-28-03** | Low | Tool Validation | Saving consolidated `DECISIONS.md` registries via `vivechak_save_plan` caused false-positive cross-pollination of ADR warnings. | `tool_save_plan` evaluated the entire registry file as a single ADR document rather than chunking individual decision entries. | **RESOLVED**: Implemented line-based `extractUnanchoredDecisionBlocks` with look-ahead ID checks and backward trimming to validate each ADR individually with `DECISION D-NNN:` prefixes. |
+| **D-28-04** | Medium | Agent Guidance | Agents generating large pipelines frequently spilled initial research plans to local brain/scratch files before calling `vivechak_save_plan`. | `vivechak_prepare_generator` `next_step` guidance did not include explicit negative constraints against writing to local temporary files. | **RESOLVED**: Hardened `nextStep` across `project`, `decision`, and `comparison` scopes to mandate passing outputs directly to `vivechak_save_plan`. |
+
+---
+
 <!-- End of Milestone Multi-Harness Empirical Audit (64 Runs Ingested, 81.3% Aggregate Pass, 100% Deterministic Pass) -->
 
 

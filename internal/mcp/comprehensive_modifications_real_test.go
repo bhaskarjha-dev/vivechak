@@ -1544,5 +1544,566 @@ Adopt SQLite. Grade A (https://sqlite.org)
 	}
 }
 
+// TestComprehensive_SavePlan_MultiDecisionRegistry_FullLifecycle verifies that save_plan
+// handles a full multi-decision registry with proposed decisions without spurious warnings,
+// while correctly surfacing genuine errors tagged by decision ID.
+func TestComprehensive_SavePlan_MultiDecisionRegistry_FullLifecycle(t *testing.T) {
+	tmpDir := t.TempDir()
+	ctx := context.Background()
+
+	// 1. Init workspace
+	_, envInit, err := handleInit(ctx, nil, InitInput{
+		ProjectRoot: tmpDir,
+		Scope:       "project",
+	})
+	if err != nil || !envInit.Success {
+		t.Fatalf("init failed: %v, message: %s", err, envInit.Message)
+	}
+
+	// 2. Prepare generator prompt and check nextStep guidance
+	_, envPrep, err := handlePrepareGenerator(ctx, nil, PrepareGeneratorInput{
+		ProjectRoot: tmpDir,
+		Scope:       "project",
+		Context:     "Build high-performance real-time telemetry analytics platform in Go",
+	})
+	if err != nil || !envPrep.Success {
+		t.Fatalf("prepare_generator failed: %v", err)
+	}
+	if !strings.Contains(envPrep.NextStep, "generate your research pipeline") {
+		t.Errorf("expected NextStep to contain 'generate your research pipeline', got: %s", envPrep.NextStep)
+	}
+	if !strings.Contains(envPrep.NextStep, "Do NOT write to local artifact/brain files") {
+		t.Errorf("expected NextStep to explicitly forbid brain artifact writes, got: %s", envPrep.NextStep)
+	}
+
+	// 3. Save plan with multi-decision registry containing valid proposed decisions and one invalid decision
+	pipelineContent := `# Research Pipeline: Telemetry Platform
+**Complexity Score:** 12 / 24 → **Tier 2 (9–16 Sessions)**
+
+## Sessions
+#### T0-01: Ingestion Protocols
+| Field | Value |
+|---|---|
+| ID | T0-01 |
+| Layer | 0 |
+| Door Type | Two-Way |
+| Dependencies | None |
+
+` + "```prompt" + `
+Investigate gRPC vs WebSocket for high-frequency telemetry.
+` + "```" + `
+
+---
+
+#### T0-02: Storage Layer
+| Field | Value |
+|---|---|
+| ID | T0-02 |
+| Layer | 0 |
+| Door Type | One-Way |
+| Dependencies | None |
+
+` + "```prompt" + `
+Investigate ClickHouse vs TimescaleDB for telemetry timeseries.
+` + "```" + `
+
+---
+
+#### SYN-01: Final Architecture Synthesis
+| Field | Value |
+|---|---|
+| ID | SYN-01 |
+| Layer | 1 |
+| Door Type | One-Way |
+| Dependencies | ALL prior sessions (hard) |
+
+` + "```prompt" + `
+Synthesize all telemetry architecture findings into FAD.
+` + "```" + `
+`
+
+	decisionsContentWithDefect := `# Architectural Decision Records
+
+<!-- DECISION: D-001 -->
+---
+id: D-001
+title: "Ingestion Transport Protocol"
+status: proposed
+door_type: two-way
+date: 2026-10-20
+---
+
+# D-001: Ingestion Transport Protocol
+## Initial Context & Hypotheses
+Evaluate gRPC streaming against WebSockets.
+<!-- /DECISION: D-001 -->
+
+<!-- DECISION: D-002 -->
+---
+id: D-002
+title: "Timeseries Storage Engine"
+status: proposed
+door_type: one-way
+date: 2026-10-20
+---
+
+# D-002: Timeseries Storage Engine
+## Initial Context & Hypotheses
+ClickHouse column-store vs TimescaleDB.
+<!-- /DECISION: D-002 -->
+
+<!-- DECISION: D-003 -->
+---
+id: D-003
+status: proposed
+door_type: one-way
+date: 2026-10-20
+---
+
+# D-003: Query Engine Strategy
+## Initial Context & Hypotheses
+Missing title field in frontmatter above.
+<!-- /DECISION: D-003 -->
+`
+
+	_, envSave, err := handleSavePlan(ctx, nil, SavePlanInput{
+		ProjectRoot:      tmpDir,
+		Scope:            "project",
+		Content:          pipelineContent,
+		DecisionsContent: decisionsContentWithDefect,
+	})
+	if err != nil {
+		t.Fatalf("save_plan call error: %v", err)
+	}
+	if !envSave.Success {
+		t.Fatalf("expected save_plan to succeed with warnings, got: %s", envSave.Message)
+	}
+
+	// Verify that D-001 and D-002 did not produce spurious warnings, and D-003 is tagged with ID
+	foundD003MissingTitle := false
+	for _, w := range envSave.Warnings {
+		if strings.Contains(w, "DECISION D-003: [L2-BLOCK] V-MISSING-FIELD: Required field \"title\" missing") {
+			foundD003MissingTitle = true
+		}
+		if strings.Contains(w, "DECISION D-001") || strings.Contains(w, "DECISION D-002") {
+			t.Errorf("spurious warning on valid decisions: %s", w)
+		}
+		if strings.Contains(w, "W-NO-EVIDENCE-GRADES") {
+			t.Errorf("spurious evidence grade warning on proposed decisions: %s", w)
+		}
+	}
+	if !foundD003MissingTitle {
+		t.Errorf("expected DECISION D-003 missing title warning, warnings were: %v", envSave.Warnings)
+	}
+
+	// 4. Now fix D-003 and save again — verify 0 warnings
+	decisionsContentClean := strings.Replace(decisionsContentWithDefect, "id: D-003\nstatus: proposed", "id: D-003\ntitle: \"Query Engine Strategy\"\nstatus: proposed", 1)
+	_, envSaveClean, err := handleSavePlan(ctx, nil, SavePlanInput{
+		ProjectRoot:      tmpDir,
+		Scope:            "project",
+		Content:          pipelineContent,
+		DecisionsContent: decisionsContentClean,
+	})
+	if err != nil {
+		t.Fatalf("clean save_plan call error: %v", err)
+	}
+	if len(envSaveClean.Warnings) != 0 {
+		t.Errorf("expected 0 warnings on clean save_plan, got: %v", envSaveClean.Warnings)
+	}
+}
+
+// TestComprehensive_DAG_AllPriorSessions_ComplexExpansion verifies multi-layer dependency expansion
+// and DAG scheduling invariance when multiple sessions use natural language dependencies.
+func TestComprehensive_DAG_AllPriorSessions_ComplexExpansion(t *testing.T) {
+	pipelineMD := `# Multi-Layer Research Pipeline
+## Sessions
+#### T0-01: Base 1
+| Field | Value |
+|---|---|
+| ID | T0-01 |
+| Layer | 0 |
+| Dependencies | None |
+
+` + "```prompt" + `
+Prompt T0-01
+` + "```" + `
+
+---
+
+#### T0-02: Base 2
+| Field | Value |
+|---|---|
+| ID | T0-02 |
+| Layer | 0 |
+| Dependencies | None |
+
+` + "```prompt" + `
+Prompt T0-02
+` + "```" + `
+
+---
+
+#### T1-01: Derived 1
+| Field | Value |
+|---|---|
+| ID | T1-01 |
+| Layer | 1 |
+| Dependencies | T0-01 |
+
+` + "```prompt" + `
+Prompt T1-01
+` + "```" + `
+
+---
+
+#### T2-01: Cross-Layer Bridge
+| Field | Value |
+|---|---|
+| ID | T2-01 |
+| Layer | 2 |
+| Dependencies | all prior sessions |
+
+` + "```prompt" + `
+Prompt T2-01
+` + "```" + `
+
+---
+
+#### SYN-01: Terminal Architecture
+| Field | Value |
+|---|---|
+| ID | SYN-01 |
+| Layer | 3 |
+| Dependencies | ALL prior sessions (hard) |
+
+` + "```prompt" + `
+Prompt SYN-01
+` + "```" + `
+`
+
+	dag, err := core.ParsePipeline([]byte(pipelineMD))
+	if err != nil {
+		t.Fatalf("ParsePipeline error: %v", err)
+	}
+
+	// T2-01 should depend on T0-01, T0-02, T1-01
+	t2 := dag.SessionByID("T2-01")
+	if t2 == nil {
+		t.Fatal("T2-01 not found")
+	}
+	expectedT2 := []string{"T0-01", "T0-02", "T1-01"}
+	if len(t2.Dependencies) != len(expectedT2) {
+		t.Fatalf("T2-01 dependencies = %v; want %v", t2.Dependencies, expectedT2)
+	}
+
+	// SYN-01 should depend on all 4 preceding sessions
+	syn := dag.SessionByID("SYN-01")
+	if syn == nil {
+		t.Fatal("SYN-01 not found")
+	}
+	expectedSYN := []string{"T0-01", "T0-02", "T1-01", "T2-01"}
+	if len(syn.Dependencies) != len(expectedSYN) {
+		t.Fatalf("SYN-01 dependencies = %v; want %v", syn.Dependencies, expectedSYN)
+	}
+
+	// Validate DAG structure
+	if err := dag.ValidateDAG(); err != nil {
+		t.Fatalf("ValidateDAG failed: %v", err)
+	}
+
+	// Initial NextSessions should return T0-01 and T0-02 only
+	completed := make(map[string]bool)
+	next := dag.NextSessions(completed)
+	if len(next) != 2 {
+		t.Fatalf("expected 2 initial sessions, got %d: %v", len(next), next)
+	}
+	if next[0].ID != "T0-01" && next[0].ID != "T0-02" {
+		t.Errorf("unexpected initial session: %s", next[0].ID)
+	}
+
+	// Complete T0-01
+	completed["T0-01"] = true
+	next = dag.NextSessions(completed)
+	// Now T0-02 and T1-01 should be actionable
+	foundT1 := false
+	for _, s := range next {
+		if s.ID == "T1-01" {
+			foundT1 = true
+		}
+	}
+	if !foundT1 {
+		t.Errorf("expected T1-01 to unlock after T0-01 completed, got: %v", next)
+	}
+
+	// T2-01 and SYN-01 must NOT unlock yet
+	for _, s := range next {
+		if s.ID == "T2-01" || s.ID == "SYN-01" {
+			t.Errorf("session %s unlocked prematurely: %v", s.ID, next)
+		}
+	}
+
+	// Complete all non-synthesis sessions
+	completed["T0-02"] = true
+	completed["T1-01"] = true
+	completed["T2-01"] = true
+
+	// Now SYN-01 must unlock as terminal session
+	next = dag.NextSessions(completed)
+	if len(next) != 1 || next[0].ID != "SYN-01" {
+		t.Errorf("expected SYN-01 to unlock as final session, got: %v", next)
+	}
+}
+
+// TestComprehensive_ValidateDecision_StatusProposedVsAccepted verifies the evidentiary
+// validation lifecycle across proposed, accepted, and superseded states.
+func TestComprehensive_ValidateDecision_StatusProposedVsAccepted(t *testing.T) {
+	// 1. Proposed ADR without evidence grades — must NOT produce W-NO-EVIDENCE-GRADES
+	proposedADR := `---
+id: D-001
+title: "Data Bus Architecture"
+status: proposed
+door_type: one-way
+date: 2026-10-20
+---
+# D-001: Data Bus Architecture
+## Context & Hypotheses
+We hypothesize Apache Pulsar or NATS JetStream will meet throughput requirements.
+`
+	vProposed := core.ValidateDecision([]byte(proposedADR))
+	for _, iss := range vProposed.Issues {
+		if iss.Code == "W-NO-EVIDENCE-GRADES" {
+			t.Errorf("proposed ADR produced spurious W-NO-EVIDENCE-GRADES: %v", iss)
+		}
+	}
+
+	// 2. Accepted ADR without evidence grades — MUST produce W-NO-EVIDENCE-GRADES
+	acceptedADRNoGrades := `---
+id: D-001
+title: "Data Bus Architecture"
+status: accepted
+door_type: one-way
+date: 2026-10-20
+---
+# D-001: Data Bus Architecture
+## Decision Outcome
+We choose NATS JetStream.
+## Consequences
+Low latency and operational simplicity.
+`
+	vAcceptedNoGrades := core.ValidateDecision([]byte(acceptedADRNoGrades))
+	foundNoGrades := false
+	for _, iss := range vAcceptedNoGrades.Issues {
+		if iss.Code == "W-NO-EVIDENCE-GRADES" {
+			foundNoGrades = true
+			break
+		}
+	}
+	if !foundNoGrades {
+		t.Errorf("expected accepted ADR without evidence grades to produce W-NO-EVIDENCE-GRADES")
+	}
+
+	// 3. Accepted ADR with valid evidence grades — must be valid
+	acceptedADRWithGrades := `---
+id: D-001
+title: "Data Bus Architecture"
+status: accepted
+door_type: one-way
+date: 2026-10-20
+---
+# D-001: Data Bus Architecture
+## Decision Outcome
+We choose NATS JetStream. Grade A (https://nats.io/benchmarks)
+## Consequences
+Low latency and operational simplicity.
+`
+	vAcceptedWithGrades := core.ValidateDecision([]byte(acceptedADRWithGrades))
+	for _, iss := range vAcceptedWithGrades.Issues {
+		if iss.Code == "W-NO-EVIDENCE-GRADES" {
+			t.Errorf("unexpected W-NO-EVIDENCE-GRADES for grounded accepted ADR: %v", iss)
+		}
+	}
+}
+
+// TestComprehensive_SavePlan_MultiDecision_MixedStatuses verifies that save_plan accurately
+// isolates evidence warnings to only accepted decisions lacking grounding in a multi-ADR registry.
+func TestComprehensive_SavePlan_MultiDecision_MixedStatuses(t *testing.T) {
+	tmpDir := t.TempDir()
+	ctx := context.Background()
+
+	pipelineContent := `# Research Pipeline
+### T0-01: Foundation
+| **ID** | T0-01 |
+| **Dependencies** | None |
+` + "```prompt\nfoundation prompt\n```\n"
+
+	multiADR := `# Decision Registry
+
+### D-001: Initial Ingestion Architecture
+---
+id: D-001
+title: "Initial Ingestion Architecture"
+status: proposed
+door_type: one-way
+date: 2026-10-20
+---
+# Context
+We hypothesize gRPC streaming will satisfy ingestion.
+
+---
+
+### D-002: Storage Layer Engine
+---
+id: D-002
+title: "Storage Layer Engine"
+status: accepted
+door_type: one-way
+date: 2026-10-20
+---
+# Context
+We adopt PostgreSQL with TimescaleDB. (No evidence grades here)
+
+---
+
+### D-003: Messaging Backbone
+---
+id: D-003
+title: "Messaging Backbone"
+status: accepted
+door_type: one-way
+date: 2026-10-20
+---
+# Context
+We adopt Apache Kafka. Grade A (https://kafka.apache.org/documentation)
+`
+
+	_, envSave, err := handleSavePlan(ctx, nil, SavePlanInput{
+		ProjectRoot:      tmpDir,
+		Scope:            "project",
+		Content:          pipelineContent,
+		DecisionsContent: multiADR,
+	})
+	if err != nil {
+		t.Fatalf("handleSavePlan error: %v", err)
+	}
+	if !envSave.Success {
+		t.Fatalf("expected handleSavePlan to succeed, got: %s", envSave.Message)
+	}
+
+	// Should have warning for D-002 only
+	foundD2Warn := false
+	foundD1Warn := false
+	foundD3Warn := false
+	for _, w := range envSave.Warnings {
+		if strings.Contains(w, "DECISION D-002") && strings.Contains(w, "W-NO-EVIDENCE-GRADES") {
+			foundD2Warn = true
+		}
+		if strings.Contains(w, "DECISION D-001") {
+			foundD1Warn = true
+		}
+		if strings.Contains(w, "DECISION D-003") {
+			foundD3Warn = true
+		}
+	}
+
+	if !foundD2Warn {
+		t.Errorf("expected DECISION D-002 warning for ungrounded accepted decision, got warnings: %v", envSave.Warnings)
+	}
+	if foundD1Warn {
+		t.Errorf("unexpected warning for proposed D-001: %v", envSave.Warnings)
+	}
+	if foundD3Warn {
+		t.Errorf("unexpected warning for grounded accepted D-003: %v", envSave.Warnings)
+	}
+}
+
+// TestComprehensive_DAG_AllPriorSessions_SerializeAndVisualizeRoundTrip tests
+// full serialization, round-trip re-parsing, and Mermaid visualization for pipelines
+// containing natural language 'all prior sessions' dependency specifications.
+func TestComprehensive_DAG_AllPriorSessions_SerializeAndVisualizeRoundTrip(t *testing.T) {
+	tmpDir := t.TempDir()
+	ctx := context.Background()
+
+	pipelineContent := `# Multi-Phase Pipeline
+### T0-01: Research Base 1
+| **ID** | T0-01 |
+| **Dependencies** | None |
+` + "```prompt\nBase 1 prompt\n```\n" + `
+---
+### T0-02: Research Base 2
+| **ID** | T0-02 |
+| **Dependencies** | None |
+` + "```prompt\nBase 2 prompt\n```\n" + `
+---
+### SYN-01: Architecture Synthesis
+| **ID** | SYN-01 |
+| **Dependencies** | ALL prior sessions (hard) |
+` + "```prompt\nSynthesis prompt\n```\n"
+
+	_, envSave, err := handleSavePlan(ctx, nil, SavePlanInput{
+		ProjectRoot: tmpDir,
+		Scope:       "project",
+		Content:     pipelineContent,
+	})
+	if err != nil || !envSave.Success {
+		t.Fatalf("save plan failed: %v", err)
+	}
+
+	// Visualize pipeline via handleVisualize
+	resVis, envVis, err := handleVisualize(ctx, nil, VisualizeInput{
+		ProjectRoot: tmpDir,
+	})
+	if err != nil || resVis.IsError {
+		t.Fatalf("handleVisualize failed: %v, env: %+v", err, envVis)
+	}
+
+	visData, ok := envVis.Data.(map[string]any)
+	if !ok {
+		t.Fatalf("expected map in visualize envelope data, got: %T", envVis.Data)
+	}
+	mermaidDiagram, ok := visData["mermaid"].(string)
+	if !ok {
+		t.Fatalf("expected mermaid string in data: %v", visData)
+	}
+
+	// Verify diagram contains directed edges from each prior session to SYN-01
+	if !strings.Contains(mermaidDiagram, "T0-01 --> SYN-01") {
+		t.Errorf("expected edge T0-01 --> SYN-01 in Mermaid diagram, got:\n%s", mermaidDiagram)
+	}
+	if !strings.Contains(mermaidDiagram, "T0-02 --> SYN-01") {
+		t.Errorf("expected edge T0-02 --> SYN-01 in Mermaid diagram, got:\n%s", mermaidDiagram)
+	}
+}
+
+// TestComprehensive_PrepareGenerator_AntiLocalSpillGuidance_AllScopes tests that all three
+// scopes include unequivocal guidance directing agents to call vivechak_save_plan rather
+// than leaking raw plans to local scratchpads or brain files.
+func TestComprehensive_PrepareGenerator_AntiLocalSpillGuidance_AllScopes(t *testing.T) {
+	ctx := context.Background()
+
+	scopes := []string{"project", "decision", "comparison"}
+	for _, sc := range scopes {
+		t.Run(sc, func(t *testing.T) {
+			tmpDir := t.TempDir()
+			_, envPrep, err := handlePrepareGenerator(ctx, nil, PrepareGeneratorInput{
+				ProjectRoot: tmpDir,
+				Scope:       sc,
+				Context:     "High-throughput event streaming platform",
+			})
+			if err != nil || !envPrep.Success {
+				t.Fatalf("prepare generator (%s) failed: %v, env: %+v", sc, err, envPrep)
+			}
+
+			if !strings.Contains(envPrep.NextStep, "vivechak_save_plan") {
+				t.Errorf("scope %s next_step missing vivechak_save_plan: %s", sc, envPrep.NextStep)
+			}
+			if !strings.Contains(envPrep.NextStep, "Do NOT write to local artifact/brain files") {
+				t.Errorf("scope %s next_step missing anti-local spill directive: %s", sc, envPrep.NextStep)
+			}
+		})
+	}
+}
+
+
+
 
 

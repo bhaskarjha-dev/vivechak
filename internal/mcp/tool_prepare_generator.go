@@ -194,13 +194,16 @@ func handlePrepareGenerator(_ context.Context, _ *sdkmcp.CallToolRequest, in Pre
 	switch scope {
 	case core.ScopeComparison:
 		nextStep = "Execute this prompt in a research session with web search. " +
-			"Save the resulting WEP comparison matrix using vivechak_save_plan."
+			"Save the resulting WEP comparison matrix using vivechak_save_plan. " +
+			"Do NOT write to local artifact/brain files or external paths first."
 	case core.ScopeDecision:
 		nextStep = "Execute this prompt in a research session with web search. " +
-			"Save the decision plan and ADR skeleton using vivechak_save_plan."
+			"Save the decision plan and ADR skeleton using vivechak_save_plan. " +
+			"Do NOT write to local artifact/brain files or external paths first."
 	default:
-		nextStep = "Execute the generated prompt (either directly in your next turn or by delegating to a research subagent) to generate your research pipeline. " +
-			"Save the output using vivechak_save_plan."
+		nextStep = "Use the prompt above as instructions to generate your research pipeline (RESEARCH-PIPELINE.md and DECISIONS.md). " +
+			"IMPORTANT: Pass both outputs directly to vivechak_save_plan(content=..., decisions_content=...). " +
+			"Do NOT write to local artifact/brain files or external paths first."
 	}
 
 	env := Envelope{

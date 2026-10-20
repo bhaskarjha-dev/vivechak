@@ -2131,6 +2131,103 @@ Prompt 1
 	}
 }
 
+func TestSavePlan_MultiDecisionRegistry(t *testing.T) {
+	tmpDir := t.TempDir()
+	cs := testServer(t)
+	ctx := context.Background()
+
+	// 1. Init workspace
+	_, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_init",
+		Arguments: map[string]any{
+			"project_root": tmpDir,
+			"scope":        "project",
+		},
+	})
+	if err != nil {
+		t.Fatalf("init: %v", err)
+	}
+
+	pipelineMD := `# Research Pipeline: Multi Decision Test
+## Sessions
+#### T0-01: Session 1
+| Field | Value |
+|---|---|
+| ID | T0-01 |
+| Dependencies | None |
+
+` + "```prompt" + `
+Prompt 1
+` + "```" + `
+`
+
+	decisionsMD := `# Architectural Decision Records
+
+<!-- DECISION: D-001 -->
+---
+id: D-001
+title: "Repository Information Architecture"
+status: proposed
+door_type: one-way
+date: 2026-10-20
+---
+
+# D-001: Repository Information Architecture
+## Initial Context & Hypotheses
+Career-stage-first vs role-first.
+<!-- /DECISION: D-001 -->
+
+<!-- DECISION: D-002 -->
+---
+id: D-002
+title: "Taxonomy Classification Pipeline"
+status: proposed
+door_type: two-way
+date: 2026-10-20
+---
+
+# D-002: Taxonomy Classification Pipeline
+## Initial Context & Hypotheses
+Zero-shot LLM vs BERT.
+<!-- /DECISION: D-002 -->
+`
+
+	res, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_save_plan",
+		Arguments: map[string]any{
+			"project_root":      tmpDir,
+			"scope":             "project",
+			"content":           pipelineMD,
+			"decisions_content": decisionsMD,
+		},
+	})
+	if err != nil {
+		t.Fatalf("save_plan failed: %v", err)
+	}
+	env := parseEnvelope(t, res)
+	if !env.Success {
+		t.Fatalf("expected save_plan to succeed, got: %s", env.Message)
+	}
+
+	// Verify that decisions_validation status is valid and no false missing-field warnings are present
+	data, _ := env.Data.(map[string]any)
+	decVal, ok := data["decisions_validation"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected decisions_validation in data, got: %v", data["decisions_validation"])
+	}
+	if decVal["status"] != "valid" {
+		t.Errorf("decisions_validation status = %v; want 'valid'", decVal["status"])
+	}
+	for _, w := range env.Warnings {
+		if strings.Contains(w, "V-MISSING-FIELD") {
+			t.Errorf("spurious V-MISSING-FIELD warning found in save_plan: %s", w)
+		}
+		if strings.Contains(w, "W-NO-EVIDENCE-GRADES") {
+			t.Errorf("spurious W-NO-EVIDENCE-GRADES warning found in save_plan: %s", w)
+		}
+	}
+}
+
 func TestInit_HomeDirGuard(t *testing.T) {
 	home, err := os.UserHomeDir()
 	if err != nil || home == "" {

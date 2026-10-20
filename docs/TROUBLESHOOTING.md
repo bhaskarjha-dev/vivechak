@@ -63,6 +63,14 @@ Vivechak employs a 4-level validation ladder (**L1–L4**). Below are the common
 - **Cause:** Track B Check B11 detected that an irreversible One-Way Door decision was not subjected to adversarial red-team stress testing prior to commitment.
 - **Resolution:** Execute `vivechak_challenge(session_id="...", mode="red_team")` on the informing session, search for disconfirming evidence, and record findings in the decision record under `## Challenge Findings & Red-Team Stress Test`.
 
+### `W-NO-EVIDENCE-GRADES` (Level 3 Advisory Warning)
+- **Cause:** A completed research session or locked ADR does not contain inline evidence citations (e.g. `[Grade: A]`, `[Grade: B (source)]`). Under Principle P3 (Evidentiary Grounding), every substantive factual claim must carry an inline evidence grade.
+- **Resolution:** Add inline evidence grades to key claims. *(Note: Initial candidate decisions in `research/DECISIONS.md` with `status: proposed` are intentionally exempt during pipeline planning, as evidence has not yet been gathered).*
+
+### `W-RECALLED-GRADE-CAP` (Level 3 Advisory Warning)
+- **Cause:** A claim marked with verification method `recalled` (from model parametric memory) was assigned Grade A, B, or C. Under Principle P3, unverified model recall is capped at Grade D.
+- **Resolution:** Verify the claim against canonical primary sources (documentation, source code, benchmarks) using web search and tag it as `fetched` or `cached`, or downgrade the claim to `[Grade: D (recalled)]`.
+
 ---
 
 ## 3. Cognitive Quality Coaching Advisories (`Q-*`)

@@ -1328,3 +1328,90 @@ Synthesis Brief
 		}
 	}
 }
+
+func TestParseDependencies_AllPriorSessions(t *testing.T) {
+	testCases := []string{
+		"ALL prior sessions (hard)",
+		"all prior sessions",
+		"all previous sessions",
+		"all preceding sessions",
+		"all other sessions",
+		"all non-synthesis sessions",
+		"all sessions",
+		"all",
+		"*",
+		"__all_prior__",
+		"__all__",
+	}
+
+	for _, tc := range testCases {
+		deps := parseDependencies(tc)
+		if len(deps) != 1 || deps[0] != "__ALL_PRIOR__" {
+			t.Errorf("parseDependencies(%q) = %v; want [\"__ALL_PRIOR__\"]", tc, deps)
+		}
+	}
+}
+
+func TestParsePipeline_AllPriorSessionsExpansion(t *testing.T) {
+	pipelineMD := `# Research Pipeline: Synthesis Test
+## Sessions
+#### T0-01: Session 1
+| Field | Value |
+|---|---|
+| ID | T0-01 |
+| Dependencies | None |
+
+` + "```prompt" + `
+Prompt 1
+` + "```" + `
+
+---
+
+#### T0-02: Session 2
+| Field | Value |
+|---|---|
+| ID | T0-02 |
+| Dependencies | None |
+
+` + "```prompt" + `
+Prompt 2
+` + "```" + `
+
+---
+
+#### SYN-01: Synthesis
+| Field | Value |
+|---|---|
+| ID | SYN-01 |
+| Dependencies | ALL prior sessions (hard) |
+
+` + "```prompt" + `
+Synthesis prompt
+` + "```" + `
+`
+
+	dag, err := ParsePipeline([]byte(pipelineMD))
+	if err != nil {
+		t.Fatalf("ParsePipeline failed: %v", err)
+	}
+
+	syn := dag.SessionByID("SYN-01")
+	if syn == nil {
+		t.Fatal("SYN-01 not found in parsed pipeline")
+	}
+
+	expectedDeps := []string{"T0-01", "T0-02"}
+	if len(syn.Dependencies) != len(expectedDeps) {
+		t.Fatalf("SYN-01 dependencies = %v; want %v", syn.Dependencies, expectedDeps)
+	}
+	for i, dep := range syn.Dependencies {
+		if dep != expectedDeps[i] {
+			t.Errorf("dep[%d] = %q; want %q", i, dep, expectedDeps[i])
+		}
+	}
+
+	if err := dag.ValidateDAG(); err != nil {
+		t.Errorf("ValidateDAG() error = %v; want nil", err)
+	}
+}
+

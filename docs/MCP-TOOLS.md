@@ -322,7 +322,7 @@ Defined in [`PrepareGeneratorInput`](../internal/mcp/tool_prepare_generator.go):
     "char_count": 8240,
     "approx_tokens": 2060
   },
-  "next_step": "Execute this prompt in a research session with web search. Save the decision plan and ADR skeleton using vivechak_save_plan.",
+  "next_step": "Execute this prompt in a research session with web search. Save the decision plan and ADR skeleton using vivechak_save_plan. Do NOT write to local artifact/brain files or external paths first.",
   "meta": {
     "api": 1,
     "tool": "vivechak_prepare_generator"
@@ -362,7 +362,7 @@ Defined in [`SavePlanInput`](../internal/mcp/tool_save_plan.go):
 - `scope` (`string`): Research scope of the saved plan.
 - `saved_files` (`string[]`): Array of relative paths written (e.g., `["research/RESEARCH-PIPELINE.md", "research/DECISIONS.md"]`).
 - `validation` ([`ValidationResult`](../internal/core/validate.go)): Result of validating the plan content (e.g., DAG cycle checks, empty prompts, or L1–L2 comparison validation block).
-- `decisions_validation` ([`ValidationResult`](../internal/core/validate.go)): Optional result of validating `decisions_content` when provided.
+- `decisions_validation` ([`ValidationResult`](../internal/core/validate.go)): Optional result of validating `decisions_content` when provided. For multi-decision registries (such as `DECISIONS.md`), each decision is extracted and validated individually with `DECISION D-NNN:` prefixes, and evidentiary warnings (`W-NO-EVIDENCE-GRADES`) are cleanly suppressed for candidate decisions in `status: proposed`.
 
 #### Example
 **Request:**
@@ -1027,7 +1027,7 @@ Supported operations:
 - `update_deps`: Modifies the dependency list of an uncompleted session. Verifies acyclicity.
 - `update_prompt`: Replaces the research prompt text of an uncompleted session.
 
-Validates the entire mutated graph via `core.DAG.ValidateDAG()` and re-serializes `RESEARCH-PIPELINE.md` with complete round-trip fidelity.
+Validates the entire mutated graph via `core.DAG.ValidateDAG()` and re-serializes `RESEARCH-PIPELINE.md` with complete round-trip fidelity. Dynamically expands natural language synthesis dependencies (such as `ALL prior sessions (hard)`, `all previous sessions`, and `*`) to all topologically preceding sessions in the DAG.
 
 #### Input Parameters
 Defined in [`ReplanInput`](../internal/mcp/tool_replan.go):

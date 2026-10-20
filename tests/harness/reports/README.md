@@ -9,6 +9,7 @@ This directory contains versioned milestone audit reports compiled at major rele
 |---|---|---|---|---|---|
 | **v0.1.0** | 2026-10-19 | 12 Scenarios (Phase 1 Baseline, 25 Runs) | Google Antigravity (`agy`), OpenCode (`opencode`), Direct MCP | **100.0%** (25/25) | [audit-v0.1.0-2026-10-19.md](audit-v0.1.0-2026-10-19.md) |
 | **v0.1.0 (Full)** | 2026-10-19 | 21 Scenarios (Run 27 Milestone, 64 Runs) | Google Antigravity (`agy`), OpenCode (`opencode`), Direct MCP | **100.0%** (21/21 Deterministic Direct MCP) / **81.3%** Aggregate | Documented in [`DEFECTS.md`](../DEFECTS.md#run-27-full-21-scenario-autonomous-multi-harness-campaign-release-v010-audit) |
+| **v0.1.0 (Milestone)** | 2026-10-20 | 18 Runs (Release Milestone Audit) | Direct MCP | **100.0%** (18/18) | [audit-v0.1.0-2026-10-20.md](audit-v0.1.0-2026-10-20.md) |
 
 ## Archiving New Release Audits
 When a development/hardening cycle completes:
@@ -17,4 +18,4 @@ node scripts/run_harness.mjs --archive <version>
 # Example: node scripts/run_harness.mjs --archive v0.1.1
 ```
 This automatically compiles active runs in `tests/harness/runs/` into an immutable audit report in this directory, updates this catalog index, and clears the local testbed for the next iteration.
-- **[audit-v0.1.0-2026-10-20.md](audit-v0.1.0-2026-10-20.md):** Release v0.1.0 milestone audit (18 runs, 100.0% pass).
+

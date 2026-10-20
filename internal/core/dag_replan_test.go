@@ -57,6 +57,61 @@ func TestDAG_AddSession(t *testing.T) {
 	if err == nil {
 		t.Errorf("expected error adding session with self-dependency cycle")
 	}
+
+	// 6. Dynamic expansion of "ALL prior sessions (hard)"
+	err = dag.AddSession(Session{
+		ID:           "SYN-01",
+		Dependencies: []string{"ALL prior sessions (hard)"},
+	})
+	if err != nil {
+		t.Fatalf("unexpected error adding session with all prior: %v", err)
+	}
+	syn := dag.SessionByID("SYN-01")
+	if syn == nil {
+		t.Fatal("SYN-01 not found")
+	}
+	expected := []string{"T0-01", "T1-01", "T1-02", "T2-01"}
+	if len(syn.Dependencies) != len(expected) {
+		t.Fatalf("expected 4 deps for SYN-01, got %v", syn.Dependencies)
+	}
+
+	// 7. Dynamic expansion of "*"
+	err = dag.AddSession(Session{
+		ID:           "SYN-02",
+		Dependencies: []string{"*"},
+	})
+	if err != nil {
+		t.Fatalf("unexpected error adding session with *: %v", err)
+	}
+	syn2 := dag.SessionByID("SYN-02")
+	if len(syn2.Dependencies) != 5 {
+		t.Fatalf("expected 5 deps for SYN-02, got %v", syn2.Dependencies)
+	}
+}
+
+func TestDAG_UpdateDependencies_AllPriorSessions(t *testing.T) {
+	dag := &DAG{
+		Sessions: []Session{
+			{ID: "T0-01", Title: "Landscape"},
+			{ID: "T0-02", Title: "Framework"},
+			{ID: "T1-01", Title: "Database", Dependencies: []string{"T0-01"}},
+			{ID: "SYN-01", Title: "Synthesis", Dependencies: []string{"T1-01"}},
+		},
+	}
+
+	err := dag.UpdateDependencies("SYN-01", []string{"all previous sessions"})
+	if err != nil {
+		t.Fatalf("unexpected error updating deps with all previous sessions: %v", err)
+	}
+	syn := dag.SessionByID("SYN-01")
+	if len(syn.Dependencies) != 3 {
+		t.Fatalf("expected 3 deps for SYN-01 (excluding itself), got %v", syn.Dependencies)
+	}
+	for _, dep := range syn.Dependencies {
+		if dep == "SYN-01" {
+			t.Errorf("self-dependency was not excluded: %v", syn.Dependencies)
+		}
+	}
 }
 
 func TestDAG_RemoveSession(t *testing.T) {

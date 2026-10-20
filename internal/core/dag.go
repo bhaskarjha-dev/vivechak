@@ -101,6 +101,9 @@ func (d *DAG) ValidateDAG() error {
 	// Check for dangling dependencies
 	for _, s := range d.Sessions {
 		for _, dep := range s.Dependencies {
+			if dep == "__ALL_PRIOR__" {
+				continue
+			}
 			if !ids[dep] && !ids[strings.ToUpper(dep)] {
 				return fmt.Errorf("session %s depends on nonexistent session %s", s.ID, dep)
 			}
@@ -117,6 +120,9 @@ func (d *DAG) ValidateDAG() error {
 		session := d.SessionByID(id)
 		if session != nil {
 			for _, dep := range session.Dependencies {
+				if dep == "__ALL_PRIOR__" {
+					continue
+				}
 				if visited[dep] == 1 {
 					return fmt.Errorf("cycle detected in pipeline DAG: %s -> %s", strings.Join(path, " -> "), dep)
 				}
@@ -525,6 +531,29 @@ func ParsePipeline(data []byte) (*DAG, error) {
 		dag.Sessions = append(dag.Sessions, *sessionsByID[id])
 	}
 
+	// Expand any __ALL_PRIOR__ dependencies to all preceding sessions in the pipeline
+	for i := range dag.Sessions {
+		var resolved []string
+		seen := make(map[string]bool)
+		for _, dep := range dag.Sessions[i].Dependencies {
+			if dep == "__ALL_PRIOR__" {
+				for j := 0; j < i; j++ {
+					prevID := dag.Sessions[j].ID
+					if !seen[prevID] {
+						seen[prevID] = true
+						resolved = append(resolved, prevID)
+					}
+				}
+			} else {
+				if !seen[dep] {
+					seen[dep] = true
+					resolved = append(resolved, dep)
+				}
+			}
+		}
+		dag.Sessions[i].Dependencies = resolved
+	}
+
 	dag.Preamble = strings.Join(preambleLines, "\n")
 	if lastPromptEndLine >= 0 && lastPromptEndLine+1 < len(lines) {
 		dag.Epilogue = strings.Join(lines[lastPromptEndLine+1:], "\n")
@@ -596,10 +625,34 @@ func assignPromptToSession(
 
 var markdownLinkRe = regexp.MustCompile(`\[([^\]]+)\]\([^)]*\)`)
 
+// isAllPriorSessions reports whether a dependency string expresses a natural language dependency
+// on all preceding sessions (e.g. "ALL prior sessions (hard)", "all previous sessions", "all", "*").
+func isAllPriorSessions(s string) bool {
+	raw := strings.TrimSpace(depCommentRe.ReplaceAllString(s, ""))
+	if raw == "*" {
+		return true
+	}
+	s = strings.Trim(raw, " \t\r\n.,;:[]`'\"*")
+	lower := strings.ToLower(s)
+	return lower == "all" ||
+		lower == "all prior" ||
+		lower == "all prior sessions" ||
+		lower == "all previous" ||
+		lower == "all previous sessions" ||
+		lower == "all preceding" ||
+		lower == "all preceding sessions" ||
+		lower == "all other sessions" ||
+		lower == "all non-synthesis sessions" ||
+		lower == "all sessions" ||
+		lower == "__all_prior__" ||
+		lower == "__all__"
+}
+
 // parseDependencies parses a dependency list from the metadata table.
 // Handles formats like: "None (parallel)", "T1-01", "T1-01, T1-02", "T1-01 (soft)",
 // "[T1-01, T1-02]", "`T1-01` and `T1-02`", "T1-01 & T1-02",
-// markdown links "[R-01](./R-01.md)", and bullet lists "- R-01\n- R-02".
+// markdown links "[R-01](./R-01.md)", bullet lists "- R-01\n- R-02",
+// and natural language synthesis dependencies like "ALL prior sessions (hard)".
 func parseDependencies(value string) []string {
 	value = strings.TrimSpace(value)
 
@@ -627,6 +680,10 @@ func parseDependencies(value string) []string {
 		return nil
 	}
 
+	if isAllPriorSessions(value) {
+		return []string{"__ALL_PRIOR__"}
+	}
+
 	// Normalize conjunctions
 	value = strings.ReplaceAll(value, " and ", ", ")
 	value = strings.ReplaceAll(value, " & ", ", ")
@@ -634,12 +691,20 @@ func parseDependencies(value string) []string {
 	parts := strings.Split(value, ",")
 	var deps []string
 	for _, p := range parts {
+		if isAllPriorSessions(p) {
+			deps = append(deps, "__ALL_PRIOR__")
+			continue
+		}
 		p = strings.TrimSpace(p)
 		// Strip parenthetical comments/qualifiers e.g. "(constrains)", "(hard)"
 		p = depCommentRe.ReplaceAllString(p, "")
 		// Strip bullet markers (- or * or •)
 		p = strings.TrimLeft(p, "-*• \t")
 		p = strings.Trim(p, " \t\r\n.,;:[]`'\"")
+		if isAllPriorSessions(p) {
+			deps = append(deps, "__ALL_PRIOR__")
+			continue
+		}
 		if p != "" && !strings.EqualFold(p, "none") && !strings.EqualFold(p, "n/a") && !strings.EqualFold(p, "nil") && !strings.EqualFold(p, "null") && !strings.EqualFold(p, "and") {
 			deps = append(deps, p)
 		}
@@ -661,16 +726,32 @@ func (d *DAG) AddSession(s Session) error {
 		return fmt.Errorf("session %s already exists in pipeline", s.ID)
 	}
 
-	// Validate dependencies exist
+	// Validate and expand dependencies
+	var expandedDeps []string
+	seenDeps := make(map[string]bool)
 	for _, dep := range s.Dependencies {
 		dep = strings.TrimSpace(dep)
-		if strings.EqualFold(dep, s.ID) {
-			return fmt.Errorf("session %s cannot depend on itself", s.ID)
-		}
-		if d.SessionByID(dep) == nil {
-			return fmt.Errorf("dependency %s does not exist in pipeline", dep)
+		if isAllPriorSessions(dep) || dep == "__ALL_PRIOR__" {
+			for _, prior := range d.Sessions {
+				if !strings.EqualFold(prior.ID, s.ID) && !seenDeps[prior.ID] {
+					seenDeps[prior.ID] = true
+					expandedDeps = append(expandedDeps, prior.ID)
+				}
+			}
+		} else {
+			if strings.EqualFold(dep, s.ID) {
+				return fmt.Errorf("session %s cannot depend on itself", s.ID)
+			}
+			if d.SessionByID(dep) == nil {
+				return fmt.Errorf("dependency %s does not exist in pipeline", dep)
+			}
+			if !seenDeps[dep] {
+				seenDeps[dep] = true
+				expandedDeps = append(expandedDeps, dep)
+			}
 		}
 	}
+	s.Dependencies = expandedDeps
 
 	if s.OutputFile == "" {
 		s.OutputFile = fmt.Sprintf("sessions/%s.md", s.ID)
@@ -719,18 +800,33 @@ func (d *DAG) UpdateDependencies(id string, deps []string) error {
 		return fmt.Errorf("session %s not found in pipeline", id)
 	}
 
+	var expandedDeps []string
+	seenDeps := make(map[string]bool)
 	for _, dep := range deps {
 		dep = strings.TrimSpace(dep)
-		if strings.EqualFold(dep, id) {
-			return fmt.Errorf("session %s cannot depend on itself", id)
-		}
-		if d.SessionByID(dep) == nil {
-			return fmt.Errorf("dependency %s does not exist in pipeline", dep)
+		if isAllPriorSessions(dep) || dep == "__ALL_PRIOR__" {
+			for _, prior := range d.Sessions {
+				if !strings.EqualFold(prior.ID, id) && !seenDeps[prior.ID] {
+					seenDeps[prior.ID] = true
+					expandedDeps = append(expandedDeps, prior.ID)
+				}
+			}
+		} else {
+			if strings.EqualFold(dep, id) {
+				return fmt.Errorf("session %s cannot depend on itself", id)
+			}
+			if d.SessionByID(dep) == nil {
+				return fmt.Errorf("dependency %s does not exist in pipeline", dep)
+			}
+			if !seenDeps[dep] {
+				seenDeps[dep] = true
+				expandedDeps = append(expandedDeps, dep)
+			}
 		}
 	}
 
 	oldDeps := s.Dependencies
-	s.Dependencies = deps
+	s.Dependencies = expandedDeps
 	if err := d.ValidateDAG(); err != nil {
 		s.Dependencies = oldDeps
 		return err

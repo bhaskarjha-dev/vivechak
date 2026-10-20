@@ -112,6 +112,7 @@ The workspace layout is standard across all Vivechak projects:
 Defined in [`internal/core/dag.go`](../internal/core/dag.go#L10-L49), [`ParsePipeline`](../internal/core/dag.go#L104) converts `RESEARCH-PIPELINE.md` into an in-memory graph.
 - [`Session`](../internal/core/dag.go#L10-L34): Represents an individual node, capturing `ID` (e.g., `T1-01`, `SYN-01`), `Layer` (0 for landscape, 1 for deep dives, etc.), `DoorType` (`One-Way` vs `Two-Way`), `DecisionRef`, `Dependencies`, `OutputFile`, and the complete 8-block markdown `Prompt`.
 - [`DAG.NextSessions(completedIDs)`](../internal/core/dag.go#L63-L85): Computes ready nodes by checking which uncompleted sessions have all upstream dependencies satisfied. Identifies parallel tracks that can execute concurrently.
+- **Natural-Language Synthesis Dependency Expansion:** Handled by `isAllPriorSessions()` in [`internal/core/dag.go`](../internal/core/dag.go). Common natural language dependencies emitted by LLM generators (such as `ALL prior sessions (hard)`, `all previous sessions`, `*`, `__ALL_PRIOR__`) are automatically expanded into explicit dependency lists containing all preceding DAG sessions across `ParsePipeline`, `ValidateDAG`, `AddSession`, and `UpdateDependencies`.
 
 ### Frontmatter Parser (`core.Frontmatter`)
 Defined in [`internal/core/frontmatter.go`](../internal/core/frontmatter.go#L11-L20), [`ParseFrontmatter`](../internal/core/frontmatter.go#L44) and [`ComposeFrontmatter`](../internal/core/frontmatter.go#L120) provide robust YAML frontmatter manipulation without mangling markdown body fences, tables, or unicode content.
@@ -123,7 +124,7 @@ Defined in [`internal/core/validate.go`](../internal/core/validate.go#L11-L22), 
 |---|---|---|---|
 | **L1** | `L1Construct` | Auto-remedies missing values | Missing non-critical fields (e.g., defaulting missing `status` to `draft`). |
 | **L2** | `L2Block` | Persists as `draft`, blocks completion | Missing YAML frontmatter, missing mandatory fields (`session_id`, `title`, `date`), empty markdown body. |
-| **L3** | `L3Warn` | Emits non-fatal warnings | Missing inline evidence grades (`A-E (source)`), missing `door_type`, decision body < 100 characters. |
+| **L3** | `L3Warn` | Emits non-fatal warnings | Missing inline evidence grades (`A-E (source)`) (suppressed for candidate decisions with `status: proposed` during planning), missing `door_type`, decision body < 100 characters. |
 | **L4** | `L4Gate` | Exit gate evaluation across project | Pipeline structural completeness and mechanical quality verification. |
 
 ### Quality Coaching Engine (`core.ObserveSessionQuality`)

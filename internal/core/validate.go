@@ -327,9 +327,12 @@ func ValidateDecision(data []byte) *ValidationResult {
 			"Include Context, Decision, Consequences, and Evidence sections")
 	}
 
-	// L3: Evidence grades and recalled grade cap checks
-	checkEvidenceGrades(bodyStr, result)
-	checkRecalledGradeCap(bodyStr, result)
+	// L3: Evidence grades and recalled grade cap checks (only for researched/accepted decisions)
+	status := strings.ToLower(fm.GetString("status"))
+	if status != "proposed" {
+		checkEvidenceGrades(bodyStr, result)
+		checkRecalledGradeCap(bodyStr, result)
+	}
 
 	if result.HasBlocking() {
 		result.Status = "draft"

@@ -498,6 +498,25 @@ No issues anticipated.
 	}
 }
 
+func TestValidateDecision_StatusProposed_SuppressesEvidenceWarning(t *testing.T) {
+	proposed := `---
+id: D-001
+title: Initial Repository Information Architecture
+status: proposed
+door_type: one-way
+---
+# D-001: Initial Repository Information Architecture
+## Initial Context & Hypotheses
+This is a seed hypothesis to be researched during pipeline execution.
+`
+	res := ValidateDecision([]byte(proposed))
+	for _, iss := range res.Issues {
+		if iss.Code == "W-NO-EVIDENCE-GRADES" {
+			t.Errorf("spurious W-NO-EVIDENCE-GRADES for decision with status: proposed: %v", iss)
+		}
+	}
+}
+
 func TestValidateConflictResolution_EvidentiaryGrounding(t *testing.T) {
 	// Missing evidence grades should produce W-NO-EVIDENCE-GRADES
 	noGrades := `---

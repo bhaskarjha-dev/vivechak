@@ -92,6 +92,45 @@ func TestHandleReplan_AddSession(t *testing.T) {
 	}
 }
 
+func TestHandleReplan_AddSession_AllPriorSessions(t *testing.T) {
+	tmpDir := setupTestPipelineWorkspace(t)
+	ctx := context.Background()
+
+	res, env, err := handleReplan(ctx, nil, ReplanInput{
+		ProjectRoot:  tmpDir,
+		Operation:    "add_session",
+		SessionID:    "SYN-01",
+		Topic:        "Synthesis",
+		Layer:        "2",
+		Dependencies: "ALL prior sessions (hard)",
+		Prompt:       "# SYN-01: Synthesis\nBRIEF:\nSynthesize architecture.\n",
+	})
+	if err != nil {
+		t.Fatalf("handleReplan failed: %v", err)
+	}
+	if res.IsError {
+		t.Fatalf("expected success, got: %s", env.Message)
+	}
+
+	// Read updated pipeline and parse DAG
+	data, err := os.ReadFile(filepath.Join(tmpDir, core.PipelineFile))
+	if err != nil {
+		t.Fatalf("failed to read pipeline file: %v", err)
+	}
+	dag, err := core.ParsePipeline(data)
+	if err != nil {
+		t.Fatalf("failed to parse updated pipeline: %v", err)
+	}
+	syn := dag.SessionByID("SYN-01")
+	if syn == nil {
+		t.Fatal("SYN-01 not found in parsed pipeline")
+	}
+	// setupTestPipelineWorkspace has T0-01 and T1-01
+	if len(syn.Dependencies) != 2 || syn.Dependencies[0] != "T0-01" || syn.Dependencies[1] != "T1-01" {
+		t.Fatalf("expected dependencies [T0-01, T1-01], got %v", syn.Dependencies)
+	}
+}
+
 func TestHandleReplan_RemoveSession(t *testing.T) {
 	tmpDir := setupTestPipelineWorkspace(t)
 	ctx := context.Background()
