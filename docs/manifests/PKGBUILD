@@ -1,0 +1,20 @@
+# Maintainer: Bhaskar Jha <me@bhaskarjha.dev>
+pkgname=vivechak-bin
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="Evidence-grounded research for technical decisions — MCP server"
+arch=('x86_64' 'aarch64')
+url="https://github.com/bhaskarjha-dev/vivechak"
+license=('MIT')
+provides=('vivechak' 'vck')
+conflicts=('vivechak' 'vck')
+source_x86_64=("https://github.com/bhaskarjha-dev/vivechak/releases/download/v${pkgver}/vivechak_${pkgver}_linux_amd64.tar.gz")
+source_aarch64=("https://github.com/bhaskarjha-dev/vivechak/releases/download/v${pkgver}/vivechak_${pkgver}_linux_arm64.tar.gz")
+sha256sums_x86_64=('SKIP')
+sha256sums_aarch64=('SKIP')
+
+package() {
+    install -Dm755 "${srcdir}/vivechak" "${pkgdir}/usr/bin/vivechak"
+    install -Dm755 "${srcdir}/vck" "${pkgdir}/usr/bin/vck"
+    install -Dm644 "${srcdir}/LICENSE" "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE"
+}

@@ -1,5 +1,7 @@
 # Vivechak (विवेचक) & vck
 
+<!-- mcp-name: io.github.bhaskarjha-dev/vivechak -->
+
 > **Evidence-grounded research for technical decisions — Autonomous Model Context Protocol (MCP) server.**
 
 Official Python binary runner for **Vivechak** and shorthand alias **`vck`**. Automatically fetches and caches the pre-compiled native Go binary for your OS and architecture (`darwin`, `linux`, `windows`, `freebsd`).

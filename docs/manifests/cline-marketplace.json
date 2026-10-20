@@ -1,0 +1,26 @@
+{
+  "$schema": "https://cline.bot/marketplace/schemas/mcp.schema.json",
+  "id": "vivechak",
+  "type": "mcp",
+  "name": "Vivechak (विवेचक)",
+  "tagline": "Evidence-grounded epistemic meta-framework for technical decisions across all lifecycle stages.",
+  "description": "Vivechak is an autonomous Model Context Protocol (MCP) server that forces AI agents to provide evidence grades (A–E), qualified provenance, and structured falsification for architectural decisions (ADRs), 2-to-5 option comparisons, and full project DAG pipelines.",
+  "author": {
+    "name": "Bhaskar Jha",
+    "url": "https://github.com/bhaskarjha-dev"
+  },
+  "homepage": "https://github.com/bhaskarjha-dev/vivechak",
+  "repo": "https://github.com/bhaskarjha-dev/vivechak",
+  "tags": [
+    "architecture",
+    "research",
+    "decisions",
+    "adr",
+    "developer-tools",
+    "epistemics"
+  ],
+  "install": {
+    "command": "npx",
+    "args": ["-y", "vck", "serve"]
+  }
+}

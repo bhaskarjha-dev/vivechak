@@ -1,6 +1,7 @@
 {
   "name": "vck",
   "version": "0.1.0",
+  "mcpName": "io.github.bhaskarjha-dev/vck",
   "description": "Shorthand CLI for Vivechak — evidence-grounded research MCP server",
   "main": "bin/runner.js",
   "bin": {

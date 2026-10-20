@@ -1,5 +1,7 @@
 # vck — Shorthand CLI for Vivechak (विवेचक)
 
+<!-- mcp-name: io.github.bhaskarjha-dev/vck -->
+
 > **Evidence-grounded research for technical decisions — Autonomous Model Context Protocol (MCP) server.**
 
 Official Python shorthand alias package for **Vivechak**. Automatically proxies to `vivechak`, fetching and executing the native pre-compiled Go engine.

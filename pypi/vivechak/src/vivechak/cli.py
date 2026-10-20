@@ -63,14 +63,18 @@ def ensure_binary(prog_name):
     repo_root = Path(__file__).resolve().parent.parent.parent.parent.parent
     local_main_go = repo_root / "cmd" / "vivechak" / "main.go"
     if local_main_go.exists():
-        cache_dir.mkdir(parents=True, exist_ok=True)
-        sys.stderr.write(f"[vck] Building local development binary in {cache_dir}...\n")
-        sys.stderr.flush()
-        build_res = subprocess.call(["go", "build", "-trimpath", "-o", str(bin_path), "./cmd/vivechak"], cwd=str(repo_root), stdout=sys.stderr)
-        if build_res == 0 and bin_path.exists():
-            if not is_win:
-                bin_path.chmod(0o755)
-            return str(bin_path)
+        try:
+            cache_dir.mkdir(parents=True, exist_ok=True)
+            sys.stderr.write(f"[vck] Building local development binary in {cache_dir}...\n")
+            sys.stderr.flush()
+            build_res = subprocess.call(["go", "build", "-trimpath", "-o", str(bin_path), "./cmd/vivechak"], cwd=str(repo_root), stdout=sys.stderr)
+            if build_res == 0 and bin_path.exists():
+                if not is_win:
+                    bin_path.chmod(0o755)
+                return str(bin_path)
+        except (OSError, FileNotFoundError):
+            # Go compiler not available on this host; fall through to downloading binary
+            pass
 
     # Determine release archive name
     if os_name == "darwin":

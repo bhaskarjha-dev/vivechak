@@ -1,0 +1,54 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.bhaskarjha-dev/vivechak",
+  "title": "Vivechak (विवेचक)",
+  "description": "Evidence-grounded epistemic meta-framework for technical decisions across all lifecycle stages (ADRs, comparisons, project pipelines) — Autonomous Model Context Protocol (MCP) server.",
+  "version": "0.1.0",
+  "repository": {
+    "url": "https://github.com/bhaskarjha-dev/vivechak",
+    "source": "github"
+  },
+  "websiteUrl": "https://github.com/bhaskarjha-dev/vivechak",
+  "license": "MIT",
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "vivechak",
+      "version": "0.1.0",
+      "transport": {
+        "type": "stdio"
+      }
+    },
+    {
+      "registryType": "npm",
+      "identifier": "vck",
+      "version": "0.1.0",
+      "transport": {
+        "type": "stdio"
+      }
+    },
+    {
+      "registryType": "pypi",
+      "identifier": "vivechak",
+      "version": "0.1.0",
+      "transport": {
+        "type": "stdio"
+      }
+    },
+    {
+      "registryType": "pypi",
+      "identifier": "vck",
+      "version": "0.1.0",
+      "transport": {
+        "type": "stdio"
+      }
+    },
+    {
+      "registryType": "oci",
+      "identifier": "ghcr.io/bhaskarjha-dev/vivechak:0.1.0",
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ]
+}

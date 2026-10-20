@@ -1,6 +1,7 @@
 {
   "name": "vivechak",
   "version": "0.1.0",
+  "mcpName": "io.github.bhaskarjha-dev/vivechak",
   "description": "Evidence-grounded research for technical decisions — MCP server",
   "main": "bin/runner.js",
   "bin": {
