@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [0.1.0] - 2026-10-20 — Hardened Initial Release, MCP Server & Autonomous Multi-Harness Engine
+## [0.1.0] - 2026-10-21 — Hardened Initial Release, MCP Server & Autonomous Multi-Harness Engine
 
 Unified release delivering the complete pre-release hardening wave across engine parsers, decoupled exit gates, headless CLI verification, concurrency locks, multi-harness autonomous testing subsystem, and packaging:
 
@@ -33,6 +33,7 @@ Unified release delivering the complete pre-release hardening wave across engine
   - *Centralized Multi-Decision Registry Validation (`E-58` / `D-29-03`, `validate.go`, `tool_validate.go`, `tool_save_plan.go`):* Implemented `core.ValidateDecisionRegistry` and `core.ExtractUnanchoredDecisionBlocks` in core logic, unifying decision registry validation across `tool_validate` and `tool_save_plan`. Eliminates false `V-MISSING-FRONTMATTER` errors when validating `DECISIONS.md` containing introductory preambles, overview tables, or collapsible `<details>` blocks.
   - *Collapsible `<details>` Frontmatter Parity (`E-59` / `D-29-03`, `frontmatter.go`):* Extended `core.ParseFrontmatter` to support both ````yaml` fences and standard `---` delimited YAML frontmatter blocks inside `<details>` HTML wrappers, and combined inner/outer body content cleanly.
   - *Tier 3 Planning Guidance & Schema Expansion (`E-60` / `D-29-01`, `tool_prepare_generator.go`, `tool_validate.go`):* Clarified `nextStep` directives in `tool_prepare_generator` to explicitly permit agents to assemble large multi-session pipelines in internal scratch before passing to `vivechak_save_plan`, while strictly forbidding workspace writes outside `research/`. Added `artifact_type="decisions"` schema support and multi-decision registry auto-detection to `vivechak_validate`.
+  - *Zero-Trust Validation Parity (`validate.go`, `mcp_live_lifecycle_test.go`):* Gated `W-SHORT-DECISION` check in `ValidateDecision` by `status != "proposed"`, preventing false warnings on candidate decision skeletons when validated individually. Added live subprocess integration test `05_ProjectScope_MultiDecisionRegistry_LiveSubprocess` verifying native binary stdio JSON-RPC execution.
 - **Calibrated Watchdog Timeout for Reasoning Models (`D-AUDIT-01`):** Increased Turn 1 timeout to 300s/360s in `orchestrator.mjs` to accommodate high-reasoning models executing 6–8 live web searches and writing 200+ line WEP matrices and ADRs.
 
 - **Decoupled Pre-Codebase Exit Gate (`gate.go`, `tool_run_gate.go`):** Decoupled Track A (Two-Way Doors fast reversibility) from Track B (One-Way Doors B1–B11 checks). Track A explicitly passes and authorizes prototyping when all Two-Way Doors satisfy reversibility, without requiring FAD or full project DAG. Comparison scope receives clean zero-gate clearance with advisory.

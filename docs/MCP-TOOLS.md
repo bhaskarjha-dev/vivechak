@@ -1,6 +1,6 @@
 # MCP Tools Reference
 
-> **Last verified against code:** 2026-10-20 (v0.1.0)
+> **Last verified against code:** 2026-10-21 (v0.1.0)
 > Tool schemas and behaviors described here match `internal/mcp/server.go`. If you find discrepancies, please file an issue.
 
 The Model Context Protocol (MCP) server for [Vivechak](../README.md) exposes 13 specialized tools designed to run evidence-grounded research pipelines directly inside any MCP-compatible AI host, agent runtime, or IDE.
