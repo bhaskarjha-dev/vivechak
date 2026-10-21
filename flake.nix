@@ -18,7 +18,7 @@
             version = "0.1.0";
             src = ./.;
             # To update dependencies when go.mod/go.sum changes, run: nix build .#vivechak 2>&1 | grep "got:"
-            vendorHash = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
+            vendorHash = "sha256-aQ6/zg8VmeUaPtgT8zDg9GYcwBe2ajOB6dNmm+nJ80k=";
             proxyVendor = true;
             ldflags = [ "-s" "-w" "-X main.version=0.1.0" ];
             postInstall = ''

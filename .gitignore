@@ -46,6 +46,7 @@ scratch/
 
 # Lock files left by advisory locking
 *.lock
+!flake.lock
 
 # Node.js & Python artifacts
 node_modules/

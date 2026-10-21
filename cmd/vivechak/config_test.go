@@ -663,6 +663,26 @@ func TestRunSetupWithArgs_AutoDetectWorkspace(t *testing.T) {
 	}
 }
 
+func TestRunSetupWithArgs_NoTargetEmptyWorkspace(t *testing.T) {
+	tempWS := t.TempDir()
+	oldWd, _ := os.Getwd()
+	_ = os.Chdir(tempWS)
+	defer func() { _ = os.Chdir(oldWd) }()
+
+	var stdout, stderr bytes.Buffer
+	code := runSetupWithArgs([]string{}, &stdout, &stderr)
+	if code != 0 {
+		t.Fatalf("expected 0 exit code, got %d; stderr: %s", code, stderr.String())
+	}
+	out := stdout.String()
+	if !strings.Contains(out, "No supported AI editor or harness workspace detected") {
+		t.Errorf("expected informative guidance on empty workspace, got: %s", out)
+	}
+	if !strings.Contains(out, "Usage: vivechak setup") {
+		t.Errorf("expected usage instructions, got: %s", out)
+	}
+}
+
 func TestRunSetupWithArgs_InvalidTarget(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 	code := runSetupWithArgs([]string{"nonexistent-preset"}, &stdout, &stderr)

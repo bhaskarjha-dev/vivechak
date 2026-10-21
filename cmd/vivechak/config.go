@@ -939,7 +939,10 @@ func runSetupWithArgs(args []string, stdout, stderr io.Writer) int {
 			fmt.Fprintf(stdout, "Detected %s workspace in current directory.\n", formatHostName(detectedHost))
 			target = detectedHost
 		} else {
-			// No target and no workspace detected: print concise guidance
+			// No target and no workspace detected: print informative guidance
+			fmt.Fprintln(stdout, "No supported AI editor or harness workspace detected in the current directory.")
+			fmt.Fprintln(stdout, "Specify a target host preset or configuration file path.")
+			fmt.Fprintln(stdout, "")
 			printSetupUsage(stdout)
 			return 0
 		}

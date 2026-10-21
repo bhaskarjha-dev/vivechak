@@ -24,14 +24,14 @@ Tags:
 Installers:
   - Architecture: x64
     InstallerUrl: https://github.com/bhaskarjha-dev/vivechak/releases/download/v0.1.0/vivechak_0.1.0_windows_amd64.zip
-    InstallerSha256: PLACEHOLDER
+    InstallerSha256: PLACEHOLDER # Replaced with actual sha256 from checksums.txt upon release
     InstallerType: portable
     Commands:
       - vivechak
       - vck
   - Architecture: arm64
     InstallerUrl: https://github.com/bhaskarjha-dev/vivechak/releases/download/v0.1.0/vivechak_0.1.0_windows_arm64.zip
-    InstallerSha256: PLACEHOLDER
+    InstallerSha256: PLACEHOLDER # Replaced with actual sha256 from checksums.txt upon release
     InstallerType: portable
     Commands:
       - vivechak

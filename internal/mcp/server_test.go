@@ -2233,6 +2233,9 @@ func TestInit_HomeDirGuard(t *testing.T) {
 	if err != nil || home == "" {
 		t.Skip("user home directory not available")
 	}
+	if info, err := os.Stat(home); err != nil || !info.IsDir() {
+		t.Skip("user home directory does not exist on filesystem")
+	}
 
 	t.Chdir(home)
 	cs := testServer(t)
