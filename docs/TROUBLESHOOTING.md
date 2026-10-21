@@ -79,10 +79,13 @@ During `vivechak_save_session`, the engine surfaces non-blocking `[Q-*]` advisor
 
 | Code | Meaning | Recommended Action |
 |---|---|---|
-| **`Q-BIAS`** | Performative belief delta; prior assumptions were accepted without investigation or started from "Unknown". | Review Principle P8 (Structured Falsification). Explicitly state what prior beliefs were contradicted or refined. |
-| **`Q-DENSITY`** | Session cites fewer than 2 distinct independent sources. | Ensure substantive architectural research cites multiple independent sources (official docs, independent benchmarks). |
-| **`Q-INFLATION`** | Grade A claims detected without qualified provenance anchors. | Provide canonical URLs (`https://`), formal RFCs (`RFC 9110`), or source repository links for top-tier claims. |
-| **`Q-FRESH`** | Date citations reference years older than 2 years from today. | Verify that APIs or benchmarks have not changed in subsequent major library releases. |
+| **`Q-EVIDENCE`** | Grade distribution skewed (>70% Grade A), Grade A claim lacks canonical URL/RFC anchor, or Grade A "fetched" citation lacks URL. | Provide canonical URLs (`https://`), formal RFCs (`RFC 9110`), or downgrade unverified claims to Grade B. |
+| **`Q-CONCERNS`** | Missing `## Discovered Concerns` section in session artifact. | Uncover and document at least one unexpected finding, operational risk, or constraint beyond stated scope. |
+| **`Q-DEPTH`** | Fewer than 3 key findings in session output. | Substantive research typically benefits from 4–7 graded findings for adequate decision support. |
+| **`Q-BIAS`** | Delta section has 0 contradicted, refined, or updated prior beliefs (or all start from "Unknown"). | Review Principle P8 (Structured Falsification). Explicitly state what prior beliefs were contradicted or refined. |
+| **`Q-RIGOR`** | Recommendation lacks explicit reference to rejected alternatives. | Stating why competing alternatives were rejected strengthens the decision rationale and defensibility. |
+| **`Q-FRESHNESS`** | References to potentially stale dates older than 2 years detected. | Verify that APIs, versions, or benchmarks are still current and have not changed in subsequent releases. |
+| **`Q-DENSITY`** | Substantive session cites fewer than 2 distinct external sources. | Ensure research cites multiple independent sources (official documentation, independent benchmarks, RFCs). |
 
 ---
 

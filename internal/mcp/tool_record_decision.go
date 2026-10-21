@@ -22,6 +22,7 @@ type RecordDecisionInput struct {
 	Slug          string `json:"slug,omitempty"            jsonschema:"slug for decision filename (optional)"`
 	Content       string `json:"content,omitempty"         jsonschema:"decision record or conflict resolution content (Markdown with YAML frontmatter); omit with auto_draft_from to generate a draft"`
 	AutoDraftFrom string `json:"auto_draft_from,omitempty" jsonschema:"session ID to auto-draft decision from (e.g. R-01); omit content to get a draft for review"`
+	AutoSave      bool   `json:"auto_save,omitempty"       jsonschema:"if true with auto_draft_from, automatically validate and save the drafted decision in one step"`
 	Supersedes    string `json:"supersedes,omitempty"      jsonschema:"decision ID being superseded by this decision (e.g. D-003)"`
 }
 
@@ -35,7 +36,7 @@ func registerRecordDecision(server *sdkmcp.Server) {
 				"Use artifact_type='decision' for ADRs and 'conflict-resolution' for ACH analysis. " +
 				"Classifies decisions as one-way or two-way door per P2. " +
 				"Supports auto_draft_from: provide a session ID (omit content) to auto-generate a " +
-				"draft decision from session findings for review before saving. " +
+				"draft decision from session findings for review before saving. Pass auto_save=true to draft and save in one step. " +
 				"Supports supersedes: provide a decision ID to mark an existing ADR as superseded, " +
 				"link the records, and detect stale session references.",
 			Annotations: &sdkmcp.ToolAnnotations{
@@ -99,20 +100,24 @@ func handleRecordDecision(ctx context.Context, _ *sdkmcp.CallToolRequest, in Rec
 				"Check session content and try again.")
 		}
 
-		env := Envelope{
-			Success: true,
-			Message: fmt.Sprintf("Auto-drafted decision %s from session %s", in.DecisionID, in.AutoDraftFrom),
-			Data: map[string]any{
-				"workspace_root":  root,
-				"decision_id":     in.DecisionID,
-				"source_session":  in.AutoDraftFrom,
-				"draft_content":   draft,
-			},
-			NextStep: "Review the auto-drafted decision below. Edit as needed, " +
-				"then call vivechak_record_decision with the final content.",
-			Meta: NewMeta(tool),
+		if in.AutoSave {
+			in.Content = draft
+		} else {
+			env := Envelope{
+				Success: true,
+				Message: fmt.Sprintf("Auto-drafted decision %s from session %s", in.DecisionID, in.AutoDraftFrom),
+				Data: map[string]any{
+					"workspace_root": root,
+					"decision_id":    in.DecisionID,
+					"source_session": in.AutoDraftFrom,
+					"draft_content":  draft,
+				},
+				NextStep: "Review the auto-drafted decision below. Edit as needed, " +
+					"then call vivechak_record_decision with the final content.",
+				Meta: NewMeta(tool),
+			}
+			return env.ToResult()
 		}
-		return env.ToResult()
 	}
 
 	if strings.TrimSpace(in.Content) == "" {

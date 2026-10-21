@@ -352,7 +352,8 @@ Defined in [`SavePlanInput`](../internal/mcp/tool_save_plan.go):
 |---|---|---|---|
 | `project_root` | `string` | Optional | Workspace root path. |
 | `scope` | `string` | Optional | Research scope: `project` \| `decision` \| `comparison` (auto-detected from workspace if omitted). |
-| `content` | `string` | **Required** | The generated plan content (Markdown). |
+| `content` | `string` | **Required** | The generated plan content (Markdown). Alias accepted: `pipeline_content`. |
+| `pipeline_content` | `string` | Optional | Optional alias for `content` at project scope (`RESEARCH-PIPELINE.md`). |
 | `decisions_content` | `string` | Optional | Initial decision registry content (project) or proposed ADR content (decision). |
 | `decision_id` | `string` | Optional | Decision identifier for decision/comparison scope (e.g., `D-01`, `C-01`). Aliases accepted: `id`, `comparison_id`. Auto-recovered from plan tables/headers or defaults to `D-01` / `C-01` if omitted. |
 | `slug` | `string` | Optional | URL-safe slug for the decision (e.g., `database-selection`). Auto-extracted from H1/H2 headings if omitted. |
@@ -664,6 +665,7 @@ Defined in [`RecordDecisionInput`](../internal/mcp/tool_record_decision.go):
 | `slug` | `string` | Optional | Optional slug for filename (e.g. `primary-database` yields `D-001-primary-database-decision.md`). |
 | `content` | `string` | Optional* | Decision record or conflict resolution content (Markdown with YAML frontmatter). *Omit when using `auto_draft_from`. |
 | `auto_draft_from` | `string` | Optional | Session ID to auto-draft decision from (e.g. `R-01`). When provided without `content`, generates a pre-populated draft for review. |
+| `auto_save` | `boolean` | Optional | If `true` with `auto_draft_from`, automatically validates and saves the drafted ADR in a single atomic turn without requiring a second call. |
 | `supersedes` | `string` | Optional | ID of decision being superseded (e.g. `D-003`). Marks old decision as `superseded`, links records, and checks for stale session references. |
 
 #### Response (`data` field)

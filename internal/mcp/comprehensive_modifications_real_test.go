@@ -2436,6 +2436,145 @@ Evaluating Redis vs Dragonfly.
 	}
 }
 
+// TestComprehensive_DogfoodingHardening_E2ELifecycle exercises all Run 30 modifications:
+// 1. PipelineContent alias in handleSavePlan
+// 2. Proper noun immunity in lowGradeRe during gate evaluation
+// 3. Proper noun immunity in gradeALineRe during quality evaluation
+// 4. Single-turn auto_draft_from + auto_save in handleRecordDecision
+// 5. Successful Phase 0 Gate clearance
+func TestComprehensive_DogfoodingHardening_E2ELifecycle(t *testing.T) {
+	ctx := context.Background()
+	tmpDir := t.TempDir()
+
+	// 1. Initialize project workspace
+	_, envInit, err := handleInit(ctx, nil, InitInput{
+		ProjectRoot: tmpDir,
+		Scope:       "project",
+	})
+	if err != nil || !envInit.Success {
+		t.Fatalf("handleInit failed: %v", err)
+	}
+
+	// 2. Persist project plan using pipeline_content alias (instead of content)
+	pipelineContent := `# Research Pipeline
+### Session T1-01: Ingestion Engine
+| **ID** | T1-01 |
+| **Dependencies** | None |
+` + "```prompt\nIngestion engine research\n```\n"
+
+	decisionsContent := `# Decisions
+<!-- DECISION: D-001 -->
+<details>
+<summary><strong>D-001</strong> · Ingestion Engine · <code>one-way</code> · proposed</summary>
+
+` + "```yaml\nid: D-001\ntitle: Ingestion Engine\ndoor_type: one-way\nstatus: proposed\nreview_trigger: Throughput > 2M eps\n```\n" + `
+</details>
+<!-- /DECISION: D-001 -->
+`
+
+	_, envSavePlan, err := handleSavePlan(ctx, nil, SavePlanInput{
+		ProjectRoot:      tmpDir,
+		Scope:            "project",
+		PipelineContent:  pipelineContent, // Using the alias!
+		DecisionsContent: decisionsContent,
+	})
+	if err != nil || !envSavePlan.Success {
+		t.Fatalf("handleSavePlan with PipelineContent failed: %v", err)
+	}
+
+	// Verify RESEARCH-PIPELINE.md was persisted
+	pipePath := filepath.Join(tmpDir, core.PipelineFile)
+	if _, err := os.Stat(pipePath); err != nil {
+		t.Fatalf("RESEARCH-PIPELINE.md was not written: %v", err)
+	}
+
+	// 3. Save completed session T1-01 with proper nouns in parentheses
+	sessionContent := `---
+session_id: T1-01
+title: Ingestion Engine Research
+date: 2026-10-21
+status: complete
+door_type: one-way
+informs_decisions: ["D-001"]
+---
+# Ingestion Engine Research
+
+## Prior
+We believed Kafka was the only feasible choice.
+
+## Delta
+| Prior | Research Finding | Status |
+|---|---|---|
+| Kafka is required | Redpanda handles 500k eps with zero JVM GC | Contradicted |
+
+## Recommendation
+We strongly recommend Redpanda (Decision D-001) for the telemetry bus.
+Data is flushed to ClickHouse (ClickHouse cluster) for analytical queries.
+Edge clients buffer locally in memory (Edge buffer caching) before streaming.
+Secondary streaming uses Arroyo (Arroyo streaming engine).
+Verified by official documentation [Grade A: official docs](https://redpanda.com/docs).
+Corroborated by independent benchmark [Grade B: benchmark](https://benchmark.example.com).
+
+## Alternatives Considered
+- Apache Kafka: rejected due to JVM GC pause spikes under heavy load.
+- NATS JetStream: rejected due to persistence and compaction bottlenecks.
+
+## Discovered Concerns
+Memory footprint increases under partition imbalances (>500 partitions per broker).
+
+## Challenge Findings
+Adversarial red-team stress test completed using Gary Klein premortem method.
+`
+	_, envSaveSess, err := handleSaveSession(ctx, nil, SaveSessionInput{
+		ProjectRoot: tmpDir,
+		SessionID:   "T1-01",
+		Content:     sessionContent,
+	})
+	if err != nil || !envSaveSess.Success {
+		t.Fatalf("handleSaveSession failed: %v, env: %+v", err, envSaveSess)
+	}
+
+	// 4. Auto-draft and auto-save the decision in a single turn using auto_save: true
+	_, envRecDec, err := handleRecordDecision(ctx, nil, RecordDecisionInput{
+		ProjectRoot:   tmpDir,
+		DecisionID:    "D-001",
+		AutoDraftFrom: "T1-01",
+		AutoSave:      true,
+	})
+	if err != nil || !envRecDec.Success {
+		t.Fatalf("handleRecordDecision with auto_save failed: %v, env: %+v", err, envRecDec)
+	}
+
+	// Verify ADR was written directly to disk
+	adrPath := filepath.Join(tmpDir, core.ResearchDir, "D-001-decision.md")
+	adrBytes, err := os.ReadFile(adrPath)
+	if err != nil {
+		t.Fatalf("reading created ADR: %v", err)
+	}
+	if !strings.Contains(string(adrBytes), "Redpanda") {
+		t.Errorf("expected ADR to contain Redpanda, got:\n%s", string(adrBytes))
+	}
+
+	// 5. Evaluate Phase 0 Gate on the workspace
+	_, envGate, err := handleRunGate(ctx, nil, RunGateInput{
+		ProjectRoot: tmpDir,
+		Track:       "all",
+	})
+	if err != nil || !envGate.Success {
+		t.Fatalf("handleRunGate failed: %v, env: %+v", err, envGate)
+	}
+	gateData, _ := envGate.Data.(map[string]any)
+
+	// Verify that B3-EVIDENTIARY did NOT falsely trigger on (ClickHouse), (Decision D-001), (Edge buffer caching)
+	blockingIssues, _ := gateData["blocking_issues"].([]string)
+	for _, issue := range blockingIssues {
+		if strings.Contains(issue, "B3-EVIDENTIARY") {
+			t.Errorf("unexpected false-positive B3-EVIDENTIARY blocking issue: %s", issue)
+		}
+	}
+}
+
+
 
 
 

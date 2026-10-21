@@ -465,7 +465,24 @@
 
 ---
 
-<!-- End of Milestone Multi-Harness Empirical Audit (65 Runs Ingested, 82.0% Aggregate Pass, 100% Deterministic Pass) -->
+## Run 30: Dogfooding Audits 1–5 Hardening & Verification Wave
+* **Date:** 2026-10-21
+* **Scope:** Universal (Project, Decision, Quality Coaching, and Exit Gate)
+* **Target:** Multi-Model Dogfooding Stress Verification (Audits 1 through 5)
+* **Score:** **100/100 (Clean PASS)**
+
+### Defects & Polish Items Catalog
+
+| # | Severity | Category | Defect Description | Empirical Root Cause | Resolution Implemented |
+|---|---|---|---|---|---|
+| **D-30-01** | High | Gate / Evidentiary | `verifyEvidentiaryIntegrity` flagged false-positive B3-EVIDENTIARY failures on proper nouns and standard references like `(Decision D-001)`, `(ClickHouse)`, and `(Edge)`. Similarly, `gradeALineRe` unanchored matching flagged `(Apache Kafka)` and `(AWS S3)` as Grade A evidence. | `lowGradeRe` and `gradeALineRe` regexes matched single capital letters preceded by `(` or `[` without enforcing standard Grade format or punctuation delimiters `[·|:,]`. | **RESOLVED**: Hardened `lowGradeRe` in `gate.go` and `gradeALineRe` in `quality.go` to require `Grade ` / `Grade:` prefix or bracket/parenthesis delimiters `[·|:,]`. Added comprehensive immunity tests in `gate_test.go` and `validate_quality_test.go`. |
+| **D-30-02** | Medium | Tool Ergonomics | Model passing `pipeline_content` parameter to `vivechak_save_plan` during Project scope plan persistence failed with `content is required`. | Schema only declared `content` field without aliasing `pipeline_content`. | **RESOLVED**: Added `PipelineContent` alias to `SavePlanInput` in `tool_save_plan.go` with automatic fallback to `in.Content`. Added unit test in `tool_save_plan_test.go`. |
+| **D-30-03** | Medium | Autonomous Lifecycle | Autonomous runner using `auto_draft_from` was forced into an extra conversational turn to review and confirm draft content before persistence. | `vivechak_record_decision` returned draft content in `Data` and waited for a second call with `content`. | **RESOLVED**: Added `auto_save: true` parameter to `RecordDecisionInput` in `tool_record_decision.go` to validate and write the draft directly to `research/D-NNN.md` and `research/DECISIONS.md` in one turn. |
+| **D-30-04** | Low | Quality Coaching | Grade inflation observation (`Q-EVIDENCE`: >70% Grade A) documented in `AGENTS.md` and `ARCHITECTURE.md` was not emitted. | Invariant check was inadvertently dropped during file split from `validate.go` to `quality.go`. | **RESOLVED**: Restored grade distribution skew check (`gradeCount >= 4 && gradeACount > 70%`) in `internal/core/quality.go` with support for all Grade notation variants. |
+
+---
+
+<!-- End of Milestone Multi-Harness Empirical Audit (66 Runs Ingested, 82.5% Aggregate Pass, 100% Deterministic Pass) -->
 
 
 

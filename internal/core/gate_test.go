@@ -838,3 +838,76 @@ scope_level: comparison
 		t.Errorf("expected status PASS, got %s", res.Status)
 	}
 }
+
+func TestVerifyEvidentiaryIntegrity_FalsePositiveParentheses(t *testing.T) {
+	dir, ws := setupTestWorkspace(t, ScopeProject)
+
+	// One-way door ADR
+	adr := `---
+id: D-001
+title: Message Bus Selection
+door_type: one-way
+status: accepted
+informed_by_sessions: ["T1-01"]
+review_trigger: Throughput > 1M eps
+---
+## Context
+Selecting message bus for 500k eps telemetry ingestion.
+
+## Alternatives Considered
+- Apache Kafka: rejected due to JVM GC pause spikes.
+- NATS JetStream: rejected due to Raft compaction bottleneck.
+
+## Reversal Triggers
+Throughput exceeds 1.5M events/second.
+`
+	if err := os.WriteFile(filepath.Join(dir, "research", "D-001.md"), []byte(adr), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Session T1-01 with English parenthetical phrases that previously triggered false-positives
+	s1 := `---
+session_id: T1-01
+status: complete
+informs_decisions: ["D-001"]
+---
+## Recommendation
+We recommend Redpanda (Decision D-001) as the primary streaming bus.
+Downstream hot storage uses ClickHouse (ClickHouse vs TimescaleDB).
+Edge telemetry buffers in memory (Edge buffer caching) before dispatch.
+Hardware references [ClickHouse] and [D-001] are strictly parenthetical.
+Backing empirical benchmark: [Grade A: official docs](https://redpanda.com/docs).
+
+## Challenge Findings
+Red-team stress test completed with Gary Klein premortem.
+`
+	if err := os.WriteFile(filepath.Join(dir, "research", "sessions", "T1-01.md"), []byte(s1), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	info := InspectWorkspace(dir)
+	blocking, _ := verifyEvidentiaryIntegrity(ws, info)
+
+	for _, issue := range blocking {
+		if strings.Contains(issue, "B3-EVIDENTIARY") {
+			t.Errorf("unexpected false-positive B3-EVIDENTIARY failure: %s", issue)
+		}
+	}
+
+	// Now add a genuine low-grade citation inside Recommendation section and verify B3 is properly caught
+	s1LowGrade := strings.Replace(s1, "Backing empirical benchmark:", "Noted [Grade C: vendor blog claim] without verification.\nBacking empirical benchmark:", 1)
+	_ = os.WriteFile(filepath.Join(dir, "research", "sessions", "T1-01.md"), []byte(s1LowGrade), 0o644)
+
+	blockingWithLow, _ := verifyEvidentiaryIntegrity(ws, info)
+	foundB3 := false
+	for _, issue := range blockingWithLow {
+		if strings.Contains(issue, "B3-EVIDENTIARY") {
+			foundB3 = true
+			break
+		}
+	}
+	if !foundB3 {
+		t.Errorf("expected B3-EVIDENTIARY to trigger for [Grade C: vendor blog claim]")
+	}
+}
+

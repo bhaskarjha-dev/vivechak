@@ -809,5 +809,67 @@ func TestWrapFrontmatterForRegistry_CRLF(t *testing.T) {
 	}
 }
 
+func TestRecordDecision_AutoDraftFrom_WithAutoSave(t *testing.T) {
+	tmpDir := t.TempDir()
+	sessionsDir := filepath.Join(tmpDir, core.SessionsDir)
+	if err := os.MkdirAll(sessionsDir, 0o755); err != nil {
+		t.Fatalf("mkdir sessions: %v", err)
+	}
+
+	pipelineContent := `# Research Pipeline
+### Session T1-01: Storage Selection
+| **ID** | T1-01 |
+| **Dependencies** | None |
+` + "```prompt\nBrief\n```\n"
+	if err := os.WriteFile(filepath.Join(tmpDir, core.PipelineFile), []byte(pipelineContent), 0o644); err != nil {
+		t.Fatalf("writing pipeline: %v", err)
+	}
+
+	sessionContent := `---
+session_id: T1-01
+title: Storage Selection Research
+date: 2026-10-14
+status: complete
+---
+# Storage Selection Findings
+## Recommendation
+Adopt PostgreSQL with pg_partman for scalable time-series events [Grade A: official docs https://postgresql.org].
+`
+	if err := os.WriteFile(filepath.Join(sessionsDir, "T1-01.md"), []byte(sessionContent), 0o644); err != nil {
+		t.Fatalf("writing session: %v", err)
+	}
+
+	ctx := context.Background()
+	_, envAutoSave, err := handleRecordDecision(ctx, nil, RecordDecisionInput{
+		ProjectRoot:   tmpDir,
+		DecisionID:    "D-001",
+		AutoDraftFrom: "T1-01",
+		AutoSave:      true,
+	})
+	if err != nil || !envAutoSave.Success {
+		t.Fatalf("record decision with auto_save failed: err=%v, env=%+v", err, envAutoSave)
+	}
+
+	// Verify ADR was written directly to disk (defaults to D-001-decision.md)
+	adrPath := filepath.Join(tmpDir, core.ResearchDir, "D-001-decision.md")
+	data, err := os.ReadFile(adrPath)
+	if err != nil {
+		t.Fatalf("expected D-001.md to be written to disk: %v", err)
+	}
+	if !strings.Contains(string(data), "PostgreSQL") {
+		t.Errorf("expected ADR on disk to contain PostgreSQL, got:\n%s", string(data))
+	}
+
+	// Verify DECISIONS.md was updated
+	decPath := filepath.Join(tmpDir, core.DecisionsFile)
+	decData, err := os.ReadFile(decPath)
+	if err != nil {
+		t.Fatalf("expected DECISIONS.md to be updated: %v", err)
+	}
+	if !strings.Contains(string(decData), "<!-- DECISION: D-001 -->") {
+		t.Errorf("expected DECISIONS.md to contain D-001 anchor, got:\n%s", string(decData))
+	}
+}
+
 
 

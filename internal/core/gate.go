@@ -645,7 +645,7 @@ func verifyEvidentiaryIntegrity(ws WorkspaceFS, info WorkspaceInfo) ([]string, [
 	var advisories []string
 
 	decisions := CollectGateDecisions(ws)
-	lowGradeRe := regexp.MustCompile(`(?i)(?:\[(?:Grade\s+)?[CDE][^\]\n]*\]|\((?:Grade\s+)?[CDE][^)\n]*\)|\bGrade\s+[CDE]\b|\bGrade:[CDE]\b)`)
+	lowGradeRe := regexp.MustCompile(`(?i)(?:\[(?:Grade\s*[:\s]\s*)[CDE][^\]\n]*\]|\((?:Grade\s*[:\s]\s*)[CDE][^)\n]*\)|\bGrade\s*[:\s]\s*[CDE]\b|\[[CDE]\s*[·|:,][^\]\n]*\]|\([CDE]\s*[·|:,][^)\n]*\))`)
 
 	for _, d := range decisions {
 		if !strings.EqualFold(d.DoorType, "one-way") {

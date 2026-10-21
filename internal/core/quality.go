@@ -63,13 +63,24 @@ func ObserveSessionQuality(content []byte) []QualityObservation {
 	gradeCPlusCount := 0
 	for _, g := range gradeMatches {
 		upper := strings.ToUpper(g)
-		if strings.Contains(upper, "GRADE A") || strings.Contains(upper, "[A]") || strings.Contains(upper, "(A ") {
+		if strings.Contains(upper, "GRADE A") || strings.Contains(upper, "GRADE: A") || strings.Contains(upper, "GRADE:A") || strings.Contains(upper, "[A]") || strings.Contains(upper, "[A ") || strings.Contains(upper, "[A·") || strings.Contains(upper, "[A|") || strings.Contains(upper, "(A ") || strings.Contains(upper, "(A·") || strings.Contains(upper, "(A|") || strings.Contains(upper, "(A:") {
 			gradeACount++
-		} else if strings.Contains(upper, "GRADE B") || strings.Contains(upper, "[B]") || strings.Contains(upper, "(B ") {
+		} else if strings.Contains(upper, "GRADE B") || strings.Contains(upper, "GRADE: B") || strings.Contains(upper, "GRADE:B") || strings.Contains(upper, "[B]") || strings.Contains(upper, "[B ") || strings.Contains(upper, "[B·") || strings.Contains(upper, "[B|") || strings.Contains(upper, "(B ") || strings.Contains(upper, "(B·") || strings.Contains(upper, "(B|") || strings.Contains(upper, "(B:") {
 			gradeBCount++
 		} else {
 			gradeCPlusCount++
 		}
+	}
+	if gradeCount >= 4 && gradeACount > int(float64(gradeCount)*0.7) {
+		observations = append(observations, QualityObservation{
+			Category: "evidence",
+			Message: fmt.Sprintf("Grade distribution is %d A / %d B / %d C+ (%d%% Grade A). "+
+				"Web-based research typically produces ~25%% A, ~50%% B, ~25%% C. "+
+				"Verify Grade A citations include URLs to primary sources.",
+				gradeACount, gradeBCount, gradeCPlusCount,
+				gradeACount*100/gradeCount),
+			Severity: "consideration",
+		})
 	}
 	// Verify Grade A claims have explicit URL or canonical RFC anchors (Task 4.2 / ADR D-UX-02 / E-32)
 	gradeALines := findLinesWithGradeA(bodyStr)
@@ -295,7 +306,7 @@ func hasSectionHeading(body string, keywords ...string) bool {
 	return false
 }
 
-var gradeALineRe = regexp.MustCompile(`(?i)(?:\[(?:Grade\s+)?A[^\]\n]*\]|\((?:Grade\s+)?A[^)\n]*\)|\bGrade\s+A\b|\bGrade:A\b)`)
+var gradeALineRe = regexp.MustCompile(`(?i)(?:\[(?:Grade\s*[:\s]\s*)A[^\]\n]*\]|\((?:Grade\s*[:\s]\s*)A[^)\n]*\)|\bGrade\s*[:\s]\s*A\b|\[A\s*[·|:,][^\]\n]*\]|\(A\s*[·|:,][^)\n]*\))`)
 
 func findLinesWithGradeA(text string) []string {
 	lines := strings.Split(text, "\n")

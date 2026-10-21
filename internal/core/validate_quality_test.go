@@ -637,3 +637,62 @@ Here are unexpected findings.
 		t.Errorf("expected false for nonexistent heading")
 	}
 }
+
+func TestGradeALineRe_ImmunityToProperNouns(t *testing.T) {
+	// Proper nouns starting with 'A' in parentheses must NOT be identified as Grade A lines
+	falsePositives := []string{
+		"Using Apache Kafka (Apache Kafka) for ingestion bus.",
+		"Offloading log segments to Amazon S3 (AWS S3) storage.",
+		"Real-time stream evaluation engine (Arroyo streaming engine).",
+		"Anomaly detector (Anomaly detection worker).",
+		"Distributed consensus layer (All previous sessions).",
+	}
+
+	for _, line := range falsePositives {
+		if gradeALineRe.MatchString(line) {
+			t.Errorf("gradeALineRe falsely matched proper noun: %q", line)
+		}
+	}
+
+	// Genuine Grade A citations MUST match
+	truePositives := []string{
+		"Verified against official documentation [Grade A: official docs].",
+		"Empirical benchmark results (Grade A · verified).",
+		"Protocol wire format is Grade A (https://kafka.apache.org).",
+		"Memory footprint measured at Grade: A.",
+		"Primary spec verified [A · official spec].",
+		"Direct benchmark corroborated (A | official).",
+	}
+
+	for _, line := range truePositives {
+		if !gradeALineRe.MatchString(line) {
+			t.Errorf("gradeALineRe failed to match genuine Grade A citation: %q", line)
+		}
+	}
+}
+
+func TestObserveSessionQuality_GradeDistributionSkew(t *testing.T) {
+	// 4 out of 5 citations are Grade A (80% Grade A) -> triggers distribution skew observation
+	content := []byte(`
+Grade A (official docs: https://docs.example.com) for stability.
+Grade A (RFC 7636) for authentication.
+Grade A (benchmark https://bench.example.com) for throughput.
+Grade A (spec https://spec.example.com) for protocol.
+Grade B (informal blog) for latency.
+`)
+	obs := ObserveSessionQuality(content)
+
+	foundSkew := false
+	for _, o := range obs {
+		if o.Category == "evidence" && strings.Contains(o.Message, "Grade distribution is") {
+			foundSkew = true
+			if !strings.Contains(o.Message, "80% Grade A") {
+				t.Errorf("expected 80%% Grade A in observation message, got: %s", o.Message)
+			}
+		}
+	}
+	if !foundSkew {
+		t.Error("expected Grade distribution skew observation when Grade A > 70%")
+	}
+}
+
