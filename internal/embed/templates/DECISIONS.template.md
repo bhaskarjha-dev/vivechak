@@ -1,8 +1,57 @@
+<!--
+================================================================================
+ARCHITECTURAL DECISION RECORD TEMPLATE — Vivechak v0.1.0
+================================================================================
+USAGE PATTERNS:
+
+Pattern 1: Multi-Decision Registry (research/DECISIONS.md)
+When recording multiple decisions inside a single DECISIONS.md registry, wrap each
+decision entry's frontmatter in a collapsible <details> block with a ```yaml fence.
+This prevents markdown renderers from collapsing YAML lines into an unreadable paragraph:
+
+<!-- DECISION: D-NNN -->
+<details>
+<summary><b>D-NNN: [Decision Title]</b> · <code>[one-way|two-way]</code> · <i>[proposed|accepted]</i></summary>
+
+```yaml
+id: D-NNN
+title: "[Decision Title]"
+status: proposed               # proposed | accepted | rejected | deprecated | superseded
+door_type: one-way             # one-way | two-way (sets required evidentiary bar)
+date: YYYY-MM-DD
+confidence: medium             # high | medium | low (decoupled from evidence grade)
+evidence_refs: []              # Optional: E-NNN IDs if you maintain a separate evidence ledger
+informed_by_sessions: []       # Session IDs that informed this decision (primary traceability)
+supersedes: null               # D-NNN ID this supersedes, or null
+superseded_by: null            # D-NNN ID that supersedes this, or null
+amends: null                   # D-NNN ID this partially updates, or null
+review_trigger: "[Condition or date for mandatory re-evaluation]"
+review_date: null              # YYYY-MM-DD — calendar date for scheduled review
+prediction: null               # Optional: predicted outcome at decision time
+tags: []
+authored_by: "[agent-id or human name]"
+human_reviewed: false          # Mandatory true for one-way doors before acceptance
+schema_version: "0.1.0"
+```
+
+</details>
+
+# D-NNN: [Decision Title]
+
+## Context & Problem Statement
+...
+<!-- /DECISION: D-NNN -->
+
+--------------------------------------------------------------------------------
+Pattern 2: Standalone ADR File (research/D-NNN-[slug].md)
+For individual ADR files, use raw YAML frontmatter starting at Line 1 (--- delimited) as shown below.
+================================================================================
+-->
 ---
 # Architectural Decision Record Template — Vivechak v0.1.0
-# Usage: Add one entry per decision to your project's DECISIONS.md registry file.
+# Usage: For standalone ADR files (research/D-NNN-[slug].md).
 # Challenge findings (required for One-Way Doors): vivechak_challenge(session_id, mode='red_team')
-# For projects with many decisions, individual files (research/D-NNN-[slug].md) may be used instead.
+# For multi-decision registries, wrap in <details> blocks as described above.
 id: D-NNN
 title: "[Decision Title]"
 status: proposed               # proposed | accepted | rejected | deprecated | superseded

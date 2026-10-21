@@ -251,7 +251,8 @@ func handleSavePlan(ctx context.Context, _ *sdkmcp.CallToolRequest, in SavePlanI
 		// Save DECISIONS.md (either provided DecisionsContent or default empty table)
 		decPath := core.DecisionsFile
 		if in.DecisionsContent != "" {
-			if err := store.WriteFileAtomic(ws.Root(), decPath, []byte(in.DecisionsContent), 0o644); err == nil {
+			normalizedDecs := core.NormalizeDecisionRegistry([]byte(in.DecisionsContent))
+			if err := store.WriteFileAtomic(ws.Root(), decPath, normalizedDecs, 0o644); err == nil {
 				savedFiles = append(savedFiles, filepath.ToSlash(decPath))
 			}
 		} else if _, err := ws.Stat(decPath); os.IsNotExist(err) {

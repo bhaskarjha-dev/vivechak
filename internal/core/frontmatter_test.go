@@ -1,6 +1,9 @@
 package core
 
 import (
+	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -936,6 +939,159 @@ title: [unclosed bracket
 		}
 	})
 }
+
+func TestNormalizeDecisionRegistry_RawDashesToDetails(t *testing.T) {
+	input := `# Decision Registry: Test Project
+
+| Decision | Title | Door Type | Status | Date |
+|---|---|---|---|---|
+| D-01 | Primary DB | one-way | proposed | 2026-10-21 |
+
+<!-- DECISION: D-01 -->
+---
+id: D-01
+title: "Primary DB"
+status: proposed
+door_type: one-way
+date: 2026-10-21
+---
+
+# D-01: Primary DB
+## Context
+Postgres vs CockroachDB.
+<!-- /DECISION: D-01 -->
+`
+
+	normalized := NormalizeDecisionRegistry([]byte(input))
+	outStr := string(normalized)
+
+	// 1. Should contain <details> and <summary>
+	if !strings.Contains(outStr, "<details>") || !strings.Contains(outStr, "</details>") {
+		t.Fatalf("expected <details> block in normalized registry, got:\n%s", outStr)
+	}
+	if !strings.Contains(outStr, "<summary><strong>D-01</strong> · Primary DB · <code>one-way</code> · proposed</summary>") {
+		t.Errorf("expected clean summary line, got:\n%s", outStr)
+	}
+	if !strings.Contains(outStr, "```yaml\nid: D-01\ntitle: \"Primary DB\"") {
+		t.Errorf("expected ```yaml code fence with frontmatter content, got:\n%s", outStr)
+	}
+
+	// 2. Body and preamble must be preserved
+	if !strings.Contains(outStr, "# Decision Registry: Test Project") {
+		t.Errorf("preamble header lost in output:\n%s", outStr)
+	}
+	if !strings.Contains(outStr, "Postgres vs CockroachDB.") {
+		t.Errorf("body text lost in output:\n%s", outStr)
+	}
+
+	// 3. Idempotency: normalizing again must produce byte-identical output
+	renormalized := NormalizeDecisionRegistry(normalized)
+	if string(renormalized) != string(normalized) {
+		t.Errorf("NormalizeDecisionRegistry must be idempotent. Diff:\nwant:\n%s\ngot:\n%s", string(normalized), string(renormalized))
+	}
+}
+
+func TestNormalizeDecisionRegistry_UnanchoredBlocks(t *testing.T) {
+	input := `# Decisions
+
+### D-02: Cache Selection
+---
+id: D-02
+title: "Cache Selection"
+status: proposed
+door_type: two-way
+---
+
+Body of D-02.
+`
+	normalized := NormalizeDecisionRegistry([]byte(input))
+	outStr := string(normalized)
+
+	if !strings.Contains(outStr, "<details>") || !strings.Contains(outStr, "</details>") {
+		t.Fatalf("expected unanchored frontmatter to be wrapped in <details>, got:\n%s", outStr)
+	}
+	if !strings.Contains(outStr, "<summary><strong>D-02</strong> · Cache Selection · <code>two-way</code> · proposed</summary>") {
+		t.Errorf("expected clean summary line for unanchored block, got:\n%s", outStr)
+	}
+	if !strings.Contains(outStr, "Body of D-02.") {
+		t.Errorf("body must be preserved, got:\n%s", outStr)
+	}
+}
+
+func TestWrapDecisionFrontmatter(t *testing.T) {
+	raw := `---
+id: D-10
+title: "Messaging Bus"
+door_type: one-way
+status: proposed
+---
+
+# D-10: Messaging Bus
+Some context.
+`
+	wrapped := WrapDecisionFrontmatter(raw)
+	if !strings.HasPrefix(wrapped, "<details>\n<summary>") {
+		t.Errorf("expected wrapped output to start with details/summary, got:\n%s", wrapped)
+	}
+	if !strings.Contains(wrapped, "```yaml\nid: D-10") {
+		t.Errorf("expected yaml code block, got:\n%s", wrapped)
+	}
+	if !strings.Contains(wrapped, "# D-10: Messaging Bus\nSome context.") {
+		t.Errorf("expected body to follow details block, got:\n%s", wrapped)
+	}
+
+	// Idempotent test
+	doubleWrapped := WrapDecisionFrontmatter(wrapped)
+	if doubleWrapped != wrapped {
+		t.Errorf("WrapDecisionFrontmatter must be idempotent, got:\n%s", doubleWrapped)
+	}
+}
+
+func TestNormalizeDecisionRegistry_TempDecisionsFile(t *testing.T) {
+	tempPath := filepath.Join("..", "..", "temp", "decisions.md")
+	data, err := os.ReadFile(tempPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			t.Skip("temp/decisions.md does not exist, skipping")
+		}
+		t.Fatalf("failed to read temp/decisions.md: %v", err)
+	}
+
+	normalized := NormalizeDecisionRegistry(data)
+	normStr := string(normalized)
+
+	// Verify all 12 decisions have been wrapped into <details>
+	for i := 1; i <= 12; i++ {
+		idTag := fmt.Sprintf("D-%03d", i)
+		if !strings.Contains(normStr, "<summary><strong>"+idTag+"</strong>") {
+			t.Errorf("expected <summary><strong>%s</strong> in normalized temp/decisions.md", idTag)
+		}
+		if i == 1 {
+			t.Logf("Snippet for D-001:\n%s\n", normStr[:400])
+		}
+		if !strings.Contains(normStr, "<!-- DECISION: "+idTag+" -->\n<details>") {
+			t.Errorf("expected <!-- DECISION: %s --> followed by <details>", idTag)
+		}
+	}
+
+	// Verify idempotency
+	renormalized := NormalizeDecisionRegistry(normalized)
+	if string(renormalized) != normStr {
+		t.Errorf("expected NormalizeDecisionRegistry to be strictly idempotent on temp/decisions.md")
+	}
+
+	// Write normalized content back so user editor renders beautifully
+	if err := os.WriteFile(tempPath, normalized, 0644); err != nil {
+		t.Fatalf("failed to write normalized temp/decisions.md: %v", err)
+	}
+
+	// Validate registry
+	val := ValidateDecisionRegistry(normalized)
+	if val.HasBlocking() {
+		t.Errorf("expected normalized temp/decisions.md to have 0 blocking errors: %v", val.Issues)
+	}
+}
+
 
 
 

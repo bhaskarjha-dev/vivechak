@@ -666,6 +666,16 @@ func CollectGateDecisions(ws WorkspaceFS) []GateDecisionItem {
 		}
 
 		if !parsedAny {
+			detailsRe := regexp.MustCompile(`(?s)<details>\s*<summary>.*?</summary>\s*` + "```yaml" + `\s*(.*?)\s*` + "```" + `\s*</details>`)
+			for _, m := range detailsRe.FindAllSubmatch(chunk, -1) {
+				block := fmt.Sprintf("---\n%s\n---", string(m[1]))
+				if fm, _, err := ParseFrontmatter([]byte(block)); err == nil && fm != nil {
+					if fm.Has("id") || fm.Has("decision_id") || fm.Has("door_type") {
+						checkDecisionFM(fm)
+						parsedAny = true
+					}
+				}
+			}
 			if matches := unanchoredRe.FindAllSubmatch(chunk, -1); len(matches) > 0 {
 				for _, m := range matches {
 					block := fmt.Sprintf("---\n%s\n---", string(m[1]))

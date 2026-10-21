@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -742,5 +743,256 @@ func skipLeadingWhitespaceAndComments(d []byte) int {
 		break
 	}
 	return start
+}
+
+// ExtractYAMLField extracts a simple scalar value from a YAML block by key name.
+// Handles quoted and unquoted values and strips inline comments.
+func ExtractYAMLField(yamlStr string, key string) string {
+	for _, line := range strings.Split(yamlStr, "\n") {
+		trimmed := strings.TrimSpace(line)
+		prefix := key + ":"
+		if strings.HasPrefix(trimmed, prefix) {
+			val := strings.TrimSpace(strings.TrimPrefix(trimmed, prefix))
+			if idx := strings.Index(val, "#"); idx >= 0 {
+				val = strings.TrimSpace(val[:idx])
+			}
+			val = strings.Trim(val, `"'`)
+			return val
+		}
+	}
+	return ""
+}
+
+// WrapDecisionFrontmatter transforms raw YAML frontmatter (--- delimited)
+// into a collapsible <details> block with a YAML code fence inside.
+// This prevents markdown renderers from treating mid-file --- as horizontal rules.
+// If the content is already wrapped in a <details> block or does not contain frontmatter,
+// it is returned unchanged (idempotent).
+func WrapDecisionFrontmatter(content string) string {
+	normalized := strings.ReplaceAll(content, "\r\n", "\n")
+	trimmed := strings.TrimSpace(normalized)
+
+	// If already wrapped in a details block, preserve as-is
+	if strings.HasPrefix(trimmed, "<details>") || strings.HasPrefix(trimmed, "<details ") || strings.HasPrefix(trimmed, "<details\n") {
+		return content
+	}
+
+	prefix := ""
+	suffix := ""
+	if strings.HasPrefix(trimmed, "<!-- DECISION:") {
+		if endIdx := strings.Index(trimmed, "-->"); endIdx != -1 {
+			prefix = trimmed[:endIdx+3] + "\n"
+			trimmed = strings.TrimSpace(trimmed[endIdx+3:])
+		}
+	}
+	if strings.HasSuffix(trimmed, "-->") {
+		if startIdx := strings.LastIndex(trimmed, "<!-- /DECISION:"); startIdx != -1 {
+			suffix = "\n" + trimmed[startIdx:]
+			trimmed = strings.TrimSpace(trimmed[:startIdx])
+		}
+	}
+
+	if strings.HasPrefix(trimmed, "<details>") || strings.HasPrefix(trimmed, "<details ") || strings.HasPrefix(trimmed, "<details\n") {
+		return content
+	}
+
+	if !strings.HasPrefix(trimmed, "---") {
+		return content
+	}
+
+	// Find the closing ---
+	lines := strings.SplitN(trimmed, "\n", 2)
+	if len(lines) < 2 {
+		return content
+	}
+	rest := lines[1]
+	endIdx := strings.Index(rest, "\n---")
+	if endIdx < 0 {
+		return content
+	}
+
+	yamlBlock := rest[:endIdx]
+	afterFrontmatter := strings.TrimSpace(rest[endIdx+4:]) // skip "\n---"
+
+	id := ExtractYAMLField(yamlBlock, "id")
+	if id == "" {
+		id = ExtractYAMLField(yamlBlock, "decision_id")
+	}
+	title := ExtractYAMLField(yamlBlock, "title")
+	doorType := ExtractYAMLField(yamlBlock, "door_type")
+	status := ExtractYAMLField(yamlBlock, "status")
+
+	summaryParts := []string{}
+	if id != "" {
+		summaryParts = append(summaryParts, "<strong>"+id+"</strong>")
+	}
+	if title != "" {
+		summaryParts = append(summaryParts, title)
+	}
+	if doorType != "" {
+		summaryParts = append(summaryParts, "<code>"+doorType+"</code>")
+	}
+	if status != "" {
+		summaryParts = append(summaryParts, status)
+	}
+	summaryLine := strings.Join(summaryParts, " · ")
+
+	var b strings.Builder
+	if prefix != "" {
+		b.WriteString(prefix)
+	}
+	b.WriteString("<details>\n")
+	b.WriteString("<summary>" + summaryLine + "</summary>\n\n")
+	b.WriteString("```yaml\n")
+	b.WriteString(strings.TrimSpace(yamlBlock) + "\n")
+	b.WriteString("```\n\n")
+	b.WriteString("</details>\n")
+	if afterFrontmatter != "" {
+		b.WriteString("\n" + afterFrontmatter + "\n")
+	}
+	if suffix != "" {
+		b.WriteString(suffix)
+	}
+
+	return b.String()
+}
+
+// NormalizeDecisionRegistry inspects a multi-decision registry document (e.g. DECISIONS.md)
+// and ensures all decision entries have their metadata wrapped in collapsible <details> blocks
+// with ```yaml code fences, rather than raw mid-file --- delimiters.
+// Preambles, overview tables, headings, and non-frontmatter markdown bodies are preserved.
+func NormalizeDecisionRegistry(content []byte) []byte {
+	if len(bytes.TrimSpace(content)) == 0 {
+		return content
+	}
+
+	str := string(content)
+	normalized := strings.ReplaceAll(str, "\r\n", "\n")
+
+	// 1. Anchored blocks: <!-- DECISION: D-NNN --> ... <!-- /DECISION: D-NNN -->
+	anchoredRe := regexp.MustCompile(`(?s)<!--\s*DECISION:\s*([A-Za-z0-9_-]+)\s*-->\s*(.*?)\s*<!--\s*/DECISION:\s*([A-Za-z0-9_-]+)\s*-->`)
+	matches := anchoredRe.FindAllStringSubmatchIndex(normalized, -1)
+
+	if len(matches) > 0 {
+		var out strings.Builder
+		lastPos := 0
+		for _, m := range matches {
+			out.WriteString(normalized[lastPos:m[0]])
+			id := normalized[m[2]:m[3]]
+			inner := normalized[m[4]:m[5]]
+			closeID := normalized[m[6]:m[7]]
+
+			wrappedInner := inner
+			if !strings.Contains(inner, "<details>") {
+				wrappedInner = WrapDecisionFrontmatter(inner)
+			}
+			fmt.Fprintf(&out, "<!-- DECISION: %s -->\n%s\n<!-- /DECISION: %s -->", id, strings.TrimSpace(wrappedInner), closeID)
+			lastPos = m[1]
+		}
+		out.WriteString(normalized[lastPos:])
+		normalized = out.String()
+	}
+
+	// 2. Unanchored blocks: Line-based scan for --- delimiters with id:/decision_id:
+	lines := strings.Split(normalized, "\n")
+	type blockLoc struct {
+		startLine int
+		endLine   int
+		fmText    string
+	}
+	var unanchoredBlocks []blockLoc
+
+	for i := 0; i < len(lines); i++ {
+		trLine := strings.TrimSpace(lines[i])
+		if trLine != "---" {
+			continue
+		}
+
+		// Check if line i is inside an anchored <!-- DECISION: ... --> block
+		inAnchor := false
+		for back := i - 1; back >= 0; back-- {
+			tb := strings.TrimSpace(lines[back])
+			if strings.HasPrefix(tb, "<!-- /DECISION:") {
+				break
+			}
+			if strings.HasPrefix(tb, "<!-- DECISION:") {
+				inAnchor = true
+				break
+			}
+		}
+		if inAnchor {
+			continue
+		}
+
+		// Check if line i is inside a <details> block
+		inDetails := false
+		for back := i - 1; back >= 0; back-- {
+			tb := strings.TrimSpace(lines[back])
+			if strings.HasPrefix(tb, "</details>") {
+				break
+			}
+			if strings.HasPrefix(tb, "<details>") || strings.HasPrefix(tb, "<details ") {
+				inDetails = true
+				break
+			}
+		}
+		if inDetails {
+			continue
+		}
+
+		// Look ahead for closing "---" and verify id: or decision_id: exists
+		closeLine := -1
+		hasID := false
+		validYAML := true
+		for j := i + 1; j < len(lines); j++ {
+			tr := strings.TrimSpace(lines[j])
+			if tr == "---" {
+				closeLine = j
+				break
+			}
+			if strings.HasPrefix(tr, "<") || strings.HasPrefix(tr, "```") || strings.HasPrefix(tr, "# ") || strings.HasPrefix(tr, "## ") || strings.HasPrefix(tr, "### ") {
+				validYAML = false
+				break
+			}
+			if strings.HasPrefix(tr, "id:") || strings.HasPrefix(tr, "decision_id:") {
+				hasID = true
+			}
+		}
+
+		if !validYAML || closeLine == -1 || !hasID {
+			continue
+		}
+		fmText := strings.Join(lines[i:closeLine+1], "\n")
+		id := ExtractYAMLField(fmText, "id")
+		if id == "" {
+			id = ExtractYAMLField(fmText, "decision_id")
+		}
+		if id != "" && !strings.HasPrefix(strings.ToUpper(id), "CHK-") {
+			unanchoredBlocks = append(unanchoredBlocks, blockLoc{
+				startLine: i,
+				endLine:   closeLine,
+				fmText:    fmText,
+			})
+			i = closeLine // advance past this frontmatter block
+		}
+	}
+
+	if len(unanchoredBlocks) > 0 {
+		var outLines []string
+		curr := 0
+		for _, b := range unanchoredBlocks {
+			outLines = append(outLines, lines[curr:b.startLine]...)
+			wrapped := WrapDecisionFrontmatter(b.fmText)
+			outLines = append(outLines, strings.TrimSpace(wrapped))
+			curr = b.endLine + 1
+		}
+		outLines = append(outLines, lines[curr:]...)
+		normalized = strings.Join(outLines, "\n")
+	}
+
+	if strings.Contains(str, "\r\n") {
+		normalized = strings.ReplaceAll(normalized, "\n", "\r\n")
+	}
+	return []byte(normalized)
 }
 

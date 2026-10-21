@@ -375,11 +375,15 @@ Requirements:
 A decision registry seeded with initial hypotheses. This is a **living
 document** that evolves as research sessions are executed:
 
-- For each architectural decision identified, create a D-NNN entry wrapped in HTML decision comments (`<!-- DECISION: D-NNN --> ... <!-- /DECISION: D-NNN -->`) with YAML frontmatter using this schema:
+- For each architectural decision identified, create a D-NNN entry wrapped in HTML decision comments (`<!-- DECISION: D-NNN --> ... <!-- /DECISION: D-NNN -->`).
+  **CRITICAL FOR MARKDOWN PREVIEW:** Wrap the YAML frontmatter in an expandable `<details>` block with a ````yaml` code fence so it renders as a clean collapsible dropdown rather than an unformatted text paragraph:
 
   ```markdown
   <!-- DECISION: D-NNN -->
-  ---
+  <details>
+  <summary><b>D-NNN: [Decision Title]</b> · <code>[one-way|two-way]</code> · <i>proposed</i></summary>
+
+  ```yaml
   id: D-NNN
   title: "[Decision Title]"
   status: proposed           # proposed | accepted | rejected | deprecated | superseded
@@ -398,7 +402,9 @@ document** that evolves as research sessions are executed:
   authored_by: "[agent-id or human name]"
   human_reviewed: false      # Mandatory true for one-way doors before acceptance
   schema_version: "0.1.0"
-  ---
+  ```
+
+  </details>
 
   # D-NNN: [Decision Title]
 

@@ -361,16 +361,18 @@ func ExtractUnanchoredDecisionBlocks(content []byte) [][]byte {
 	var decs []decLoc
 
 	for i := 0; i < len(lines); i++ {
-		if strings.TrimSpace(lines[i]) != "---" {
+		trLine := strings.TrimSpace(lines[i])
+		if trLine != "---" && !strings.HasPrefix(trLine, "<details>") && !strings.HasPrefix(trLine, "<details ") {
 			continue
 		}
-		// Look ahead for the closing fence and verify an id or decision_id exists
+		isDetails := strings.HasPrefix(trLine, "<details>") || strings.HasPrefix(trLine, "<details ")
+		// Look ahead for the closing fence/tag and verify an id or decision_id exists
 		closeLine := -1
 		hasID := false
 		rawID := ""
 		for j := i + 1; j < len(lines); j++ {
 			tr := strings.TrimSpace(lines[j])
-			if tr == "---" {
+			if (isDetails && strings.HasPrefix(tr, "</details>")) || (!isDetails && tr == "---") {
 				closeLine = j
 				break
 			}
