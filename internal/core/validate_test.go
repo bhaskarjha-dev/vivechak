@@ -1233,3 +1233,92 @@ Body for D-02.
 	}
 }
 
+func TestExtractUnanchoredDecisionBlocks(t *testing.T) {
+	registry := `# Architectural Decisions Log
+This preamble contains an overview table.
+
+| ID | Title |
+|---|---|
+| D-01 | Primary DB |
+| D-02 | Cache |
+| D-03 | Message Bus |
+
+---
+
+<!-- DECISION: D-01 -->
+<details>
+<summary><strong>D-01</strong> · Primary DB · <code>one-way</code> · proposed</summary>
+
+` + "```yaml" + `
+id: D-01
+title: Primary DB
+door_type: one-way
+status: proposed
+date: 2026-10-21
+` + "```" + `
+
+</details>
+
+### Context
+Postgres vs CockroachDB.
+<!-- /DECISION: D-01 -->
+
+---
+
+### D-02: Cache
+---
+id: D-02
+title: Cache
+door_type: two-way
+status: proposed
+date: 2026-10-21
+---
+
+### Context
+Redis vs Dragonfly.
+
+---
+
+### D-03: Message Bus
+<details>
+<summary><strong>D-03</strong> · Message Bus · <code>one-way</code> · proposed</summary>
+
+` + "```yaml" + `
+id: D-03
+title: Message Bus
+door_type: one-way
+status: proposed
+date: 2026-10-21
+` + "```" + `
+
+</details>
+
+### Context
+Kafka vs NATS JetStream.
+`
+
+	blocks := ExtractUnanchoredDecisionBlocks([]byte(registry))
+
+	// D-01 is anchored, so only unanchored D-02 (---) and D-03 (<details>) should be returned
+	if len(blocks) != 2 {
+		t.Fatalf("expected 2 unanchored blocks (D-02 and D-03), got %d blocks", len(blocks))
+	}
+
+	b1 := string(blocks[0])
+	if !strings.Contains(b1, "D-02") || !strings.Contains(b1, "Redis vs Dragonfly") {
+		t.Errorf("block 1 does not match D-02:\n%s", b1)
+	}
+	if strings.Contains(b1, "D-01") || strings.Contains(b1, "D-03") {
+		t.Errorf("block 1 leaked other decisions:\n%s", b1)
+	}
+
+	b2 := string(blocks[1])
+	if !strings.Contains(b2, "D-03") || !strings.Contains(b2, "Kafka vs NATS JetStream") {
+		t.Errorf("block 2 does not match D-03:\n%s", b2)
+	}
+	if strings.Contains(b2, "D-01") || strings.Contains(b2, "D-02") {
+		t.Errorf("block 2 leaked other decisions:\n%s", b2)
+	}
+}
+
+

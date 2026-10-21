@@ -234,6 +234,80 @@ Updated Body of D-001.`)
 			t.Fatalf("CRIT-01 regression: wiped subsequent D-002 with comments! got:\n%s", s)
 		}
 	})
+
+	t.Run("replace unanchored details block in place without duplication", func(t *testing.T) {
+		existing := []byte(`# Architectural Decisions Log
+
+<details>
+<summary><strong>D-001</strong> · Initial Ingestion · <code>one-way</code> · proposed</summary>
+
+` + "```yaml" + `
+id: D-001
+title: Initial Ingestion
+door_type: one-way
+status: proposed
+date: 2026-10-21
+` + "```" + `
+
+</details>
+
+# D-001: Initial Ingestion
+Context for D-001.
+
+---
+
+<details>
+<summary><strong>D-002</strong> · Storage Engine · <code>one-way</code> · proposed</summary>
+
+` + "```yaml" + `
+id: D-002
+title: Storage Engine
+door_type: one-way
+status: proposed
+date: 2026-10-21
+` + "```" + `
+
+</details>
+
+# D-002: Storage Engine
+Context for D-002.
+`)
+
+		updatedContent := `---
+id: D-001
+title: Initial Ingestion Locked
+door_type: one-way
+status: accepted
+date: 2026-10-21
+---
+
+# D-001: Initial Ingestion Locked
+Accepted gRPC streaming.`
+
+		res := updateOrAppendDecision(existing, "D-001", updatedContent)
+		s := string(res)
+
+		// 1. Should contain anchored D-001
+		if !strings.Contains(s, "<!-- DECISION: D-001 -->") || !strings.Contains(s, "<!-- /DECISION: D-001 -->") {
+			t.Errorf("expected anchored D-001 in registry, got:\n%s", s)
+		}
+		if !strings.Contains(s, "Initial Ingestion Locked") {
+			t.Errorf("missing updated content in D-001, got:\n%s", s)
+		}
+
+		// 2. Must NOT duplicate D-001
+		if strings.Count(s, "D-001") != 4 { // summary, yaml, body, anchor
+			// Verify D-001 does not appear in duplicate sections
+			if strings.Count(s, "<!-- DECISION: D-001 -->") != 1 {
+				t.Errorf("duplicate D-001 anchor created, count=%d:\n%s", strings.Count(s, "<!-- DECISION: D-001 -->"), s)
+			}
+		}
+
+		// 3. Must preserve subsequent D-002 intact
+		if !strings.Contains(s, "D-002") || !strings.Contains(s, "Storage Engine") || !strings.Contains(s, "Context for D-002.") {
+			t.Errorf("wiped or truncated subsequent D-002, got:\n%s", s)
+		}
+	})
 }
 
 func TestResolveDecisionFilename(t *testing.T) {

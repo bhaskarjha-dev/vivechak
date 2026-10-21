@@ -590,7 +590,33 @@ func findUnanchoredDecision(content string, decisionID string) (int, int, bool) 
 		}
 	}
 
-	// 2. Fallback: look for a Markdown header like "# D-001:" or "## D-001:"
+	// 2. Look for an unanchored <details> block for this decision
+	detailsRegex := regexp.MustCompile(`(?ms)^<details(?:\s+[^>]*)?>\s*\n(.*?)\n</details>\s*`)
+	detailsMatches := detailsRegex.FindAllStringSubmatchIndex(content, -1)
+	summaryPattern := fmt.Sprintf(`(?i)<summary>.*?\b%s\b`, regexp.QuoteMeta(decisionID))
+	summaryRe := regexp.MustCompile(summaryPattern)
+
+	for i, idxs := range detailsMatches {
+		detailsInside := content[idxs[2]:idxs[3]]
+		if idRe.MatchString(detailsInside) || summaryRe.MatchString(detailsInside) {
+			startIdx := idxs[0]
+
+			endIdx := len(content)
+			if i+1 < len(detailsMatches) {
+				endIdx = detailsMatches[i+1][0]
+			}
+
+			// If an anchored decision or boundary appears before endIdx, that terminates this entry
+			boundaryRegex := regexp.MustCompile(`(?m)(?:^<!-- DECISION:|^---\s*\n|^<details(?:\s+[^>]*)?>|^#{1,4}\s+.*?\b(?:D-\d+|D-[A-Za-z0-9_-]+)\b)`)
+			if nextLoc := boundaryRegex.FindStringIndex(content[idxs[1]:endIdx]); nextLoc != nil {
+				endIdx = idxs[1] + nextLoc[0]
+			}
+
+			return startIdx, endIdx, true
+		}
+	}
+
+	// 3. Fallback: look for a Markdown header like "# D-001:" or "## D-001:"
 	headerPattern := fmt.Sprintf(`(?m)^#{1,4}\s+.*?\b%s\b.*?\n`, regexp.QuoteMeta(decisionID))
 	headerRe := regexp.MustCompile(headerPattern)
 	loc := headerRe.FindStringIndex(content)
@@ -600,7 +626,7 @@ func findUnanchoredDecision(content string, decisionID string) (int, int, bool) 
 
 	startIdx := loc[0]
 	rest := content[loc[1]:]
-	boundaryRegex := regexp.MustCompile(`(?m)(?:^<!-- DECISION:|^---\s*\n|^#{1,4}\s+.*?\b(?:D-\d+|D-[A-Za-z0-9_-]+)\b)`)
+	boundaryRegex := regexp.MustCompile(`(?m)(?:^<!-- DECISION:|^---\s*\n|^<details(?:\s+[^>]*)?>|^#{1,4}\s+.*?\b(?:D-\d+|D-[A-Za-z0-9_-]+)\b)`)
 	if nextLoc := boundaryRegex.FindStringIndex(rest); nextLoc != nil {
 		return startIdx, loc[1] + nextLoc[0], true
 	}

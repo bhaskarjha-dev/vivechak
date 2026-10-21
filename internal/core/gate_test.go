@@ -694,6 +694,51 @@ func TestCollectGateDecisions_DualSource(t *testing.T) {
 	}
 }
 
+func TestCollectGateDecisions_DetailsBlocks(t *testing.T) {
+	dir := t.TempDir()
+	ws := &testWorkspaceFS{root: dir}
+	_ = os.MkdirAll(filepath.Join(dir, "research"), 0o755)
+
+	decisionsMD := `# Architectural Decisions Log
+| ID | Title |
+|---|---|
+| D-01 | Primary DB |
+
+---
+
+<details>
+<summary><strong>D-01</strong> · Primary DB · <code>one-way</code> · proposed</summary>
+
+` + "```yaml" + `
+id: D-01
+title: Primary DB
+door_type: one-way
+status: proposed
+date: 2026-10-21
+` + "```" + `
+
+</details>
+
+# D-01: Primary DB
+Context.
+`
+	_ = os.WriteFile(filepath.Join(dir, "research", "DECISIONS.md"), []byte(decisionsMD), 0o644)
+
+	decisions := CollectGateDecisions(ws)
+	if len(decisions) != 1 {
+		t.Fatalf("expected 1 decision from details block, got %d: %+v", len(decisions), decisions)
+	}
+	if decisions[0].ID != "D-01" {
+		t.Errorf("expected ID D-01, got: %s", decisions[0].ID)
+	}
+	if decisions[0].DoorType != "one-way" || decisions[0].Track != "B" {
+		t.Errorf("expected Track B one-way, got: %+v", decisions[0])
+	}
+	if decisions[0].Status != "PROPOSED" {
+		t.Errorf("expected status PROPOSED, got: %s", decisions[0].Status)
+	}
+}
+
 func TestVerifyDecisionsMechanical_CaseInsensitiveDeduplication(t *testing.T) {
 	dir := t.TempDir()
 	ws := &testWorkspaceFS{root: dir}

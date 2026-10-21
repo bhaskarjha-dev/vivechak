@@ -365,15 +365,37 @@ func ExtractUnanchoredDecisionBlocks(content []byte) [][]byte {
 		if trLine != "---" && !strings.HasPrefix(trLine, "<details>") && !strings.HasPrefix(trLine, "<details ") {
 			continue
 		}
+
+		// Check if line i is inside an anchored <!-- DECISION: ... --> block
+		inAnchor := false
+		for back := i - 1; back >= 0; back-- {
+			tb := strings.TrimSpace(lines[back])
+			if strings.HasPrefix(tb, "<!-- /DECISION:") {
+				break
+			}
+			if strings.HasPrefix(tb, "<!-- DECISION:") {
+				inAnchor = true
+				break
+			}
+		}
+		if inAnchor {
+			continue
+		}
+
 		isDetails := strings.HasPrefix(trLine, "<details>") || strings.HasPrefix(trLine, "<details ")
 		// Look ahead for the closing fence/tag and verify an id or decision_id exists
 		closeLine := -1
 		hasID := false
 		rawID := ""
+		validYAML := true
 		for j := i + 1; j < len(lines); j++ {
 			tr := strings.TrimSpace(lines[j])
 			if (isDetails && strings.HasPrefix(tr, "</details>")) || (!isDetails && tr == "---") {
 				closeLine = j
+				break
+			}
+			if !isDetails && (strings.HasPrefix(tr, "<") || strings.HasPrefix(tr, "```") || strings.HasPrefix(tr, "# ") || strings.HasPrefix(tr, "## ") || strings.HasPrefix(tr, "### ")) {
+				validYAML = false
 				break
 			}
 			if strings.HasPrefix(tr, "id:") || strings.HasPrefix(tr, "decision_id:") {
@@ -384,6 +406,10 @@ func ExtractUnanchoredDecisionBlocks(content []byte) [][]byte {
 					rawID = strings.Trim(rawID, `"'`)
 				}
 			}
+		}
+
+		if !validYAML || closeLine == -1 || !hasID {
+			continue
 		}
 
 		if closeLine != -1 && hasID {
