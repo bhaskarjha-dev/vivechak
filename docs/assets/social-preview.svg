@@ -1,0 +1,276 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 640" width="1280" height="640" role="img" aria-label="Vivechak — Evidence-Grounded Research for Technical Decisions">
+  <defs>
+    <!-- Deep Obsidian Radial Space Background -->
+    <radialGradient id="vck_bg" cx="26%" cy="36%" r="80%">
+      <stop offset="0%" stop-color="#121C38" />
+      <stop offset="36%" stop-color="#090E1E" />
+      <stop offset="72%" stop-color="#050812" />
+      <stop offset="100%" stop-color="#020306" />
+    </radialGradient>
+
+    <!-- Warm Saffron Atmospheric Radiance (Behind Hero Mark) -->
+    <radialGradient id="vck_aura" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#F2A33A" stop-opacity="0.38" />
+      <stop offset="35%" stop-color="#F2A33A" stop-opacity="0.15" />
+      <stop offset="70%" stop-color="#F2A33A" stop-opacity="0.02" />
+      <stop offset="100%" stop-color="#000000" stop-opacity="0" />
+    </radialGradient>
+
+    <!-- Subtle Technical Background Grid -->
+    <pattern id="techGrid" width="48" height="48" patternUnits="userSpaceOnUse">
+      <path d="M 48 0 L 0 0 0 48" fill="none" stroke="#FFFFFF" stroke-width="0.6" stroke-opacity="0.025" />
+    </pattern>
+
+    <!-- Shirorekha Bar Metallic Sheen -->
+    <linearGradient id="vck_markSheen" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" />
+      <stop offset="25%" stop-color="#FAF8F2" />
+      <stop offset="70%" stop-color="#ECE5D4" />
+      <stop offset="100%" stop-color="#DDD3BC" />
+    </linearGradient>
+
+    <!-- 3D Saffron Truth Drop Spherical Gradient -->
+    <radialGradient id="vck_drop3D" cx="32%" cy="28%" r="70%">
+      <stop offset="0%" stop-color="#FFFDF7" />
+      <stop offset="18%" stop-color="#FDE68A" />
+      <stop offset="48%" stop-color="#F59E0B" />
+      <stop offset="80%" stop-color="#D97706" />
+      <stop offset="100%" stop-color="#78350F" />
+    </radialGradient>
+
+    <!-- Truth Drop Bloom Glow -->
+    <radialGradient id="vck_dropBloom" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#F59E0B" stop-opacity="0.85" />
+      <stop offset="35%" stop-color="#F59E0B" stop-opacity="0.25" />
+      <stop offset="100%" stop-color="#F59E0B" stop-opacity="0" />
+    </radialGradient>
+
+    <!-- Card Background Gradient -->
+    <linearGradient id="cardBgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#141F36" stop-opacity="0.80" />
+      <stop offset="100%" stop-color="#0B1120" stop-opacity="0.90" />
+    </linearGradient>
+
+    <!-- Card Borders with Top Light Gradients -->
+    <linearGradient id="borderAmberGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F59E0B" stop-opacity="0.85" />
+      <stop offset="40%" stop-color="#F59E0B" stop-opacity="0.35" />
+      <stop offset="100%" stop-color="#1E293B" stop-opacity="0.5" />
+    </linearGradient>
+
+    <linearGradient id="borderSaffronGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F97316" stop-opacity="0.85" />
+      <stop offset="40%" stop-color="#F97316" stop-opacity="0.35" />
+      <stop offset="100%" stop-color="#1E293B" stop-opacity="0.5" />
+    </linearGradient>
+
+    <linearGradient id="borderEmeraldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#10B981" stop-opacity="0.85" />
+      <stop offset="40%" stop-color="#10B981" stop-opacity="0.35" />
+      <stop offset="100%" stop-color="#1E293B" stop-opacity="0.5" />
+    </linearGradient>
+
+    <!-- Drop Shadows -->
+    <filter id="vck_markShadow" x="-25%" y="-25%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="24" stdDeviation="28" flood-color="#000000" flood-opacity="0.9" />
+      <feDropShadow dx="0" dy="6" stdDeviation="16" flood-color="#F2A33A" flood-opacity="0.25" />
+    </filter>
+
+    <filter id="vck_cardShadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#000000" flood-opacity="0.55" />
+    </filter>
+  </defs>
+
+  <!-- Deep Obsidian Background Base -->
+  <rect width="1280" height="640" fill="url(#vck_bg)" />
+  <rect width="1280" height="640" fill="url(#techGrid)" />
+
+  <!-- Outer Viewport Architectural Frame -->
+  <rect x="20" y="20" width="1240" height="600" rx="16" fill="none" stroke="#FFFFFF" stroke-opacity="0.06" stroke-width="1.2" />
+
+  <!-- Atmospheric Glow Pool Behind Left Hero Mark -->
+  <circle cx="255" cy="305" r="390" fill="url(#vck_aura)" />
+
+  <!-- ======================================================== -->
+  <!-- LEFT HERO SECTION: MAJESTIC CANONICAL VIVECHAK MARK      -->
+  <!-- ======================================================== -->
+  <g transform="translate(60, 50)">
+    <!-- Elegant Concentric Focus Rings -->
+    <circle cx="195" cy="245" r="225" fill="none" stroke="#FFFFFF" stroke-opacity="0.025" stroke-width="1" />
+    <circle cx="195" cy="245" r="175" fill="none" stroke="#F2A33A" stroke-opacity="0.045" stroke-width="1" stroke-dasharray="4 8" />
+
+    <!-- Pure Canonical Mark (S = 36 geometry from BRAND.md, scale 0.86) -->
+    <g transform="translate(-25, 25) scale(0.86)" filter="url(#vck_markShadow)">
+      <!-- Master Shirorekha Bar + V Funnel (Zero extra polygons) -->
+      <path fill="url(#vck_markSheen)" stroke="#FFFFFF" stroke-opacity="0.35" stroke-width="1.2" fill-rule="evenodd" d="M 112 116.25 H 400 A 18 18 0 0 1 400 152.25 H 375.8 A 10.8 10.8 0 0 0 366.45 157.65 L 271.59 321.96 A 18 18 0 0 1 240.41 321.96 L 145.55 157.65 A 10.8 10.8 0 0 0 136.2 152.25 H 112 A 18 18 0 0 1 112 116.25 Z
+  M 315.53 152.25 H 196.47 A 7.2 7.2 0 0 0 190.24 163.05 L 249.76 266.16 A 7.2 7.2 0 0 0 262.24 266.16 L 321.76 163.05 A 7.2 7.2 0 0 0 315.53 152.25 Z" />
+
+      <!-- Saffron Truth Drop Bloom & Ring -->
+      <circle cx="256" cy="374.16" r="62" fill="url(#vck_dropBloom)" />
+      <circle cx="256" cy="374.16" r="40" fill="none" stroke="#F59E0B" stroke-width="1" stroke-opacity="0.4" stroke-dasharray="3 4" />
+
+      <!-- The 3D Saffron Truth Drop -->
+      <circle cx="256" cy="374.16" r="21.6" fill="url(#vck_drop3D)" stroke="#FDE68A" stroke-width="1.4" stroke-opacity="0.9" />
+      <ellipse cx="249" cy="366" rx="6.5" ry="3.8" fill="#FFFFFF" opacity="0.95" />
+    </g>
+
+    <!-- Epistemic Anchor Monospace Label -->
+    <text x="195" y="468" text-anchor="middle" font-family="'JetBrains Mono', 'SF Mono', Consolas, monospace" font-size="12.5" font-weight="700" fill="#F2A33A" letter-spacing="2.5" opacity="0.95">
+      EPISTEMIC GROUNDING ENGINE
+    </text>
+  </g>
+
+  <!-- Clean Vertical Divider -->
+  <line x1="475" y1="50" x2="475" y2="590" stroke="#FFFFFF" stroke-opacity="0.06" stroke-width="1" />
+
+  <!-- ======================================================== -->
+  <!-- RIGHT HERO SECTION: PROPORTIONED, HIGH-VISIBILITY LAYOUT -->
+  <!-- ======================================================== -->
+  <g transform="translate(515, 60)">
+
+    <!-- 1. Top Micro Status Pill -->
+    <g transform="translate(0, 0)">
+      <rect width="368" height="32" rx="16" fill="#0C1426" stroke="#F2A33A" stroke-opacity="0.35" stroke-width="1.2" />
+      <circle cx="16" cy="16" r="4.5" fill="#10B981" />
+      <circle cx="16" cy="16" r="8" fill="#10B981" opacity="0.25" />
+      <text x="32" y="20.5" font-family="'JetBrains Mono', monospace" font-size="12" font-weight="700" fill="#E2E8F0" letter-spacing="0.8">
+        MODEL CONTEXT PROTOCOL <tspan fill="#F2A33A">·</tspan> 100% LOCAL
+      </text>
+    </g>
+
+    <!-- 2. Commanding Title: Vivechak · विवेचक (Baseline at Y = 106, 26px Breathing Space from Pill) -->
+    <g transform="translate(0, 106)">
+      <!-- Latin Name -->
+      <text font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', Roboto, sans-serif" font-size="64" font-weight="900" fill="#FFFFFF" letter-spacing="-2">
+        Vivechak
+      </text>
+      <!-- Separator Dot -->
+      <text x="306" y="-4" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="50" font-weight="400" fill="#F2A33A">
+        ·
+      </text>
+      <!-- Devanagari Script -->
+      <text x="338" font-family="'Nirmala UI', 'Noto Sans Devanagari', 'Mangal', 'Segoe UI', sans-serif" font-size="58" font-weight="700" fill="#F7F4EC">
+        विवेचक
+      </text>
+    </g>
+
+    <!-- 3. Primary Thesis & Value Proposition -->
+    <g transform="translate(0, 168)">
+      <text font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', Roboto, sans-serif" font-size="25" font-weight="800" fill="#FFFFFF" letter-spacing="-0.4">
+        Evidence-Grounded Research for Technical Decisions
+      </text>
+      <text y="30" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="16" font-weight="400" fill="#94A3B8">
+        The epistemic sieve for AI coding agents — turning unverified model memory into rigor.
+      </text>
+    </g>
+
+    <!-- 4. The 3 Scopes: High-Visibility, Well-Proportioned Cards (168px Height) -->
+    <g transform="translate(0, 246)">
+
+      <!-- Scope 1: Comparison -->
+      <g transform="translate(0, 0)" filter="url(#vck_cardShadow)">
+        <rect width="226" height="168" rx="14" fill="url(#cardBgGrad)" stroke="url(#borderAmberGrad)" stroke-width="1.4" />
+        <path d="M 16 1.4 L 210 1.4" stroke="#F59E0B" stroke-width="3" stroke-linecap="round" />
+
+        <g transform="translate(20, 24)">
+          <!-- Scope Budget Chip -->
+          <rect width="112" height="22" rx="11" fill="#241B12" stroke="#78350F" stroke-width="0.8" />
+          <text x="56" y="15.5" text-anchor="middle" font-family="'JetBrains Mono', monospace" font-size="11" font-weight="700" fill="#FBBF24">
+            1 SESSION · 5M
+          </text>
+
+          <!-- Scope Name -->
+          <text y="52" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="22" font-weight="800" fill="#FFFFFF">
+            Comparison
+          </text>
+
+          <!-- Deliverable -->
+          <text y="78" font-family="'JetBrains Mono', monospace" font-size="15" font-weight="700" fill="#FBBF24">
+            WEP Matrix
+          </text>
+
+          <!-- Subtext -->
+          <text y="106" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="14" font-weight="400" fill="#94A3B8">
+            2–5 concrete options.
+          </text>
+          <text y="126" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="13" font-weight="400" fill="#64748B">
+            Zero DAG · Zero Gate.
+          </text>
+        </g>
+      </g>
+
+      <!-- Scope 2: Decision -->
+      <g transform="translate(242, 0)" filter="url(#vck_cardShadow)">
+        <rect width="226" height="168" rx="14" fill="url(#cardBgGrad)" stroke="url(#borderSaffronGrad)" stroke-width="1.4" />
+        <path d="M 16 1.4 L 210 1.4" stroke="#F97316" stroke-width="3" stroke-linecap="round" />
+
+        <g transform="translate(20, 24)">
+          <!-- Scope Budget Chip -->
+          <rect width="130" height="22" rx="11" fill="#2C160C" stroke="#9A3412" stroke-width="0.8" />
+          <text x="65" y="15.5" text-anchor="middle" font-family="'JetBrains Mono', monospace" font-size="11" font-weight="700" fill="#FB923C">
+            1–3 SESSIONS · 30M
+          </text>
+
+          <!-- Scope Name -->
+          <text y="52" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="22" font-weight="800" fill="#FFFFFF">
+            Decision
+          </text>
+
+          <!-- Deliverable -->
+          <text y="78" font-family="'JetBrains Mono', monospace" font-size="15" font-weight="700" fill="#FB923C">
+            Locked ADRs
+          </text>
+
+          <!-- Subtext -->
+          <text y="106" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="14" font-weight="400" fill="#94A3B8">
+            Architectural dilemmas.
+          </text>
+          <text y="126" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="13" font-weight="400" fill="#64748B">
+            Reversal triggers.
+          </text>
+        </g>
+      </g>
+
+      <!-- Scope 3: Project -->
+      <g transform="translate(484, 0)" filter="url(#vck_cardShadow)">
+        <rect width="226" height="168" rx="14" fill="url(#cardBgGrad)" stroke="url(#borderEmeraldGrad)" stroke-width="1.4" />
+        <path d="M 16 1.4 L 210 1.4" stroke="#10B981" stroke-width="3" stroke-linecap="round" />
+
+        <g transform="translate(20, 24)">
+          <!-- Scope Budget Chip -->
+          <rect width="138" height="22" rx="11" fill="#06291C" stroke="#065F46" stroke-width="0.8" />
+          <text x="69" y="15.5" text-anchor="middle" font-family="'JetBrains Mono', monospace" font-size="11" font-weight="700" fill="#34D399">
+            FULL DAG · PHASE 0
+          </text>
+
+          <!-- Scope Name -->
+          <text y="52" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="22" font-weight="800" fill="#FFFFFF">
+            Project
+          </text>
+
+          <!-- Deliverable -->
+          <text y="78" font-family="'JetBrains Mono', monospace" font-size="15" font-weight="700" fill="#34D399">
+            Founding Arch (FAD)
+          </text>
+
+          <!-- Subtext -->
+          <text y="106" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="14" font-weight="400" fill="#94A3B8">
+            Adaptive 4–30 sessions.
+          </text>
+          <text y="126" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="13" font-weight="400" fill="#64748B">
+            Track A &amp; B Exit Gates.
+          </text>
+        </g>
+      </g>
+
+    </g>
+
+    <!-- 5. Technical Rigor Anchor Footer (Large, Legible, Crisp) -->
+    <g transform="translate(0, 460)">
+      <text font-family="'JetBrains Mono', 'SF Mono', Consolas, monospace" font-size="13" font-weight="700" fill="#94A3B8" letter-spacing="1">
+        EVIDENCE GRADES A–E <tspan fill="#F2A33A">·</tspan> 13 MCP TOOLS <tspan fill="#F2A33A">·</tspan> STRUCTURED FALSIFICATION <tspan fill="#F2A33A">·</tspan> GO 1.25+
+      </text>
+    </g>
+
+  </g>
+</svg>

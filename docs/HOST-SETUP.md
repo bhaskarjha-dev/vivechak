@@ -32,6 +32,26 @@ vck setup cursor --dry-run
 
 `vck setup` automatically resolves the target configuration file, detects whether global or workspace scope is active, formats Windows/macOS/Linux paths cleanly, and merges the Vivechak MCP server block without overwriting existing servers.
 
+### Universal Agent Skill (`npx skills add`)
+For agent harnesses that support decentralized skills (Claude Code, Cursor, Antigravity, OpenCode), install Vivechak's skill directly:
+```sh
+npx skills add bhaskarjha-dev/vivechak
+```
+This automatically installs the calibrated agent playbook (`skills/vivechak/SKILL.md`) into your workspace or global skill catalog.
+
+### Native MCP Prompts & Slash Commands
+Once Vivechak is connected, typing `/` in compatible chat clients (Claude Desktop, Cursor, Continue, Zed) reveals 4 native prompt templates:
+- `/vivechak_compare`: Interactive brief for 2–5 option comparisons (~5 min, WEP matrix).
+- `/vivechak_decision`: Interactive brief for resolving an architectural dilemma (~30 min, ADR).
+- `/vivechak_project`: Interactive brief for decomposing a greenfield system into an adaptive DAG to a FAD.
+- `/vivechak_gate`: Pre-codebase exit criteria evaluation checklist.
+
+### Pre-Packaged Editor Rules
+Pre-configured rules are available in `templates/rules/`:
+- **Cursor:** `templates/rules/cursor.mdc` (copy to `.cursor/rules/vivechak.mdc`)
+- **Claude Code:** `templates/rules/claude.md` (copy to `.claude/rules/vivechak.md` or append to `CLAUDE.md`)
+- **Google Antigravity:** `templates/rules/antigravity.md` (copy to `.agents/rules/vivechak.md`)
+
 ---
 
 ## 2. Universal Setup & Manual Configuration
@@ -292,8 +312,7 @@ Add Vivechak to `~/.gemini/config/mcp_config.json` (global) or `<project-root>/.
 | **Workspace** | `.agents/mcp_config.json` | Project-specific workspace |
 
 > **Tip:** In Antigravity IDE or Antigravity 2.0, you can verify active MCP servers anytime in the chat panel via **"..." (More Options) > "Manage MCP Servers" > "View raw config"**. Inside the `agy` terminal, use `/mcp` or `agy mcp list`.
->
-> **Workspace Location Best Practice:** When prompting agents in IDE environments, ensure agents pass `project_root` explicitly to `vivechak_init` (e.g. `project_root: "d:/path/to/project"`). Vivechak includes active guards against host CWD inheritance and rejects any attempts to initialize workspaces inside application program folders (`AppData\Local\Programs\...`). You may also optionally supply `"env": { "VIVECHAK_PROJECT_ROOT": "${workspaceFolder}" }` in workspace configurations.
+> **Workspace Location Best Practice:** When prompting agents in IDE environments, ensure agents pass `project_root` explicitly if needed (or configure `"env": { "VIVECHAK_PROJECT_ROOT": "${workspaceFolder}" }`). Vivechak includes active guards against host CWD inheritance and rejects any attempts to initialize workspaces inside application program folders (`AppData\Local\Programs\...`).
 
 ---
 

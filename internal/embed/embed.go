@@ -21,6 +21,16 @@ var Generators embed.FS
 //go:embed templates/*.md
 var Templates embed.FS
 
+// Skills embeds the agent skill manifest.
+//
+//go:embed skills/*
+var Skills embed.FS
+
+// Rules embeds the editor and harness rule templates.
+//
+//go:embed rules/*
+var Rules embed.FS
+
 // ReadGenerator returns the contents of a generator file by name.
 // Valid names: "GENERATOR-PROJECT.md", "GENERATOR-DECISION.md", "GENERATOR-COMPARISON.md"
 func ReadGenerator(name string) ([]byte, error) {
@@ -43,6 +53,24 @@ func ReadTemplate(name string) ([]byte, error) {
 	return data, nil
 }
 
+// ReadSkill returns the contents of an embedded skill file by name (e.g. "SKILL.md").
+func ReadSkill(name string) ([]byte, error) {
+	data, err := fs.ReadFile(Skills, "skills/"+name)
+	if err != nil {
+		return nil, fmt.Errorf("reading skill %q: %w", name, err)
+	}
+	return data, nil
+}
+
+// ReadRule returns the contents of an embedded rule file by name (e.g. "cursor.mdc").
+func ReadRule(name string) ([]byte, error) {
+	data, err := fs.ReadFile(Rules, "rules/"+name)
+	if err != nil {
+		return nil, fmt.Errorf("reading rule %q: %w", name, err)
+	}
+	return data, nil
+}
+
 // ListGenerators returns the names of all embedded generator files.
 func ListGenerators() ([]string, error) {
 	return listDir(Generators, "generators")
@@ -51,6 +79,16 @@ func ListGenerators() ([]string, error) {
 // ListTemplates returns the names of all embedded template files.
 func ListTemplates() ([]string, error) {
 	return listDir(Templates, "templates")
+}
+
+// ListSkills returns the names of all embedded skill files.
+func ListSkills() ([]string, error) {
+	return listDir(Skills, "skills")
+}
+
+// ListRules returns the names of all embedded rule files.
+func ListRules() ([]string, error) {
+	return listDir(Rules, "rules")
 }
 
 func listDir(fsys embed.FS, dir string) ([]string, error) {

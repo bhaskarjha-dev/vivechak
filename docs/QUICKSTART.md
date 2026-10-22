@@ -35,6 +35,9 @@ npx -y vck serve                              # or: npx -y vivechak serve
 # Python / uvx (macOS, Linux, Windows)
 uvx vck serve                                 # or: uvx vivechak serve
 
+# Universal Agent Skill (Claude Code, Cursor, Antigravity, OpenCode)
+npx skills add bhaskarjha-dev/vivechak
+
 # Docker / Cloud Agents (Devin, OpenHands, CI)
 docker run -i --rm -v "${PWD}:/workspace" ghcr.io/bhaskarjha-dev/vck:latest serve
 ```
@@ -95,16 +98,18 @@ vck mcp-config
 ```
 *(For all 21 presets, terminal harnesses, or manual configs, see the [Host Setup Guide](HOST-SETUP.md).)*
 
-### 3. Prompt Your AI Agent Based on Scope
+### 3. Prompt Your AI Agent Based on Scope (or Use Slash Commands)
 
-Open your agent chat in your project repository and choose your scope:
+Open your agent chat in your project repository and choose your scope (or invoke native **MCP Slash Commands** in compatible clients):
 
 - **For Quick Comparisons (~5 mins, 1 session):**
-  > *"Vivechak compare: Pino vs Winston for high-throughput Node.js microservices."*
+  > `/vivechak_compare` or *"Vivechak compare: Pino vs Winston for high-throughput Node.js microservices."*
 - **For Architectural Decisions (~30 mins, 1–3 sessions):**
-  > *"Vivechak decision: Should we migrate our primary analytics datastore from PostgreSQL to ClickHouse?"*
+  > `/vivechak_decision` or *"Vivechak decision: Should we migrate our primary analytics datastore from PostgreSQL to ClickHouse?"*
 - **For Full Project Pipelines (Hours–Days, greenfield architecture):**
-  > *"Use Vivechak to research our architecture. We need to build a multi-tenant B2B SaaS analytics platform ingesting 20M events/day."*
+  > `/vivechak_project` or *"Use Vivechak to research our architecture. We need to build a multi-tenant B2B SaaS analytics platform ingesting 20M events/day."*
+- **For Pre-Code Phase 0 Gate Evaluation:**
+  > `/vivechak_gate` or *"Evaluate Phase 0 Gate before implementation."*
 
 > [!NOTE]
 > **When NOT to use Vivechak:** Do NOT invoke Vivechak for routine coding, writing functions, debugging errors, or syntax explanations. Let your agent write code directly without research tools.

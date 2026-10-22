@@ -45,7 +45,7 @@ Vivechak employs a 4-level validation ladder (**L1–L4**). Below are the common
 
 ### `V-PATH-ESCAPES-ROOT` (Level 1 Fatal)
 - **Cause:** A tool argument attempted to read or write a path outside the workspace root (e.g. `../../etc/passwd` or absolute drive roots).
-- **Resolution:** Supply paths that are local to the workspace root or pass an explicit valid project root directory to `vivechak_init`.
+- **Resolution:** Supply paths that are local to the workspace root or pass an explicit valid project root directory via `project_root`.
 
 ### `W-STALE-DOWNSTREAM` (Level 3 Advisory Warning)
 - **Cause:** You ran `vivechak_amend_session` on an upstream session (e.g. `T1-01`), but downstream sessions (e.g. `T2-01`) were completed prior to the amendment and may rely on superseded findings.

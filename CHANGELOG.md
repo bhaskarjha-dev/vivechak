@@ -11,6 +11,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Unified release delivering the complete pre-release hardening wave across engine parsers, decoupled exit gates, headless CLI verification, concurrency locks, multi-harness autonomous testing subsystem, and packaging:
 
+- **MCP Protocol Triumvirate Expansion (Prompts & Resources):**
+  - Added 4 native user-controlled MCP Prompts via `sdkmcp.AddPrompt` (`vivechak_compare`, `vivechak_decision`, `vivechak_project`, `vivechak_gate`), enabling instant slash-command research workflows in Claude Desktop, Cursor, Continue, and Zed.
+  - Added 8 canonical read-only MCP Resources via `server.AddResource` (`vivechak://templates/{decisions,comparison,fad,conflict-resolution,gate,session}` and `vivechak://methodology/{grades,principles}`) complying with MCP SEP-2164 error handling (`ResourceNotFoundError`).
+- **Universal Agent Skill (`skills/vivechak/SKILL.md`) & Pre-Packaged Rules:**
+  - Added standard `agentskills.io` manifest enabling decentralized installation via `npx skills add bhaskarjha-dev/vivechak`.
+  - Added pre-packaged rule templates for Cursor (`templates/rules/cursor.mdc`), Claude Code (`templates/rules/claude.md`), and Google Antigravity (`templates/rules/antigravity.md`).
+  - Embedded skills and rules into `internal/embed/` with byte-for-byte root synchronization verified by `TestEmbeddedFilesMatchRoot`.
+- **Diagnostic Guidance Hardening (`workspace.go`):**
+  - Updated workspace resolution diagnostics to provide clear guidance directing users to editor slash commands (`/vivechak_compare`, `/vivechak_project`) without misleading legacy hints.
+- **Launch Assets & Automated Supply-Chain Hygiene:**
+  - Added 1280×640 vector OpenGraph card (`docs/assets/social-preview.svg`) and rendered raster asset (`docs/assets/social-preview.png`) adhering to `docs/BRAND.md`.
+  - Added `.github/dependabot.yml` for automated weekly Go modules and GitHub Actions maintenance.
 - **Autonomous Multi-Harness Testing Engine (`tests/harness/`, `scripts/run_harness.mjs`):** Built-in zero-trust autonomous stress-testing subsystem with 21 human-realistic scenarios across all three research scopes plus anti-pattern boundary testing. Includes a zero-stall process-tree watchdog runner (`execWithWatchdog` with stdin-clamping), parallel pre-flight health and token quota probes (`--probe`), dynamic semantic triage (`--triage`), and pluggable adapters (`direct_mcp`, `agy`, `opencode`, `claude_code`).
 - **Phase 1 & Phase 2 Multi-Harness Empirical Audits (64 Runs Ingested):** Ingested 64 autonomous test runs across Google Antigravity CLI, OpenCode, and headless Direct MCP. Achieved 100% deterministic conformance pass across all 21 scenarios, proving zero engine regressions and 100% boundary guardrail adherence (Scenario 21 HMAC direct authoring).
 - **Comprehensive Engine Hardening Remediations (D-05–D-13):** Implemented 10 core Go engine remediations discovered through autonomous multi-agent testing:

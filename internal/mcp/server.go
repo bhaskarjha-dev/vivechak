@@ -64,5 +64,11 @@ func NewServer(version string, logger *slog.Logger) *sdkmcp.Server {
 	registerReplan(server)
 	registerVisualize(server)
 
+	// Register 4 native MCP prompts
+	registerPrompts(server)
+
+	// Register 8 canonical MCP resources
+	registerResources(server)
+
 	return server
 }

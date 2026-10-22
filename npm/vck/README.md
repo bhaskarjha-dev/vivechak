@@ -13,6 +13,9 @@ Official shorthand alias package for **Vivechak**. Automatically proxies to `viv
 ```bash
 # Run MCP server over stdio for AI hosts
 npx -y vck serve
+
+# Or install Universal Agent Skill (Cursor, Claude Code, Antigravity, OpenCode)
+npx skills add bhaskarjha-dev/vivechak
 ```
 
 ### 2. Configure in Your AI Host / IDE

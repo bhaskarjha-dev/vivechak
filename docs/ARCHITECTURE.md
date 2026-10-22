@@ -42,19 +42,23 @@ vivechak/
 │   │   ├── quality.go      # Advisory quality coaching (Q-*) & dynamic freshness
 │   │   ├── challenge.go    # Adversarial challenge prompt generator
 │   │   └── visualize_comparison.go # Comparison Scope WEP visualization engine
-│   ├── mcp/                # MCP protocol server and tool handlers (package mcputil)
-│   │   ├── server.go       # Server factory and tool registration dispatcher
+│   ├── mcp/                # MCP protocol server, tools, prompts, and resources (package mcputil)
+│   │   ├── server.go       # Server factory and triumvirate registration dispatcher
 │   │   ├── envelope.go     # Standardized JSON response envelope & dual-channel encoding
 │   │   ├── tool_*.go       # 13 individual MCP tool handlers
+│   │   ├── prompts.go      # 4 native MCP prompt templates (slash commands)
+│   │   ├── resources.go    # 8 canonical read-only MCP resources (templates & methodology)
 │   │   └── server_test.go  # In-memory JSON-RPC wire tests
 │   ├── store/              # Storage, path jail, and concurrency primitives
 │   │   ├── workspace.go    # os.Root confinement wrapper
 │   │   ├── atomic.go       # Crash-safe atomic file writes
 │   │   └── lock.go         # Cross-process advisory file locking (flock)
-│   └── embed/              # Compile-time embedded generators and templates (package vembed)
-│       ├── embed.go        # go:embed accessors for generators and templates
+│   └── embed/              # Compile-time embedded assets (package vembed)
+│       ├── embed.go        # go:embed accessors for generators, templates, skills, and rules
 │       ├── generators/     # Embedded generator markdown prompts
-│       └── templates/      # Embedded workspace markdown templates
+│       ├── templates/      # Embedded workspace markdown templates
+│       ├── skills/         # Embedded universal agent skill manifest
+│       └── rules/          # Embedded editor and harness rule templates
 ```
 
 ### Dependency Direction
@@ -96,7 +100,7 @@ Defined in [`internal/core/workspace.go`](../internal/core/workspace.go), [`Reso
 2. **Environment variables**: `VIVECHAK_PROJECT_ROOT`, `VIVECHAK_DEFAULT_ROOT`, `WORKSPACE`, or `PROJECT_ROOT` if set (ignoring unexpanded `${workspaceFolder}` macros).
 3. **CWD Directory Traversal**: Walks upwards from the current working directory searching for an existing `research/` directory (safely skipping host IDE application program directories).
 4. **In-process session memory**: Fallback to the last successfully resolved workspace with existing `research/` within the current server process, eliminating repetitive parameter passing in long agent sessions.
-5. **Fallback error**: Clear diagnostic error instructing the caller to initialize the workspace with [`vivechak_init`](../internal/mcp/tool_init.go) or pass `project_root` explicitly.
+5. **Fallback error**: Clear diagnostic error instructing the caller to start a research session in their AI editor (e.g. `/vivechak_compare` or `/vivechak_project`) or pass `project_root` explicitly.
 
 The workspace layout is standard across all Vivechak projects:
 - `research/` — Workspace root
@@ -285,9 +289,17 @@ var Generators embed.FS
 
 //go:embed templates/*.md
 var Templates embed.FS
+
+//go:embed skills/*
+var Skills embed.FS
+
+//go:embed rules/*
+var Rules embed.FS
 ```
 - [`ReadGenerator(name)`](../internal/embed/embed.go#L26-L32): Retrieves generator prompts by filename (`GENERATOR-PROJECT.md`, `GENERATOR-DECISION.md`, `GENERATOR-COMPARISON.md`).
 - [`ReadTemplate(name)`](../internal/embed/embed.go#L38-L44): Retrieves output templates (`DECISIONS.template.md`, `CONFLICT-RESOLUTION.template.md`, `COMPARISON-SESSION.template.md`, `FOUNDING-ARCHITECTURE.template.md`, `PHASE-0-GATE.template.md`, `SESSION.template.md`).
+- [`ReadSkill(name)`](../internal/embed/embed.go): Retrieves universal agent skill playbooks (`skills/vivechak/SKILL.md`).
+- [`ReadRule(name)`](../internal/embed/embed.go): Retrieves pre-packaged editor rules (`rules/cursor.mdc`, `rules/claude.md`, `rules/antigravity.md`).
 
 ### Synchronization with Root Markdown Files
 Vivechak maintains canonical human-readable files at the repository root and identical copies in `internal/embed/` for binary compilation:
@@ -298,9 +310,11 @@ Vivechak maintains canonical human-readable files at the repository root and ide
 | `GENERATOR-DECISION.md` | `internal/embed/generators/GENERATOR-DECISION.md` |
 | `GENERATOR-COMPARISON.md` | `internal/embed/generators/GENERATOR-COMPARISON.md` |
 | `templates/*.template.md` | `internal/embed/templates/*.template.md` |
+| `skills/vivechak/SKILL.md` | `internal/embed/skills/vivechak/SKILL.md` |
+| `templates/rules/*.{md,mdc}` | `internal/embed/rules/*.{md,mdc}` |
 
 > [!IMPORTANT]
-> Per [`CONTRIBUTING.md`](../CONTRIBUTING.md#L42-L96) (*Change Propagation Map*), whenever a change is made to any root generator or template, the corresponding file in `internal/embed/` **must be synchronized** before compiling or releasing the server. This synchronization is automatically verified by [`TestEmbeddedFilesMatchRoot`](../internal/embed/embed_test.go#L64) in CI.
+> Per [`CONTRIBUTING.md`](../CONTRIBUTING.md#L42-L96) (*Change Propagation Map*), whenever a change is made to any root generator, template, skill, or rule, the corresponding file in `internal/embed/` **must be synchronized** before compiling or releasing the server. This synchronization is automatically verified by [`TestEmbeddedFilesMatchRoot`](../internal/embed/embed_test.go) in CI.
 
 ---
 
@@ -515,6 +529,9 @@ vck mcp-config
 
 # Run workspace diagnostic check
 vck doctor
+
+# Headless Phase 0 exit gate evaluation (CI-ready)
+vck gate --track all
 
 # Print version
 vck version

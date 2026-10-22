@@ -59,7 +59,7 @@ golangci-lint run ./...
 ```
 
 ### Verifying Embed Sync
-The embedded generators and templates in `internal/embed/` must stay synchronized with root-level files:
+The embedded generators, templates, skills, and rules in `internal/embed/` must stay synchronized with root-level files:
 ```bash
 make embed-sync
 ```

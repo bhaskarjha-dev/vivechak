@@ -3333,6 +3333,83 @@ Initial proposed ADR skeleton for D-01.
 	}
 }
 
+// TestMCPProtocolTriumvirate_ListingAndExecution verifies that the server exposes
+// the complete MCP Protocol Triumvirate: exactly 13 Tools, 4 Prompts, and 8 Resources,
+// and that they can be listed and invoked across a single live MCP client session.
+func TestMCPProtocolTriumvirate_ListingAndExecution(t *testing.T) {
+	cs := testServer(t)
+	ctx := context.Background()
+
+	// 1. Verify 13 Tools
+	toolsRes, err := cs.ListTools(ctx, nil)
+	if err != nil {
+		t.Fatalf("ListTools failed: %v", err)
+	}
+	if len(toolsRes.Tools) != 13 {
+		t.Errorf("expected exactly 13 tools, got %d", len(toolsRes.Tools))
+	}
+
+	// 2. Verify 4 Prompts
+	promptsRes, err := cs.ListPrompts(ctx, nil)
+	if err != nil {
+		t.Fatalf("ListPrompts failed: %v", err)
+	}
+	if len(promptsRes.Prompts) != 4 {
+		t.Errorf("expected exactly 4 prompts, got %d", len(promptsRes.Prompts))
+	}
+
+	// 3. Verify 8 Resources
+	resourcesRes, err := cs.ListResources(ctx, nil)
+	if err != nil {
+		t.Fatalf("ListResources failed: %v", err)
+	}
+	if len(resourcesRes.Resources) != 8 {
+		t.Errorf("expected exactly 8 resources, got %d", len(resourcesRes.Resources))
+	}
+
+	// 4. Sequential execution of one primitive from each triumvirate pillar
+	// Pillar A: Execute a prompt
+	pRes, err := cs.GetPrompt(ctx, &mcp.GetPromptParams{
+		Name: "vivechak_compare",
+		Arguments: map[string]string{
+			"options": "Option A vs Option B",
+		},
+	})
+	if err != nil {
+		t.Fatalf("GetPrompt failed: %v", err)
+	}
+	if len(pRes.Messages) == 0 {
+		t.Fatal("expected prompt messages, got none")
+	}
+
+	// Pillar B: Read a canonical resource
+	rRes, err := cs.ReadResource(ctx, &mcp.ReadResourceParams{
+		URI: "vivechak://methodology/grades",
+	})
+	if err != nil {
+		t.Fatalf("ReadResource failed: %v", err)
+	}
+	if len(rRes.Contents) == 0 || !strings.Contains(rRes.Contents[0].Text, "Grade A") {
+		t.Errorf("unexpected resource content: %v", rRes.Contents)
+	}
+
+	// Pillar C: Invoke an orchestration tool
+	tRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_prepare_generator",
+		Arguments: map[string]any{
+			"scope":   "comparison",
+			"context": "Option A vs Option B",
+		},
+	})
+	if err != nil {
+		t.Fatalf("CallTool failed: %v", err)
+	}
+	env := parseEnvelope(t, tRes)
+	if !env.Success {
+		t.Errorf("prepare_generator tool invocation failed: %s", env.Message)
+	}
+}
+
 
 
 

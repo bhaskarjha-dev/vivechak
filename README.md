@@ -59,17 +59,21 @@ vck setup vscode                             # VS Code (Copilot Agent mode)
 vck setup claude-code                        # Claude Code CLI (~/.claude.json or .mcp.json)
 vck setup agy                                # Google Antigravity
 vck setup                                    # Auto-detects editor in current workspace
+
+# Or install universal agent skill directly:
+npx skills add bhaskarjha-dev/vivechak
 ```
 
-### Step 2: Prompt Your Agent Naturally
+### Step 2: Prompt Your Agent Naturally (or use Slash Commands)
 
-Open your agent's chat window in any active project:
+Open your agent's chat window in any active project. You can prompt naturally or use native **MCP Slash Commands** (`/vivechak_...`):
 
-| What You Need | What You Prompt | What Vivechak Does |
+| What You Need | What You Prompt / Slash Command | What Vivechak Does |
 |---|---|---|
-| **Compare 2–5 Options**<br>*(~5 min · 0 DAG · 0 Gate)* | *"Vivechak compare: Pino vs Winston for high-throughput Node.js microservices."* | Runs 1 session with web search → Generates Weighted Evaluation Protocol (WEP) matrix with Grade A/B citations in `research/C-01-comparison.md`. |
-| **Lock an Architectural ADR**<br>*(~30 min · 1–3 sessions)* | *"Vivechak decision: Should we migrate our event storage from PostgreSQL to ClickHouse?"* | Evaluates blast radius & reversibility → Runs Landscape & Falsification sessions → Locks canonical ADR `research/D-01.md` with reversal triggers. |
-| **Architect a Greenfield System**<br>*(Hours–Days · Full DAG)* | *"Use Vivechak to architect our real-time streaming pipeline in Go handling 50k events/sec."* | Builds dependency DAG → Loops sessions → Synthesizes Founding Architecture Document (`FAD.md`) → Validates pre-code Phase 0 Exit Gate. |
+| **Compare 2–5 Options**<br>*(~5 min · 0 DAG · 0 Gate)* | `/vivechak_compare`<br>*or "Vivechak compare: Pino vs Winston"* | Runs 1 session with web search → Generates Weighted Evaluation Protocol (WEP) matrix with Grade A/B citations in `research/C-01-comparison.md`. |
+| **Lock an Architectural ADR**<br>*(~30 min · 1–3 sessions)* | `/vivechak_decision`<br>*or "Vivechak decision: PostgreSQL vs ClickHouse"* | Evaluates blast radius & reversibility → Runs Landscape & Falsification sessions → Locks canonical ADR `research/D-01.md` with reversal triggers. |
+| **Architect a Greenfield System**<br>*(Hours–Days · Full DAG)* | `/vivechak_project`<br>*or "Use Vivechak to architect real-time pipeline"* | Builds dependency DAG → Loops sessions → Synthesizes Founding Architecture Document (`FAD.md`) → Validates pre-code Phase 0 Exit Gate. |
+| **Pre-Code Exit Gate**<br>*(Pre-Implementation)* | `/vivechak_gate`<br>*or "Evaluate Phase 0 Gate"* | Evaluates Track A reversibility and Track B rigor checks mechanically before starting implementation. |
 
 > 🚫 **Anti-Pattern Guardrail (When NOT to use Vivechak):** Skip Vivechak for direct code authoring, syntax questions, local bug fixing, or trivial refactoring (e.g. *"Write a Go function to parse JWT"*). Your agent writes code directly without calling research tools.
 
@@ -268,6 +272,35 @@ When registered as an MCP server, Vivechak equips your agent with 13 specialized
 | **Synthesis & Exit Gate** | `vivechak_replan` | Dynamically mutates mid-flight DAG topology (adds sessions, rewires dependencies). |
 | | `vivechak_visualize` | Renders DAG as a Mermaid flowchart or ASCII progress table. |
 | | `vivechak_run_gate` | Headless Phase 0 Exit Gate evaluator (decoupled Track A reversibility and Track B B1–B11 checks). |
+
+### ⚡ Native MCP Prompts & Resources
+
+Vivechak implements all three primitives of the Model Context Protocol specification:
+
+#### 1. Native Prompts (Slash Commands)
+Type `/` in your MCP-compatible chat window (Claude Desktop, Cursor, Continue, Zed) to launch calibrated research workflows:
+- `/vivechak_compare`: Interactive UI form to evaluate 2–5 options with a WEP matrix (~5 min).
+- `/vivechak_decision`: Interactive UI form to resolve an architectural dilemma into an ADR (~30 min).
+- `/vivechak_project`: Interactive UI form to decompose a greenfield system into an adaptive DAG to a FAD.
+- `/vivechak_gate`: Evaluate pre-codebase exit criteria via the Phase 0 Gate.
+
+#### 2. Canonical Resources (`vivechak://...`)
+Reference canonical templates and methodology cards directly in chat or prompt context:
+- `vivechak://templates/decisions`: Architecture Decision Record (ADR) template.
+- `vivechak://templates/comparison`: Weighted Evaluation Protocol (WEP) matrix template.
+- `vivechak://templates/fad`: Founding Architecture Document (FAD) template.
+- `vivechak://templates/conflict-resolution`: Analysis of Competing Hypotheses (ACH) template.
+- `vivechak://templates/gate`: Phase 0 Pre-Codebase Exit Gate checklist.
+- `vivechak://templates/session`: Research session format with Prior, Delta, and Evidence Ledger.
+- `vivechak://methodology/grades`: Grade A–E evidence taxonomy reference card.
+- `vivechak://methodology/principles`: The 8 core principles reference card.
+
+#### 3. Universal Agent Skill & Pre-Packaged Rules
+Equip your AI agent with calibrated operating rules:
+- **Universal Skill (`agentskills.io`):** `npx skills add bhaskarjha-dev/vivechak`
+- **Cursor Rules:** [`templates/rules/cursor.mdc`](templates/rules/cursor.mdc) (copy to `.cursor/rules/vivechak.mdc`)
+- **Claude Code Rules:** [`templates/rules/claude.md`](templates/rules/claude.md) (copy to `.claude/rules/vivechak.md`)
+- **Google Antigravity:** [`templates/rules/antigravity.md`](templates/rules/antigravity.md) (copy to `.agents/rules/vivechak.md`)
 
 ---
 

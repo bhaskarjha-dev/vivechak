@@ -132,7 +132,9 @@ docs/assets/
 ├── logo.svg           ← Primary Mark (Ink Indigo + Saffron) for light backgrounds
 ├── logo-dark.svg      ← Reversed Mark (Warm Paper + Saffron) for dark backgrounds
 ├── logo-mono.svg      ← Monochrome Mark (Carbon Black) for single-color reproduction
-└── favicon.svg        ← 32×32 Optical Cut for favicons, browser tabs, and desktop shortcuts
+├── favicon.svg        ← 32×32 Optical Cut for favicons, browser tabs, and desktop shortcuts
+├── social-preview.svg ← 1280×640 Vector Master for high-DPI social banners & presentations
+└── social-preview.png ← 1280×640 OpenGraph raster banner for GitHub and social unfurls
 ```
 
 ### GitHub Dual-Theme Integration

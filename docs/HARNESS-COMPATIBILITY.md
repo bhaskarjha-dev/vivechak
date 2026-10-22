@@ -15,6 +15,9 @@ Vivechak is built from the ground up to be **harness-agnostic**. It communicates
 ┌──────────────────────────▼─────────────────────────────┐
 │ vivechak MCP Server (Single Go Binary)                 │
 │  - 13 atomic tools                                     │
+│  - 4 native MCP prompts (slash commands)               │
+│  - 8 canonical read-only MCP resources                 │
+│  - Universal Agent Skill & pre-packaged rules          │
 │  - Advisory file locking & atomic writes               │
 │  - Workspace isolation via Go 1.25+ os.Root            │
 └──────────────────────────┬─────────────────────────────┘

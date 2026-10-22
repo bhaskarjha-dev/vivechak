@@ -80,7 +80,7 @@ Every tool that interacts with the filesystem resolves the workspace root direct
 2. **Environment variables**: `VIVECHAK_PROJECT_ROOT`, `VIVECHAK_DEFAULT_ROOT`, `WORKSPACE`, or `PROJECT_ROOT` if set (ignoring unexpanded `${workspaceFolder}` macros).
 3. **Directory discovery**: Traversing upward from the current working directory (`CWD`) searching for an existing `research/` directory (skipping host IDE application installation folders like `AppData\Local\Programs` or `Program Files`).
 4. **In-process session memory**: Fallback to the last successfully resolved workspace with existing `research/` within the current server process, eliminating repetitive parameter passing across consecutive tool calls.
-5. **Resolution Error**: If none succeed, the tool returns a descriptive error instructing the user to run `vivechak_init` or pass `project_root` explicitly.
+5. **Resolution Error**: If none succeed, the tool returns a descriptive diagnostic error instructing the caller to start a research session in their AI editor (e.g., `/vivechak_compare` or `/vivechak_project`) or pass `project_root` explicitly.
 
 ---
 
@@ -1145,3 +1145,36 @@ Vivechak organizes all artifact validation into a 4-level validation ladder defi
 3. **Use Live Web Search:** Research prompts emitted by `vivechak_prepare_generator` and `vivechak_next_session` are explicitly designed for models with active web search tools. Always run them in sessions where web retrieval is active.
 4. **Include Evidence Grades:** When writing research findings and saving them via `vivechak_save_session`, grade every substantive claim using Vivechak's evidence scale (e.g., `A (official documentation)`, `B (peer-reviewed benchmark)`, `C (community experience reports)`). This ensures zero `W-NO-EVIDENCE-GRADES` warnings and clean passage of the Phase 0 Exit Gate.
 5. **Separate ADRs:** When a research session reaches a conclusion on an architectural trade-off, call `vivechak_record_decision` immediately after `vivechak_save_session` to maintain an up-to-date registry in `research/DECISIONS.md`.
+
+---
+
+## MCP Protocol Triumvirate: Prompts & Resources
+
+In addition to the 13 model-controlled orchestration tools, Vivechak implements the complete Model Context Protocol specification with first-class **Prompts** (`prompts/list`, `prompts/get`) and **Resources** (`resources/list`, `resources/read`).
+
+### 1. Native MCP Prompts (User-Controlled Workflows)
+
+MCP Prompts allow users to trigger pre-calibrated research workflows via native slash commands in MCP-compatible clients (Claude Desktop, Cursor, Continue, Zed):
+
+| Prompt Name | UI Title | Arguments | Description |
+|---|---|---|---|
+| `vivechak_compare` | Compare Options (WEP Matrix) | `options` (req), `criteria` (opt), `context` (opt) | Launches a bounded 1-session technology comparison (~5m) with anti-spill directives to persist the WEP matrix via `vivechak_save_plan`. |
+| `vivechak_decision` | Architectural Decision (ADR) | `dilemma` (req), `context` (opt) | Launches an architectural dilemma research plan (~30m, 1–3 sessions) leading to a canonical ADR. |
+| `vivechak_project` | Project Pipeline (Full FAD) | `vision` (req), `context` (opt) | Launches a greenfield system decomposition across an adaptive dependency DAG to a Founding Architecture Document (`FAD.md`). |
+| `vivechak_gate` | Phase 0 Pre-Codebase Exit Gate | `track` (opt: all/track_a/track_b), `project_root` (opt) | Prompts the model to evaluate pre-codebase exit criteria via `vivechak_run_gate` and summarize blocking issues. |
+
+### 2. Canonical MCP Resources (`vivechak://...`)
+
+MCP Resources allow AI models and host applications to directly reference Vivechak's canonical schemas and methodology reference cards without invoking execution tools:
+
+| Resource URI | MIME Type | Description |
+|---|---|---|
+| `vivechak://templates/decisions` | `text/markdown` | Architecture Decision Record (ADR) canonical YAML frontmatter template (`DECISIONS.template.md`). |
+| `vivechak://templates/comparison` | `text/markdown` | Weighted Evaluation Protocol (WEP) comparison matrix template (`COMPARISON-SESSION.template.md`). |
+| `vivechak://templates/fad` | `text/markdown` | Founding Architecture Document (FAD) terminal synthesis template (`FOUNDING-ARCHITECTURE.template.md`). |
+| `vivechak://templates/conflict-resolution` | `text/markdown` | Analysis of Competing Hypotheses (ACH) conflict resolution template (`CONFLICT-RESOLUTION.template.md`). |
+| `vivechak://templates/gate` | `text/markdown` | Phase 0 Pre-Codebase Exit Gate checklist template (`PHASE-0-GATE.template.md`). |
+| `vivechak://templates/session` | `text/markdown` | Standard research session output format with Prior, Delta, and Evidence Ledger (`SESSION.template.md`). |
+| `vivechak://methodology/grades` | `text/markdown` | Evidence Grading Taxonomy reference card (definitions for Grades A–E, modifiers, and verification methods). |
+| `vivechak://methodology/principles` | `text/markdown` | Core Methodology Principles reference card (principles P1–P8). |
+

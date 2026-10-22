@@ -15,6 +15,9 @@ Official Node.js binary runner for **Vivechak** and shorthand alias **`vck`**. A
 npx -y vivechak serve
 # or using official 3-letter shorthand
 npx -y vck serve
+
+# Or install Universal Agent Skill (Cursor, Claude Code, Antigravity, OpenCode)
+npx skills add bhaskarjha-dev/vivechak
 ```
 
 ### 2. Configure in Your AI Host / IDE

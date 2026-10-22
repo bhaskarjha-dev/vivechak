@@ -17,6 +17,9 @@ Official Python binary runner for **Vivechak** and shorthand alias **`vck`**. Au
 uvx vivechak serve
 # or using official shorthand alias
 uvx vck serve
+
+# Or install Universal Agent Skill (Cursor, Claude Code, Antigravity, OpenCode)
+npx skills add bhaskarjha-dev/vivechak
 ```
 
 ### 2. Configure in Your AI Host / IDE

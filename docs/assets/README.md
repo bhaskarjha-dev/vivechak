@@ -14,6 +14,8 @@ For complete geometric construction blueprints, mathematical verification metric
 | [`logo-dark.svg`](logo-dark.svg) | **Reversed Brand Mark** (512×512) | Warm Paper (`#F7F4EC`) + Saffron (`#F2A33A`) | Dark backgrounds (`#0D1117`, `#12203F`) |
 | [`logo-mono.svg`](logo-mono.svg) | **Monochrome Mark** (512×512) | Carbon Black (`#000000`) | Single-color print & monochrome documents |
 | [`favicon.svg`](favicon.svg) | **Optical Cut** (32×32) | Ink Indigo (`#12203F`) + Saffron (`#F2A33A`) | Browser favicons, IDE tabs, small app shortcuts |
+| [`social-preview.png`](social-preview.png) | **OpenGraph Banner** (1280×640) | Ink Indigo Canvas + Saffron Accent | GitHub Social Preview, Twitter/X cards, LinkedIn |
+| [`social-preview.svg`](social-preview.svg) | **Vector Master** (1280×640) | Ink Indigo Canvas + Saffron Accent | High-DPI displays & vector marketing materials |
 
 ---
 
