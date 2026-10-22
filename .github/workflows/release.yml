@@ -144,7 +144,7 @@ jobs:
           echo "Setting PyPI packages, dependencies, and cli runner to version: $TAG_VERSION"
           sed -i "s/version = \".*\"/version = \"$TAG_VERSION\"/" pypi/vivechak/pyproject.toml
           sed -i "s/version = \".*\"/version = \"$TAG_VERSION\"/" pypi/vck/pyproject.toml
-          sed -i "s/\"vivechak[=><].*\"/\"vivechak~=$TAG_VERSION\"/" pypi/vck/pyproject.toml
+          sed -i "s/\"vivechak[=><~].*\"/\"vivechak~=$TAG_VERSION\"/" pypi/vck/pyproject.toml
           sed -i "s/VERSION = ['\"].*['\"]/VERSION = \"$TAG_VERSION\"/" pypi/vivechak/src/vivechak/cli.py
           sed -i "s/__version__ = ['\"].*['\"]/__version__ = \"$TAG_VERSION\"/" pypi/vivechak/src/vivechak/__init__.py
           sed -i "s/__version__ = ['\"].*['\"]/__version__ = \"$TAG_VERSION\"/" pypi/vck/src/vck/__init__.py
