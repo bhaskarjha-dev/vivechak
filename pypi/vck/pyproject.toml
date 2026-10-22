@@ -11,7 +11,7 @@ requires-python = ">=3.8"
 license = {text = "MIT"}
 authors = [{name = "Bhaskar Jha", email = "me@bhaskarjha.dev"}]
 dependencies = [
-    "vivechak>=0.1.0,<0.2.0",
+    "vivechak~=0.1.0",
 ]
 keywords = ["vck", "vivechak", "mcp", "model-context-protocol", "ai-agent", "architecture", "research"]
 classifiers = [

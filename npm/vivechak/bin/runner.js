@@ -190,9 +190,9 @@ async function main() {
     process.on('SIGTERM', () => forwardSignal('SIGTERM'));
 
     child.on('exit', (code, signal) => {
-      if (signal) {
-        process.kill(process.pid, signal);
-      }
+      if (signal === 'SIGINT') process.exit(130);
+      if (signal === 'SIGTERM') process.exit(143);
+      if (signal) process.exit(1);
       process.exit(code ?? 0);
     });
   } catch (err) {

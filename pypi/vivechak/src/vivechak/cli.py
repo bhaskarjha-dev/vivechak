@@ -145,6 +145,8 @@ def main():
         else:
             code = subprocess.call(args)
             sys.exit(code)
+    except KeyboardInterrupt:
+        sys.exit(130)
     except Exception as e:
         sys.stderr.write(f"Error: {e}\n")
         sys.exit(1)
