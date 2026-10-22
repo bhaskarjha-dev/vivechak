@@ -317,7 +317,7 @@ Vivechak enforces the **GRADE-aligned evidence taxonomy** (Principle P3). Every 
 │ Grade B │ Moderate Certainty          │ Reproducible benchmark, production post-mortem, CVE.    │
 │ Grade C │ Low Certainty               │ Community consensus, tech blog, secondary source.       │
 │ Grade D │ Model Recall (Ceiling)      │ Unverified LLM training memory (strictly capped at D).  │
-│ Grade E │ Disproven / Contradicted    │ Directly contradicted by empirical test or proof.       │
+│ Grade E │ Speculative / Unverified    │ Claims without empirical backing, uncorroborated roadmaps. │
 └─────────┴─────────────────────────────┴─────────────────────────────────────────────────────────┘
 ```
 > **Qualified Provenance Rule:** Grade A claims require canonical URLs, RFC numbers, or source citations. Computing memory (RAM/caches) is never penalized as model recall.

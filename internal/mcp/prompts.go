@@ -147,6 +147,11 @@ func handlePromptCompare(_ context.Context, req *sdkmcp.GetPromptRequest) (*sdkm
 	promptText = strings.Replace(promptText, "CONTEXT: [what's being built, compared, or decided; workload, requirements, team, constraints, stage]", "CONTEXT: "+contextStr, 1)
 	promptText = strings.Replace(promptText, "DATE: [today]", "DATE: "+today, 1)
 
+	// Clarify execution directive: replace the meta-generator instruction with direct research execution
+	metaInstruction := "From the context block, output a SCOPE CHECK line, then ONE research prompt in a `prompt` code fence: fill {slots} ({a | b} = pick one; {filename} = {ID}-cmp-{slug}.md), keep the rest verbatim. No plan, ADR, personas, search queries or search-count minimums."
+	directInstruction := "Execute this evidence-calibrated research brief with live web search to compare the options below and produce the Weighted Evaluation Protocol (WEP) matrix. Do not output a prompt template; execute the comparison research directly."
+	promptText = strings.Replace(promptText, metaInstruction, directInstruction, 1)
+
 	// Append anti-spill persistence directive
 	promptText += "\n\n---\n**CRITICAL PERSISTENCE DIRECTIVE FOR AI AGENT:**\n" +
 		"Execute web research to evaluate these options with inline evidence grades (A–E) and produce the Weighted Evaluation Protocol (WEP) matrix.\n" +

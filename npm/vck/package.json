@@ -23,7 +23,7 @@
   ],
   "author": "Bhaskar Jha <me@bhaskarjha.dev>",
   "dependencies": {
-    "vivechak": "0.1.0"
+    "vivechak": "^0.1.0"
   },
   "license": "MIT",
   "engines": {

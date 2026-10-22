@@ -32,7 +32,7 @@ The agent calls `vivechak_prepare_generator` with `scope="comparison"`:
   "data": {
     "scope": "comparison",
     "prompt": "# GENERATE: Bounded Options Comparison\n\n## OPTIONS\n- Pino\n- Winston\n\n## CRITERIA\n- Throughput & Latency overhead\n- Structured JSON streaming performance\n- Ecosystem & transport plugin reliability\n...",
-    "template_file": "COMPARISON-SESSION.template.md"
+    "generator_file": "GENERATOR-COMPARISON.md"
   },
   "next_step": "Execute the comparison research prompt using frontier LLM capabilities with web search, then call vivechak_save_plan with the generated Weighted Evaluation Protocol (WEP) matrix."
 }

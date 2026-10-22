@@ -45,7 +45,7 @@ jobs:
             diff "$f" "internal/embed/templates/$base"
           done
           # Verify embedded skills match root-level skills
-          diff skills/vivechak/SKILL.md internal/embed/skills/vivechak/SKILL.md
+          diff skills/vivechak/SKILL.md internal/embed/skills/SKILL.md
           # Verify embedded rules match root-level rules
           for f in templates/rules/*; do
             base=$(basename "$f")
