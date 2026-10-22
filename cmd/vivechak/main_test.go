@@ -329,3 +329,121 @@ func TestRunCLI_Gate(t *testing.T) {
 	}
 }
 
+func TestVersionParityAcrossEcosystem(t *testing.T) {
+	root := filepath.Join("..", "..")
+	if _, err := os.Stat(filepath.Join(root, "go.mod")); os.IsNotExist(err) {
+		t.Skip("skipping version parity test in non-source environment")
+		return
+	}
+
+	expected := version
+
+	// 1. npm/vck/package.json
+	vckPkgPath := filepath.Join(root, "npm", "vck", "package.json")
+	if data, err := os.ReadFile(vckPkgPath); err == nil {
+		var pkg struct {
+			Version string `json:"version"`
+		}
+		if err := json.Unmarshal(data, &pkg); err != nil {
+			t.Errorf("parsing %s: %v", vckPkgPath, err)
+		} else if pkg.Version != expected {
+			t.Errorf("%s version %q != %q", vckPkgPath, pkg.Version, expected)
+		}
+	} else {
+		t.Errorf("reading %s: %v", vckPkgPath, err)
+	}
+
+	// 2. npm/vivechak/package.json
+	vivPkgPath := filepath.Join(root, "npm", "vivechak", "package.json")
+	if data, err := os.ReadFile(vivPkgPath); err == nil {
+		var pkg struct {
+			Version string `json:"version"`
+		}
+		if err := json.Unmarshal(data, &pkg); err != nil {
+			t.Errorf("parsing %s: %v", vivPkgPath, err)
+		} else if pkg.Version != expected {
+			t.Errorf("%s version %q != %q", vivPkgPath, pkg.Version, expected)
+		}
+	} else {
+		t.Errorf("reading %s: %v", vivPkgPath, err)
+	}
+
+	// 3. npm/vivechak/bin/runner.js
+	runnerPath := filepath.Join(root, "npm", "vivechak", "bin", "runner.js")
+	if data, err := os.ReadFile(runnerPath); err == nil {
+		needle := "const VERSION = '" + expected + "';"
+		if !strings.Contains(string(data), needle) {
+			t.Errorf("%s does not contain %q", runnerPath, needle)
+		}
+	} else {
+		t.Errorf("reading %s: %v", runnerPath, err)
+	}
+
+	// 4. pypi/vck/pyproject.toml
+	pypiVckPath := filepath.Join(root, "pypi", "vck", "pyproject.toml")
+	if data, err := os.ReadFile(pypiVckPath); err == nil {
+		needle := `version = "` + expected + `"`
+		if !strings.Contains(string(data), needle) {
+			t.Errorf("%s does not contain %q", pypiVckPath, needle)
+		}
+	} else {
+		t.Errorf("reading %s: %v", pypiVckPath, err)
+	}
+
+	// 5. pypi/vivechak/pyproject.toml
+	pypiVivPath := filepath.Join(root, "pypi", "vivechak", "pyproject.toml")
+	if data, err := os.ReadFile(pypiVivPath); err == nil {
+		needle := `version = "` + expected + `"`
+		if !strings.Contains(string(data), needle) {
+			t.Errorf("%s does not contain %q", pypiVivPath, needle)
+		}
+	} else {
+		t.Errorf("reading %s: %v", pypiVivPath, err)
+	}
+
+	// 6. Makefile
+	makefilePath := filepath.Join(root, "Makefile")
+	if data, err := os.ReadFile(makefilePath); err == nil {
+		needle := "VERSION ?= " + expected
+		if !strings.Contains(string(data), needle) {
+			t.Errorf("%s does not contain %q", makefilePath, needle)
+		}
+	} else {
+		t.Errorf("reading %s: %v", makefilePath, err)
+	}
+
+	// 7. pypi/vivechak/src/vivechak/cli.py
+	pyCliPath := filepath.Join(root, "pypi", "vivechak", "src", "vivechak", "cli.py")
+	if data, err := os.ReadFile(pyCliPath); err == nil {
+		needle := `VERSION = "` + expected + `"`
+		if !strings.Contains(string(data), needle) {
+			t.Errorf("%s does not contain %q", pyCliPath, needle)
+		}
+	} else {
+		t.Errorf("reading %s: %v", pyCliPath, err)
+	}
+
+	// 8. pypi/vivechak/src/vivechak/__init__.py
+	pyVivInitPath := filepath.Join(root, "pypi", "vivechak", "src", "vivechak", "__init__.py")
+	if data, err := os.ReadFile(pyVivInitPath); err == nil {
+		needle := `__version__ = "` + expected + `"`
+		if !strings.Contains(string(data), needle) {
+			t.Errorf("%s does not contain %q", pyVivInitPath, needle)
+		}
+	} else {
+		t.Errorf("reading %s: %v", pyVivInitPath, err)
+	}
+
+	// 9. pypi/vck/src/vck/__init__.py
+	pyVckInitPath := filepath.Join(root, "pypi", "vck", "src", "vck", "__init__.py")
+	if data, err := os.ReadFile(pyVckInitPath); err == nil {
+		needle := `__version__ = "` + expected + `"`
+		if !strings.Contains(string(data), needle) {
+			t.Errorf("%s does not contain %q", pyVckInitPath, needle)
+		}
+	} else {
+		t.Errorf("reading %s: %v", pyVckInitPath, err)
+	}
+}
+
+

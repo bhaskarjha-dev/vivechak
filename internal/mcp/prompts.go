@@ -3,6 +3,7 @@ package mcputil
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
@@ -150,7 +151,12 @@ func handlePromptCompare(_ context.Context, req *sdkmcp.GetPromptRequest) (*sdkm
 	// Clarify execution directive: replace the meta-generator instruction with direct research execution
 	metaInstruction := "From the context block, output a SCOPE CHECK line, then ONE research prompt in a `prompt` code fence: fill {slots} ({a | b} = pick one; {filename} = {ID}-cmp-{slug}.md), keep the rest verbatim. No plan, ADR, personas, search queries or search-count minimums."
 	directInstruction := "Execute this evidence-calibrated research brief with live web search to compare the options below and produce the Weighted Evaluation Protocol (WEP) matrix. Do not output a prompt template; execute the comparison research directly."
-	promptText = strings.Replace(promptText, metaInstruction, directInstruction, 1)
+	if strings.Contains(promptText, metaInstruction) {
+		promptText = strings.Replace(promptText, metaInstruction, directInstruction, 1)
+	} else {
+		reMeta := regexp.MustCompile(`(?m)^From the context block, output a SCOPE CHECK line.*$`)
+		promptText = reMeta.ReplaceAllString(promptText, directInstruction)
+	}
 
 	// Append anti-spill persistence directive
 	promptText += "\n\n---\n**CRITICAL PERSISTENCE DIRECTIVE FOR AI AGENT:**\n" +

@@ -85,6 +85,12 @@ func TestPromptGet_Compare(t *testing.T) {
 	if !strings.Contains(text, "vivechak_save_plan") {
 		t.Errorf("missing save_plan directive in prompt text")
 	}
+	if strings.Contains(text, "From the context block, output a SCOPE CHECK line") {
+		t.Errorf("meta-generator instruction was not stripped from prompt output: %s", text)
+	}
+	if !strings.Contains(text, "Execute this evidence-calibrated research brief with live web search to compare the options below and produce the Weighted Evaluation Protocol (WEP) matrix.") {
+		t.Errorf("direct research execution directive was not injected into prompt text")
+	}
 
 	// 2. With empty / omitted optional arguments
 	resDefault, err := cs.GetPrompt(ctx, &mcp.GetPromptParams{
@@ -259,3 +265,67 @@ func TestPromptGet_EmptyArgumentsFallback(t *testing.T) {
 		t.Errorf("expected default track 'all', got: %s", tcGate.Text)
 	}
 }
+
+func TestPromptGet_SpecialCharactersAndMultiline(t *testing.T) {
+	cs := testServer(t)
+	ctx := context.Background()
+
+	// 1. Compare with special chars, quotes, ampersands, and unicode
+	resComp, err := cs.GetPrompt(ctx, &mcp.GetPromptParams{
+		Name: "vivechak_compare",
+		Arguments: map[string]string{
+			"options":  "Option \"A\" (v1.2) vs Option 'B' & Option C (देवनागरी)",
+			"criteria": "Throughput > 10k req/s & latency < 5ms",
+			"context":  "Multi-line\ncontext\nwith `code blocks` and $symbols",
+		},
+	})
+	if err != nil {
+		t.Fatalf("GetPrompt compare with special chars: %v", err)
+	}
+	textComp := resComp.Messages[0].Content.(*mcp.TextContent).Text
+	if !strings.Contains(textComp, "Option \"A\" (v1.2) vs Option 'B' & Option C (देवनागरी)") {
+		t.Errorf("special characters not preserved in compare options")
+	}
+	if !strings.Contains(textComp, "Throughput > 10k req/s & latency < 5ms") {
+		t.Errorf("criteria with symbols not preserved")
+	}
+
+	// 2. Decision with markdown fences and multiline dilemma
+	resDec, err := cs.GetPrompt(ctx, &mcp.GetPromptParams{
+		Name: "vivechak_decision",
+		Arguments: map[string]string{
+			"dilemma": "Migrate `auth_service` from OAuth2 to Passkeys/WebAuthn",
+			"context": "Stack: Go 1.25+\nScale: 10M users\nBudget: $0/month additional SaaS cost",
+		},
+	})
+	if err != nil {
+		t.Fatalf("GetPrompt decision with multiline: %v", err)
+	}
+	textDec := resDec.Messages[0].Content.(*mcp.TextContent).Text
+	if !strings.Contains(textDec, "Migrate `auth_service` from OAuth2 to Passkeys/WebAuthn") {
+		t.Errorf("decision dilemma with code blocks not preserved")
+	}
+	if !strings.Contains(textDec, "Budget: $0/month") {
+		t.Errorf("multiline context not preserved")
+	}
+
+	// 3. Project with nested markdown fences
+	resProj, err := cs.GetPrompt(ctx, &mcp.GetPromptParams{
+		Name: "vivechak_project",
+		Arguments: map[string]string{
+			"vision":  "Build distributed KV store with raft consensus\n```go\ntype Node struct{}\n```",
+			"context": "Security: mTLS on port 9090",
+		},
+	})
+	if err != nil {
+		t.Fatalf("GetPrompt project with nested code blocks: %v", err)
+	}
+	textProj := resProj.Messages[0].Content.(*mcp.TextContent).Text
+	if !strings.Contains(textProj, "Build distributed KV store with raft consensus") {
+		t.Errorf("project vision not preserved")
+	}
+	if !strings.Contains(textProj, "mTLS on port 9090") {
+		t.Errorf("project context not preserved")
+	}
+}
+

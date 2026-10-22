@@ -141,3 +141,30 @@ func TestResourceRead_NotFound(t *testing.T) {
 		}
 	}
 }
+
+func TestResourceRead_PathTraversalAndMalformed(t *testing.T) {
+	cs := testServer(t)
+	ctx := context.Background()
+
+	traversalURIs := []string{
+		"vivechak://templates/../../etc/passwd",
+		"vivechak://templates/../DECISIONS.template.md",
+		"vivechak://templates/%2e%2e%2f",
+		"vivechak://templates/decisions/extra",
+		"vivechak://TEMPLATES/decisions",
+		"vivechak://templates/decisions?param=1",
+		"vivechak://templates/decisions#section",
+		"vivechak://invalid_scheme",
+		"file:///etc/passwd",
+	}
+
+	for _, uri := range traversalURIs {
+		_, err := cs.ReadResource(ctx, &mcp.ReadResourceParams{
+			URI: uri,
+		})
+		if err == nil {
+			t.Errorf("expected error reading traversal/malformed URI %q, got nil", uri)
+		}
+	}
+}
+
