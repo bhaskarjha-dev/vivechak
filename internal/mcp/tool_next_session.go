@@ -492,11 +492,6 @@ func buildSessionResponse(tool string, session core.Session, prompt string, comp
 	return env.ToResult()
 }
 
-// scanCompletedSessions forwards to core.ScanCompletedSessions.
-func scanCompletedSessions(ws *store.Workspace, knownIDs ...string) (map[string]bool, error) {
-	return core.ScanCompletedSessions(ws, knownIDs...)
-}
-
 // sessionIDList returns a comma-separated list of session IDs in the DAG.
 func sessionIDList(dag *core.DAG) string {
 	ids := make([]string, len(dag.Sessions))

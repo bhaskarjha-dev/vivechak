@@ -39,6 +39,14 @@ npx skills add bhaskarjha-dev/vivechak
 ```
 This automatically installs the calibrated agent playbook (`skills/vivechak/SKILL.md`) into your workspace or global skill catalog.
 
+### Smithery CLI (`@smithery/cli`)
+If you use [Smithery.ai](https://smithery.ai) for automatic MCP client discovery and installation:
+```sh
+npx -y @smithery/cli install @bhaskarjha-dev/vivechak --client cursor
+# Or for Claude Desktop:
+npx -y @smithery/cli install @bhaskarjha-dev/vivechak --client claude
+```
+
 ### Native MCP Prompts & Slash Commands
 Once Vivechak is connected, typing `/` in compatible chat clients (Claude Desktop, Cursor, Continue, Zed) reveals 4 native prompt templates:
 - `/vivechak_compare`: Interactive brief for 2–5 option comparisons (~5 min, WEP matrix).

@@ -225,7 +225,3 @@ func handleRunGate(_ context.Context, _ *sdkmcp.CallToolRequest, in RunGateInput
 	return env.ToResult()
 }
 
-// collectGateDecisions forwards to core.CollectGateDecisions for mcp tools.
-func collectGateDecisions(ws *store.Workspace) []core.GateDecisionItem {
-	return core.CollectGateDecisions(ws)
-}

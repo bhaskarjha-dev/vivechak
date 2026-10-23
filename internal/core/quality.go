@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -27,11 +28,35 @@ func buildStaleDatePattern(cutoffYear int) *regexp.Regexp {
 	return regexp.MustCompile(`\b(?:` + strings.Join(years, "|") + `)\b`)
 }
 
-// staleDatePattern matches year references that may be outdated (more than 2 years old).
-var staleDatePattern = func() *regexp.Regexp {
-	cutoff := time.Now().Year() - 2
-	return buildStaleDatePattern(cutoff)
-}()
+var (
+	staleDateMu     sync.RWMutex
+	staleDateYear   int
+	cachedStaleDate *regexp.Regexp
+
+	// staleDatePattern provides backwards compatibility for callers reading the package-level regex directly.
+	staleDatePattern = getStaleDatePattern()
+)
+
+// getStaleDatePattern returns the compiled regex for year references >2 years old,
+// dynamically refreshing if a long-running process crosses into a new calendar year.
+func getStaleDatePattern() *regexp.Regexp {
+	currentYear := time.Now().Year()
+	staleDateMu.RLock()
+	if staleDateYear == currentYear && cachedStaleDate != nil {
+		p := cachedStaleDate
+		staleDateMu.RUnlock()
+		return p
+	}
+	staleDateMu.RUnlock()
+
+	staleDateMu.Lock()
+	defer staleDateMu.Unlock()
+	if staleDateYear != currentYear || cachedStaleDate == nil {
+		staleDateYear = currentYear
+		cachedStaleDate = buildStaleDatePattern(currentYear - 2)
+	}
+	return cachedStaleDate
+}
 
 // ObserveSessionQuality performs advisory content analysis and returns observations.
 // These are informational suggestions, not validation errors. They help the author
@@ -227,7 +252,7 @@ func ObserveSessionQuality(content []byte) []QualityObservation {
 	}
 
 	// Check for stale date references (refined to avoid false positives on ports, latencies, QPS)
-	staleIndices := staleDatePattern.FindAllStringIndex(bodyStr, -1)
+	staleIndices := getStaleDatePattern().FindAllStringIndex(bodyStr, -1)
 	if len(staleIndices) > 0 {
 		seen := make(map[string]bool)
 		var unique []string

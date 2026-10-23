@@ -62,6 +62,9 @@ vck setup                                    # Auto-detects editor in current wo
 
 # Or install universal agent skill directly:
 npx skills add bhaskarjha-dev/vivechak
+
+# Or install via Smithery CLI:
+npx -y @smithery/cli install @bhaskarjha-dev/vivechak --client cursor
 ```
 
 ### Step 2: Prompt Your Agent Naturally (or use Slash Commands)
