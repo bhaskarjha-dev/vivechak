@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 	"unicode/utf8"
 )
 
@@ -1035,6 +1036,67 @@ Pino is chosen for extreme performance.`
 		t.Fatalf("extractRecommendation truncated on code comment, got:\n%s", got)
 	}
 }
+
+func TestReadSessionFileFS_ConfinementAndSizeLimit(t *testing.T) {
+	tmpDir := t.TempDir()
+	ws := DirFS(tmpDir)
+
+	// 1. Normal session file read
+	normalContent := "---\nsession_id: S-01\ntitle: Normal Session\n---\n## Key Findings\n- All good.\n"
+	normalPath := filepath.Join(tmpDir, "S-01.md")
+	if err := os.WriteFile(normalPath, []byte(normalContent), 0o644); err != nil {
+		t.Fatalf("writing normal session: %v", err)
+	}
+
+	content, name, err := ReadSessionFileFS(ws, "", "S-01")
+	if err != nil {
+		t.Fatalf("ReadSessionFileFS failed on normal file: %v", err)
+	}
+	if name != "S-01.md" || !strings.Contains(content, "All good") {
+		t.Errorf("ReadSessionFileFS returned unexpected content: %s, name: %s", content, name)
+	}
+
+	// 2. Oversized file exceeds MaxSessionReadBytes (simulate by creating dummy mock)
+	mockWS := &mockOversizedFS{
+		data: []byte("too large"),
+		size: MaxSessionReadBytes + 1024,
+	}
+	_, _, err = ReadSessionFileFS(mockWS, "", "S-BIG")
+	if err == nil {
+		t.Fatalf("expected error on file exceeding MaxSessionReadBytes, got nil")
+	}
+	if !strings.Contains(err.Error(), "exceeds maximum size") {
+		t.Errorf("expected 'exceeds maximum size' error, got: %v", err)
+	}
+}
+
+type mockOversizedFS struct {
+	data []byte
+	size int64
+}
+
+func (m *mockOversizedFS) ReadFile(relPath string) ([]byte, error) {
+	return m.data, nil
+}
+
+func (m *mockOversizedFS) ListDir(relPath string) ([]os.DirEntry, error) {
+	return nil, nil
+}
+
+func (m *mockOversizedFS) Stat(relPath string) (os.FileInfo, error) {
+	return &mockFileInfo{size: m.size}, nil
+}
+
+type mockFileInfo struct {
+	size int64
+}
+
+func (m *mockFileInfo) Name() string       { return "S-BIG.md" }
+func (m *mockFileInfo) Size() int64        { return m.size }
+func (m *mockFileInfo) Mode() os.FileMode  { return 0o644 }
+func (m *mockFileInfo) ModTime() time.Time { return time.Now() }
+func (m *mockFileInfo) IsDir() bool        { return false }
+func (m *mockFileInfo) Sys() any           { return nil }
 
 
 

@@ -18,6 +18,39 @@ type WorkspaceFS interface {
 	Stat(relPath string) (os.FileInfo, error)
 }
 
+type dirFS struct {
+	dir string
+}
+
+func (d dirFS) ReadFile(relPath string) ([]byte, error) {
+	p := d.dir
+	if relPath != "" && relPath != "." {
+		p = filepath.Join(d.dir, relPath)
+	}
+	return os.ReadFile(p)
+}
+
+func (d dirFS) ListDir(relPath string) ([]os.DirEntry, error) {
+	p := d.dir
+	if relPath != "" && relPath != "." {
+		p = filepath.Join(d.dir, relPath)
+	}
+	return os.ReadDir(p)
+}
+
+func (d dirFS) Stat(relPath string) (os.FileInfo, error) {
+	p := d.dir
+	if relPath != "" && relPath != "." {
+		p = filepath.Join(d.dir, relPath)
+	}
+	return os.Stat(p)
+}
+
+// DirFS returns a simple WorkspaceFS adapter backed by the given directory.
+func DirFS(dir string) WorkspaceFS {
+	return dirFS{dir: dir}
+}
+
 // WorkspaceLayout describes the directory structure of a Vivechak research workspace.
 const (
 	// ResearchDir is the root research directory within a project.

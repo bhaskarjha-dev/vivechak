@@ -171,14 +171,18 @@ func handleSaveSession(ctx context.Context, _ *sdkmcp.CallToolRequest, in SaveSe
 	if isSynthesis {
 		// Also copy to project root for human consumption under advisory lock
 		rootFAD := "FOUNDING-ARCHITECTURE.md"
-		if unlockRoot, lockErr := store.LockFile(ctx, filepath.Join(root, rootFAD), 5*time.Second); lockErr == nil {
-			defer func() { _ = unlockRoot() }()
-		}
-		if cpErr := store.WriteFileAtomic(ws.Root(), rootFAD, contentToSave, 0o644); cpErr != nil {
+		unlockRoot, lockErr := store.LockFile(ctx, filepath.Join(root, rootFAD), 5*time.Second)
+		if lockErr != nil {
 			warnings = append(warnings, fmt.Sprintf(
-				"W-FAD-COPY: could not copy FAD to project root: %v", cpErr))
+				"W-LOCK-TIMEOUT: could not acquire lock for root FAD copy: %v", lockErr))
 		} else {
-			dataMap["root_copy"] = rootFAD
+			defer func() { _ = unlockRoot() }()
+			if cpErr := store.WriteFileAtomic(ws.Root(), rootFAD, contentToSave, 0o644); cpErr != nil {
+				warnings = append(warnings, fmt.Sprintf(
+					"W-FAD-COPY: could not copy FAD to project root: %v", cpErr))
+			} else {
+				dataMap["root_copy"] = rootFAD
+			}
 		}
 	}
 

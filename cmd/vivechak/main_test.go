@@ -498,5 +498,43 @@ func TestReleaseWorkflowSedPatterns(t *testing.T) {
 	}
 }
 
+func TestRepositoryReleaseReadiness(t *testing.T) {
+	root := filepath.Join("..", "..")
+
+	// 1. Makefile must use LF line endings and be configured with eol=lf in .gitattributes
+	makefilePath := filepath.Join(root, "Makefile")
+	if data, err := os.ReadFile(makefilePath); err == nil {
+		if strings.Contains(string(data), "\r") {
+			t.Errorf("Makefile contains CRLF line endings (\\r), which breaks GNU Make on Linux/macOS")
+		}
+	} else {
+		t.Errorf("reading Makefile: %v", err)
+	}
+
+	gitAttrPath := filepath.Join(root, ".gitattributes")
+	if data, err := os.ReadFile(gitAttrPath); err == nil {
+		if !strings.Contains(string(data), "Makefile text eol=lf") {
+			t.Errorf(".gitattributes missing 'Makefile text eol=lf' rule")
+		}
+	} else {
+		t.Errorf("reading .gitattributes: %v", err)
+	}
+
+	// 2. README.md must use the dynamic GitHub Actions badge, not a static badge
+	readmePath := filepath.Join(root, "README.md")
+	if data, err := os.ReadFile(readmePath); err == nil {
+		readme := string(data)
+		if strings.Contains(readme, "tests-100%25%20passing-brightgreen.svg") {
+			t.Errorf("README.md contains hardcoded static test badge")
+		}
+		expectedBadge := "actions/workflows/ci.yml/badge.svg"
+		if !strings.Contains(readme, expectedBadge) {
+			t.Errorf("README.md missing dynamic CI status badge %q", expectedBadge)
+		}
+	} else {
+		t.Errorf("reading README.md: %v", err)
+	}
+}
+
 
 

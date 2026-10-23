@@ -43,10 +43,10 @@ type InjectedSession struct {
 	Warning string `json:"warning,omitempty"`
 }
 
-// InjectContext takes a session and fills its prompt with findings from
-// completed upstream sessions. This is the core value proposition:
-// eliminating manual copy-paste between research sessions.
-func InjectContext(session Session, sessionsDir string, completedSessions map[string]bool) (*InjectedSession, error) {
+// InjectContextFS takes a session and fills its prompt with findings from
+// completed upstream sessions via WorkspaceFS confinement. This eliminates manual
+// copy-paste between research sessions.
+func InjectContextFS(session Session, ws WorkspaceFS, sessionsRelDir string, completedSessions map[string]bool) (*InjectedSession, error) {
 	prompt := session.Prompt
 	if prompt == "" {
 		return nil, fmt.Errorf("session %s has no prompt", session.ID)
@@ -61,7 +61,7 @@ func InjectContext(session Session, sessionsDir string, completedSessions map[st
 
 	if isSynthesis {
 		// For synthesis: inject ALL completed session findings
-		findings, sessions, totalBytes, err := gatherAllFindings(sessionsDir, completedSessions)
+		findings, sessions, totalBytes, err := gatherAllFindingsFS(ws, sessionsRelDir, completedSessions)
 		if err != nil {
 			return nil, fmt.Errorf("gathering all findings: %w", err)
 		}
@@ -78,7 +78,7 @@ func InjectContext(session Session, sessionsDir string, completedSessions map[st
 		result.InjectedBytes = totalBytes
 	} else if len(session.Dependencies) > 0 {
 		// For regular sessions: inject only direct dependency findings
-		findings, sessions, totalBytes, err := gatherDependencyFindings(sessionsDir, session.Dependencies)
+		findings, sessions, totalBytes, err := gatherDependencyFindingsFS(ws, sessionsRelDir, session.Dependencies)
 		if err != nil {
 			return nil, fmt.Errorf("gathering dependency findings: %w", err)
 		}
@@ -92,6 +92,13 @@ func InjectContext(session Session, sessionsDir string, completedSessions map[st
 		result.Warning = fmt.Sprintf("W-INJECTION-SIZE: Injected upstream context is %d KB (exceeds %d KB threshold). Consider consolidating upstream sessions.", result.InjectedBytes/1024, MaxInjectedBytesWarning/1024)
 	}
 	return result, nil
+}
+
+// InjectContext takes a session and fills its prompt with findings from
+// completed upstream sessions. Preserved for backwards compatibility with
+// callers providing filesystem directory paths.
+func InjectContext(session Session, sessionsDir string, completedSessions map[string]bool) (*InjectedSession, error) {
+	return InjectContextFS(session, DirFS(sessionsDir), "", completedSessions)
 }
 
 const synthesisContextBudget = 20 * 1024 // 20KB ~5000 tokens
@@ -248,9 +255,15 @@ func budgetFindings(findings []string, sessionIDs []string, budget int) []string
 }
 
 // gatherAllFindings reads all completed session files and assembles their
+// findings into a single context block. Preserved for backwards compatibility.
+func gatherAllFindings(sessionsDir string, completedSessions map[string]bool) (string, []string, int, error) {
+	return gatherAllFindingsFS(DirFS(sessionsDir), "", completedSessions)
+}
+
+// gatherAllFindingsFS reads all completed session files via WorkspaceFS confinement and assembles their
 // findings into a single context block. For synthesis, also extracts ## Delta
 // sections and aggregates them into a belief evolution block.
-func gatherAllFindings(sessionsDir string, completedSessions map[string]bool) (string, []string, int, error) {
+func gatherAllFindingsFS(ws WorkspaceFS, sessionsRelDir string, completedSessions map[string]bool) (string, []string, int, error) {
 	var findings []string
 	var deltaEntries []string
 	var sessionIDs []string
@@ -265,7 +278,7 @@ func gatherAllFindings(sessionsDir string, completedSessions map[string]bool) (s
 	sort.Strings(sortedIDs)
 
 	for _, id := range sortedIDs {
-		content, fileName, err := readSessionFile(sessionsDir, id)
+		content, fileName, err := readSessionFileFS(ws, sessionsRelDir, id)
 		if err != nil {
 			return "", nil, 0, err
 		}
@@ -372,15 +385,20 @@ func extractDeltaSection(body string) string {
 	return strings.TrimSpace(deltaContent.String())
 }
 
-// gatherDependencyFindings reads only the direct dependency session files.
+// gatherDependencyFindings reads only the direct dependency session files. Preserved for backwards compatibility.
 func gatherDependencyFindings(sessionsDir string, dependencies []string) (string, []string, int, error) {
+	return gatherDependencyFindingsFS(DirFS(sessionsDir), "", dependencies)
+}
+
+// gatherDependencyFindingsFS reads only the direct dependency session files via WorkspaceFS confinement.
+func gatherDependencyFindingsFS(ws WorkspaceFS, sessionsRelDir string, dependencies []string) (string, []string, int, error) {
 	var findings []string
 	var sessionIDs []string
 	totalBytes := 0
 	seenFiles := make(map[string]bool)
 
 	for _, depID := range dependencies {
-		content, fileName, err := readSessionFile(sessionsDir, depID)
+		content, fileName, err := readSessionFileFS(ws, sessionsRelDir, depID)
 		if err != nil {
 			return "", nil, 0, err
 		}
@@ -400,16 +418,30 @@ func gatherDependencyFindings(sessionsDir string, dependencies []string) (string
 	return strings.Join(findings, "\n\n---\n\n"), sessionIDs, totalBytes, nil
 }
 
-// ReadSessionFilePublic is the exported wrapper around readSessionFile.
-// Used by the MCP layer for auto-drafting decisions from session content.
+// MaxSessionReadBytes defines the maximum allowed size (10MB) when reading session files from disk.
+const MaxSessionReadBytes = 10 * 1024 * 1024
+
+// ReadSessionFileFS reads a session file from the sessions directory through WorkspaceFS confinement.
+// Enforces MaxSessionReadBytes guard and os.Root confinement.
+func ReadSessionFileFS(ws WorkspaceFS, sessionsRelDir string, sessionID string) (string, string, error) {
+	return readSessionFileFS(ws, sessionsRelDir, sessionID)
+}
+
+// ReadSessionFilePublic is the exported wrapper around readSessionFile for backward compatibility.
+// Used by callers providing direct filesystem directory paths.
 func ReadSessionFilePublic(sessionsDir string, sessionID string) (string, string, error) {
-	return readSessionFile(sessionsDir, sessionID)
+	return readSessionFileFS(DirFS(sessionsDir), "", sessionID)
 }
 
 // readSessionFile reads a session file from the sessions directory.
+func readSessionFile(sessionsDir string, sessionID string) (string, string, error) {
+	return readSessionFileFS(DirFS(sessionsDir), "", sessionID)
+}
+
+// readSessionFileFS reads a session file from the sessions directory via WorkspaceFS.
 // Tries exact filename patterns first, then prefix-based matching.
 // Returns empty content with nil error if file not found (normal condition).
-func readSessionFile(sessionsDir string, sessionID string) (string, string, error) {
+func readSessionFileFS(ws WorkspaceFS, sessionsRelDir string, sessionID string) (string, string, error) {
 	patterns := []string{
 		sessionID + ".md",
 		strings.ToLower(sessionID) + ".md",
@@ -417,20 +449,37 @@ func readSessionFile(sessionsDir string, sessionID string) (string, string, erro
 	}
 
 	for _, pattern := range patterns {
-		path := filepath.Join(sessionsDir, pattern)
-		data, err := os.ReadFile(path)
-		if err == nil {
-			return string(data), pattern, nil
+		var path string
+		if sessionsRelDir == "" || sessionsRelDir == "." {
+			path = pattern
+		} else {
+			path = filepath.Join(sessionsRelDir, pattern)
 		}
-		if !os.IsNotExist(err) {
+
+		fi, statErr := ws.Stat(path)
+		if statErr == nil {
+			if fi.Size() > MaxSessionReadBytes {
+				return "", "", fmt.Errorf("session file %s exceeds maximum size of %d bytes (got %d)", path, MaxSessionReadBytes, fi.Size())
+			}
+			data, err := ws.ReadFile(path)
+			if err == nil {
+				return string(data), pattern, nil
+			}
 			return "", "", fmt.Errorf("reading session file %s: %w", path, err)
+		}
+		if !os.IsNotExist(statErr) {
+			return "", "", fmt.Errorf("stating session file %s: %w", path, statErr)
 		}
 	}
 
 	// Try to find a file whose name starts with the session ID (prefix match only).
 	// This handles cases like "T1-01-database-selection.md" for session "T1-01".
 	// We do NOT use Contains — that would match "T1-02.md" for session "T1".
-	entries, err := os.ReadDir(sessionsDir)
+	listDir := sessionsRelDir
+	if listDir == "" {
+		listDir = "."
+	}
+	entries, err := ws.ListDir(listDir)
 	if err != nil {
 		return "", "", fmt.Errorf("reading sessions directory: %w", err)
 	}
@@ -455,8 +504,22 @@ func readSessionFile(sessionsDir string, sessionID string) (string, string, erro
 		}
 
 		if matchesPrefix {
-			path := filepath.Join(sessionsDir, e.Name())
-			data, err := os.ReadFile(path)
+			var path string
+			if sessionsRelDir == "" || sessionsRelDir == "." {
+				path = e.Name()
+			} else {
+				path = filepath.Join(sessionsRelDir, e.Name())
+			}
+
+			fi, statErr := ws.Stat(path)
+			if statErr != nil {
+				return "", "", fmt.Errorf("stating session file %s: %w", path, statErr)
+			}
+			if fi.Size() > MaxSessionReadBytes {
+				return "", "", fmt.Errorf("session file %s exceeds maximum size of %d bytes (got %d)", path, MaxSessionReadBytes, fi.Size())
+			}
+
+			data, err := ws.ReadFile(path)
 			if err != nil {
 				return "", "", fmt.Errorf("reading session file %s: %w", path, err)
 			}
@@ -478,6 +541,7 @@ func readSessionFile(sessionsDir string, sessionID string) (string, string, erro
 	// Not an error — session file simply doesn't exist yet
 	return "", "", nil
 }
+
 
 // extractFindings creates a compact context excerpt from a session body.
 // Focuses on headings, recommendations, and evidence-graded claims.

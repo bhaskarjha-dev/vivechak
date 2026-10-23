@@ -208,14 +208,18 @@ func handleAmendSession(ctx context.Context, _ *sdkmcp.CallToolRequest, in Amend
 
 	if core.IsSynthesisSession(in.SessionID) {
 		rootFAD := "FOUNDING-ARCHITECTURE.md"
-		if unlockRoot, lockErr := store.LockFile(ctx, filepath.Join(root, rootFAD), 5*time.Second); lockErr == nil {
-			defer func() { _ = unlockRoot() }()
-		}
-		if cpErr := store.WriteFileAtomic(ws.Root(), rootFAD, newContent, 0o644); cpErr != nil {
+		unlockRoot, lockErr := store.LockFile(ctx, filepath.Join(root, rootFAD), 5*time.Second)
+		if lockErr != nil {
 			warnings = append(warnings, fmt.Sprintf(
-				"W-FAD-COPY: could not copy amended FAD to project root: %v", cpErr))
+				"W-LOCK-TIMEOUT: could not acquire lock for root FAD copy: %v", lockErr))
 		} else {
-			dataMap["root_copy"] = rootFAD
+			defer func() { _ = unlockRoot() }()
+			if cpErr := store.WriteFileAtomic(ws.Root(), rootFAD, newContent, 0o644); cpErr != nil {
+				warnings = append(warnings, fmt.Sprintf(
+					"W-FAD-COPY: could not copy amended FAD to project root: %v", cpErr))
+			} else {
+				dataMap["root_copy"] = rootFAD
+			}
 		}
 	}
 

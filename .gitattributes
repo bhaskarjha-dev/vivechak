@@ -16,6 +16,7 @@
 *.sh text eol=lf
 *.nix text eol=lf
 flake.lock text eol=lf
+Makefile text eol=lf
 
 # Force CRLF for Windows-specific scripts
 *.ps1 text eol=crlf

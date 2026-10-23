@@ -147,7 +147,6 @@ func handleNextSession(_ context.Context, _ *sdkmcp.CallToolRequest, in NextSess
 	}
 
 	// Scan completed sessions
-	sessionsDir := filepath.Join(root, core.SessionsDir)
 	var knownIDs []string
 	if dag != nil {
 		for _, s := range dag.Sessions {
@@ -168,7 +167,7 @@ func handleNextSession(_ context.Context, _ *sdkmcp.CallToolRequest, in NextSess
 				fmt.Sprintf("Available sessions: %s", sessionIDList(dag)))
 		}
 
-		injected, err := core.InjectContext(*session, sessionsDir, completedIDs)
+		injected, err := core.InjectContextFS(*session, ws, core.SessionsDir, completedIDs)
 		if err != nil {
 			// Session found but no prompt — return what we have
 			return buildSessionResponse(tool, *session, "", completedIDs, dag, in.Verbose, nil, ws)
@@ -178,7 +177,7 @@ func handleNextSession(_ context.Context, _ *sdkmcp.CallToolRequest, in NextSess
 			injWarnings = append(injWarnings, injected.Warning)
 		}
 		if core.IsSynthesisSession(session.ID) {
-			if adv := checkPreSynthesisAdvisory(dag, completedIDs, sessionsDir); adv != "" {
+			if adv := checkPreSynthesisAdvisory(dag, completedIDs, ws); adv != "" {
 				injWarnings = append(injWarnings, adv)
 			}
 		}
@@ -252,7 +251,7 @@ func handleNextSession(_ context.Context, _ *sdkmcp.CallToolRequest, in NextSess
 
 	// Return the first ready session with context injected
 	nextSession := ready[0]
-	injected, injErr := core.InjectContext(nextSession, sessionsDir, completedIDs)
+	injected, injErr := core.InjectContextFS(nextSession, ws, core.SessionsDir, completedIDs)
 
 	var prompt string
 	var injWarnings []string
@@ -295,7 +294,7 @@ func handleNextSession(_ context.Context, _ *sdkmcp.CallToolRequest, in NextSess
 
 	// Detect pre-synthesis evidentiary defects on One-Way Doors
 	if core.IsSynthesisSession(nextSession.ID) {
-		if adv := checkPreSynthesisAdvisory(dag, completedIDs, sessionsDir); adv != "" {
+		if adv := checkPreSynthesisAdvisory(dag, completedIDs, ws); adv != "" {
 			injWarnings = append(injWarnings, adv)
 		}
 	}
@@ -324,7 +323,7 @@ func formatMissingDep(ws core.WorkspaceFS, dep string) string {
 	return dep
 }
 
-func checkPreSynthesisAdvisory(dag *core.DAG, completedIDs map[string]bool, sessionsDir string) string {
+func checkPreSynthesisAdvisory(dag *core.DAG, completedIDs map[string]bool, ws core.WorkspaceFS) string {
 	if dag == nil {
 		return ""
 	}
@@ -333,7 +332,7 @@ func checkPreSynthesisAdvisory(dag *core.DAG, completedIDs map[string]bool, sess
 
 	for _, s := range dag.Sessions {
 		if strings.EqualFold(s.DoorType, "one-way") && completedIDs[s.ID] {
-			if sData, _, err := core.ReadSessionFilePublic(sessionsDir, s.ID); err == nil && sData != "" {
+			if sData, _, err := core.ReadSessionFileFS(ws, core.SessionsDir, s.ID); err == nil && sData != "" {
 				// Check for recalled verification in recommendation
 				rec := core.ExtractSection(sData, "recommend", "verdict", "decision")
 				if len(rec) >= 20 && recalledCitationRe.MatchString(rec) {

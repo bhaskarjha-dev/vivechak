@@ -83,8 +83,7 @@ func handleRecordDecision(ctx context.Context, _ *sdkmcp.CallToolRequest, in Rec
 		}
 		defer ws.Close()
 
-		sessionsDir := filepath.Join(root, core.SessionsDir)
-		content, _, err := core.ReadSessionFilePublic(sessionsDir, in.AutoDraftFrom)
+		content, _, err := core.ReadSessionFileFS(ws, core.SessionsDir, in.AutoDraftFrom)
 		if err != nil {
 			return ErrorResult(tool, fmt.Errorf("reading session %s: %w", in.AutoDraftFrom, err),
 				"Ensure the session has been saved with vivechak_save_session first.")

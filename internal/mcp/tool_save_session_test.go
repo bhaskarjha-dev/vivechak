@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/bhaskarjha-dev/vivechak/internal/core"
 	"github.com/bhaskarjha-dev/vivechak/internal/store"
@@ -182,6 +183,61 @@ Found major connection limits and serialization anomalies under high concurrent 
 	}
 	if !completed2["T1-01"] {
 		t.Errorf("valid session must be marked completed")
+	}
+}
+
+func TestHandleSaveSession_SynthesisLockTimeoutWarning(t *testing.T) {
+	ctx := t.Context()
+	tmpDir := t.TempDir()
+
+	// Initialize workspace
+	initRes, initEnv, err := handleInit(ctx, nil, InitInput{ProjectRoot: tmpDir, Scope: "project"})
+	if err != nil || initRes.IsError {
+		t.Fatalf("handleInit failed: %v, env: %+v", err, initEnv)
+	}
+
+	ws, err := store.OpenWorkspace(tmpDir)
+	if err != nil {
+		t.Fatalf("OpenWorkspace failed: %v", err)
+	}
+	defer ws.Close()
+
+	// Hold an exclusive lock on FOUNDING-ARCHITECTURE.md.lock
+	rootFADPath := filepath.Join(tmpDir, "FOUNDING-ARCHITECTURE.md")
+	unlockRoot, err := store.LockFile(ctx, rootFADPath, 1*time.Second)
+	if err != nil {
+		t.Fatalf("failed to hold test lock on root FAD: %v", err)
+	}
+	defer func() { _ = unlockRoot() }()
+
+	fadContent := `---
+session_id: SYN-01
+title: Founding Architecture Document
+status: complete
+date: 2026-10-14
+---
+# Founding Architecture Document
+Content here.
+`
+	// Attempt to save synthesis session SYN-01
+	res, env, err := handleSaveSession(ctx, nil, SaveSessionInput{
+		ProjectRoot: tmpDir,
+		SessionID:   "SYN-01",
+		Content:     fadContent,
+	})
+	if err != nil || res.IsError {
+		t.Fatalf("handleSaveSession failed: %v, env: %+v", err, env)
+	}
+
+	hasLockWarning := false
+	for _, w := range env.Warnings {
+		if strings.Contains(w, "W-LOCK-TIMEOUT") {
+			hasLockWarning = true
+			break
+		}
+	}
+	if !hasLockWarning {
+		t.Errorf("expected W-LOCK-TIMEOUT warning when root FAD lock is held, got warnings: %v", env.Warnings)
 	}
 }
 
