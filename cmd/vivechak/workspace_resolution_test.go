@@ -606,7 +606,9 @@ func TestMassive_ContainerEnvironmentVariables_LiveMCP(t *testing.T) {
 		name   string
 	}{
 		{"VIVECHAK_PROJECT_ROOT", "Canonical Vivechak Project Root"},
+		{"VCK_PROJECT_ROOT", "Shorthand VCK Project Root Alias"},
 		{"VIVECHAK_DEFAULT_ROOT", "Default Vivechak Root Fallback"},
+		{"VCK_DEFAULT_ROOT", "Shorthand VCK Default Root Fallback"},
 		{"WORKSPACE", "Standard OpenHands / GitHub Actions WORKSPACE"},
 		{"PROJECT_ROOT", "Container Standard PROJECT_ROOT"},
 	}

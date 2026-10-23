@@ -593,4 +593,104 @@ TODO: add premortem analysis before production release.
 			}
 		}
 	})
+
+	// =========================================================================
+	// 11. LIVE MCP PROMPTS DISCOVERY & WIRE-LEVEL ALIAS NORMALIZATION OVER STDIO
+	// =========================================================================
+	t.Run("11_LiveMCP_PromptsDiscovery_And_Aliases", func(t *testing.T) {
+		wsDir := t.TempDir()
+		cs, cleanup := startLiveMCPServer(t, ctx, binPath, wsDir)
+		t.Cleanup(cleanup)
+
+		// 1. Verify prompts/list returns strictly the 4 canonical action verbs
+		listRes, err := cs.ListPrompts(ctx, nil)
+		if err != nil {
+			t.Fatalf("ListPrompts failed: %v", err)
+		}
+
+		expectedPrompts := map[string]string{
+			"compare":  "Compare Options (WEP Matrix)",
+			"decision": "Architectural Decision (ADR)",
+			"project":  "Project Pipeline (Full FAD)",
+			"gate":     "Phase 0 Pre-Codebase Exit Gate",
+		}
+
+		if len(listRes.Prompts) != len(expectedPrompts) {
+			t.Fatalf("expected %d prompts, got %d", len(expectedPrompts), len(listRes.Prompts))
+		}
+
+		for _, p := range listRes.Prompts {
+			expectedTitle, ok := expectedPrompts[p.Name]
+			if !ok {
+				t.Errorf("unexpected prompt registered in live binary: %s", p.Name)
+				continue
+			}
+			if p.Title != expectedTitle {
+				t.Errorf("prompt %s: expected title %q, got %q", p.Name, expectedTitle, p.Title)
+			}
+		}
+
+		// 2. Verify prompts/get with canonical, legacy (vivechak_*), and shorthand (vck_*) aliases
+		triplets := []struct {
+			canonical string
+			legacy    string
+			shorthand string
+			args      map[string]string
+		}{
+			{
+				canonical: "compare",
+				legacy:    "vivechak_compare",
+				shorthand: "vck_compare",
+				args:      map[string]string{"options": "BadgerDB vs Pebble"},
+			},
+			{
+				canonical: "decision",
+				legacy:    "vivechak_decision",
+				shorthand: "vck_decision",
+				args:      map[string]string{"dilemma": "Migrate store to BadgerDB"},
+			},
+			{
+				canonical: "project",
+				legacy:    "vivechak_project",
+				shorthand: "vck_project",
+				args:      map[string]string{"vision": "Distributed Storage Engine"},
+			},
+			{
+				canonical: "gate",
+				legacy:    "vivechak_gate",
+				shorthand: "vck_gate",
+				args:      map[string]string{"track": "all"},
+			},
+		}
+
+		for _, trip := range triplets {
+			rCanon, err := cs.GetPrompt(ctx, &mcp.GetPromptParams{Name: trip.canonical, Arguments: trip.args})
+			if err != nil {
+				t.Fatalf("GetPrompt(%s) over live stdio failed: %v", trip.canonical, err)
+			}
+			rLeg, err := cs.GetPrompt(ctx, &mcp.GetPromptParams{Name: trip.legacy, Arguments: trip.args})
+			if err != nil {
+				t.Fatalf("GetPrompt(%s) over live stdio failed: %v", trip.legacy, err)
+			}
+			rShort, err := cs.GetPrompt(ctx, &mcp.GetPromptParams{Name: trip.shorthand, Arguments: trip.args})
+			if err != nil {
+				t.Fatalf("GetPrompt(%s) over live stdio failed: %v", trip.shorthand, err)
+			}
+
+			tcCanon, ok1 := rCanon.Messages[0].Content.(*mcp.TextContent)
+			tcLeg, ok2 := rLeg.Messages[0].Content.(*mcp.TextContent)
+			tcShort, ok3 := rShort.Messages[0].Content.(*mcp.TextContent)
+
+			if !ok1 || !ok2 || !ok3 {
+				t.Fatalf("expected TextContent across all prompt variations")
+			}
+
+			if tcCanon.Text != tcLeg.Text {
+				t.Errorf("live wire prompt %s != %s", trip.canonical, trip.legacy)
+			}
+			if tcCanon.Text != tcShort.Text {
+				t.Errorf("live wire prompt %s != %s", trip.canonical, trip.shorthand)
+			}
+		}
+	})
 }

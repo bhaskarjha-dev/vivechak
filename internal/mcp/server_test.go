@@ -2327,6 +2327,52 @@ func TestInit_EnvironmentVariables(t *testing.T) {
 		}
 	})
 
+	t.Run("resolves VCK_PROJECT_ROOT when project_root omitted", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		t.Setenv("VIVECHAK_PROJECT_ROOT", "")
+		t.Setenv("VCK_PROJECT_ROOT", tmpDir)
+		t.Setenv("VIVECHAK_DEFAULT_ROOT", "")
+		t.Setenv("VCK_DEFAULT_ROOT", "")
+
+		res, err := cs.CallTool(ctx, &mcp.CallToolParams{
+			Name:      "vivechak_init",
+			Arguments: map[string]any{},
+		})
+		if err != nil {
+			t.Fatalf("call error: %v", err)
+		}
+		env := parseEnvelope(t, res)
+		if !env.Success {
+			t.Fatalf("expected success, got error: %s", env.Message)
+		}
+		if !core.WorkspaceExists(tmpDir) {
+			t.Errorf("expected workspace to be created at %s", tmpDir)
+		}
+	})
+
+	t.Run("resolves VCK_DEFAULT_ROOT as fallback alias", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		t.Setenv("VIVECHAK_PROJECT_ROOT", "")
+		t.Setenv("VCK_PROJECT_ROOT", "")
+		t.Setenv("VIVECHAK_DEFAULT_ROOT", "")
+		t.Setenv("VCK_DEFAULT_ROOT", tmpDir)
+
+		res, err := cs.CallTool(ctx, &mcp.CallToolParams{
+			Name:      "vivechak_init",
+			Arguments: map[string]any{},
+		})
+		if err != nil {
+			t.Fatalf("call error: %v", err)
+		}
+		env := parseEnvelope(t, res)
+		if !env.Success {
+			t.Fatalf("expected success, got error: %s", env.Message)
+		}
+		if !core.WorkspaceExists(tmpDir) {
+			t.Errorf("expected workspace to be created at %s", tmpDir)
+		}
+	})
+
 	t.Run("resolves WORKSPACE when others unset", func(t *testing.T) {
 		tmpDir := t.TempDir()
 		t.Setenv("VIVECHAK_PROJECT_ROOT", "")

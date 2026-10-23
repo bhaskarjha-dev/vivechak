@@ -2574,6 +2574,157 @@ Adversarial red-team stress test completed using Gary Klein premortem method.
 	}
 }
 
+// TestComprehensive_PromptActionVerbsAndMiddlewareEquivalence validates that:
+// 1. prompts/list returns strictly the 4 canonical action verbs (compare, decision, project, gate).
+// 2. Calling prompts/get with canonical, legacy (vivechak_*), or shorthand (vck_*) produces identical results.
+// 3. Prompt arguments are accurately interpolated and anti-spill persistence directives are attached.
+func TestComprehensive_PromptActionVerbsAndMiddlewareEquivalence(t *testing.T) {
+	cs := testServer(t)
+	ctx := context.Background()
+
+	listRes, err := cs.ListPrompts(ctx, nil)
+	if err != nil {
+		t.Fatalf("ListPrompts: %v", err)
+	}
+
+	expectedPrompts := map[string]string{
+		"compare":  "Compare Options (WEP Matrix)",
+		"decision": "Architectural Decision (ADR)",
+		"project":  "Project Pipeline (Full FAD)",
+		"gate":     "Phase 0 Pre-Codebase Exit Gate",
+	}
+
+	if len(listRes.Prompts) != len(expectedPrompts) {
+		t.Fatalf("expected exactly %d prompts, got %d", len(expectedPrompts), len(listRes.Prompts))
+	}
+
+	for _, p := range listRes.Prompts {
+		expTitle, ok := expectedPrompts[p.Name]
+		if !ok {
+			t.Errorf("unexpected prompt registered: %s", p.Name)
+			continue
+		}
+		if p.Title != expTitle {
+			t.Errorf("prompt %s: expected title %q, got %q", p.Name, expTitle, p.Title)
+		}
+		if p.Description == "" {
+			t.Errorf("prompt %s: empty description", p.Name)
+		}
+	}
+
+	// Matrix of prompt alias calls
+	tests := []struct {
+		name       string
+		canonical  string
+		legacy     string
+		shorthand  string
+		args       map[string]string
+		mustSubstr []string
+	}{
+		{
+			name:      "Comparison",
+			canonical: "compare",
+			legacy:    "vivechak_compare",
+			shorthand: "vck_compare",
+			args: map[string]string{
+				"options":  "NATS vs Kafka vs RabbitMQ",
+				"criteria": "Throughput, Multi-Tenancy",
+				"context":  "High-throughput messaging fabric",
+			},
+			mustSubstr: []string{
+				"OPTIONS: NATS vs Kafka vs RabbitMQ",
+				"CRITERIA: Throughput, Multi-Tenancy",
+				"CONTEXT: High-throughput messaging fabric",
+				"vivechak_save_plan",
+				"C-NNN-comparison.md",
+			},
+		},
+		{
+			name:      "Decision",
+			canonical: "decision",
+			legacy:    "vivechak_decision",
+			shorthand: "vck_decision",
+			args: map[string]string{
+				"dilemma": "Migrate from REST to gRPC for inter-service communication",
+				"context": "Low-latency microservices cluster",
+			},
+			mustSubstr: []string{
+				"DECISION: Migrate from REST to gRPC for inter-service communication",
+				"CONTEXT: Low-latency microservices cluster",
+				"vivechak_save_plan",
+				"vivechak_record_decision",
+			},
+		},
+		{
+			name:      "Project",
+			canonical: "project",
+			legacy:    "vivechak_project",
+			shorthand: "vck_project",
+			args: map[string]string{
+				"vision":  "Build next-generation distributed vector search engine",
+				"context": "Rust, SIMD optimizations, AWS Graviton3",
+			},
+			mustSubstr: []string{
+				"Build next-generation distributed vector search engine",
+				"Rust, SIMD optimizations",
+				"RESEARCH-PIPELINE.md",
+				"pipeline_content",
+			},
+		},
+		{
+			name:      "Gate",
+			canonical: "gate",
+			legacy:    "vivechak_gate",
+			shorthand: "vck_gate",
+			args: map[string]string{
+				"track":        "track_b",
+				"project_root": "/opt/workspace",
+			},
+			mustSubstr: []string{
+				`track="track_b"`,
+				`project_root="/opt/workspace"`,
+				"vivechak_run_gate",
+				"track_a_result",
+				"track_b_result",
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			rCanon, err := cs.GetPrompt(ctx, &mcp.GetPromptParams{Name: tc.canonical, Arguments: tc.args})
+			if err != nil {
+				t.Fatalf("canonical prompt %s: %v", tc.canonical, err)
+			}
+			rLeg, err := cs.GetPrompt(ctx, &mcp.GetPromptParams{Name: tc.legacy, Arguments: tc.args})
+			if err != nil {
+				t.Fatalf("legacy prompt %s: %v", tc.legacy, err)
+			}
+			rShort, err := cs.GetPrompt(ctx, &mcp.GetPromptParams{Name: tc.shorthand, Arguments: tc.args})
+			if err != nil {
+				t.Fatalf("shorthand prompt %s: %v", tc.shorthand, err)
+			}
+
+			txtCanon := rCanon.Messages[0].Content.(*mcp.TextContent).Text
+			txtLeg := rLeg.Messages[0].Content.(*mcp.TextContent).Text
+			txtShort := rShort.Messages[0].Content.(*mcp.TextContent).Text
+
+			if txtCanon != txtLeg {
+				t.Errorf("expected canonical %q == legacy %q", tc.canonical, tc.legacy)
+			}
+			if txtCanon != txtShort {
+				t.Errorf("expected canonical %q == shorthand %q", tc.canonical, tc.shorthand)
+			}
+
+			for _, sub := range tc.mustSubstr {
+				if !strings.Contains(txtCanon, sub) {
+					t.Errorf("prompt %s missing expected substring %q in:\n%s", tc.canonical, sub, txtCanon)
+				}
+			}
+		})
+	}
+}
+
 
 
 
