@@ -34,7 +34,7 @@ func TestRunCLI_Help(t *testing.T) {
 		if code != 0 {
 			t.Errorf("expected exit code 0 for %s, got %d", arg, code)
 		}
-		if !strings.Contains(stdout.String(), "Usage: vivechak <command>") {
+		if !strings.Contains(stdout.String(), "Usage: vck <command>") || !strings.Contains(stdout.String(), "vivechak <command>") {
 			t.Errorf("expected help output for %s, got %q", arg, stdout.String())
 		}
 	}
@@ -46,7 +46,7 @@ func TestRunCLI_UnknownCommand(t *testing.T) {
 	if code != 1 {
 		t.Errorf("expected exit code 1 for unknown command, got %d", code)
 	}
-	if !strings.Contains(stderr.String(), "Usage: vivechak <command>") {
+	if !strings.Contains(stderr.String(), "Usage: vck <command>") || !strings.Contains(stderr.String(), "vivechak <command>") {
 		t.Errorf("expected usage in stderr, got %q", stderr.String())
 	}
 }

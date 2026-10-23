@@ -48,11 +48,11 @@ npx -y @smithery/cli install @bhaskarjha-dev/vivechak --client claude
 ```
 
 ### Native MCP Prompts & Slash Commands
-Once Vivechak is connected, typing `/` in compatible chat clients (Claude Desktop, Cursor, Continue, Zed) reveals 4 native prompt templates:
-- `/vivechak_compare`: Interactive brief for 2–5 option comparisons (~5 min, WEP matrix).
-- `/vivechak_decision`: Interactive brief for resolving an architectural dilemma (~30 min, ADR).
-- `/vivechak_project`: Interactive brief for decomposing a greenfield system into an adaptive DAG to a FAD.
-- `/vivechak_gate`: Pre-codebase exit criteria evaluation checklist.
+Once Vivechak is connected, typing `/` in compatible chat clients (Antigravity IDE, Cursor, Claude Desktop, Continue, Zed) reveals 4 native prompt templates:
+- `/compare` *(or `/vivechak_compare`)*: Interactive brief for 2–5 option comparisons (~5 min, WEP matrix).
+- `/decision` *(or `/vivechak_decision`)*: Interactive brief for resolving an architectural dilemma (~30 min, ADR).
+- `/project` *(or `/vivechak_project`)*: Interactive brief for decomposing a greenfield system into an adaptive DAG to a FAD.
+- `/gate` *(or `/vivechak_gate`)*: Pre-codebase exit criteria evaluation checklist.
 
 ### Pre-Packaged Editor Rules
 Pre-configured rules are available in `templates/rules/`:

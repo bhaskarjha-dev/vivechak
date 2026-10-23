@@ -69,14 +69,14 @@ npx -y @smithery/cli install @bhaskarjha-dev/vivechak --client cursor
 
 ### Step 2: Prompt Your Agent Naturally (or use Slash Commands)
 
-Open your agent's chat window in any active project. You can prompt naturally or use native **MCP Slash Commands** (`/vivechak_...`):
+Open your agent's chat window in any active project. You can prompt naturally or use native **MCP Slash Commands** (`/compare`, `/decision`, etc.):
 
 | What You Need | What You Prompt / Slash Command | What Vivechak Does |
 |---|---|---|
-| **Compare 2–5 Options**<br>*(~5 min · 0 DAG · 0 Gate)* | `/vivechak_compare`<br>*or "Vivechak compare: Pino vs Winston"* | Runs 1 session with web search → Generates Weighted Evaluation Protocol (WEP) matrix with Grade A/B citations in `research/C-01-comparison.md`. |
-| **Lock an Architectural ADR**<br>*(~30 min · 1–3 sessions)* | `/vivechak_decision`<br>*or "Vivechak decision: PostgreSQL vs ClickHouse"* | Evaluates blast radius & reversibility → Runs Landscape & Falsification sessions → Locks canonical ADR `research/D-01.md` with reversal triggers. |
-| **Architect a Greenfield System**<br>*(Hours–Days · Full DAG)* | `/vivechak_project`<br>*or "Use Vivechak to architect real-time pipeline"* | Builds dependency DAG → Loops sessions → Synthesizes Founding Architecture Document (`FAD.md`) → Validates pre-code Phase 0 Exit Gate. |
-| **Pre-Code Exit Gate**<br>*(Pre-Implementation)* | `/vivechak_gate`<br>*or "Evaluate Phase 0 Gate"* | Evaluates Track A reversibility and Track B rigor checks mechanically before starting implementation. |
+| **Compare 2–5 Options**<br>*(~5 min · 0 DAG · 0 Gate)* | `/compare` *(or `/vivechak_compare`)*<br>*or "Vivechak compare: Pino vs Winston"* | Runs 1 session with web search → Generates Weighted Evaluation Protocol (WEP) matrix with Grade A/B citations in `research/C-01-comparison.md`. |
+| **Lock an Architectural ADR**<br>*(~30 min · 1–3 sessions)* | `/decision` *(or `/vivechak_decision`)*<br>*or "Vivechak decision: PostgreSQL vs ClickHouse"* | Evaluates blast radius & reversibility → Runs Landscape & Falsification sessions → Locks canonical ADR `research/D-01.md` with reversal triggers. |
+| **Architect a Greenfield System**<br>*(Hours–Days · Full DAG)* | `/project` *(or `/vivechak_project`)*<br>*or "Use Vivechak to architect real-time pipeline"* | Builds dependency DAG → Loops sessions → Synthesizes Founding Architecture Document (`FAD.md`) → Validates pre-code Phase 0 Exit Gate. |
+| **Pre-Code Exit Gate**<br>*(Pre-Implementation)* | `/gate` *(or `/vivechak_gate`)*<br>*or "Evaluate Phase 0 Gate"* | Evaluates Track A reversibility and Track B rigor checks mechanically before starting implementation. |
 
 > 🚫 **Anti-Pattern Guardrail (When NOT to use Vivechak):** Skip Vivechak for direct code authoring, syntax questions, local bug fixing, or trivial refactoring (e.g. *"Write a Go function to parse JWT"*). Your agent writes code directly without calling research tools.
 
@@ -281,11 +281,11 @@ When registered as an MCP server, Vivechak equips your agent with 13 specialized
 Vivechak implements all three primitives of the Model Context Protocol specification:
 
 #### 1. Native Prompts (Slash Commands)
-Type `/` in your MCP-compatible chat window (Claude Desktop, Cursor, Continue, Zed) to launch calibrated research workflows:
-- `/vivechak_compare`: Interactive UI form to evaluate 2–5 options with a WEP matrix (~5 min).
-- `/vivechak_decision`: Interactive UI form to resolve an architectural dilemma into an ADR (~30 min).
-- `/vivechak_project`: Interactive UI form to decompose a greenfield system into an adaptive DAG to a FAD.
-- `/vivechak_gate`: Evaluate pre-codebase exit criteria via the Phase 0 Gate.
+Type `/` in your MCP-compatible chat window (Antigravity IDE, Cursor, Claude Desktop, Continue, Zed) to launch calibrated research workflows:
+- `/compare` *(or `/vivechak_compare`)*: Interactive UI form to evaluate 2–5 options with a WEP matrix (~5 min).
+- `/decision` *(or `/vivechak_decision`)*: Interactive UI form to resolve an architectural dilemma into an ADR (~30 min).
+- `/project` *(or `/vivechak_project`)*: Interactive UI form to decompose a greenfield system into an adaptive DAG to a FAD.
+- `/gate` *(or `/vivechak_gate`)*: Evaluate pre-codebase exit criteria via the Phase 0 Gate.
 
 #### 2. Canonical Resources (`vivechak://...`)
 Reference canonical templates and methodology cards directly in chat or prompt context:

@@ -31,7 +31,7 @@ var version = "0.1.0"
 
 func printUsage(w io.Writer) {
 	fmt.Fprintf(w, "vivechak (vck) %s\n\n", version)
-	fmt.Fprintf(w, "Usage: vivechak <command>  (or: vck <command>)\n\n")
+	fmt.Fprintf(w, "Usage: vck <command>  (or: vivechak <command>)\n\n")
 	fmt.Fprintf(w, "Commands:\n")
 	fmt.Fprintf(w, "  setup <host|path>  Set up Vivechak in an AI host or config file (alias: install)\n")
 	fmt.Fprintf(w, "  serve              Start MCP server over stdio (default — connects to ANY MCP client)\n")

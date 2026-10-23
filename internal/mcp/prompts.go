@@ -11,12 +11,32 @@ import (
 	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
+// normalizePromptName strips legacy or shorthand prefixes from prompt names for backward compatibility.
+func normalizePromptName(name string) string {
+	trimmed := strings.TrimSpace(name)
+	trimmed = strings.TrimPrefix(trimmed, "vivechak_")
+	trimmed = strings.TrimPrefix(trimmed, "vck_")
+	return trimmed
+}
+
 // registerPrompts registers the 4 native MCP prompt templates with the server.
 func registerPrompts(server *sdkmcp.Server) {
+	// Intercept prompts/get to transparently support legacy "vivechak_*" and "vck_*" aliases
+	server.AddReceivingMiddleware(func(next sdkmcp.MethodHandler) sdkmcp.MethodHandler {
+		return func(ctx context.Context, method string, req sdkmcp.Request) (sdkmcp.Result, error) {
+			if method == "prompts/get" {
+				if p, ok := req.GetParams().(*sdkmcp.GetPromptParams); ok && p != nil {
+					p.Name = normalizePromptName(p.Name)
+				}
+			}
+			return next(ctx, method, req)
+		}
+	})
+
 	// 1. Compare Options Prompt
 	server.AddPrompt(
 		&sdkmcp.Prompt{
-			Name:        "vivechak_compare",
+			Name:        "compare",
 			Title:       "Compare Options (WEP Matrix)",
 			Description: "Evaluate 2–5 options with an evidence-graded Weighted Evaluation Protocol (WEP) matrix (~5 minutes, 0 DAG, 0 gate).",
 			Arguments: []*sdkmcp.PromptArgument{
@@ -46,7 +66,7 @@ func registerPrompts(server *sdkmcp.Server) {
 	// 2. Architectural Decision Prompt
 	server.AddPrompt(
 		&sdkmcp.Prompt{
-			Name:        "vivechak_decision",
+			Name:        "decision",
 			Title:       "Architectural Decision (ADR)",
 			Description: "Resolve an architectural fork or migration in an active codebase into a locked ADR (~30 minutes, 1–3 sessions).",
 			Arguments: []*sdkmcp.PromptArgument{
@@ -70,7 +90,7 @@ func registerPrompts(server *sdkmcp.Server) {
 	// 3. Project Architecture Pipeline Prompt
 	server.AddPrompt(
 		&sdkmcp.Prompt{
-			Name:        "vivechak_project",
+			Name:        "project",
 			Title:       "Project Pipeline (Full FAD)",
 			Description: "Architect a greenfield system or major platform rewrite across an adaptive dependency DAG to a Founding Architecture Document (FAD).",
 			Arguments: []*sdkmcp.PromptArgument{
@@ -94,7 +114,7 @@ func registerPrompts(server *sdkmcp.Server) {
 	// 4. Phase 0 Exit Gate Prompt
 	server.AddPrompt(
 		&sdkmcp.Prompt{
-			Name:        "vivechak_gate",
+			Name:        "gate",
 			Title:       "Phase 0 Pre-Codebase Exit Gate",
 			Description: "Evaluate Track A (reversibility) and Track B (checks B1–B11) pre-codebase exit criteria before coding.",
 			Arguments: []*sdkmcp.PromptArgument{

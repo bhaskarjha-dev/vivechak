@@ -103,13 +103,13 @@ vck mcp-config
 Open your agent chat in your project repository and choose your scope (or invoke native **MCP Slash Commands** in compatible clients):
 
 - **For Quick Comparisons (~5 mins, 1 session):**
-  > `/vivechak_compare` or *"Vivechak compare: Pino vs Winston for high-throughput Node.js microservices."*
+  > `/compare` *(or `/vivechak_compare`)* or *"Vivechak compare: Pino vs Winston for high-throughput Node.js microservices."*
 - **For Architectural Decisions (~30 mins, 1–3 sessions):**
-  > `/vivechak_decision` or *"Vivechak decision: Should we migrate our primary analytics datastore from PostgreSQL to ClickHouse?"*
+  > `/decision` *(or `/vivechak_decision`)* or *"Vivechak decision: Should we migrate our primary analytics datastore from PostgreSQL to ClickHouse?"*
 - **For Full Project Pipelines (Hours–Days, greenfield architecture):**
-  > `/vivechak_project` or *"Use Vivechak to research our architecture. We need to build a multi-tenant B2B SaaS analytics platform ingesting 20M events/day."*
+  > `/project` *(or `/vivechak_project`)* or *"Use Vivechak to research our architecture. We need to build a multi-tenant B2B SaaS analytics platform ingesting 20M events/day."*
 - **For Pre-Code Phase 0 Gate Evaluation:**
-  > `/vivechak_gate` or *"Evaluate Phase 0 Gate before implementation."*
+  > `/gate` *(or `/vivechak_gate`)* or *"Evaluate Phase 0 Gate before implementation."*
 
 > [!NOTE]
 > **When NOT to use Vivechak:** Do NOT invoke Vivechak for routine coding, writing functions, debugging errors, or syntax explanations. Let your agent write code directly without research tools.

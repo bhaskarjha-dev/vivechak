@@ -18,10 +18,10 @@ func TestPromptListing(t *testing.T) {
 	}
 
 	expectedPrompts := map[string]string{
-		"vivechak_compare":  "Compare Options (WEP Matrix)",
-		"vivechak_decision": "Architectural Decision (ADR)",
-		"vivechak_project":  "Project Pipeline (Full FAD)",
-		"vivechak_gate":     "Phase 0 Pre-Codebase Exit Gate",
+		"compare":  "Compare Options (WEP Matrix)",
+		"decision": "Architectural Decision (ADR)",
+		"project":  "Project Pipeline (Full FAD)",
+		"gate":     "Phase 0 Pre-Codebase Exit Gate",
 	}
 
 	if len(res.Prompts) != len(expectedPrompts) {
@@ -39,6 +39,69 @@ func TestPromptListing(t *testing.T) {
 		}
 		if p.Description == "" {
 			t.Errorf("prompt %s: description is empty", p.Name)
+		}
+	}
+}
+
+func TestPromptAliases(t *testing.T) {
+	cs := testServer(t)
+	ctx := context.Background()
+
+	pairs := []struct {
+		canonical string
+		legacy    string
+		shorthand string
+		args      map[string]string
+	}{
+		{
+			canonical: "compare",
+			legacy:    "vivechak_compare",
+			shorthand: "vck_compare",
+			args:      map[string]string{"options": "Pino, Winston"},
+		},
+		{
+			canonical: "decision",
+			legacy:    "vivechak_decision",
+			shorthand: "vck_decision",
+			args:      map[string]string{"dilemma": "Migrate DB"},
+		},
+		{
+			canonical: "project",
+			legacy:    "vivechak_project",
+			shorthand: "vck_project",
+			args:      map[string]string{"vision": "Build Engine"},
+		},
+		{
+			canonical: "gate",
+			legacy:    "vivechak_gate",
+			shorthand: "vck_gate",
+			args:      map[string]string{"track": "all"},
+		},
+	}
+
+	for _, p := range pairs {
+		rCanon, err := cs.GetPrompt(ctx, &mcp.GetPromptParams{Name: p.canonical, Arguments: p.args})
+		if err != nil {
+			t.Fatalf("GetPrompt(%s): %v", p.canonical, err)
+		}
+		rLeg, err := cs.GetPrompt(ctx, &mcp.GetPromptParams{Name: p.legacy, Arguments: p.args})
+		if err != nil {
+			t.Fatalf("GetPrompt(%s): %v", p.legacy, err)
+		}
+		rShort, err := cs.GetPrompt(ctx, &mcp.GetPromptParams{Name: p.shorthand, Arguments: p.args})
+		if err != nil {
+			t.Fatalf("GetPrompt(%s): %v", p.shorthand, err)
+		}
+
+		cCanon := rCanon.Messages[0].Content.(*mcp.TextContent).Text
+		cLeg := rLeg.Messages[0].Content.(*mcp.TextContent).Text
+		cShort := rShort.Messages[0].Content.(*mcp.TextContent).Text
+
+		if cCanon != cLeg {
+			t.Errorf("prompt %s != %s", p.canonical, p.legacy)
+		}
+		if cCanon != cShort {
+			t.Errorf("prompt %s != %s", p.canonical, p.shorthand)
 		}
 	}
 }

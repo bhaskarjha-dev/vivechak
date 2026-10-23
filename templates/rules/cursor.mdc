@@ -8,8 +8,8 @@ alwaysApply: false
 
 When the user asks to compare technologies, evaluate architectural choices, or design systems:
 1. **Always Ground in Evidence:** Do not answer comparative or architectural choices from ungrounded training recall.
-2. **Comparison Scope (2–5 options):** Trigger `/vivechak_compare` or call `vivechak_prepare_generator(scope="comparison")`. Produce a Weighted Evaluation Protocol (WEP) matrix and save via `vivechak_save_plan`.
-3. **Decision Scope (ADRs):** Trigger `/vivechak_decision` or call `vivechak_prepare_generator(scope="decision")`. Record canonical ADRs with quantitative reversal triggers in `research/D-NNN.md`.
-4. **Project Scope (Founding Architecture):** Trigger `/vivechak_project` to decompose greenfield systems across an adaptive dependency DAG to a Founding Architecture Document (`research/FAD.md`).
+2. **Comparison Scope (2–5 options):** Trigger `/compare` (or `/vivechak_compare`) or call `vivechak_prepare_generator(scope="comparison")`. Produce a Weighted Evaluation Protocol (WEP) matrix and save via `vivechak_save_plan`.
+3. **Decision Scope (ADRs):** Trigger `/decision` (or `/vivechak_decision`) or call `vivechak_prepare_generator(scope="decision")`. Record canonical ADRs with quantitative reversal triggers in `research/D-NNN.md`.
+4. **Project Scope (Founding Architecture):** Trigger `/project` (or `/vivechak_project`) to decompose greenfield systems across an adaptive dependency DAG to a Founding Architecture Document (`research/FAD.md`).
 5. **Evidence Taxonomy:** Grade every factual claim (Grade A official specs/RFCs with URLs, Grade B reproducible benchmarks, Grade C vendor claims, Grade D community opinions/model recall, Grade E speculative).
 6. **Guardrails:** NEVER invoke Vivechak for direct code authoring, syntax queries, debugging, or micro-refactoring (write code directly).

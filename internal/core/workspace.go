@@ -254,10 +254,16 @@ func ResolveWorkspace(explicit string) (string, error) {
 		return abs, nil
 	}
 
-	// Step 2: Environment variables (VIVECHAK_PROJECT_ROOT, VIVECHAK_DEFAULT_ROOT, WORKSPACE, PROJECT_ROOT)
+	// Step 2: Environment variables (VIVECHAK_PROJECT_ROOT, VCK_PROJECT_ROOT, VIVECHAK_DEFAULT_ROOT, VCK_DEFAULT_ROOT, WORKSPACE, PROJECT_ROOT)
 	envRoot := os.Getenv("VIVECHAK_PROJECT_ROOT")
 	if envRoot == "" {
+		envRoot = os.Getenv("VCK_PROJECT_ROOT")
+	}
+	if envRoot == "" {
 		envRoot = os.Getenv("VIVECHAK_DEFAULT_ROOT")
+	}
+	if envRoot == "" {
+		envRoot = os.Getenv("VCK_DEFAULT_ROOT")
 	}
 	if envRoot == "" {
 		envRoot = os.Getenv("WORKSPACE")
@@ -314,7 +320,7 @@ func ResolveWorkspace(explicit string) (string, error) {
 	return "", fmt.Errorf(
 		"could not resolve workspace: no explicit path, VIVECHAK_PROJECT_ROOT not set, "+
 			"research/ not found walking up from %s, and no prior workspace initialized in this session. "+
-			"Start a research session in your AI editor (e.g. /vivechak_compare or /vivechak_project), or pass project_root explicitly", cwd)
+			"Start a research session in your AI editor (e.g. /compare or /project), or pass project_root explicitly", cwd)
 }
 
 // WorkspaceExists checks if a workspace has been initialized at the given path.

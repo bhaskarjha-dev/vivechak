@@ -22,9 +22,9 @@ Whenever the user asks for a technical comparison, technology choice, architectu
 
 | Scope | Trigger | Artifact | Overhead | Key Tools / Slash Command |
 |---|---|---|---|---|
-| **1. Comparison** | Evaluate 2–5 named options (*"Pino vs Winston"*) | `research/C-NNN-comparison.md` (WEP) | 1 session (~5m), 0 DAG, 0 Gate | `/vivechak_compare` or `vivechak_prepare_generator(scope="comparison")` |
-| **2. Decision** | Architectural fork in active codebase (*"Migrate to ClickHouse?"*) | `research/D-NNN.md` (ADR) | 1–3 sessions (~30m), 0 Project DAG | `/vivechak_decision` or `vivechak_prepare_generator(scope="decision")` |
-| **3. Project** | Greenfield architecture or major rewrite | `research/FAD.md` (Founding Architecture) | Full DAG (4–30 sessions), Gate | `/vivechak_project` or `vivechak_prepare_generator(scope="project")` |
+| **1. Comparison** | Evaluate 2–5 named options (*"Pino vs Winston"*) | `research/C-NNN-comparison.md` (WEP) | 1 session (~5m), 0 DAG, 0 Gate | `/compare` *(or `/vivechak_compare`)* or `vivechak_prepare_generator(scope="comparison")` |
+| **2. Decision** | Architectural fork in active codebase (*"Migrate to ClickHouse?"*) | `research/D-NNN.md` (ADR) | 1–3 sessions (~30m), 0 Project DAG | `/decision` *(or `/vivechak_decision`)* or `vivechak_prepare_generator(scope="decision")` |
+| **3. Project** | Greenfield architecture or major rewrite | `research/FAD.md` (Founding Architecture) | Full DAG (4–30 sessions), Gate | `/project` *(or `/vivechak_project`)* or `vivechak_prepare_generator(scope="project")` |
 
 ---
 
@@ -32,20 +32,20 @@ Whenever the user asks for a technical comparison, technology choice, architectu
 
 ### Scope 1: Comparison Scope (`ScopeComparison`)
 Use when asked to compare, benchmark, or choose between 2–5 named technologies, libraries, or datastores:
-1. **Trigger Generator:** Call MCP tool `vivechak_prepare_generator(scope="comparison", context="<user prompt>")` or run `/vivechak_compare`.
+1. **Trigger Generator:** Call MCP tool `vivechak_prepare_generator(scope="comparison", context="<user prompt>")` or run `/compare` *(or `/vivechak_compare`)*.
 2. **Execute Research:** Perform web search for authoritative documentation, reproducible benchmarks, and postmortems. Apply evidence grades (A–E) to all claims.
 3. **Persist Output:** Call MCP tool `vivechak_save_plan(content=<matrix>, scope="comparison")`. Vivechak automatically auto-initializes the workspace and saves `research/C-NNN-comparison.md`. Done!
 
 ### Scope 2: Decision Scope (`ScopeDecision`)
 Use when resolving an architectural fork, migration, or dilemma in an active codebase:
-1. **Trigger Generator:** Call `vivechak_prepare_generator(scope="decision", context="<dilemma>")` or run `/vivechak_decision`.
+1. **Trigger Generator:** Call `vivechak_prepare_generator(scope="decision", context="<dilemma>")` or run `/decision` *(or `/vivechak_decision`)*.
 2. **Save Decision Plan:** Call `vivechak_save_plan(scope="decision", content=...)`.
 3. **Execute Sessions:** Run the 1–3 research sessions (`L` Landscape, `C` Comparison, `F` Falsification) via `vivechak_next_session` and `vivechak_save_session`.
 4. **Lock ADR:** Call `vivechak_record_decision(decision_id="D-NNN", auto_draft_from="<session_id>", auto_save=true)` to draft and persist the canonical ADR in `research/D-NNN.md` and update `research/DECISIONS.md`.
 
 ### Scope 3: Project Scope (`ScopeProject`)
 Use when designing a brand-new system or greenfield platform architecture from scratch:
-1. **Prepare Pipeline:** Call `vivechak_prepare_generator(scope="project", context="<project vision>")` or run `/vivechak_project`.
+1. **Prepare Pipeline:** Call `vivechak_prepare_generator(scope="project", context="<project vision>")` or run `/project` *(or `/vivechak_project`)*.
 2. **Save Pipeline:** Call `vivechak_save_plan(pipeline_content=..., scope="project")` to write `research/RESEARCH-PIPELINE.md`.
 3. **Session Loop:** Loop through DAG sessions:
    - `vivechak_next_session` → research → `vivechak_save_session` → `vivechak_record_decision(auto_draft_from=..., auto_save=true)`.

@@ -229,6 +229,38 @@ func TestResolveWorkspace_EnvironmentAndMacroGuard(t *testing.T) {
 		}
 	})
 
+	t.Run("resolves VCK_PROJECT_ROOT alias", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		t.Setenv("VIVECHAK_PROJECT_ROOT", "")
+		t.Setenv("VCK_PROJECT_ROOT", tmpDir)
+		t.Setenv("VIVECHAK_DEFAULT_ROOT", "")
+		t.Setenv("VCK_DEFAULT_ROOT", "")
+
+		res, err := ResolveWorkspace("")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if filepath.Clean(res) != filepath.Clean(tmpDir) {
+			t.Errorf("got %q, want %q", res, tmpDir)
+		}
+	})
+
+	t.Run("resolves VCK_DEFAULT_ROOT as fallback alias", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		t.Setenv("VIVECHAK_PROJECT_ROOT", "")
+		t.Setenv("VCK_PROJECT_ROOT", "")
+		t.Setenv("VIVECHAK_DEFAULT_ROOT", "")
+		t.Setenv("VCK_DEFAULT_ROOT", tmpDir)
+
+		res, err := ResolveWorkspace("")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if filepath.Clean(res) != filepath.Clean(tmpDir) {
+			t.Errorf("got %q, want %q", res, tmpDir)
+		}
+	})
+
 	t.Run("resolves WORKSPACE standard container environment variable", func(t *testing.T) {
 		tmpDir := t.TempDir()
 		t.Setenv("VIVECHAK_PROJECT_ROOT", "")
