@@ -316,10 +316,10 @@ Vivechak enforces the **GRADE-aligned evidence taxonomy** (Principle P3). Every 
 ┌─────────┬─────────────────────────────┬─────────────────────────────────────────────────────────┐
 │ Grade   │ Epistemic Reliability       │ Required Provenance & Source Standard                   │
 ├─────────┼─────────────────────────────┼─────────────────────────────────────────────────────────┤
-│ Grade A │ High Certainty              │ Direct canonical docs, official RFCs, source inspect.   │
-│ Grade B │ Moderate Certainty          │ Reproducible benchmark, production post-mortem, CVE.    │
-│ Grade C │ Low Certainty               │ Community consensus, tech blog, secondary source.       │
-│ Grade D │ Model Recall (Ceiling)      │ Unverified LLM training memory (strictly capped at D).  │
+│ Grade A │ Primary / Authoritative     │ Direct canonical docs, official RFCs, source inspect.   │
+│ Grade B │ Empirical / Experimental    │ Reproducible benchmark, production post-mortem, CVE.    │
+│ Grade C │ Vendor / Motivated          │ Marketing whitepapers, sponsored posts, corporate claims.│
+│ Grade D │ Secondary / Model Recall    │ Community blogs, unverified LLM recall (capped at D).   │
 │ Grade E │ Speculative / Unverified    │ Claims without empirical backing, uncorroborated roadmaps. │
 └─────────┴─────────────────────────────┴─────────────────────────────────────────────────────────┘
 ```

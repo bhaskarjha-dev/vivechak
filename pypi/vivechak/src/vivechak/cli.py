@@ -85,7 +85,7 @@ def ensure_binary(prog_name):
         archive = f"vivechak_{VERSION}_{os_name}_{arch_name}.tar.gz"
 
     cache_dir.mkdir(parents=True, exist_ok=True)
-    archive_path = cache_dir / archive
+    archive_path = cache_dir / f"{archive}.{os.getpid()}.tmp"
     url = f"https://github.com/{REPO}/releases/download/v{VERSION}/{archive}"
 
     sys.stderr.write(f"[vck] Fetching Vivechak v{VERSION} for {os_name}/{arch_name}...\n")

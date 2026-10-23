@@ -137,7 +137,7 @@ async function ensureBinary() {
   const downloadUrl = `https://github.com/${REPO}/releases/download/v${VERSION}/${archiveName}`;
   fs.mkdirSync(cacheDir, { recursive: true });
 
-  const tempArchive = path.join(cacheDir, archiveName);
+  const tempArchive = path.join(cacheDir, `${archiveName}.${process.pid}.tmp`);
   process.stderr.write(`[vck] Fetching Vivechak v${VERSION} for ${osName}/${archName}...\n`);
 
   try {
