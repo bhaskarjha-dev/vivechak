@@ -42,16 +42,10 @@ func resolveOrBuildTestBinary(t *testing.T) string {
 		}
 	}
 
-	repoRoot, err := filepath.Abs("../..")
-	if err == nil {
-		binName := "vck"
-		if runtime.GOOS == "windows" {
-			binName += ".exe"
-		}
-		candidate := filepath.Join(repoRoot, binName)
-		if fi, err := os.Stat(candidate); err == nil && fi.Size() > 1000000 {
-			sharedBinPath = candidate
-			return candidate
+	if envBin := os.Getenv("VIVECHAK_TEST_BINARY"); envBin != "" {
+		if fi, err := os.Stat(envBin); err == nil && fi.Size() > 1000000 {
+			sharedBinPath = envBin
+			return envBin
 		}
 	}
 

@@ -911,3 +911,76 @@ Red-team stress test completed with Gary Klein premortem.
 	}
 }
 
+func TestGate_DecisionScope_TwoWayDoorPasses(t *testing.T) {
+	dir := t.TempDir()
+	ws := DirFS(dir)
+
+	// Create workspace in ScopeDecision
+	tmplDir := filepath.Join(dir, "research", "templates")
+	if err := os.MkdirAll(tmplDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(dir, "research", "sessions"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, MetadataFile), []byte(`{"scope":"decision","created_at":"2026-10-23T00:00:00Z"}`), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Scaffold required templates
+	for _, tmpl := range TemplatesForScope(ScopeDecision) {
+		if err := os.WriteFile(filepath.Join(tmplDir, tmpl), []byte("# Template "+tmpl), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// Create a completed session
+	sessContent := `---
+session_id: S-01
+status: complete
+door_type: two-way
+---
+# S-01: Research
+Investigated pino. Reversible fast spike.
+`
+	if err := os.WriteFile(filepath.Join(dir, "research", "sessions", "S-01.md"), []byte(sessContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a Two-Way Door decision record
+	adr := `---
+id: D-001
+decision_id: D-001
+title: Logging Library Selection
+status: accepted
+door_type: two-way
+reversibility:
+  type: two-way
+  reversal_cost: low
+  fallback_strategy: "Swap wrapper to winston if pino lacks transport"
+---
+# D-001: Logging Library Selection
+
+## Context
+Need structured JSON logging.
+
+## Decision
+Use Pino for speed.
+`
+	if err := os.WriteFile(filepath.Join(dir, "research", "D-001-logging.md"), []byte(adr), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "research", "DECISIONS.md"), []byte("# Architectural Decisions\n\n"+adr), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	info := InspectWorkspace(dir)
+	result := EvaluateGate(ws, info, dir)
+	if result.Status != "PASS" {
+		t.Fatalf("expected gate status PASS for two-way door in ScopeDecision, got %s (warnings: %v, advisories: %v)", result.Status, result.Warnings, result.Advisories)
+	}
+	if !result.Passed {
+		t.Errorf("expected result.Passed = true")
+	}
+}
+

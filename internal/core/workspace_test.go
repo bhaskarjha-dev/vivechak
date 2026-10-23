@@ -469,4 +469,78 @@ func TestDirFS_ResolveAndOperations(t *testing.T) {
 	}
 }
 
+func TestScanCompletedSessions_SluggedFrontmatterID(t *testing.T) {
+	tmpDir := t.TempDir()
+	sessionsDir := filepath.Join(tmpDir, SessionsDir)
+	if err := os.MkdirAll(sessionsDir, 0755); err != nil {
+		t.Fatalf("mkdir failed: %v", err)
+	}
+
+	// 1. Session file with slug in frontmatter id: T1-01-database-selection
+	s1Content := `---
+id: "T1-01-database-selection"
+title: "Database Selection"
+status: complete
+---
+# Content for T1-01
+`
+	if err := os.WriteFile(filepath.Join(sessionsDir, "T1-01-database-selection.md"), []byte(s1Content), 0644); err != nil {
+		t.Fatalf("write s1: %v", err)
+	}
+
+	// 2. Session file with clean frontmatter session_id: T1-02
+	s2Content := `---
+session_id: "T1-02"
+title: "Auth"
+status: complete
+---
+# Content for T1-02
+`
+	if err := os.WriteFile(filepath.Join(sessionsDir, "T1-02-auth.md"), []byte(s2Content), 0644); err != nil {
+		t.Fatalf("write s2: %v", err)
+	}
+
+	// 3. Session file without explicit frontmatter ID
+	s3Content := `---
+title: "Caching"
+status: complete
+---
+# Content for T1-03
+`
+	if err := os.WriteFile(filepath.Join(sessionsDir, "T1-03-caching.md"), []byte(s3Content), 0644); err != nil {
+		t.Fatalf("write s3: %v", err)
+	}
+
+	// 4. Session file saved as draft (should NOT be marked complete)
+	s4Draft := `---
+id: "T1-04"
+status: draft
+---
+# Draft
+`
+	if err := os.WriteFile(filepath.Join(sessionsDir, "T1-04.md"), []byte(s4Draft), 0644); err != nil {
+		t.Fatalf("write s4 draft: %v", err)
+	}
+
+	ws := DirFS(tmpDir)
+	knownIDs := []string{"T1-01", "T1-02", "T1-03", "T1-04"}
+	completed, err := ScanCompletedSessions(ws, knownIDs...)
+	if err != nil {
+		t.Fatalf("ScanCompletedSessions failed: %v", err)
+	}
+
+	if !completed["T1-01"] {
+		t.Errorf("expected T1-01 to be marked complete from slugged frontmatter ID, got false")
+	}
+	if !completed["T1-02"] {
+		t.Errorf("expected T1-02 to be marked complete, got false")
+	}
+	if !completed["T1-03"] {
+		t.Errorf("expected T1-03 to be marked complete from filename prefix, got false")
+	}
+	if completed["T1-04"] {
+		t.Errorf("expected T1-04 draft to NOT be marked complete, got true")
+	}
+}
+
 

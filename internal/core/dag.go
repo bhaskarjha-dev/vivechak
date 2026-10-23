@@ -258,8 +258,6 @@ var (
 	// Matches metadata table rows like: | **ID** | T1-01 | or | ID | T1-01 |
 	metaFieldRe = regexp.MustCompile(`\|\s*(?:\*\*)?([^*|\s][^*|]*?)(?:\*\*)?\s*\|\s*([^|]+?)\s*\|`)
 
-	// Matches horizontal session table rows like: | D-015-S1 | Comparison | none | sessions/D-015-S1-cache-comparison.md |
-	sessionTableRowRe = regexp.MustCompile(`^\|\s*([A-Za-z0-9]+(?:[-_][A-Za-z0-9]+)*)\s*\|\s*([^|]+)\|\s*([^|]+)\|\s*([^|]+)\|`)
 
 	// Matches words matching session ID pattern inside a brief header
 	briefIDRe = regexp.MustCompile(`[A-Za-z0-9]+(?:[-_][A-Za-z0-9]+)*`)
@@ -408,7 +406,7 @@ func ParsePipeline(data []byte) (*DAG, error) {
 			title = strings.TrimSpace(strings.TrimPrefix(title, ":"))
 			if id != "" {
 				currentSession = getOrCreateSession(id)
-				if title != "" && currentSession.Title == "" {
+				if title != "" {
 					currentSession.Title = title
 				}
 				continue
@@ -416,33 +414,77 @@ func ParsePipeline(data []byte) (*DAG, error) {
 		}
 
 		// Check for horizontal session table row (e.g. decision plans: | ID | Topic | Dependencies | OutputFile |)
-		if strings.Contains(line, "|") && !strings.Contains(line, "**") && !strings.Contains(line, "---") && strings.Count(trimmed, "|") == 5 {
-			if matches := sessionTableRowRe.FindStringSubmatch(trimmed); matches != nil {
-				idVal := strings.TrimSpace(matches[1])
-				isNotSessionID := strings.EqualFold(idVal, "session-id") ||
-					strings.EqualFold(idVal, "id") ||
-					strings.EqualFold(idVal, "session") ||
-					strings.EqualFold(idVal, "criterion") ||
-					strings.EqualFold(idVal, "metric") ||
-					strings.EqualFold(idVal, "feature") ||
-					strings.EqualFold(idVal, "option") ||
-					strings.EqualFold(idVal, "parameter") ||
-					strings.EqualFold(idVal, "dimension") ||
-					strings.EqualFold(idVal, "attribute") ||
-					strings.EqualFold(idVal, "candidate") ||
-					strings.EqualFold(idVal, "requirement") ||
-					strings.EqualFold(idVal, "category") ||
-					(!strings.EqualFold(idVal, "fad") && !strings.ContainsAny(idVal, "0123456789"))
+		if strings.Contains(line, "|") && !strings.Contains(line, "---") {
+			cols := strings.Split(trimmed, "|")
+			var cleanCols []string
+			for _, c := range cols {
+				cleanCols = append(cleanCols, strings.TrimSpace(c))
+			}
+			startIdx := 0
+			if len(cleanCols) > 0 && cleanCols[0] == "" {
+				startIdx = 1
+			}
+			endIdx := len(cleanCols)
+			if endIdx > startIdx && cleanCols[endIdx-1] == "" {
+				endIdx--
+			}
+			actualCols := cleanCols[startIdx:endIdx]
+			if len(actualCols) >= 4 {
+				// Strip bold, italic, code formatting from candidate session ID
+				idVal := strings.Trim(actualCols[0], "*_`")
+				idVal = strings.TrimSpace(idVal)
 
-				if !isNotSessionID {
-					currentSession = getOrCreateSession(idVal)
-					if len(currentSession.Dependencies) == 0 {
-						currentSession.Dependencies = parseDependencies(matches[3])
+				// Determine if this is a horizontal session table or a topology table:
+				// In horizontal session tables, the last column is OutputFile (contains .md, /, or sessions).
+				// In 5-column topology tables, the last column is Est. Calls (a number) and col 1 is Layer.
+				outputCol := strings.Trim(strings.TrimSpace(actualCols[len(actualCols)-1]), "`*_")
+				if len(actualCols) == 4 {
+					outputCol = strings.Trim(strings.TrimSpace(actualCols[3]), "`*_")
+				}
+				isFilename := strings.HasSuffix(strings.ToLower(outputCol), ".md") ||
+					strings.Contains(outputCol, "/") ||
+					strings.Contains(outputCol, "\\") ||
+					strings.Contains(strings.ToLower(outputCol), "session")
+
+				if len(actualCols) == 4 || isFilename {
+					isNotSessionID := strings.EqualFold(idVal, "session-id") ||
+						strings.EqualFold(idVal, "id") ||
+						strings.EqualFold(idVal, "session") ||
+						strings.EqualFold(idVal, "criterion") ||
+						strings.EqualFold(idVal, "metric") ||
+						strings.EqualFold(idVal, "feature") ||
+						strings.EqualFold(idVal, "option") ||
+						strings.EqualFold(idVal, "parameter") ||
+						strings.EqualFold(idVal, "dimension") ||
+						strings.EqualFold(idVal, "attribute") ||
+						strings.EqualFold(idVal, "candidate") ||
+						strings.EqualFold(idVal, "requirement") ||
+						strings.EqualFold(idVal, "category") ||
+						strings.EqualFold(idVal, "field") ||
+						strings.EqualFold(idVal, "step") ||
+						(!strings.EqualFold(idVal, "fad") && !strings.ContainsAny(idVal, "0123456789"))
+
+					if !isNotSessionID {
+						currentSession = getOrCreateSession(idVal)
+						topicVal := strings.Trim(actualCols[1], "*_`")
+						topicVal = strings.TrimSpace(topicVal)
+						if currentSession.Title == "" && topicVal != "" {
+							currentSession.Title = topicVal
+						}
+						depsIdx := 2
+						outIdx := 3
+						if len(actualCols) >= 5 {
+							depsIdx = len(actualCols) - 2
+							outIdx = len(actualCols) - 1
+						}
+						if len(currentSession.Dependencies) == 0 {
+							currentSession.Dependencies = parseDependencies(actualCols[depsIdx])
+						}
+						if currentSession.OutputFile == "" {
+							currentSession.OutputFile = strings.Trim(strings.TrimSpace(actualCols[outIdx]), "`*_")
+						}
+						continue
 					}
-					if currentSession.OutputFile == "" {
-						currentSession.OutputFile = strings.Trim(strings.TrimSpace(matches[4]), "`")
-					}
-					continue
 				}
 			}
 		}
@@ -700,7 +742,7 @@ func parseDependencies(value string) []string {
 		p = depCommentRe.ReplaceAllString(p, "")
 		// Strip bullet markers (- or * or •)
 		p = strings.TrimLeft(p, "-*• \t")
-		p = strings.Trim(p, " \t\r\n.,;:[]`'\"")
+		p = strings.Trim(p, " \t\r\n.,;:[]`'\"*")
 		if isAllPriorSessions(p) {
 			deps = append(deps, "__ALL_PRIOR__")
 			continue

@@ -76,7 +76,7 @@ func runMCPConfigWithArgs(args []string, stdout, stderr io.Writer) int {
 
 	configObj := map[string]any{
 		serverKey: map[string]any{
-			"vivechak": buildServerConfig(serverKey, exePath),
+			"vivechak": buildServerConfig(serverKey, exePath, host),
 		},
 	}
 
@@ -219,8 +219,8 @@ func determineServerKey(host, configPath string, existing map[string]any) string
 	return "mcpServers"
 }
 
-// buildServerConfig returns the appropriate configuration object for the given server key.
-func buildServerConfig(serverKey, exePath string) map[string]any {
+// buildServerConfig returns the appropriate configuration object for the given server key and optional host.
+func buildServerConfig(serverKey, exePath string, host ...string) map[string]any {
 	switch serverKey {
 	case "mcp":
 		return map[string]any{
@@ -238,10 +238,20 @@ func buildServerConfig(serverKey, exePath string) map[string]any {
 			"timeout": 300,
 		}
 	default:
-		return map[string]any{
+		cfg := map[string]any{
 			"command": exePath,
 			"args":    []string{"serve"},
 		}
+		var h string
+		if len(host) > 0 {
+			h = strings.ToLower(host[0])
+		}
+		if serverKey == "servers" || h == "cursor" || h == "vscode" || h == "code" || h == "windsurf" {
+			cfg["env"] = map[string]string{
+				"VCK_PROJECT_ROOT": "${workspaceFolder}",
+			}
+		}
+		return cfg
 	}
 }
 
@@ -454,7 +464,11 @@ func mergeConfig(existingBytes []byte, exePath string, preferredKey ...string) (
 		return nil, fmt.Errorf("%s in config is not a JSON object", key)
 	}
 
-	servers["vivechak"] = buildServerConfig(key, exePath)
+	var hostHint string
+	if len(preferredKey) > 1 {
+		hostHint = preferredKey[1]
+	}
+	servers["vivechak"] = buildServerConfig(key, exePath, hostHint)
 
 	out, err := json.MarshalIndent(existing, "", "  ")
 	if err != nil {

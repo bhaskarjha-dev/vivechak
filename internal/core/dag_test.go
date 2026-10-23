@@ -1415,3 +1415,47 @@ Synthesis prompt
 	}
 }
 
+func TestParsePipeline_BoldedTableCells(t *testing.T) {
+	plan := `# Research Plan: Bolded Overview Table Test
+
+## Overview
+| **ID** | **Topic** | **Dependencies** | **OutputFile** |
+|---|---|---|---|
+| **T1-01** | **Architecture Baseline** | None | ` + "`sessions/T1-01.md`" + ` |
+| **T1-02** | Storage Layer | **T1-01** | ` + "`sessions/T1-02.md`" + ` |
+
+## Prompts
+
+### T1-01: Architecture Baseline
+` + "```prompt" + `
+Research baseline architecture.
+` + "```" + `
+
+### T1-02: Storage Layer
+` + "```prompt" + `
+Research storage layer.
+` + "```" + `
+`
+	dag, err := ParsePipeline([]byte(plan))
+	if err != nil {
+		t.Fatalf("ParsePipeline failed on bolded markdown table: %v", err)
+	}
+	if len(dag.Sessions) != 2 {
+		t.Fatalf("expected 2 sessions, got %d", len(dag.Sessions))
+	}
+	s1 := dag.SessionByID("T1-01")
+	if s1 == nil {
+		t.Fatal("session T1-01 was not parsed from bolded table cell")
+	}
+	if s1.Title != "Architecture Baseline" {
+		t.Errorf("s1.Title = %q, want 'Architecture Baseline'", s1.Title)
+	}
+	s2 := dag.SessionByID("T1-02")
+	if s2 == nil {
+		t.Fatal("session T1-02 was not parsed from table")
+	}
+	if len(s2.Dependencies) != 1 || s2.Dependencies[0] != "T1-01" {
+		t.Errorf("s2.Dependencies = %v, want ['T1-01']", s2.Dependencies)
+	}
+}
+

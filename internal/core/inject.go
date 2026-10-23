@@ -254,12 +254,6 @@ func budgetFindings(findings []string, sessionIDs []string, budget int) []string
 	return trimmed
 }
 
-// gatherAllFindings reads all completed session files and assembles their
-// findings into a single context block. Preserved for backwards compatibility.
-func gatherAllFindings(sessionsDir string, completedSessions map[string]bool) (string, []string, int, error) {
-	return gatherAllFindingsFS(DirFS(sessionsDir), "", completedSessions)
-}
-
 // gatherAllFindingsFS reads all completed session files via WorkspaceFS confinement and assembles their
 // findings into a single context block. For synthesis, also extracts ## Delta
 // sections and aggregates them into a belief evolution block.
@@ -383,11 +377,6 @@ func extractDeltaSection(body string) string {
 	}
 
 	return strings.TrimSpace(deltaContent.String())
-}
-
-// gatherDependencyFindings reads only the direct dependency session files. Preserved for backwards compatibility.
-func gatherDependencyFindings(sessionsDir string, dependencies []string) (string, []string, int, error) {
-	return gatherDependencyFindingsFS(DirFS(sessionsDir), "", dependencies)
 }
 
 // gatherDependencyFindingsFS reads only the direct dependency session files via WorkspaceFS confinement.

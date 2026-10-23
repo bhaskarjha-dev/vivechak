@@ -237,26 +237,21 @@ func GetLastResolvedWorkspace() string {
 // Returns the absolute path to the workspace root.
 func ResolveWorkspace(explicit string) (string, error) {
 	// Step 1: Explicit argument
-	if explicit != "" {
-		if strings.HasPrefix(explicit, "${") {
-			// Unexpanded editor macro variable (e.g. ${workspaceFolder}) — treat as unset
-			explicit = ""
-		} else {
-			abs, err := filepath.Abs(explicit)
-			if err != nil {
-				return "", fmt.Errorf("resolving explicit path %q: %w", explicit, err)
-			}
-			// If explicit path points directly to research directory, normalize to parent workspace root
-			if filepath.Base(abs) == ResearchDir {
-				if _, err := os.Stat(filepath.Join(abs, ResearchDir)); os.IsNotExist(err) {
-					if fi, err := os.Stat(abs); err == nil && fi.IsDir() {
-						abs = filepath.Dir(abs)
-					}
+	if explicit != "" && !strings.HasPrefix(explicit, "${") {
+		abs, err := filepath.Abs(explicit)
+		if err != nil {
+			return "", fmt.Errorf("resolving explicit path %q: %w", explicit, err)
+		}
+		// If explicit path points directly to research directory, normalize to parent workspace root
+		if filepath.Base(abs) == ResearchDir {
+			if _, err := os.Stat(filepath.Join(abs, ResearchDir)); os.IsNotExist(err) {
+				if fi, err := os.Stat(abs); err == nil && fi.IsDir() {
+					abs = filepath.Dir(abs)
 				}
 			}
-			SetLastResolvedWorkspace(abs)
-			return abs, nil
 		}
+		SetLastResolvedWorkspace(abs)
+		return abs, nil
 	}
 
 	// Step 2: Environment variables (VIVECHAK_PROJECT_ROOT, VCK_PROJECT_ROOT, VIVECHAK_DEFAULT_ROOT, VCK_DEFAULT_ROOT, WORKSPACE, PROJECT_ROOT)
@@ -537,26 +532,30 @@ func ScanCompletedSessions(ws WorkspaceFS, knownIDs ...string) (map[string]bool,
 				continue
 			}
 
-			hasExplicitFMID := fm != nil && (fm.GetString("session_id") != "" || fm.GetString("id") != "")
+			stem := strings.TrimSuffix(e.Name(), ".md")
 			id := ExtractSessionID(e.Name(), fm)
+
+			candidates := []string{stem}
 			if id != "" {
 				completed[id] = true
 				completed[strings.ToUpper(id)] = true
+				if !strings.EqualFold(id, stem) {
+					candidates = append(candidates, id)
+				}
 			}
 
-			// If no explicit frontmatter session ID was present, also match session ID prefix
-			// to avoid deadlocking the DAG when files are saved with title slugs (e.g. T1-01-database.md)
-			if !hasExplicitFMID {
-				stem := strings.TrimSuffix(e.Name(), ".md")
-				lowerStem := strings.ToLower(stem)
+			// Match session ID prefixes against known DAG sessions to prevent deadlocks
+			// even when files or frontmatter IDs include title slugs (e.g. T1-01-database-selection)
+			for _, cand := range candidates {
+				lowerCand := strings.ToLower(cand)
 				for _, kid := range knownIDs {
 					lowerKid := strings.ToLower(kid)
-					if lowerStem == lowerKid || strings.HasPrefix(lowerStem, lowerKid+"-") || strings.HasPrefix(lowerStem, lowerKid+"_") {
+					if lowerCand == lowerKid || strings.HasPrefix(lowerCand, lowerKid+"-") || strings.HasPrefix(lowerCand, lowerKid+"_") {
 						completed[kid] = true
 						completed[strings.ToUpper(kid)] = true
 					}
 				}
-				if sub := sessionIDPrefixRe.FindStringSubmatch(stem); len(sub) > 1 {
+				if sub := sessionIDPrefixRe.FindStringSubmatch(cand); len(sub) > 1 {
 					completed[sub[1]] = true
 					completed[strings.ToUpper(sub[1])] = true
 				}

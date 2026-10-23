@@ -488,6 +488,28 @@ Contradicted old belief.
 			t.Errorf("unexpected concerns observation when section present: %v", o)
 		}
 	}
+
+	contentComparisonNoConcerns := []byte(`---
+scope_level: comparison
+---
+## Research Question
+Pino vs Winston
+## Key Findings
+- Finding 1 [Grade A: docs, https://getpino.io, fetched]
+- Finding 2 [Grade B: benchmark, https://benchmarks.com, fetched]
+- Finding 3 [Grade B: benchmark, https://benchmarks.com, fetched]
+## Weighted Evaluation Matrix
+### Criteria & Weights
+| Criterion | Weight |
+|---|---|
+| Speed | 1.0 |
+`)
+	obs3 := ObserveSessionQuality(contentComparisonNoConcerns)
+	for _, o := range obs3 {
+		if o.Category == "concerns" && strings.Contains(o.Message, "Discovered Concerns") {
+			t.Errorf("unexpected concerns observation for comparison session: %v", o)
+		}
+	}
 }
 
 func TestObserveSessionQuality_KeyFindingsCount(t *testing.T) {

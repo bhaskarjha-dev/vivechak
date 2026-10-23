@@ -32,7 +32,7 @@ The agent calls `vivechak_prepare_generator` with `scope="decision"`:
   "data": {
     "scope": "decision",
     "prompt": "# GENERATE: Architectural Decision Plan (ADR)\n\n## DILEMMA\nMigrate event log storage from PostgreSQL to ClickHouse...\n\n## COMPLEXITY PROFILING\n- Reversibility (R): 2 (High data migration cost)\n- Novelty (N): 2 (Team lacks ClickHouse operational expertise)\n- Blast Radius (B): 2 (Core analytics pipeline)\n- Regulatory/Compliance (X): 0 (Standard internal logs)\n\nRoutes to 2 Sessions: L (Landscape & Benchmark) + F (Falsification & Failure Modes)...",
-    "template_file": "DECISIONS.template.md"
+    "generator_file": "GENERATOR-DECISION.md"
   },
   "next_step": "Execute the decision generator prompt using frontier LLM capabilities with web search, then call vivechak_save_plan to persist the decision plan."
 }

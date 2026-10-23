@@ -99,6 +99,14 @@ func handleSaveSession(ctx context.Context, _ *sdkmcp.CallToolRequest, in SaveSe
 
 	// Determine filename
 	filename := in.SessionID + ".md"
+	if dag != nil {
+		if s := dag.SessionByID(in.SessionID); s != nil && s.OutputFile != "" {
+			base := filepath.Base(s.OutputFile)
+			if strings.HasSuffix(strings.ToLower(base), ".md") {
+				filename = base
+			}
+		}
+	}
 
 	// Ensure sessions directory exists
 	if err := ws.MkdirAll(core.SessionsDir, 0o755); err != nil {

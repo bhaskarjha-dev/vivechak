@@ -330,7 +330,25 @@ func EvaluateGate(ws WorkspaceFS, info WorkspaceInfo, root string) *GateResult {
 		gatePassed = true
 		gateAdvisories = append(gateAdvisories, "Comparison scope has zero gate requirements. Research is complete upon WEP matrix generation.")
 	case ScopeDecision:
-		gatePassed = trackAPass && trackBPass && structuralPass
+		hasOneWay := false
+		for _, d := range decisions {
+			if strings.EqualFold(d.DoorType, "one-way") || strings.EqualFold(d.DoorType, "one_way") {
+				hasOneWay = true
+				break
+			}
+		}
+		if hasOneWay {
+			gatePassed = trackAPass && trackBPass && structuralPass
+		} else {
+			// For purely Two-Way Door decisions, Track A reversibility confirmation is sufficient
+			gatePassed = trackAPass && structuralPass
+			if len(trackBIssues) > 0 {
+				for _, issue := range trackBIssues {
+					gateAdvisories = append(gateAdvisories, "Track B (advisory for two-way door): "+issue)
+				}
+				trackBIssues = nil
+			}
+		}
 	default: // ScopeProject
 		gatePassed = trackAPass && trackBPass && structuralPass
 	}

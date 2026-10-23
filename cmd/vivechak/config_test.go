@@ -1087,3 +1087,28 @@ func TestRunSetup_DryRun_All21Presets(t *testing.T) {
 		}
 	}
 }
+
+func TestBuildServerConfig_WorkspaceFolderEnv(t *testing.T) {
+	exe := "/path/to/vck"
+
+	// Cursor preset
+	cursorCfg := buildServerConfig("mcpServers", exe, "cursor")
+	envMap, ok := cursorCfg["env"].(map[string]string)
+	if !ok || envMap["VCK_PROJECT_ROOT"] != "${workspaceFolder}" {
+		t.Errorf("cursor config missing VCK_PROJECT_ROOT env: %+v", cursorCfg)
+	}
+
+	// VS Code preset (servers key)
+	vscodeCfg := buildServerConfig("servers", exe, "vscode")
+	envMap2, ok := vscodeCfg["env"].(map[string]string)
+	if !ok || envMap2["VCK_PROJECT_ROOT"] != "${workspaceFolder}" {
+		t.Errorf("vscode config missing VCK_PROJECT_ROOT env: %+v", vscodeCfg)
+	}
+
+	// Claude Desktop preset (should NOT have ${workspaceFolder})
+	claudeCfg := buildServerConfig("mcpServers", exe, "claude-desktop")
+	if claudeCfg["env"] != nil {
+		t.Errorf("claude-desktop should not have env block, got: %+v", claudeCfg)
+	}
+}
+

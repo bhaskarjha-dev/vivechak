@@ -65,7 +65,7 @@ For evidence grading, every factual claim should carry:
 <!-- CORE:END -->
 
 ## FORMAT
-Single Markdown file with YAML frontmatter (id, title, date, status, topic, tags, informs_decisions, confidence). Sections: Prior (pre-research beliefs: 3-5 checkable propositions "I believe [X] because [reasoning]") → Research Question → Key Findings (3-7 bullets) → Recommendation (isolated from rejected options) → Alternatives Considered → Detailed Findings → Open Questions & Risks → Delta (what research changed: table with Prior Belief | Status | Evidence | Impact) → Sources & Evidence Ledger. Filename: {filename} (id = its stem). In conversational chat responses, cite explicit inline `[Grade A: <source>]` tags directly alongside all quantitative benchmarks and key claims.
+Single Markdown file with YAML frontmatter (id, title, date, status, topic, tags, informs_decisions, confidence, scope_level: comparison). Sections: Prior (pre-research beliefs: 3-5 checkable propositions "I believe [X] because [reasoning]") → Research Question → Key Findings (3-7 bullets) → Recommendation (isolated from rejected options) → Weighted Evaluation Matrix (criteria with normalized weights, 1-5 evidence-referenced scores, sensitivity check, score-qualitative reconciliation) → Alternatives Considered → Detailed Findings → Open Questions & Risks → Delta (what research changed: table with Prior Belief | Status | Evidence | Impact) → Discovered Concerns (if any) → Sources & Evidence Ledger. Filename: {filename} (id = its stem). In conversational chat responses, cite explicit inline `[Grade A: <source>]` tags directly alongside all quantitative benchmarks and key claims.
 ```
 
 

@@ -145,12 +145,17 @@ func ObserveSessionQuality(content []byte) []QualityObservation {
 	// Discovered Concerns check
 	hasConcerns := hasSectionHeading(bodyStr, "discovered concerns", "discovered concern")
 	if !hasConcerns {
-		observations = append(observations, QualityObservation{
-			Category: "concerns",
-			Message: "No Discovered Concerns section found. Every research session should " +
-				"uncover at least one unexpected finding beyond the stated scope.",
-			Severity: "suggestion",
-		})
+		fm, _, _ := ParseFrontmatter(content)
+		isComparison := (fm != nil && strings.EqualFold(fm.GetString("scope_level"), "comparison")) ||
+			hasSectionHeading(bodyStr, "weighted evaluation matrix")
+		if !isComparison {
+			observations = append(observations, QualityObservation{
+				Category: "concerns",
+				Message: "No Discovered Concerns section found. Every research session should " +
+					"uncover at least one unexpected finding beyond the stated scope.",
+				Severity: "suggestion",
+			})
+		}
 	}
 
 	// Key Findings count check
