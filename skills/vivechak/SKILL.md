@@ -50,7 +50,7 @@ Use when designing a brand-new system or greenfield platform architecture from s
 3. **Session Loop:** Loop through DAG sessions:
    - `vivechak_next_session` → research → `vivechak_save_session` → `vivechak_record_decision(auto_draft_from=..., auto_save=true)`.
 4. **Synthesize FAD:** Compile grand synthesis session `SYN-01` into `research/FAD.md`.
-5. **Phase 0 Exit Gate:** Run `vivechak_run_gate(track="all")` or run `/vivechak_gate` to verify Track A (reversibility) and Track B (rigor B1–B11) before writing codebase implementation.
+5. **Phase 0 Exit Gate:** Run `vivechak_run_gate(track="all")` or run `/gate` *(or `/vivechak_gate`)* to verify Track A (reversibility) and Track B (rigor B1–B11) before writing codebase implementation.
 
 ---
 

@@ -18,14 +18,18 @@ Unified release delivering the complete pre-release hardening wave across engine
   - *Makefile Line Endings & Git Attributes Normalization (`F-12`, `Makefile`, `.gitattributes`):* Converted `Makefile` to LF line endings and enforced `eol=lf` in `.gitattributes`.
   - *Path Normalization & Missing Directory Hardening (`workspace.go`, `store/workspace.go`):* Normalized empty paths to `.` across `Stat` and `ListDir` in `store.Workspace` and `dirFS.resolve`, and handled missing session directories gracefully during session reads.
 - **MCP Protocol Triumvirate Expansion (Prompts & Resources):**
-  - Added 4 native user-controlled MCP Prompts via `sdkmcp.AddPrompt` (`vivechak_compare`, `vivechak_decision`, `vivechak_project`, `vivechak_gate`), enabling instant slash-command research workflows in Claude Desktop, Cursor, Continue, and Zed.
+  - Added 4 native user-controlled MCP Prompts registered with clean action-verb names (`compare`, `decision`, `project`, `gate`), enabling instant, uncluttered slash commands in Claude Desktop, Cursor, Antigravity, Continue, and Zed.
+  - Implemented wire-level JSON-RPC receiving middleware normalizer (`AddReceivingMiddleware`) providing seamless backward compatibility for legacy `vivechak_*` and shorthand `vck_*` aliases with zero prompt list clutter.
   - Added 8 canonical read-only MCP Resources via `server.AddResource` (`vivechak://templates/{decisions,comparison,fad,conflict-resolution,gate,session}` and `vivechak://methodology/{grades,principles}`) complying with MCP SEP-2164 error handling (`ResourceNotFoundError`).
 - **Universal Agent Skill (`skills/vivechak/SKILL.md`) & Pre-Packaged Rules:**
   - Added standard `agentskills.io` manifest enabling decentralized installation via `npx skills add bhaskarjha-dev/vivechak`.
   - Added pre-packaged rule templates for Cursor (`templates/rules/cursor.mdc`), Claude Code (`templates/rules/claude.md`), and Google Antigravity (`templates/rules/antigravity.md`).
   - Embedded skills and rules into `internal/embed/` with byte-for-byte root synchronization verified by `TestEmbeddedFilesMatchRoot`.
+- **Dual Environment Variable Ladder & CLI Ergonomics:**
+  - Added `VCK_PROJECT_ROOT` and `VCK_DEFAULT_ROOT` environment variable aliases alongside `VIVECHAK_PROJECT_ROOT` and `VIVECHAK_DEFAULT_ROOT`, ensuring frictionless container workspace injection across CI, Docker, and OpenHands runtimes.
+  - Updated CLI usage banner to display `vck <command>  (or: vivechak <command>)`, standardizing the concise, ergonomic shorthand alias while maintaining 100% full-name parity.
 - **Diagnostic Guidance Hardening (`workspace.go`):**
-  - Updated workspace resolution diagnostics to provide clear guidance directing users to editor slash commands (`/vivechak_compare`, `/vivechak_project`) without misleading legacy hints.
+  - Updated workspace resolution diagnostics to provide clear guidance directing users to editor slash commands (`/compare`, `/project`) without misleading legacy hints.
 - **Launch Assets & Automated Supply-Chain Hygiene:**
   - Added 1280×640 vector OpenGraph card (`docs/assets/social-preview.svg`) and rendered raster asset (`docs/assets/social-preview.png`) adhering to `docs/BRAND.md`.
   - Added `.github/dependabot.yml` for automated weekly Go modules and GitHub Actions maintenance.

@@ -320,7 +320,7 @@ Add Vivechak to `~/.gemini/config/mcp_config.json` (global) or `<project-root>/.
 | **Workspace** | `.agents/mcp_config.json` | Project-specific workspace |
 
 > **Tip:** In Antigravity IDE or Antigravity 2.0, you can verify active MCP servers anytime in the chat panel via **"..." (More Options) > "Manage MCP Servers" > "View raw config"**. Inside the `agy` terminal, use `/mcp` or `agy mcp list`.
-> **Workspace Location Best Practice:** When prompting agents in IDE environments, ensure agents pass `project_root` explicitly if needed (or configure `"env": { "VIVECHAK_PROJECT_ROOT": "${workspaceFolder}" }`). Vivechak includes active guards against host CWD inheritance and rejects any attempts to initialize workspaces inside application program folders (`AppData\Local\Programs\...`).
+> **Workspace Location Best Practice:** When prompting agents in IDE environments, ensure agents pass `project_root` explicitly if needed (or configure `"env": { "VCK_PROJECT_ROOT": "${workspaceFolder}" }` or `"VIVECHAK_PROJECT_ROOT"`). Vivechak includes active guards against host CWD inheritance and rejects any attempts to initialize workspaces inside application program folders (`AppData\Local\Programs\...`).
 
 ---
 

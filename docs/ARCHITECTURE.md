@@ -97,7 +97,7 @@ Defined in [`internal/core/scope.go`](../internal/core/scope.go#L8-L22), [`Scope
 ### Workspace & Resolution Chain
 Defined in [`internal/core/workspace.go`](../internal/core/workspace.go), [`ResolveWorkspace`](../internal/core/workspace.go) evaluates a deterministic 5-step resolution chain:
 1. **Explicit argument**: `project_root` passed directly in the MCP tool call or CLI command.
-2. **Environment variables**: `VIVECHAK_PROJECT_ROOT`, `VIVECHAK_DEFAULT_ROOT`, `WORKSPACE`, or `PROJECT_ROOT` if set (ignoring unexpanded `${workspaceFolder}` macros).
+2. **Environment variables**: `VIVECHAK_PROJECT_ROOT`, `VCK_PROJECT_ROOT`, `VIVECHAK_DEFAULT_ROOT`, `VCK_DEFAULT_ROOT`, `WORKSPACE`, or `PROJECT_ROOT` if set (ignoring unexpanded `${workspaceFolder}` macros).
 3. **CWD Directory Traversal**: Walks upwards from the current working directory searching for an existing `research/` directory (safely skipping host IDE application program directories).
 4. **In-process session memory**: Fallback to the last successfully resolved workspace with existing `research/` within the current server process, eliminating repetitive parameter passing in long agent sessions.
 5. **Fallback error**: Clear diagnostic error instructing the caller to start a research session in their AI editor (e.g. `/compare` or `/project`) or pass `project_root` explicitly.

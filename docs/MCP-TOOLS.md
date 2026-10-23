@@ -77,7 +77,7 @@ This prevents AI agents from getting stuck, drifting into unapproved tasks, or l
 Every tool that interacts with the filesystem resolves the workspace root directory using a 5-step hierarchy via [`ResolveWorkspace()`](../internal/core/workspace.go):
 
 1. **Explicit argument**: `project_root` parameter passed directly to the tool call.
-2. **Environment variables**: `VIVECHAK_PROJECT_ROOT`, `VIVECHAK_DEFAULT_ROOT`, `WORKSPACE`, or `PROJECT_ROOT` if set (ignoring unexpanded `${workspaceFolder}` macros).
+2. **Environment variables**: `VIVECHAK_PROJECT_ROOT`, `VCK_PROJECT_ROOT`, `VIVECHAK_DEFAULT_ROOT`, `VCK_DEFAULT_ROOT`, `WORKSPACE`, or `PROJECT_ROOT` if set (ignoring unexpanded `${workspaceFolder}` macros).
 3. **Directory discovery**: Traversing upward from the current working directory (`CWD`) searching for an existing `research/` directory (skipping host IDE application installation folders like `AppData\Local\Programs` or `Program Files`).
 4. **In-process session memory**: Fallback to the last successfully resolved workspace with existing `research/` within the current server process, eliminating repetitive parameter passing across consecutive tool calls.
 5. **Resolution Error**: If none succeed, the tool returns a descriptive diagnostic error instructing the caller to start a research session in their AI editor (e.g., `/compare` or `/project`) or pass `project_root` explicitly.
@@ -1158,10 +1158,10 @@ MCP Prompts allow users to trigger pre-calibrated research workflows via native 
 
 | Prompt Name | UI Title | Arguments | Description |
 |---|---|---|---|
-| `compare` *(alias: `vivechak_compare`)* | Compare Options (WEP Matrix) | `options` (req), `criteria` (opt), `context` (opt) | Launches a bounded 1-session technology comparison (~5m) with anti-spill directives to persist the WEP matrix via `vivechak_save_plan`. |
-| `decision` *(alias: `vivechak_decision`)* | Architectural Decision (ADR) | `dilemma` (req), `context` (opt) | Launches an architectural dilemma research plan (~30m, 1–3 sessions) leading to a canonical ADR. |
-| `project` *(alias: `vivechak_project`)* | Project Pipeline (Full FAD) | `vision` (req), `context` (opt) | Launches a greenfield system decomposition across an adaptive dependency DAG to a Founding Architecture Document (`FAD.md`). |
-| `gate` *(alias: `vivechak_gate`)* | Phase 0 Pre-Codebase Exit Gate | `track` (opt: all/track_a/track_b), `project_root` (opt) | Prompts the model to evaluate pre-codebase exit criteria via `vivechak_run_gate` and summarize blocking issues. |
+| `compare` *(aliases: `vivechak_compare`, `vck_compare`)* | Compare Options (WEP Matrix) | `options` (req), `criteria` (opt), `context` (opt) | Launches a bounded 1-session technology comparison (~5m) with anti-spill directives to persist the WEP matrix via `vivechak_save_plan`. |
+| `decision` *(aliases: `vivechak_decision`, `vck_decision`)* | Architectural Decision (ADR) | `dilemma` (req), `context` (opt) | Launches an architectural dilemma research plan (~30m, 1–3 sessions) leading to a canonical ADR. |
+| `project` *(aliases: `vivechak_project`, `vck_project`)* | Project Pipeline (Full FAD) | `vision` (req), `context` (opt) | Launches a greenfield system decomposition across an adaptive dependency DAG to a Founding Architecture Document (`FAD.md`). |
+| `gate` *(aliases: `vivechak_gate`, `vck_gate`)* | Phase 0 Pre-Codebase Exit Gate | `track` (opt: all/track_a/track_b), `project_root` (opt) | Prompts the model to evaluate pre-codebase exit criteria via `vivechak_run_gate` and summarize blocking issues. |
 
 ### 2. Canonical MCP Resources (`vivechak://...`)
 

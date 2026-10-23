@@ -114,7 +114,7 @@ During `vivechak_save_session`, the engine surfaces non-blocking `[Q-*]` advisor
     "project_root": "d:/my-project"
   }
   ```
-  Or set the environment variable `"VIVECHAK_PROJECT_ROOT": "${workspaceFolder}"` in your host's MCP server configuration.
+  Or set the environment variable `"VCK_PROJECT_ROOT": "${workspaceFolder}"` (or `"VIVECHAK_PROJECT_ROOT"`) in your host's MCP server configuration.
 
 ### Problem: Verifying MCP Connection Interactively
 To test that your Vivechak binary responds to JSON-RPC over `stdio` without an editor:
