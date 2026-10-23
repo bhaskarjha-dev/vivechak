@@ -237,8 +237,9 @@ func GetLastResolvedWorkspace() string {
 // Returns the absolute path to the workspace root.
 func ResolveWorkspace(explicit string) (string, error) {
 	// Step 1: Explicit argument
-	if explicit != "" && !strings.HasPrefix(explicit, "${") {
-		abs, err := filepath.Abs(explicit)
+	trimmedExplicit := strings.TrimSpace(explicit)
+	if trimmedExplicit != "" && !strings.HasPrefix(trimmedExplicit, "${") {
+		abs, err := filepath.Abs(trimmedExplicit)
 		if err != nil {
 			return "", fmt.Errorf("resolving explicit path %q: %w", explicit, err)
 		}
@@ -272,8 +273,9 @@ func ResolveWorkspace(explicit string) (string, error) {
 		envRoot = os.Getenv("PROJECT_ROOT")
 	}
 	// Protect against unexpanded IDE macro variables like "${workspaceFolder}"
-	if envRoot != "" && !strings.HasPrefix(envRoot, "${") {
-		abs, err := filepath.Abs(envRoot)
+	trimmedEnv := strings.TrimSpace(envRoot)
+	if trimmedEnv != "" && !strings.HasPrefix(trimmedEnv, "${") {
+		abs, err := filepath.Abs(trimmedEnv)
 		if err == nil {
 			SetLastResolvedWorkspace(abs)
 			return abs, nil

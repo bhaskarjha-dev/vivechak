@@ -1112,3 +1112,21 @@ func TestBuildServerConfig_WorkspaceFolderEnv(t *testing.T) {
 	}
 }
 
+func TestSetupWithArgs_WorkspaceFolderEnv(t *testing.T) {
+	for _, host := range []string{"cursor", "windsurf", "vscode"} {
+		var stdout, stderr bytes.Buffer
+		code := runSetupWithArgs([]string{"--dry-run", host}, &stdout, &stderr)
+		if code != 0 {
+			t.Fatalf("setup --dry-run %s failed with code %d: %s", host, code, stderr.String())
+		}
+		outStr := stdout.String()
+		if !strings.Contains(outStr, "VCK_PROJECT_ROOT") {
+			t.Errorf("setup --dry-run %s missing VCK_PROJECT_ROOT in output:\n%s", host, outStr)
+		}
+		if !strings.Contains(outStr, "${workspaceFolder}") {
+			t.Errorf("setup --dry-run %s missing ${workspaceFolder} in output:\n%s", host, outStr)
+		}
+	}
+}
+
+

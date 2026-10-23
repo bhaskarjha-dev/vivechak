@@ -1208,3 +1208,112 @@ func TestServerInstructions_MultiScopeAndOutofScope(t *testing.T) {
 	}
 }
 
+// TestSaveSession_CustomOutputFileFromDAG verifies that vivechak_save_session respects
+// the custom OutputFile path configured in the DAG pipeline.
+func TestSaveSession_CustomOutputFileFromDAG(t *testing.T) {
+	cs := testServer(t)
+	ctx := context.Background()
+	tmpDir := t.TempDir()
+
+	// 1. Initialize project scope
+	initRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_init",
+		Arguments: map[string]any{
+			"project_root": tmpDir,
+			"scope":        "project",
+		},
+	})
+	if err != nil {
+		t.Fatalf("vivechak_init failed: %v", err)
+	}
+	_ = parseEnvelope(t, initRes)
+
+	// 2. Save pipeline with custom OutputFile
+	pipelineContent := `# RESEARCH PIPELINE
+
+## Overview
+| ID | Topic | Dependencies | OutputFile |
+|---|---|---|---|
+| T1-01 | Database Architecture | none | sessions/T1-01-database-selection.md |
+| T1-02 | Auth System | none | |
+
+### T1-01: Database Architecture
+` + "```prompt\nResearch DB\n```" + `
+
+### T1-02: Auth System
+` + "```prompt\nResearch Auth\n```" + `
+`
+	savePlanRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_save_plan",
+		Arguments: map[string]any{
+			"project_root": tmpDir,
+			"scope":        "project",
+			"content":      pipelineContent,
+		},
+	})
+	if err != nil {
+		t.Fatalf("vivechak_save_plan failed: %v", err)
+	}
+	_ = parseEnvelope(t, savePlanRes)
+
+	// 3. Save session T1-01 with custom OutputFile
+	sessionContent := `---
+id: T1-01
+title: Database Architecture
+date: 2026-10-23
+status: complete
+---
+# Database Architecture
+## Key Findings
+- Finding 1: PostgreSQL handles high concurrency. Grade A (official docs)
+`
+	saveSessRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_save_session",
+		Arguments: map[string]any{
+			"project_root": tmpDir,
+			"session_id":   "T1-01",
+			"content":      sessionContent,
+		},
+	})
+	if err != nil {
+		t.Fatalf("vivechak_save_session failed: %v", err)
+	}
+	env := parseEnvelope(t, saveSessRes)
+	data, ok := env.Data.(map[string]any)
+	if !ok {
+		t.Fatalf("expected data map in save_session response, got %T", env.Data)
+	}
+	filePath, _ := data["file_path"].(string)
+	expectedPath := "research/sessions/T1-01-database-selection.md"
+	if filePath != expectedPath {
+		t.Errorf("file_path = %q; want %q", filePath, expectedPath)
+	}
+
+	// Verify file actually exists at custom output path
+	fullPath := filepath.Join(tmpDir, filePath)
+	if _, err := os.Stat(fullPath); os.IsNotExist(err) {
+		t.Errorf("file was not created at expected custom output path: %s", fullPath)
+	}
+
+	// 4. Save session T1-02 without custom OutputFile (should use default T1-02.md)
+	saveSess2Res, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_save_session",
+		Arguments: map[string]any{
+			"project_root": tmpDir,
+			"session_id":   "T1-02",
+			"content":      sessionContent,
+		},
+	})
+	if err != nil {
+		t.Fatalf("vivechak_save_session T1-02 failed: %v", err)
+	}
+	env2 := parseEnvelope(t, saveSess2Res)
+	data2, _ := env2.Data.(map[string]any)
+	filePath2, _ := data2["file_path"].(string)
+	expectedDefaultPath := "research/sessions/T1-02.md"
+	if filePath2 != expectedDefaultPath {
+		t.Errorf("file_path for T1-02 = %q; want %q", filePath2, expectedDefaultPath)
+	}
+}
+
+

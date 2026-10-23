@@ -246,7 +246,9 @@ func buildServerConfig(serverKey, exePath string, host ...string) map[string]any
 		if len(host) > 0 {
 			h = strings.ToLower(host[0])
 		}
-		if serverKey == "servers" || h == "cursor" || h == "vscode" || h == "code" || h == "windsurf" {
+		if serverKey == "servers" || h == "cursor" || strings.Contains(h, "cursor") ||
+			h == "vscode" || h == "code" || strings.Contains(h, "vscode") ||
+			h == "windsurf" || strings.Contains(h, "windsurf") {
 			cfg["env"] = map[string]string{
 				"VCK_PROJECT_ROOT": "${workspaceFolder}",
 			}
@@ -999,6 +1001,17 @@ func runSetupWithArgs(args []string, stdout, stderr io.Writer) int {
 	}
 
 	targetKey := determineServerKey(target, configPath, nil)
+	hostHint := target
+	if !isSupportedPreset(target) {
+		cleanLow := strings.ToLower(filepath.Clean(configPath))
+		if strings.Contains(cleanLow, "cursor") {
+			hostHint = "cursor"
+		} else if strings.Contains(cleanLow, "windsurf") || strings.Contains(cleanLow, "codeium") {
+			hostHint = "windsurf"
+		} else if strings.Contains(cleanLow, "vscode") || strings.Contains(cleanLow, ".vscode") {
+			hostHint = "vscode"
+		}
+	}
 
 	var out []byte
 	if strings.HasSuffix(configPath, ".yaml") || strings.HasSuffix(configPath, ".yml") {
@@ -1015,7 +1028,7 @@ func runSetupWithArgs(args []string, stdout, stderr io.Writer) int {
 					targetKey = determineServerKey(target, configPath, existing)
 				}
 			}
-			merged, mergeErr := mergeConfig(b, exePath, targetKey)
+			merged, mergeErr := mergeConfig(b, exePath, targetKey, hostHint)
 			if mergeErr != nil {
 				fmt.Fprintf(stderr, "Error: could not merge Vivechak into existing configuration at %s: %v\n", configPath, mergeErr)
 				fmt.Fprintf(stderr, "To protect your existing settings, Vivechak will not overwrite this file.\n")
@@ -1024,7 +1037,7 @@ func runSetupWithArgs(args []string, stdout, stderr io.Writer) int {
 			}
 			out = merged
 		} else {
-			fresh, freshErr := mergeConfig(nil, exePath, targetKey)
+			fresh, freshErr := mergeConfig(nil, exePath, targetKey, hostHint)
 			if freshErr != nil {
 				fmt.Fprintf(stderr, "failed to create fresh config: %v\n", freshErr)
 				return 1

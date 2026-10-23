@@ -269,6 +269,31 @@ var (
 	promptStartRe = regexp.MustCompile("^`{3,}prompt")
 )
 
+// isSessionIDString determines whether a string token matches a valid Vivechak session ID format.
+func isSessionIDString(s string) bool {
+	if len(s) == 0 || len(s) > 40 {
+		return false
+	}
+	first := s[0]
+	if (first < 'a' || first > 'z') && (first < 'A' || first > 'Z') {
+		return false
+	}
+	if strings.ContainsAny(s, " \t\r\n") {
+		return false
+	}
+	lower := strings.ToLower(s)
+	switch lower {
+	case "id", "session", "session-id", "session_id", "step", "criterion", "metric", "feature",
+		"option", "parameter", "dimension", "attribute", "candidate", "requirement", "category",
+		"field", "notes", "description", "action", "status", "type", "door", "track", "layer", "focus":
+		return false
+	}
+	if strings.EqualFold(s, "fad") || strings.EqualFold(s, "syn") {
+		return true
+	}
+	return strings.ContainsAny(s, "0123456789")
+}
+
 // ParsePipeline parses a RESEARCH-PIPELINE.md or decision plan file into a DAG structure.
 func ParsePipeline(data []byte) (*DAG, error) {
 	dag := &DAG{}
@@ -446,45 +471,26 @@ func ParsePipeline(data []byte) (*DAG, error) {
 					strings.Contains(outputCol, "\\") ||
 					strings.Contains(strings.ToLower(outputCol), "session")
 
-				if len(actualCols) == 4 || isFilename {
-					isNotSessionID := strings.EqualFold(idVal, "session-id") ||
-						strings.EqualFold(idVal, "id") ||
-						strings.EqualFold(idVal, "session") ||
-						strings.EqualFold(idVal, "criterion") ||
-						strings.EqualFold(idVal, "metric") ||
-						strings.EqualFold(idVal, "feature") ||
-						strings.EqualFold(idVal, "option") ||
-						strings.EqualFold(idVal, "parameter") ||
-						strings.EqualFold(idVal, "dimension") ||
-						strings.EqualFold(idVal, "attribute") ||
-						strings.EqualFold(idVal, "candidate") ||
-						strings.EqualFold(idVal, "requirement") ||
-						strings.EqualFold(idVal, "category") ||
-						strings.EqualFold(idVal, "field") ||
-						strings.EqualFold(idVal, "step") ||
-						(!strings.EqualFold(idVal, "fad") && !strings.ContainsAny(idVal, "0123456789"))
-
-					if !isNotSessionID {
-						currentSession = getOrCreateSession(idVal)
-						topicVal := strings.Trim(actualCols[1], "*_`")
-						topicVal = strings.TrimSpace(topicVal)
-						if currentSession.Title == "" && topicVal != "" {
-							currentSession.Title = topicVal
-						}
-						depsIdx := 2
-						outIdx := 3
-						if len(actualCols) >= 5 {
-							depsIdx = len(actualCols) - 2
-							outIdx = len(actualCols) - 1
-						}
-						if len(currentSession.Dependencies) == 0 {
-							currentSession.Dependencies = parseDependencies(actualCols[depsIdx])
-						}
-						if currentSession.OutputFile == "" {
-							currentSession.OutputFile = strings.Trim(strings.TrimSpace(actualCols[outIdx]), "`*_")
-						}
-						continue
+				if (len(actualCols) == 4 || isFilename) && isSessionIDString(idVal) {
+					currentSession = getOrCreateSession(idVal)
+					topicVal := strings.Trim(actualCols[1], "*_`")
+					topicVal = strings.TrimSpace(topicVal)
+					if currentSession.Title == "" && topicVal != "" {
+						currentSession.Title = topicVal
 					}
+					depsIdx := 2
+					outIdx := 3
+					if len(actualCols) >= 5 {
+						depsIdx = len(actualCols) - 2
+						outIdx = len(actualCols) - 1
+					}
+					if len(currentSession.Dependencies) == 0 {
+						currentSession.Dependencies = parseDependencies(actualCols[depsIdx])
+					}
+					if currentSession.OutputFile == "" {
+						currentSession.OutputFile = strings.Trim(strings.TrimSpace(actualCols[outIdx]), "`*_")
+					}
+					continue
 				}
 			}
 		}

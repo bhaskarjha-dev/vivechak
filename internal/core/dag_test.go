@@ -1459,3 +1459,38 @@ Research storage layer.
 	}
 }
 
+func TestParsePipeline_IgnoreArbitraryFourColumnTables(t *testing.T) {
+	plan := `# Project Architecture
+Here is a table of steps and options:
+
+| Step | Action | Description | Notes |
+|---|---|---|---|
+| 1 | Scaffolding | Initialize repo | First priority |
+| 2 | Dependencies | Install libs | Use npm |
+
+| Option | Pros | Cons | Verdict |
+|---|---|---|---|
+| Option A | Fast | Memory heavy | Candidate |
+| Option B | Slow | Low memory | Rejected |
+
+### T0-01: System Architecture
+` + "```prompt" + `
+Investigate architecture.
+` + "```" + `
+`
+	dag, err := ParsePipeline([]byte(plan))
+	if err != nil {
+		t.Fatalf("ParsePipeline failed: %v", err)
+	}
+	if len(dag.Sessions) != 1 {
+		t.Fatalf("expected exactly 1 session (T0-01), got %d sessions: %+v", len(dag.Sessions), dag.Sessions)
+	}
+	if dag.SessionByID("T0-01") == nil {
+		t.Fatal("expected T0-01 to be present")
+	}
+	if dag.SessionByID("1") != nil || dag.SessionByID("Option A") != nil {
+		t.Fatal("arbitrary 4-column table rows were mistakenly parsed as sessions")
+	}
+}
+
+
