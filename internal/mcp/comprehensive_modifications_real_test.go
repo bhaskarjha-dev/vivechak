@@ -2725,6 +2725,265 @@ func TestComprehensive_PromptActionVerbsAndMiddlewareEquivalence(t *testing.T) {
 	}
 }
 
+// TestComprehensive_AuditRemediations_LiveMCPLifecycle provides an exhaustive real-world E2E test
+// covering all recent core engine audit remediations:
+// 1. Pipeline table parsing with bold/italic cells, custom OutputFile, and arbitrary 4-column tables
+// 2. Slugged frontmatter session completion unblocking dependent DAG sessions
+// 3. Comparison scope quality coaching exemption for Discovered Concerns
+// 4. Two-track gate decoupling in ScopeDecision for two-way vs one-way doors
+func TestComprehensive_AuditRemediations_LiveMCPLifecycle(t *testing.T) {
+	cs := testServer(t)
+	ctx := context.Background()
+
+	// -------------------------------------------------------------------------
+	// Part 1: Pipeline Table Parsing, Custom OutputFile & Slugged Frontmatter Completion
+	// -------------------------------------------------------------------------
+	t.Run("DAG_CustomOutputFile_And_SluggedCompletion", func(t *testing.T) {
+		tmpDir := t.TempDir()
+
+		// 1.1 Init project
+		_, err := cs.CallTool(ctx, &mcp.CallToolParams{
+			Name: "vivechak_init",
+			Arguments: map[string]any{
+				"project_root": tmpDir,
+				"scope":        "project",
+			},
+		})
+		if err != nil {
+			t.Fatalf("init failed: %v", err)
+		}
+
+		// 1.2 Save pipeline with bolded cells, custom OutputFile, AND arbitrary 4-column tables
+		pipeContent := `# RESEARCH PIPELINE
+
+## Project Constraints
+| Step | Action | Description | Notes |
+|---|---|---|---|
+| 1 | Setup | Initialize infra | Mandatory |
+| 2 | Benchmark | Test throughput | Target 50k |
+
+## Sessions
+| **ID** | **Topic** | **Dependencies** | **OutputFile** |
+|---|---|---|---|
+| **T1-01** | Database Architecture | none | sessions/T1-01-database-selection.md |
+| **T1-02** | Query Engine | **T1-01** | sessions/T1-02-query-engine.md |
+
+### T1-01: Database Architecture
+` + "```prompt\nInvestigate DB\n```" + `
+
+### T1-02: Query Engine
+` + "```prompt\nInvestigate queries\n```" + `
+`
+		saveRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
+			Name: "vivechak_save_plan",
+			Arguments: map[string]any{
+				"project_root": tmpDir,
+				"scope":        "project",
+				"content":      pipeContent,
+			},
+		})
+		if err != nil {
+			t.Fatalf("save_plan failed: %v", err)
+		}
+		_ = parseEnvelope(t, saveRes)
+
+		// 1.3 Request next session — should be T1-01
+		nextRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
+			Name: "vivechak_next_session",
+			Arguments: map[string]any{
+				"project_root": tmpDir,
+			},
+		})
+		if err != nil {
+			t.Fatalf("next_session failed: %v", err)
+		}
+		nextEnv := parseEnvelope(t, nextRes)
+		nextData := nextEnv.Data.(map[string]any)
+		if nextData["session_id"] != "T1-01" {
+			t.Fatalf("expected next session to be T1-01, got: %+v", nextData)
+		}
+
+		// 1.4 Save T1-01 with a slugged frontmatter ID: id: T1-01-database-selection
+		s1Content := `---
+id: T1-01-database-selection
+title: Database Architecture
+date: 2026-10-23
+status: complete
+---
+# Database Architecture
+## Key Findings
+- Finding 1: PostgreSQL provides robust JSONB querying. Grade A (https://postgresql.org, official docs)
+`
+		saveS1Res, err := cs.CallTool(ctx, &mcp.CallToolParams{
+			Name: "vivechak_save_session",
+			Arguments: map[string]any{
+				"project_root": tmpDir,
+				"session_id":   "T1-01",
+				"content":      s1Content,
+			},
+		})
+		if err != nil {
+			t.Fatalf("save_session T1-01 failed: %v", err)
+		}
+		s1Env := parseEnvelope(t, saveS1Res)
+		s1Data := s1Env.Data.(map[string]any)
+		if s1Data["file_path"] != "research/sessions/T1-01-database-selection.md" {
+			t.Errorf("expected file_path 'research/sessions/T1-01-database-selection.md', got: %v", s1Data["file_path"])
+		}
+
+		// 1.5 Call next_session again — T1-01 with slugged frontmatter must be detected as complete,
+		// and T1-02 must now be unblocked and offered!
+		next2Res, err := cs.CallTool(ctx, &mcp.CallToolParams{
+			Name: "vivechak_next_session",
+			Arguments: map[string]any{
+				"project_root": tmpDir,
+			},
+		})
+		if err != nil {
+			t.Fatalf("next_session 2 failed: %v", err)
+		}
+		next2Env := parseEnvelope(t, next2Res)
+		next2Data := next2Env.Data.(map[string]any)
+		if next2Data["session_id"] != "T1-02" {
+			t.Fatalf("expected next session to be T1-02 unblocked, got: %+v", next2Data)
+		}
+	})
+
+	// -------------------------------------------------------------------------
+	// Part 2: Comparison Scope Quality Coaching Exemption for Discovered Concerns
+	// -------------------------------------------------------------------------
+	t.Run("ComparisonScope_QualityCoaching_NoConcernsAdvisory", func(t *testing.T) {
+		tmpDir := t.TempDir()
+
+		cmpContent := `---
+id: C-01
+title: Option Comparison
+date: 2026-10-23
+status: complete
+scope_level: comparison
+---
+# Option Comparison
+
+## Weighted Evaluation Matrix
+| Criterion | Weight | Opt A | Opt B |
+|---|---|---|---|
+| Latency | 1.00 | 5 | 3 |
+
+## Key Findings
+- Finding: Opt A latency 1ms. Grade A (https://example.com)
+`
+		saveRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
+			Name: "vivechak_save_session",
+			Arguments: map[string]any{
+				"project_root": tmpDir,
+				"session_id":   "C-01",
+				"content":      cmpContent,
+			},
+		})
+		if err != nil {
+			t.Fatalf("save_session comparison failed: %v", err)
+		}
+		env := parseEnvelope(t, saveRes)
+		data := env.Data.(map[string]any)
+		if obsList, ok := data["quality_observations"].([]map[string]string); ok {
+			for _, m := range obsList {
+				if m["category"] == "concerns" {
+					t.Errorf("comparison session should not have 'concerns' observation, got: %+v", m)
+				}
+			}
+		}
+	})
+
+	// -------------------------------------------------------------------------
+	// Part 3: ScopeDecision Two-Track Gate Decoupling
+	// -------------------------------------------------------------------------
+	t.Run("ScopeDecision_TwoWayDoor_PassesGateWithoutTrackB", func(t *testing.T) {
+		tmpDir := t.TempDir()
+
+		// 3.1 Init decision scope
+		_, err := cs.CallTool(ctx, &mcp.CallToolParams{
+			Name: "vivechak_init",
+			Arguments: map[string]any{
+				"project_root": tmpDir,
+				"scope":        "decision",
+			},
+		})
+		if err != nil {
+			t.Fatalf("init failed: %v", err)
+		}
+
+		// 3.2 Save a decision research session
+		sessContent := `---
+session_id: S1-01
+title: Caching Layer Dilemma
+date: 2026-10-23
+status: complete
+---
+# Caching Layer Dilemma
+## Key Findings
+- Finding 1: In-memory cache handles current load. Grade A (internal benchmark)
+`
+		_, err = cs.CallTool(ctx, &mcp.CallToolParams{
+			Name: "vivechak_save_session",
+			Arguments: map[string]any{
+				"project_root": tmpDir,
+				"session_id":   "S1-01",
+				"content":      sessContent,
+			},
+		})
+		if err != nil {
+			t.Fatalf("save_session failed: %v", err)
+		}
+
+		// 3.3 Record Two-Way Door decision
+		adrContent := `---
+decision_id: D-001
+title: Use In-Memory Cache for Transient Sessions
+status: accepted
+door_type: two-way
+reversal_cost: low
+date: 2026-10-23
+---
+# Context
+Transient session storage needed.
+
+# Decision
+Use in-memory cache. Grade A (https://redis.io)
+
+# Consequences
+Easy to switch to Redis if memory limits approached.
+`
+		_, err = cs.CallTool(ctx, &mcp.CallToolParams{
+			Name: "vivechak_record_decision",
+			Arguments: map[string]any{
+				"project_root": tmpDir,
+				"decision_id":  "D-001",
+				"content":      adrContent,
+			},
+		})
+		if err != nil {
+			t.Fatalf("record_decision failed: %v", err)
+		}
+
+		// 3.4 Run Gate: Because door_type is two-way, gate must PASS
+		gateRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
+			Name: "vivechak_run_gate",
+			Arguments: map[string]any{
+				"project_root": tmpDir,
+			},
+		})
+		if err != nil {
+			t.Fatalf("run_gate failed: %v", err)
+		}
+		gateEnv := parseEnvelope(t, gateRes)
+		gateData := gateEnv.Data.(map[string]any)
+		if gateData["gate_status"] != "PASS" || gateData["gate_passed"] != true {
+			t.Errorf("two-way door decision should PASS gate, got: %s (passed=%v)", gateData["gate_status"], gateData["gate_passed"])
+		}
+	})
+}
+
+
 
 
 
