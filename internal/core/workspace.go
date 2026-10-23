@@ -238,20 +238,25 @@ func GetLastResolvedWorkspace() string {
 func ResolveWorkspace(explicit string) (string, error) {
 	// Step 1: Explicit argument
 	if explicit != "" {
-		abs, err := filepath.Abs(explicit)
-		if err != nil {
-			return "", fmt.Errorf("resolving explicit path %q: %w", explicit, err)
-		}
-		// If explicit path points directly to research directory, normalize to parent workspace root
-		if filepath.Base(abs) == ResearchDir {
-			if _, err := os.Stat(filepath.Join(abs, ResearchDir)); os.IsNotExist(err) {
-				if fi, err := os.Stat(abs); err == nil && fi.IsDir() {
-					abs = filepath.Dir(abs)
+		if strings.HasPrefix(explicit, "${") {
+			// Unexpanded editor macro variable (e.g. ${workspaceFolder}) — treat as unset
+			explicit = ""
+		} else {
+			abs, err := filepath.Abs(explicit)
+			if err != nil {
+				return "", fmt.Errorf("resolving explicit path %q: %w", explicit, err)
+			}
+			// If explicit path points directly to research directory, normalize to parent workspace root
+			if filepath.Base(abs) == ResearchDir {
+				if _, err := os.Stat(filepath.Join(abs, ResearchDir)); os.IsNotExist(err) {
+					if fi, err := os.Stat(abs); err == nil && fi.IsDir() {
+						abs = filepath.Dir(abs)
+					}
 				}
 			}
+			SetLastResolvedWorkspace(abs)
+			return abs, nil
 		}
-		SetLastResolvedWorkspace(abs)
-		return abs, nil
 	}
 
 	// Step 2: Environment variables (VIVECHAK_PROJECT_ROOT, VCK_PROJECT_ROOT, VIVECHAK_DEFAULT_ROOT, VCK_DEFAULT_ROOT, WORKSPACE, PROJECT_ROOT)

@@ -52,7 +52,7 @@ func parseEnvelope(t *testing.T, result *mcp.CallToolResult) Envelope {
 	}
 	var env Envelope
 	if err := json.Unmarshal([]byte(tc.Text), &env); err != nil {
-		t.Fatalf("parsing envelope: %v", err)
+		t.Fatalf("parsing envelope: %v (text was: %s)", err, tc.Text)
 	}
 	return env
 }
