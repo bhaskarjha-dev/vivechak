@@ -65,6 +65,23 @@ func TestWorkspace(t *testing.T) {
 		t.Error("test.txt not found in ListDir")
 	}
 
+	// Test Stat and ListDir with empty path (normalized to dot)
+	infoEmpty, err := w.Stat("")
+	if err != nil {
+		t.Fatalf("Stat('') failed: %v", err)
+	}
+	if !infoEmpty.IsDir() {
+		t.Error("expected directory for Stat('')")
+	}
+
+	entriesEmpty, err := w.ListDir("")
+	if err != nil {
+		t.Fatalf("ListDir('') failed: %v", err)
+	}
+	if len(entriesEmpty) != len(entries) {
+		t.Errorf("expected ListDir('') to match ListDir('.'), got %d vs %d", len(entriesEmpty), len(entries))
+	}
+
 	// Test Path Traversal Rejection
 	// os.Root should reject paths starting with ../
 	_, err = w.ReadFile("../test.txt")

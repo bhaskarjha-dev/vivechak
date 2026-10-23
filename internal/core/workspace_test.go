@@ -363,3 +363,78 @@ func TestScanCompletedSessions_IgnoresDraft(t *testing.T) {
 	}
 }
 
+func TestDirFS_ResolveAndOperations(t *testing.T) {
+	tmpDir := t.TempDir()
+	fs := DirFS(tmpDir)
+
+	// 1. Stat on empty and dot paths
+	fiEmpty, err := fs.Stat("")
+	if err != nil {
+		t.Fatalf("Stat('') failed: %v", err)
+	}
+	fiDot, err := fs.Stat(".")
+	if err != nil {
+		t.Fatalf("Stat('.') failed: %v", err)
+	}
+	if fiEmpty.Name() != fiDot.Name() {
+		t.Errorf("expected same FileInfo for '' and '.', got %s vs %s", fiEmpty.Name(), fiDot.Name())
+	}
+
+	// 2. Write a test file and verify ReadFile and Stat
+	sampleFile := "test-sample.md"
+	samplePath := filepath.Join(tmpDir, sampleFile)
+	if err := os.WriteFile(samplePath, []byte("# Test Content\n"), 0o644); err != nil {
+		t.Fatalf("writing sample file: %v", err)
+	}
+
+	data, err := fs.ReadFile(sampleFile)
+	if err != nil {
+		t.Fatalf("ReadFile failed: %v", err)
+	}
+	if string(data) != "# Test Content\n" {
+		t.Errorf("unexpected content: %s", string(data))
+	}
+
+	fiFile, err := fs.Stat(sampleFile)
+	if err != nil {
+		t.Fatalf("Stat on file failed: %v", err)
+	}
+	if fiFile.Size() != int64(len("# Test Content\n")) {
+		t.Errorf("unexpected file size: %d", fiFile.Size())
+	}
+
+	// 3. ListDir on empty and dot paths
+	entriesEmpty, err := fs.ListDir("")
+	if err != nil {
+		t.Fatalf("ListDir('') failed: %v", err)
+	}
+	if len(entriesEmpty) != 1 || entriesEmpty[0].Name() != sampleFile {
+		t.Errorf("unexpected ListDir('') entries: %+v", entriesEmpty)
+	}
+
+	entriesDot, err := fs.ListDir(".")
+	if err != nil {
+		t.Fatalf("ListDir('.') failed: %v", err)
+	}
+	if len(entriesDot) != 1 || entriesDot[0].Name() != sampleFile {
+		t.Errorf("unexpected ListDir('.') entries: %+v", entriesDot)
+	}
+
+	// 4. Non-existent path returns os.ErrNotExist
+	_, err = fs.ReadFile("missing-file.md")
+	if !os.IsNotExist(err) {
+		t.Errorf("expected IsNotExist for missing file, got: %v", err)
+	}
+
+	// 5. dirFS with empty dir
+	fsEmptyDir := DirFS("")
+	fiCurr, err := fsEmptyDir.Stat(".")
+	if err != nil {
+		t.Fatalf("DirFS('').Stat('.') failed: %v", err)
+	}
+	if !fiCurr.IsDir() {
+		t.Errorf("expected current dir to be directory")
+	}
+}
+
+

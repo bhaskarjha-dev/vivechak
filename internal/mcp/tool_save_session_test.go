@@ -1,6 +1,7 @@
 package mcputil
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
@@ -240,4 +241,64 @@ Content here.
 		t.Errorf("expected W-LOCK-TIMEOUT warning when root FAD lock is held, got warnings: %v", env.Warnings)
 	}
 }
+
+func TestHandleAmendSession_SynthesisLockTimeoutWarning(t *testing.T) {
+	tmpDir := t.TempDir()
+	ctx := context.Background()
+
+	// Initialize workspace
+	_, _, err := handleInit(ctx, nil, InitInput{ProjectRoot: tmpDir, Scope: "project"})
+	if err != nil {
+		t.Fatalf("handleInit failed: %v", err)
+	}
+
+	fadContent := `---
+session_id: SYN-01
+title: Founding Architecture Document
+status: complete
+date: 2026-10-14
+---
+# Founding Architecture Document
+Base architecture content.
+`
+	// Save initial SYN-01
+	res, env, err := handleSaveSession(ctx, nil, SaveSessionInput{
+		ProjectRoot: tmpDir,
+		SessionID:   "SYN-01",
+		Content:     fadContent,
+	})
+	if err != nil || res.IsError {
+		t.Fatalf("handleSaveSession failed: %v, env: %+v", err, env)
+	}
+
+	// Hold an exclusive lock on FOUNDING-ARCHITECTURE.md
+	rootFADPath := filepath.Join(tmpDir, "FOUNDING-ARCHITECTURE.md")
+	unlockRoot, err := store.LockFile(ctx, rootFADPath, 1*time.Second)
+	if err != nil {
+		t.Fatalf("failed to hold test lock on root FAD: %v", err)
+	}
+	defer func() { _ = unlockRoot() }()
+
+	// Amend synthesis session SYN-01 while root FAD lock is held
+	resAmend, envAmend, err := handleAmendSession(ctx, nil, AmendSessionInput{
+		ProjectRoot: tmpDir,
+		SessionID:   "SYN-01",
+		Amendment:   "### Post-Hoc Synthesis Note\nValidated edge caching layer.\n",
+	})
+	if err != nil || resAmend.IsError {
+		t.Fatalf("handleAmendSession failed: %v, env: %+v", err, envAmend)
+	}
+
+	hasLockWarning := false
+	for _, w := range envAmend.Warnings {
+		if strings.Contains(w, "W-LOCK-TIMEOUT") {
+			hasLockWarning = true
+			break
+		}
+	}
+	if !hasLockWarning {
+		t.Errorf("expected W-LOCK-TIMEOUT warning when root FAD lock is held during amend, got warnings: %v", envAmend.Warnings)
+	}
+}
+
 
