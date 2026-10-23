@@ -481,6 +481,9 @@ func readSessionFileFS(ws WorkspaceFS, sessionsRelDir string, sessionID string) 
 	}
 	entries, err := ws.ListDir(listDir)
 	if err != nil {
+		if os.IsNotExist(err) {
+			return "", "", nil
+		}
 		return "", "", fmt.Errorf("reading sessions directory: %w", err)
 	}
 	for _, e := range entries {
@@ -513,6 +516,9 @@ func readSessionFileFS(ws WorkspaceFS, sessionsRelDir string, sessionID string) 
 
 			fi, statErr := ws.Stat(path)
 			if statErr != nil {
+				if os.IsNotExist(statErr) {
+					continue
+				}
 				return "", "", fmt.Errorf("stating session file %s: %w", path, statErr)
 			}
 			if fi.Size() > MaxSessionReadBytes {
@@ -521,6 +527,9 @@ func readSessionFileFS(ws WorkspaceFS, sessionsRelDir string, sessionID string) 
 
 			data, err := ws.ReadFile(path)
 			if err != nil {
+				if os.IsNotExist(err) {
+					continue
+				}
 				return "", "", fmt.Errorf("reading session file %s: %w", path, err)
 			}
 			// If file has frontmatter with an explicit session ID, that ID is authoritative.

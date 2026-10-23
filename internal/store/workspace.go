@@ -47,6 +47,9 @@ func (w *Workspace) ReadFile(relPath string) ([]byte, error) {
 }
 
 func (w *Workspace) Stat(relPath string) (os.FileInfo, error) {
+	if relPath == "" {
+		relPath = "."
+	}
 	return w.root.Stat(relPath)
 }
 
@@ -100,6 +103,9 @@ func (w *Workspace) MkdirAll(relPath string, perm os.FileMode) error {
 }
 
 func (w *Workspace) ListDir(relPath string) ([]os.DirEntry, error) {
+	if relPath == "" {
+		relPath = "."
+	}
 	f, err := w.root.Open(relPath)
 	if err != nil {
 		return nil, err

@@ -22,28 +22,29 @@ type dirFS struct {
 	dir string
 }
 
-func (d dirFS) ReadFile(relPath string) ([]byte, error) {
-	p := d.dir
-	if relPath != "" && relPath != "." {
-		p = filepath.Join(d.dir, relPath)
+func (d dirFS) resolve(relPath string) string {
+	if d.dir == "" {
+		if relPath == "" || relPath == "." {
+			return "."
+		}
+		return relPath
 	}
-	return os.ReadFile(p)
+	if relPath == "" || relPath == "." {
+		return d.dir
+	}
+	return filepath.Join(d.dir, relPath)
+}
+
+func (d dirFS) ReadFile(relPath string) ([]byte, error) {
+	return os.ReadFile(d.resolve(relPath))
 }
 
 func (d dirFS) ListDir(relPath string) ([]os.DirEntry, error) {
-	p := d.dir
-	if relPath != "" && relPath != "." {
-		p = filepath.Join(d.dir, relPath)
-	}
-	return os.ReadDir(p)
+	return os.ReadDir(d.resolve(relPath))
 }
 
 func (d dirFS) Stat(relPath string) (os.FileInfo, error) {
-	p := d.dir
-	if relPath != "" && relPath != "." {
-		p = filepath.Join(d.dir, relPath)
-	}
-	return os.Stat(p)
+	return os.Stat(d.resolve(relPath))
 }
 
 // DirFS returns a simple WorkspaceFS adapter backed by the given directory.
