@@ -102,6 +102,7 @@ Forensic audit and real-world multi-agent dogfooding telemetry uncovered 27 conc
 | **E-62** | MCP / Resources | **Canonical Read-Only MCP Resources (`resources.go`):** Added 8 canonical read-only resources via `server.AddResource` (`vivechak://templates/...`, `vivechak://methodology/...`) with MCP SEP-2164 error handling (`ResourceNotFoundError`). | ✅ Resolved |
 | **E-63** | Agent Skills / Rules | **Universal Agent Skill & Rule Templates (`skills/`, `templates/rules/`):** Added standard `agentskills.io` skill manifest (`npx skills add bhaskarjha-dev/vivechak`) and pre-packaged rules for Cursor, Claude Code, and Antigravity, embedded with byte-for-byte root sync. | ✅ Resolved |
 | **E-64** | Supply Chain / Assets | **Supply Chain Hygiene & Social Preview Assets (`dependabot.yml`, `social-preview.*`):** Added weekly automated Go module and GitHub Action updates, and created 1280×640 vector/raster OpenGraph preview assets. | ✅ Resolved |
+| **E-65** | Core / Engine Hardening | **Production Audit & Release Hardening Wave (`F-01`–`F-12`):** Unified filesystem confinement via `WorkspaceFS`, added 10MB `MaxSessionReadBytes` safety guard, handled synthesis advisory lock timeouts with `W-LOCK-TIMEOUT` warning, updated README with dynamic GitHub Actions badge, enforced LF line endings in `Makefile` and `.gitattributes`, and hardened path normalization across `store.Workspace` and `dirFS.resolve`. | ✅ Resolved |
 
 ### 2.1 Near-Term Packaging & Workflows (Awaiting Demand Signal)
 

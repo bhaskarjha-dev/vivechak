@@ -11,6 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Unified release delivering the complete pre-release hardening wave across engine parsers, decoupled exit gates, headless CLI verification, concurrency locks, multi-harness autonomous testing subsystem, and packaging:
 
+- **Production Audit & Release Hardening Wave (F-01–F-12):**
+  - *Filesystem Confinement & 10MB Guard (`F-01`, `F-03`, `inject.go`):* Unified session file reads and context injection behind `WorkspaceFS` abstraction via `ReadSessionFileFS` and `InjectContextFS`, enforcing a 10MB `MaxSessionReadBytes` safety limit against memory exhaustion.
+  - *Advisory Lock Timeout Warning & Coordinated Write Prevention (`F-05`, `tool_save_session.go`, `tool_amend_session.go`):* Handled advisory lock timeout when copying FAD to project root in `handleSaveSession` and `handleAmendSession`; emits `W-LOCK-TIMEOUT` warning and safely skips uncoordinated root write.
+  - *Live GitHub Actions CI Badge (`F-08`, `README.md`):* Updated `README.md` test badge to link directly to the dynamic GitHub Actions CI workflow status SVG for `branch=main`.
+  - *Makefile Line Endings & Git Attributes Normalization (`F-12`, `Makefile`, `.gitattributes`):* Converted `Makefile` to LF line endings and enforced `eol=lf` in `.gitattributes`.
+  - *Path Normalization & Missing Directory Hardening (`workspace.go`, `store/workspace.go`):* Normalized empty paths to `.` across `Stat` and `ListDir` in `store.Workspace` and `dirFS.resolve`, and handled missing session directories gracefully during session reads.
 - **MCP Protocol Triumvirate Expansion (Prompts & Resources):**
   - Added 4 native user-controlled MCP Prompts via `sdkmcp.AddPrompt` (`vivechak_compare`, `vivechak_decision`, `vivechak_project`, `vivechak_gate`), enabling instant slash-command research workflows in Claude Desktop, Cursor, Continue, and Zed.
   - Added 8 canonical read-only MCP Resources via `server.AddResource` (`vivechak://templates/{decisions,comparison,fad,conflict-resolution,gate,session}` and `vivechak://methodology/{grades,principles}`) complying with MCP SEP-2164 error handling (`ResourceNotFoundError`).

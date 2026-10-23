@@ -388,20 +388,20 @@ Comprehensive 8-scenario lifecycle test suite running over in-memory JSON-RPC tr
 ### 5. Subprocess Live Stdio Integration Tests (`cmd/vivechak/serve_test.go`)
 Spawns the compiled `vivechak serve` binary as a genuine subprocess, connecting via JSON-RPC stdio pipes. Executes a full 17-step end-to-end lifecycle (`init` → `save_plan` → `next_session` → `save_session` → `record_decision` → `validate` → `run_gate`), validating subprocess signal handling, real stdio transport hygiene, and exit gates.
 
-### 6. Massive Live Depth Audit Suite (`cmd/vivechak/live_depth_audit_test.go`)
-Comprehensive 1,000+ line live integration test suite that spawns the Vivechak MCP server and CLI commands as real subprocesses over stdio JSON-RPC. Validates:
-- Every one of the 13 MCP tools end-to-end with realistic inputs and edge cases.
-- Dynamic challenge routing, quality coaching observations (`Q-*`), qualified provenance validation, and Phase 0 Gate decoupled Track A / Track B evaluations.
-- All 5 CLI entry points (`vck setup`, `vck mcp-config`, `vck doctor`, `vck gate`, `vck version`).
-- FAD root mirroring, directory target handling in `setup`, and comment anchor deduplication.
-
-### 7. Subprocess Concurrency & Lifecycle Verification Suites (`cmd/vivechak/*_test.go`)
-- [`cmd/vivechak/e2e_test.go`](../cmd/vivechak/e2e_test.go) & [`real_e2e_massive_verification_test.go`](../cmd/vivechak/real_e2e_massive_verification_test.go): Full end-to-end multi-vector subprocess testing across all 13 tools, verifying live stdio JSON-RPC lifecycle, exit gates, and CLI commands (`version`, `doctor`, `mcp-config`).
-- [`cmd/vivechak/live_universal_scopes_e2e_test.go`](../cmd/vivechak/live_universal_scopes_e2e_test.go): Comprehensive multi-scope live stdio JSON-RPC test across Comparison (AI models/algorithms), Decision (strategic/business venture choices), and Project scopes, validating two-tier lookups in `research/`, auto-recovery of decision IDs, and CLI doctor verification across live directories.
-- [`internal/mcp/universal_scopes_comprehensive_test.go`](../internal/mcp/universal_scopes_comprehensive_test.go): Wire-level and handler tests covering universal business and technical contexts, decision ID auto-recovery, and standalone ADR/comparison amendments.
+### 6. Subprocess Concurrency & Lifecycle Verification Suites (`cmd/vivechak/*_test.go`)
+- [`cmd/vivechak/mcp_live_lifecycle_test.go`](../cmd/vivechak/mcp_live_lifecycle_test.go): Full end-to-end multi-vector subprocess testing across all 13 tools, verifying live stdio JSON-RPC lifecycle, exit gates, and CLI commands (`version`, `doctor`, `mcp-config`).
+- [`cmd/vivechak/mcp_live_hardening_test.go`](../cmd/vivechak/mcp_live_hardening_test.go): Live stdio subprocess hardening, error recovery, adversarial payloads, and signal discipline.
+- [`cmd/vivechak/real_harness_integration_test.go`](../cmd/vivechak/real_harness_integration_test.go): Live simulations across 21 host environments, JSONC comment preservation, and auto-detect logic.
 - [`cmd/vivechak/concurrency_test.go`](../cmd/vivechak/concurrency_test.go): High-concurrency subagent stress testing verifying atomic write locks, collision-free temporary file creation under rapid iteration, and race-free multi-agent decision recording.
 - [`cmd/vivechak/workspace_resolution_test.go`](../cmd/vivechak/workspace_resolution_test.go): Verifies 5-step workspace resolution chain across explicit `project_root`, ancestor directory traversal, in-process session memory, OS program folder boundary guards, and environment variables.
-- [`cmd/vivechak/live_features_test.go`](../cmd/vivechak/live_features_test.go), [`live_scenarios_test.go`](../cmd/vivechak/live_scenarios_test.go), & [`live_tools_test.go`](../cmd/vivechak/live_tools_test.go): Scenario matrices covering multi-scope generators, dynamic DAG replanning, and adversarial challenge stress testing.
+- [`cmd/vivechak/gate_test.go`](../cmd/vivechak/gate_test.go) & [`doctor_test.go`](../cmd/vivechak/doctor_test.go): Headless CLI gate evaluation and workspace integrity checker suites.
+- [`cmd/vivechak/config_test.go`](../cmd/vivechak/config_test.go): Host configuration, JSON merging, and preset generation across all 21 supported host environments.
+- [`cmd/vivechak/main_test.go`](../cmd/vivechak/main_test.go): CLI entry points, signal handling, and repository release readiness verification.
+
+### 7. Internal MCP Comprehensive Verification Suites (`internal/mcp/*_test.go`)
+- [`internal/mcp/comprehensive_modifications_real_test.go`](../internal/mcp/comprehensive_modifications_real_test.go): 2,500+ line real lifecycle audit suite verifying frontmatter flexibility, supersession without duplicates, DAG parsing, Track B strictness, and quality coaching.
+- [`internal/mcp/massive_real_lifecycle_test.go`](../internal/mcp/massive_real_lifecycle_test.go): Massive real E2E lifecycle suites across comparison, decision, and project scopes, doctor CLI, quality coaching, and concurrent locking.
+- [`internal/mcp/universal_scopes_comprehensive_test.go`](../internal/mcp/universal_scopes_comprehensive_test.go): Wire-level and handler tests covering universal business and technical contexts, decision ID auto-recovery, and standalone ADR/comparison amendments.
 
 ---
 

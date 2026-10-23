@@ -71,6 +71,14 @@ Vivechak employs a 4-level validation ladder (**L1–L4**). Below are the common
 - **Cause:** A claim marked with verification method `recalled` (from model parametric memory) was assigned Grade A, B, or C. Under Principle P3, unverified model recall is capped at Grade D.
 - **Resolution:** Verify the claim against canonical primary sources (documentation, source code, benchmarks) using web search and tag it as `fetched` or `cached`, or downgrade the claim to `[Grade: D (recalled)]`.
 
+### `W-LOCK-TIMEOUT` (Level 3 Advisory Warning)
+- **Cause:** When saving or amending a synthesis session (`SYN-01` or `FAD`), Vivechak attempts to acquire an advisory file lock to synchronize the canonical FAD to the project root (`FOUNDING-ARCHITECTURE.md`). If another agent or background process holds the lock for longer than 5 seconds, Vivechak emits `W-LOCK-TIMEOUT` and skips the root copy rather than proceeding with an uncoordinated write or causing a deadlock.
+- **Resolution:** The primary synthesis session file in `research/` has already been safely persisted atomically. Wait for concurrent subagent tasks to complete, then re-save or amend the session, or copy `research/FAD.md` to `FOUNDING-ARCHITECTURE.md`.
+
+### Session File Size Guard (`MaxSessionReadBytes` Safety Limit)
+- **Cause:** A session file requested during context injection or decision drafting exceeds the 10MB memory safety ceiling (`MaxSessionReadBytes = 10MB`).
+- **Resolution:** Ensure session files contain text-based research deliverables. If large datasets, benchmark outputs, or raw logs were written to `research/sessions/`, move them outside the research folder and cite them by path reference.
+
 ---
 
 ## 3. Cognitive Quality Coaching Advisories (`Q-*`)
