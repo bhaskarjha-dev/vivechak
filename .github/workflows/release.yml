@@ -89,7 +89,7 @@ jobs:
             echo "::notice::NPM_TOKEN is not set; skipping npm package publish."
           fi
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         if: steps.check_token.outputs.has_token == 'true'
         with:
           node-version: "20.x"
