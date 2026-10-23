@@ -88,7 +88,7 @@ During `vivechak_save_session`, the engine surfaces non-blocking `[Q-*]` advisor
 | Code | Meaning | Recommended Action |
 |---|---|---|
 | **`Q-EVIDENCE`** | Grade distribution skewed (>70% Grade A), Grade A claim lacks canonical URL/RFC anchor, or Grade A "fetched" citation lacks URL. | Provide canonical URLs (`https://`), formal RFCs (`RFC 9110`), or downgrade unverified claims to Grade B. |
-| **`Q-CONCERNS`** | Missing `## Discovered Concerns` section in session artifact. | Uncover and document at least one unexpected finding, operational risk, or constraint beyond stated scope. |
+| **`Q-CONCERNS`** | Missing `## Discovered Concerns` section in session artifact. *(Automatically suppressed in Comparison Scope and WEP matrices).* | Uncover and document at least one unexpected finding, operational risk, or constraint beyond stated scope. |
 | **`Q-DEPTH`** | Fewer than 3 key findings in session output. | Substantive research typically benefits from 4–7 graded findings for adequate decision support. |
 | **`Q-BIAS`** | Delta section has 0 contradicted, refined, or updated prior beliefs (or all start from "Unknown"). | Review Principle P8 (Structured Falsification). Explicitly state what prior beliefs were contradicted or refined. |
 | **`Q-RIGOR`** | Recommendation lacks explicit reference to rejected alternatives. | Stating why competing alternatives were rejected strengthens the decision rationale and defensibility. |
@@ -107,7 +107,7 @@ During `vivechak_save_session`, the engine surfaces non-blocking `[Q-*]` advisor
 
 ### Problem: Workspace initialized in Application Program Folders
 - **Cause:** If an editor launches an agent with CWD pointing to the application installation folder (e.g. `AppData\Local\Programs\...` or `/usr/bin`), Vivechak actively rejects workspace creation to prevent polluting application directories.
-- **Fix:** Always provide `project_root` explicitly when initializing:
+- **Fix:** Running `vck setup cursor`, `vck setup vscode`, or `vck setup windsurf` automatically injects `"env": { "VCK_PROJECT_ROOT": "${workspaceFolder}" }`, resolving the active workspace folder automatically. Alternatively, provide `project_root` explicitly when initializing:
   ```json
   {
     "scope": "project",
@@ -136,6 +136,8 @@ Issues:
   - Decision D-001 (One-Way): evidentiary threshold not met (no corroborated Grade A/B evidence)
   - Decision D-001 (One-Way): rejected alternatives analysis missing or insufficient (<200 chars)
 ```
+
+> **Decoupled Two-Track Evaluation in Decision Scope:** When running exit gate evaluation for pure Two-Way Door decisions, Track A reversibility confirmation alone passes the gate and authorizes immediate implementation, while Track B quality checks serve as non-blocking advisories. If an irreversible One-Way Door decision is present, full Track B checks (B1–B11) are strictly enforced.
 
 ### Remediation for Track B Failures:
 1. **Evidentiary Threshold (Check B3):** Ensure One-Way Door decisions cite at least one Grade A source with a canonical URL (`https://...`) or formal standard (`RFC ...`), or reproducible Grade B benchmark.

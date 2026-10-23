@@ -172,11 +172,16 @@ Edit `~/.cursor/mcp.json` (or `.cursor/mcp.json` in your workspace):
   "mcpServers": {
     "vivechak": {
       "command": "/usr/local/bin/vivechak",
-      "args": ["serve"]
+      "args": ["serve"],
+      "env": {
+        "VCK_PROJECT_ROOT": "${workspaceFolder}"
+      }
     }
   }
 }
 ```
+
+> **Automatic Workspace Injection:** Running `vck setup cursor` automatically configures `"env": { "VCK_PROJECT_ROOT": "${workspaceFolder}" }`, ensuring Cursor dynamically resolves your active workspace root without manual configuration.
 
 | OS | Config Path |
 |---|---|
@@ -204,11 +209,16 @@ Edit `.vscode/mcp.json` in your workspace root:
   "servers": {
     "vivechak": {
       "command": "/usr/local/bin/vivechak",
-      "args": ["serve"]
+      "args": ["serve"],
+      "env": {
+        "VCK_PROJECT_ROOT": "${workspaceFolder}"
+      }
     }
   }
 }
 ```
+
+> **Automatic Workspace Injection:** Running `vck setup vscode` automatically injects `"env": { "VCK_PROJECT_ROOT": "${workspaceFolder}" }`, ensuring VS Code expands the macro to your active workspace folder.
 
 > **Note for Extension Users (Cline, Roo Code, Continue):** If you use VS Code extensions like Cline or Roo Code, they use the generic `"mcpServers"` format in their extension settings tabs. You can paste the output of `vck mcp-config` directly into their MCP settings panel.
 
@@ -262,11 +272,16 @@ Edit `~/.codeium/windsurf/mcp_config.json`:
   "mcpServers": {
     "vivechak": {
       "command": "/usr/local/bin/vivechak",
-      "args": ["serve"]
+      "args": ["serve"],
+      "env": {
+        "VCK_PROJECT_ROOT": "${workspaceFolder}"
+      }
     }
   }
 }
 ```
+
+> **Automatic Workspace Injection:** Running `vck setup windsurf` automatically injects `"env": { "VCK_PROJECT_ROOT": "${workspaceFolder}" }`.
 
 | OS | Config Path |
 |---|---|

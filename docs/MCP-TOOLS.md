@@ -564,9 +564,9 @@ When sessions remain but are blocked by incomplete dependencies:
 Validate and persist a completed research session output.
 
 #### What It Does
-Validates the research session Markdown output against the 4-level validation ladder defined in [`ValidateSession()`](../internal/core/validate.go) and saves it to `research/sessions/<session_id>.md`. The tool checks YAML frontmatter syntax, required metadata fields (`session_id`, `title`, `date`), non-empty body, and inline evidence grades (`A-E`). For synthesis sessions (`SYN-01`), it writes to `research/FAD.md` as the canonical document and automatically mirrors a human-facing copy to `FOUNDING-ARCHITECTURE.md` at project root.
+Validates the research session Markdown output against the 4-level validation ladder defined in [`ValidateSession()`](../internal/core/validate.go) and saves it to `research/sessions/<session_id>.md` (or the custom `output_file` path declared in `RESEARCH-PIPELINE.md`). The tool checks YAML frontmatter syntax, required metadata fields (`session_id`, `title`, `date`), non-empty body, and inline evidence grades (`A-E`). For synthesis sessions (`SYN-01`), it writes to `research/FAD.md` as the canonical document and automatically mirrors a human-facing copy to `FOUNDING-ARCHITECTURE.md` at project root.
 
-In addition, the tool runs the **Quality Coaching Engine** ([`ObserveSessionQuality()`](../internal/core/validate.go)), evaluating grade distribution skew, Grade A URL citations, key findings depth, discovered concerns, and Delta confirmation bias, surfacing actionable observations in `warnings` (as `Q-*`) and `data.quality_observations`. If blocking issues (Level 2) are detected, the file is safely saved as a draft with status `draft`.
+In addition, the tool runs the **Quality Coaching Engine** ([`ObserveSessionQuality()`](../internal/core/validate.go)), evaluating grade distribution skew, Grade A URL citations, key findings depth, discovered concerns, and Delta confirmation bias, surfacing actionable observations in `warnings` (as `Q-*`) and `data.quality_observations`. Note that `Q-CONCERNS` is automatically calibrated and suppressed for Comparison Scope research and Weighted Evaluation Protocol (WEP) matrices. If blocking issues (Level 2) are detected, the file is safely saved as a draft with frontmatter `status: draft`. When saved without blocking validation issues, valid sessions are automatically promoted to `status: complete` on disk.
 
 #### Input Parameters
 Defined in [`SaveSessionInput`](../internal/mcp/tool_save_session.go):
@@ -856,6 +856,7 @@ Executes the mechanical verification checks for the Phase 0 Exit Gate, tailored 
   - **Quality Indicators (4 checks):** Confirms at least 3 completed sessions for pipeline significance, verifies that `FAD.md` contains valid evidence grades, mechanically validates ADRs (all decisions accepted, reversal triggers assigned, substantive causal rationale), and enforces evidentiary integrity (B3 threshold, B4 verification method, B5 rejected alternatives, and B11 adversarial red-team challenge).
 - **Decision Scope:**
   - **Structural Completeness (3 checks):** Confirms at least 1 completed session, template directory present, and decision record/ADR exists (`[ID]-[slug].md` or `DECISIONS.md`).
+  - **Decoupled Two-Track Evaluation:** Purely Two-Way Door decisions pass on Track A reversibility confirmation alone, authorizing immediate implementation while Track B quality checks serve as non-blocking advisories. If an irreversible One-Way Door decision is present, full Track B checks (B1–B11) are strictly enforced.
   - **Quality Indicators (3 checks):** Confirms completed decision session, verifies decision record is substantive (>100 bytes), accepted, with reversal triggers present for one-way doors, and verifies evidentiary integrity.
 - **Comparison Scope:**
   - **Zero Gate Overhead:** Comparison scope has zero gate requirements. Research is complete upon WEP matrix generation.
