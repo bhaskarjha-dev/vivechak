@@ -261,35 +261,19 @@ func TestResolveWorkspace_EnvironmentAndMacroGuard(t *testing.T) {
 		}
 	})
 
-	t.Run("resolves WORKSPACE standard container environment variable", func(t *testing.T) {
+	t.Run("ignores WORKSPACE and PROJECT_ROOT generic environment variables", func(t *testing.T) {
 		tmpDir := t.TempDir()
 		t.Setenv("VIVECHAK_PROJECT_ROOT", "")
+		t.Setenv("VCK_PROJECT_ROOT", "")
 		t.Setenv("VIVECHAK_DEFAULT_ROOT", "")
+		t.Setenv("VCK_DEFAULT_ROOT", "")
 		t.Setenv("WORKSPACE", tmpDir)
-		t.Setenv("PROJECT_ROOT", "")
-
-		res, err := ResolveWorkspace("")
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if filepath.Clean(res) != filepath.Clean(tmpDir) {
-			t.Errorf("got %q, want %q", res, tmpDir)
-		}
-	})
-
-	t.Run("resolves PROJECT_ROOT container environment variable", func(t *testing.T) {
-		tmpDir := t.TempDir()
-		t.Setenv("VIVECHAK_PROJECT_ROOT", "")
-		t.Setenv("VIVECHAK_DEFAULT_ROOT", "")
-		t.Setenv("WORKSPACE", "")
 		t.Setenv("PROJECT_ROOT", tmpDir)
+		ResetLastResolvedWorkspace()
 
-		res, err := ResolveWorkspace("")
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if filepath.Clean(res) != filepath.Clean(tmpDir) {
-			t.Errorf("got %q, want %q", res, tmpDir)
+		res, _ := ResolveWorkspace("")
+		if res == tmpDir {
+			t.Errorf("expected generic WORKSPACE and PROJECT_ROOT to be ignored per P1.1, but got %q", res)
 		}
 	})
 

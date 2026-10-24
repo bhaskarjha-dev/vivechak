@@ -3,33 +3,24 @@
 // This separation allows unit testing without MCP transport overhead.
 package core
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/bhaskarjha-dev/vivechak/internal/workspace"
+)
 
 // Scope represents the research scope level.
-// Vivechak works at three scope levels per FRAMEWORK.md §9.
-type Scope string
+type Scope = workspace.Scope
 
 const (
-	// ScopeProject is a full research pipeline (→ FAD).
-	// Uses GENERATOR-PROJECT.md, produces RESEARCH-PIPELINE.md + DECISIONS.md.
-	ScopeProject Scope = "project"
-
-	// ScopeDecision is a single architectural decision (→ ADR).
-	// Uses GENERATOR-DECISION.md, produces 1-3 session plan.
-	ScopeDecision Scope = "decision"
-
-	// ScopeComparison is a bounded options comparison (→ WEP matrix).
-	// Uses GENERATOR-COMPARISON.md, produces single session.
-	ScopeComparison Scope = "comparison"
+	ScopeProject    = workspace.ScopeProject
+	ScopeDecision   = workspace.ScopeDecision
+	ScopeComparison = workspace.ScopeComparison
 )
 
 // ValidScope reports whether s is a recognized scope level.
 func ValidScope(s Scope) bool {
-	switch s {
-	case ScopeProject, ScopeDecision, ScopeComparison:
-		return true
-	}
-	return false
+	return workspace.ValidScope(s)
 }
 
 // ScopeFromString converts a string to a Scope, returning false if invalid.
