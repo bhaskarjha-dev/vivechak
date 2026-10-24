@@ -35,10 +35,20 @@ func isValidID(id string) bool {
 	return len(id) <= 128 && validIDPattern.MatchString(id)
 }
 
+// NextAction specifies the structured recommended next step for an agent (AX-04).
+type NextAction struct {
+	Tool string         `json:"tool"`
+	Args map[string]any `json:"args,omitempty"`
+	Why  string         `json:"why"`
+}
+
 // Envelope is the standardized response every Vivechak tool returns.
-// It carries both success/failure state and Guided Worker process guidance.
+// It carries both ok/failure state and Guided Worker process guidance.
 type Envelope struct {
-	// Success indicates whether the operation completed without errors.
+	// Ok indicates whether the operation completed without errors (v0.1.0 standard).
+	Ok bool `json:"ok"`
+
+	// Success indicates whether the operation completed without errors (backward compat).
 	Success bool `json:"success"`
 
 	// Message is a human-readable summary of what happened.
@@ -51,8 +61,10 @@ type Envelope struct {
 	// Each warning uses a W-PREFIX code (e.g., "W-LOW-OPTIONS", "W-OUTPUT-SIZE").
 	Warnings []string `json:"warnings,omitempty"`
 
-	// NextStep tells the agent what to do next (Guided Worker pattern).
-	// This is the core value prop — every response gives process guidance.
+	// Next provides structured next-action guidance for agents (tool, args, why).
+	Next *NextAction `json:"next,omitempty"`
+
+	// NextStep tells the agent what to do next (Guided Worker pattern, free text).
 	NextStep string `json:"next_step"`
 
 	// Meta carries non-functional metadata about the response.
@@ -83,6 +95,19 @@ func NewMeta(tool string) *EnvMeta {
 // Why dual-channel: Cursor drops structuredContent-only responses;
 // Gemini CLI rejects missing structuredContent. We serve both.
 func (env Envelope) ToResult() (*mcp.CallToolResult, Envelope, error) {
+	// Synchronize Ok and Success
+	if env.Ok && !env.Success {
+		env.Success = true
+	} else if env.Success && !env.Ok {
+		env.Ok = true
+	}
+	// Synchronize Next and NextStep
+	if env.Next != nil && env.NextStep == "" {
+		env.NextStep = env.Next.Why
+	} else if env.NextStep != "" && env.Next == nil {
+		env.Next = &NextAction{Why: env.NextStep}
+	}
+
 	jsonBytes, err := json.MarshalIndent(env, "", "  ")
 	if err != nil {
 		return nil, env, fmt.Errorf("marshaling envelope: %w", err)
@@ -100,9 +125,29 @@ func (env Envelope) ToResult() (*mcp.CallToolResult, Envelope, error) {
 // ErrorEnvelope creates a failure Envelope with the given error and guidance.
 func ErrorEnvelope(tool string, err error, nextStep string) Envelope {
 	return Envelope{
+		Ok:       false,
 		Success:  false,
 		Message:  err.Error(),
 		NextStep: nextStep,
+		Next: &NextAction{
+			Why: nextStep,
+		},
+		Meta: NewMeta(tool),
+	}
+}
+
+// ErrorEnvelopeWithNext creates a failure Envelope with structured NextAction.
+func ErrorEnvelopeWithNext(tool string, err error, next *NextAction) Envelope {
+	nextStep := ""
+	if next != nil {
+		nextStep = next.Why
+	}
+	return Envelope{
+		Ok:       false,
+		Success:  false,
+		Message:  err.Error(),
+		NextStep: nextStep,
+		Next:     next,
 		Meta:     NewMeta(tool),
 	}
 }
@@ -112,6 +157,19 @@ func ErrorEnvelope(tool string, err error, nextStep string) Envelope {
 // NOT as JSON-RPC protocol errors.
 func ErrorResult(tool string, err error, nextStep string) (*mcp.CallToolResult, Envelope, error) {
 	env := ErrorEnvelope(tool, err, nextStep)
+	jsonBytes, _ := json.MarshalIndent(env, "", "  ")
+
+	return &mcp.CallToolResult{
+		Content: []mcp.Content{
+			&mcp.TextContent{Text: string(jsonBytes)},
+		},
+		IsError: true,
+	}, env, nil
+}
+
+// ErrorResultWithNext creates a CallToolResult for a tool-level error with structured NextAction.
+func ErrorResultWithNext(tool string, err error, next *NextAction) (*mcp.CallToolResult, Envelope, error) {
+	env := ErrorEnvelopeWithNext(tool, err, next)
 	jsonBytes, _ := json.MarshalIndent(env, "", "  ")
 
 	return &mcp.CallToolResult{

@@ -1020,10 +1020,12 @@ func TestPrepareGenerator_AutoInfersScope(t *testing.T) {
 	cs := testServer(t)
 	ctx := context.Background()
 
+	tmpDir := t.TempDir()
 	res, err := cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_prepare_generator",
 		Arguments: map[string]any{
-			"context": "Compare Winston vs Pino for high throughput logging in Node.js",
+			"project_root": tmpDir,
+			"context":      "Compare Winston vs Pino for high throughput logging in Node.js",
 		},
 	})
 	if err != nil {
@@ -1120,8 +1122,9 @@ func TestPrepareGenerator_ScopeAwareNextStep(t *testing.T) {
 			res, err := cs.CallTool(ctx, &mcp.CallToolParams{
 				Name: "vivechak_prepare_generator",
 				Arguments: map[string]any{
-					"scope":   tc.scope,
-					"context": tc.context,
+					"project_root": t.TempDir(),
+					"scope":        tc.scope,
+					"context":      tc.context,
 				},
 			})
 			if err != nil {
@@ -1162,8 +1165,9 @@ func TestPrepareGenerator_ExtractComparisonOptions(t *testing.T) {
 		res, err := cs.CallTool(ctx, &mcp.CallToolParams{
 			Name: "vivechak_prepare_generator",
 			Arguments: map[string]any{
-				"scope":   "comparison",
-				"context": tc.context,
+				"project_root": t.TempDir(),
+				"scope":        "comparison",
+				"context":      tc.context,
 			},
 		})
 		if err != nil {
@@ -1186,19 +1190,14 @@ func TestPrepareGenerator_ExtractComparisonOptions(t *testing.T) {
 // multi-scope workflows, out-of-scope boundaries, and fits within size limits.
 func TestServerInstructions_MultiScopeAndOutofScope(t *testing.T) {
 	instrLen := len(ServerInstructions)
-	if instrLen <= 1000 || instrLen >= 2000 {
-		t.Errorf("expected ServerInstructions length between 1000 and 2000 bytes, got %d", instrLen)
+	if instrLen > 600 {
+		t.Errorf("expected ServerInstructions length <= 600 bytes per P4.4, got %d", instrLen)
 	}
 
 	mandatoryPhrases := []string{
-		"MANDATORY TRIGGER RULES",
-		"SKIP Vivechak for direct code authoring",
-		"Comparison ('A vs B', 1 session)",
-		"Decision (ADR, 1–3 sessions)",
-		"Project (Full Pipeline)",
-		"Evidence Grades",
-		"Session Sections",
-		"Token Efficiency",
+		"research/",
+		"A-E",
+		"vivechak_start",
 	}
 
 	for _, phrase := range mandatoryPhrases {

@@ -149,7 +149,16 @@ func ResolveWorkspaceWithRoots(ctx context.Context, explicit string, roots []str
 		}
 	}
 
-	// Step 4: Walk up from CWD looking for research/.vivechak.json or research/ directory
+	// Step 4: Fall back to in-process session memory (anchored in this session)
+	if cached := GetLastResolvedWorkspace(); cached != "" {
+		if fi, err := os.Stat(cached); err == nil && fi.IsDir() {
+			if err := SafeRoot(cached); err == nil {
+				return cached, nil
+			}
+		}
+	}
+
+	// Step 5: Walk up from CWD looking for research/.vivechak.json or research/ directory
 	cwd, err := os.Getwd()
 	if err != nil {
 		return "", fmt.Errorf("getting working directory: %w", err)
@@ -181,20 +190,11 @@ func ResolveWorkspaceWithRoots(ctx context.Context, explicit string, roots []str
 		dir = parent
 	}
 
-	// Step 5: Guarded CWD (project manifest anchor detection)
+	// Step 6: Guarded CWD (project manifest anchor detection)
 	if !IsSystemOrAppDir(cwd) && HasProjectAnchor(cwd) {
 		if err := SafeRoot(cwd); err == nil {
 			SetLastResolvedWorkspace(cwd)
 			return cwd, nil
-		}
-	}
-
-	// Step 6: Fall back to in-process session memory
-	if cached := GetLastResolvedWorkspace(); cached != "" {
-		if fi, err := os.Stat(cached); err == nil && fi.IsDir() {
-			if err := SafeRoot(cached); err == nil {
-				return cached, nil
-			}
 		}
 	}
 

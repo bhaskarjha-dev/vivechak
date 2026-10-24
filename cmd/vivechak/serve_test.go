@@ -143,8 +143,8 @@ func TestLiveMCPServer_EndToEnd(t *testing.T) {
 		}
 		toolNames = append(toolNames, tool.Name)
 	}
-	if len(toolNames) != 13 {
-		t.Fatalf("expected 13 tools, got %d: %v", len(toolNames), toolNames)
+	if len(toolNames) != 9 {
+		t.Fatalf("expected 9 tools, got %d: %v", len(toolNames), toolNames)
 	}
 
 	// 5. Tool: vivechak_init

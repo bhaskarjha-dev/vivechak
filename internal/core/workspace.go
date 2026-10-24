@@ -246,6 +246,9 @@ func CollectGateDecisions(ws WorkspaceFS) []GateDecisionItem {
 		if id == "" || strings.HasPrefix(strings.ToUpper(id), "CHK-") || fm.Has("conflicting_sources") {
 			return
 		}
+		if strings.EqualFold(id, "D-NNN") || strings.EqualFold(id, "D-000") || strings.EqualFold(id, "C-NNN") || strings.Contains(strings.ToLower(fm.GetString("title")), "[decision title]") {
+			return
+		}
 		upperID := strings.ToUpper(id)
 		if processedIDs[upperID] {
 			return

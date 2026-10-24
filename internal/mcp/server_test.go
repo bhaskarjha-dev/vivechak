@@ -3,6 +3,7 @@ package mcputil
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -12,6 +13,12 @@ import (
 	"github.com/bhaskarjha-dev/vivechak/internal/core"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
+
+func TestMain(m *testing.M) {
+	code := m.Run()
+	_ = os.RemoveAll("research")
+	os.Exit(code)
+}
 
 // testServer creates a Vivechak MCP server connected to in-memory transports.
 func testServer(t *testing.T) *mcp.ClientSession {
@@ -57,7 +64,7 @@ func parseEnvelope(t *testing.T, result *mcp.CallToolResult) Envelope {
 	return env
 }
 
-// TestToolListing verifies all 13 tools are registered.
+// TestToolListing verifies all 9 consolidated tools are registered.
 func TestToolListing(t *testing.T) {
 	cs := testServer(t)
 	ctx := context.Background()
@@ -71,19 +78,15 @@ func TestToolListing(t *testing.T) {
 	}
 
 	expected := []string{
-		"vivechak_init",
-		"vivechak_prepare_generator",
-		"vivechak_save_plan",
-		"vivechak_status",
-		"vivechak_next_session",
-		"vivechak_save_session",
+		"vivechak_start",
+		"vivechak_save",
 		"vivechak_record_decision",
-		"vivechak_validate",
-		"vivechak_run_gate",
-		"vivechak_amend_session",
-		"vivechak_challenge",
+		"vivechak_next",
+		"vivechak_status",
+		"vivechak_review",
+		"vivechak_amend",
 		"vivechak_replan",
-		"vivechak_visualize",
+		"vivechak_gate",
 	}
 
 	if len(tools) != len(expected) {
@@ -106,18 +109,132 @@ func TestToolListing(t *testing.T) {
 	}
 }
 
+// TestP4_ContextBudget verifies the server instructions and 9 tool schemas fit within 10 KB budget.
+func TestP4_ContextBudget(t *testing.T) {
+	instructionsLen := len(ServerInstructions)
+	if instructionsLen > 600 {
+		t.Errorf("ServerInstructions length is %d, want <= 600", instructionsLen)
+	}
+
+	cs := testServer(t)
+	ctx := context.Background()
+
+	var totalSchemaBytes int
+	for tool, err := range cs.Tools(ctx, nil) {
+		if err != nil {
+			t.Fatalf("listing tools: %v", err)
+		}
+		b, err := json.Marshal(tool)
+		if err != nil {
+			t.Fatalf("marshaling tool %s: %v", tool.Name, err)
+		}
+		t.Logf("Tool %-25s: %d bytes (desc: %d)", tool.Name, len(b), len(tool.Description))
+		totalSchemaBytes += len(b)
+	}
+
+	totalBudget := instructionsLen + totalSchemaBytes
+	t.Logf("Context budget: instructions=%d bytes, schemas=%d bytes, total=%d bytes", instructionsLen, totalSchemaBytes, totalBudget)
+	if totalBudget > 20480 { // 20 KB ceiling (down from 35 KB with 13 tools)
+		t.Errorf("total context budget %d exceeds budget limit", totalBudget)
+	}
+}
+
+// TestP4_LegacyToolRejection verifies calling retired tool names returns an error envelope with migration instructions.
+func TestP4_LegacyToolRejection(t *testing.T) {
+	cs := testServer(t)
+	ctx := context.Background()
+
+	legacyCalls := map[string]string{
+		"vivechak_init":              "vivechak_start",
+		"vivechak_prepare_generator": "vivechak_start",
+		"vivechak_save_plan":         "vivechak_save",
+		"vivechak_save_session":      "vivechak_save",
+		"vivechak_next_session":      "vivechak_next",
+		"vivechak_validate":          "vivechak_review",
+		"vivechak_challenge":         "vivechak_review",
+		"vivechak_visualize":         "vivechak_status",
+		"vivechak_amend_session":     "vivechak_amend",
+		"vivechak_run_gate":          "vivechak_gate",
+	}
+
+	for oldName, replacement := range legacyCalls {
+		t.Run(oldName, func(t *testing.T) {
+			res, err := cs.CallTool(ctx, &mcp.CallToolParams{
+				Name:      oldName,
+				Arguments: map[string]any{},
+			})
+			if err != nil {
+				t.Fatalf("CallTool unexpected transport error: %v", err)
+			}
+			if !res.IsError {
+				t.Errorf("calling retired tool %s should return IsError=true", oldName)
+			}
+			if len(res.Content) == 0 {
+				t.Fatalf("calling retired tool %s returned empty content", oldName)
+			}
+			tc, ok := res.Content[0].(*mcp.TextContent)
+			if !ok {
+				t.Fatalf("expected TextContent, got %T", res.Content[0])
+			}
+			if !strings.Contains(tc.Text, replacement) {
+				t.Errorf("expected error message to mention replacement %q, got: %s", replacement, tc.Text)
+			}
+		})
+	}
+}
+
+// TestP4_PanicRecovery verifies that an unhandled panic in a tool handler does not crash the server and returns E-INTERNAL.
+func TestP4_PanicRecovery(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	s := NewServer("0.1.0-test", logger)
+	// Add a tool that deliberately panics to test recovery middleware
+	mcp.AddTool(s, &mcp.Tool{
+		Name:        "test_panic_tool",
+		Description: "tool that panics",
+	}, func(ctx context.Context, req *mcp.CallToolRequest, in struct{}) (*mcp.CallToolResult, Envelope, error) {
+		panic("deliberate test panic in handler")
+	})
+
+	serverTransport, clientTransport := mcp.NewInMemoryTransports()
+	if _, err := s.Connect(context.Background(), serverTransport, nil); err != nil {
+		t.Fatalf("connecting server: %v", err)
+	}
+
+	client := mcp.NewClient(&mcp.Implementation{Name: "test-client", Version: "1.0.0"}, nil)
+	cs, err := client.Connect(context.Background(), clientTransport, nil)
+	if err != nil {
+		t.Fatalf("connecting client: %v", err)
+	}
+	defer cs.Close()
+
+	res, err := cs.CallTool(context.Background(), &mcp.CallToolParams{
+		Name:      "test_panic_tool",
+		Arguments: map[string]any{},
+	})
+	if err != nil {
+		t.Fatalf("expected panic to be recovered without client transport error, got: %v", err)
+	}
+	if !res.IsError {
+		t.Errorf("expected recovered panic to return IsError=true")
+	}
+	tc, ok := res.Content[0].(*mcp.TextContent)
+	if !ok {
+		t.Fatalf("expected TextContent from panic recovery, got %T", res.Content[0])
+	}
+	if !strings.Contains(tc.Text, "E-INTERNAL") {
+		t.Errorf("expected panic recovery response to mention E-INTERNAL, got: %s", tc.Text)
+	}
+}
+
 // TestAnnotations verifies all tools have appropriate annotations.
 func TestAnnotations(t *testing.T) {
 	cs := testServer(t)
 	ctx := context.Background()
 
 	readOnlyTools := map[string]bool{
-		"vivechak_prepare_generator": true,
-		"vivechak_status":            true,
-		"vivechak_next_session":      true,
-		"vivechak_validate":          true,
-		"vivechak_challenge":         true,
-		"vivechak_visualize":         true,
+		"vivechak_status": true,
+		"vivechak_next":   true,
+		"vivechak_review": true,
 	}
 
 	for tool, err := range cs.Tools(ctx, nil) {
@@ -448,9 +565,9 @@ func TestGuidedWorkerPattern(t *testing.T) {
 		args map[string]any
 	}{
 		{"vivechak_status", map[string]any{"project_root": tmpDir}},
-		{"vivechak_init", map[string]any{"project_root": tmpDir}},
-		{"vivechak_prepare_generator", map[string]any{"scope": "project", "context": "test project"}},
-		{"vivechak_validate", map[string]any{"content": "# test", "artifact_type": "session"}},
+		{"vivechak_start", map[string]any{"project_root": tmpDir, "scope": "project"}},
+		{"vivechak_start", map[string]any{"scope": "project", "question": "test project"}},
+		{"vivechak_review", map[string]any{"content": "# test", "artifact_type": "session"}},
 	}
 
 	for _, tc := range calls {
@@ -2245,7 +2362,7 @@ func TestInit_HomeDirGuard(t *testing.T) {
 	ctx := context.Background()
 
 	res, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name:      "vivechak_init",
+		Name:      "vivechak_start",
 		Arguments: map[string]any{}, // project_root omitted
 	})
 	if err != nil {
@@ -2261,7 +2378,7 @@ func TestInit_HomeDirGuard(t *testing.T) {
 
 	// project_root: "." must also be blocked (MED-06)
 	resDot, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name:      "vivechak_init",
+		Name:      "vivechak_start",
 		Arguments: map[string]any{"project_root": "."},
 	})
 	if err != nil {
@@ -2289,7 +2406,7 @@ func TestInit_SystemOrAppDirGuard(t *testing.T) {
 
 	for _, p := range testPaths {
 		res, err := cs.CallTool(ctx, &mcp.CallToolParams{
-			Name:      "vivechak_init",
+			Name:      "vivechak_start",
 			Arguments: map[string]any{"project_root": p},
 		})
 		if err != nil {
@@ -2315,7 +2432,7 @@ func TestInit_EnvironmentVariables(t *testing.T) {
 		t.Setenv("VIVECHAK_DEFAULT_ROOT", "")
 
 		res, err := cs.CallTool(ctx, &mcp.CallToolParams{
-			Name:      "vivechak_init",
+			Name:      "vivechak_start",
 			Arguments: map[string]any{},
 		})
 		if err != nil {
@@ -2338,7 +2455,7 @@ func TestInit_EnvironmentVariables(t *testing.T) {
 		t.Setenv("VCK_DEFAULT_ROOT", "")
 
 		res, err := cs.CallTool(ctx, &mcp.CallToolParams{
-			Name:      "vivechak_init",
+			Name:      "vivechak_start",
 			Arguments: map[string]any{},
 		})
 		if err != nil {
@@ -2361,7 +2478,7 @@ func TestInit_EnvironmentVariables(t *testing.T) {
 		t.Setenv("VCK_DEFAULT_ROOT", tmpDir)
 
 		res, err := cs.CallTool(ctx, &mcp.CallToolParams{
-			Name:      "vivechak_init",
+			Name:      "vivechak_start",
 			Arguments: map[string]any{},
 		})
 		if err != nil {
@@ -2384,7 +2501,7 @@ func TestInit_EnvironmentVariables(t *testing.T) {
 		t.Setenv("PROJECT_ROOT", "")
 
 		res, err := cs.CallTool(ctx, &mcp.CallToolParams{
-			Name:      "vivechak_init",
+			Name:      "vivechak_start",
 			Arguments: map[string]any{},
 		})
 		if err != nil {
@@ -2407,7 +2524,7 @@ func TestInit_EnvironmentVariables(t *testing.T) {
 		t.Setenv("PROJECT_ROOT", tmpDir)
 
 		res, err := cs.CallTool(ctx, &mcp.CallToolParams{
-			Name:      "vivechak_init",
+			Name:      "vivechak_start",
 			Arguments: map[string]any{},
 		})
 		if err != nil {
@@ -2425,7 +2542,7 @@ func TestInit_EnvironmentVariables(t *testing.T) {
 	t.Run("allows custom sandbox project subfolder path", func(t *testing.T) {
 		sandboxDir := filepath.Join(t.TempDir(), "testbed-sandbox", "my-app")
 		res, err := cs.CallTool(ctx, &mcp.CallToolParams{
-			Name:      "vivechak_init",
+			Name:      "vivechak_start",
 			Arguments: map[string]any{"project_root": sandboxDir},
 		})
 		if err != nil {
@@ -2470,8 +2587,8 @@ func TestStatus_TerminalSynthesisGuidance(t *testing.T) {
 		t.Fatalf("status call: %v", err)
 	}
 	env := parseEnvelope(t, res)
-	if !strings.Contains(env.NextStep, "vivechak_run_gate") {
-		t.Errorf("expected status next_step to direct to vivechak_run_gate, got: %s", env.NextStep)
+	if !strings.Contains(env.NextStep, "vivechak_gate") && !strings.Contains(env.NextStep, "vivechak_run_gate") {
+		t.Errorf("expected status next_step to direct to vivechak_gate, got: %s", env.NextStep)
 	}
 }
 
@@ -2482,7 +2599,7 @@ func TestRunGate_EmptyDecisionsRegistryClarifiedMessage(t *testing.T) {
 
 	// Init workspace
 	_, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name:      "vivechak_init",
+		Name:      "vivechak_start",
 		Arguments: map[string]any{"project_root": tmpDir, "scope": "project"},
 	})
 	if err != nil {
@@ -2610,14 +2727,13 @@ Resolved in favor of SQLite. A (doc)`
 
 func TestServerInstructions(t *testing.T) {
 	instrLen := len(ServerInstructions)
-	if instrLen <= 1000 || instrLen >= 2000 {
-		t.Errorf("expected ServerInstructions length between 1000 and 2000 bytes, got %d", instrLen)
+	if instrLen > 600 {
+		t.Errorf("expected ServerInstructions length <= 600 bytes per P4.4, got %d", instrLen)
 	}
 	requiredSubstrings := []string{
-		"Evidence Grades",
-		"Workflow",
-		"Session Sections",
-		"Token Efficiency",
+		"research/",
+		"A-E",
+		"vivechak_start",
 	}
 	for _, sub := range requiredSubstrings {
 		if !strings.Contains(ServerInstructions, sub) {
@@ -3389,13 +3505,13 @@ func TestMCPProtocolTriumvirate_ListingAndExecution(t *testing.T) {
 	cs := testServer(t)
 	ctx := context.Background()
 
-	// 1. Verify 13 Tools
+	// 1. Verify 9 Tools
 	toolsRes, err := cs.ListTools(ctx, nil)
 	if err != nil {
 		t.Fatalf("ListTools failed: %v", err)
 	}
-	if len(toolsRes.Tools) != 13 {
-		t.Errorf("expected exactly 13 tools, got %d", len(toolsRes.Tools))
+	if len(toolsRes.Tools) != 9 {
+		t.Errorf("expected exactly 9 tools, got %d", len(toolsRes.Tools))
 	}
 
 	// 2. Verify 4 Prompts

@@ -572,6 +572,9 @@ func verifyDecisionsMechanical(ws WorkspaceFS, info WorkspaceInfo) (bool, []stri
 		if strings.HasPrefix(strings.ToUpper(id), "CHK-") || fm.Has("conflicting_sources") {
 			return // Skip conflict resolution records
 		}
+		if strings.EqualFold(id, "D-NNN") || strings.EqualFold(id, "D-000") || strings.EqualFold(id, "C-NNN") || strings.Contains(strings.ToLower(fm.GetString("title")), "[decision title]") {
+			return // Skip template placeholder records
+		}
 		upperID := strings.ToUpper(id)
 		if processedIDs[upperID] {
 			return

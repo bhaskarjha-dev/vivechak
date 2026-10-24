@@ -20,24 +20,25 @@ func plural(n int) string {
 	return "s"
 }
 
-// RunGateInput defines the input parameters for vivechak_run_gate.
-type RunGateInput struct {
+// GateInput defines the input parameters for vivechak_gate.
+type GateInput struct {
 	ProjectRoot string `json:"project_root,omitempty" jsonschema:"root directory of the project (defaults to working directory)"`
 	Verbose     bool   `json:"verbose,omitempty"       jsonschema:"if true, return full gate details instead of summary"`
 	Track       string `json:"track,omitempty"         jsonschema:"optional track filter ('track_a', 'track_b', or 'all')"`
 }
 
-func registerRunGate(server *sdkmcp.Server) {
+// RunGateInput provides backward compatibility for unit tests calling handleRunGate.
+type RunGateInput = GateInput
+
+func registerGate(server *sdkmcp.Server) {
 	sdkmcp.AddTool(server,
 		&sdkmcp.Tool{
-			Name:  "vivechak_run_gate",
-			Title: "Run Phase 0 Gate",
-			Description: "Execute the Phase 0 exit gate check (Track A + Track B). " +
-				"Structural checks: pipeline exists, DAG sessions completed, templates present, " +
-				"decisions recorded, FAD compiled. Quality checks: session count, evidence grades in FAD, " +
-				"ADR lock status, reversal triggers, evidentiary threshold for one-way doors. " +
-				"Advisory: rejected alternatives, recalled verification, evidence grade distribution. " +
-				"Supports progressive disclosure via verbose parameter and track filtering via track parameter ('track_a', 'track_b', or 'all').",
+			Name:  "vivechak_gate",
+			Title: "Run Phase 0 Exit Gate",
+			Description: "Mechanically evaluate Phase 0 pre-coding exit criteria across Track A (Two-Way Doors) and Track B (One-Way Doors). " +
+				"Evaluates structural pipeline completeness, FAD compilation, evidence grades, ADR lock status, and adversarial stress-testing. " +
+				"Persists research/PHASE-0-GATE.md preserving human sign-offs. " +
+				"Must PASS before codebase implementation begins.",
 			Annotations: &sdkmcp.ToolAnnotations{
 				ReadOnlyHint:    false,
 				IdempotentHint:  true,
@@ -45,33 +46,27 @@ func registerRunGate(server *sdkmcp.Server) {
 				OpenWorldHint:   BoolPtr(false),
 			},
 		},
-		handleRunGate,
+		handleGate,
 	)
 }
 
-func handleRunGate(_ context.Context, _ *sdkmcp.CallToolRequest, in RunGateInput) (*sdkmcp.CallToolResult, Envelope, error) {
-	const tool = "vivechak_run_gate"
+func handleGate(_ context.Context, _ *sdkmcp.CallToolRequest, in GateInput) (*sdkmcp.CallToolResult, Envelope, error) {
+	const tool = "vivechak_gate"
 
 	root, err := core.ResolveWorkspace(in.ProjectRoot)
 	if err != nil {
-		return ErrorResult(tool, err,
-			"Initialize a workspace first with vivechak_init.")
+		return ErrorResult(tool, err, "Initialize a workspace first with vivechak_start.")
 	}
 
 	if !core.WorkspaceExists(root) {
-		return ErrorResult(tool, fmt.Errorf("workspace not initialized at %s", root),
-			"Run vivechak_init first.")
+		return ErrorResult(tool, fmt.Errorf("workspace not initialized at %s", root), "Run vivechak_start first.")
 	}
 
 	ws, err := store.OpenWorkspace(root)
 	if err != nil {
-		return ErrorResult(tool, fmt.Errorf("opening workspace: %w", err),
-			"Provide a valid workspace.")
+		return ErrorResult(tool, fmt.Errorf("opening workspace: %w", err), "Provide a valid workspace.")
 	}
 	defer ws.Close()
-
-	info := core.InspectWorkspace(root)
-	gateResult := core.EvaluateGate(ws, info, root)
 
 	trackFilter := strings.ToLower(strings.TrimSpace(in.Track))
 	if trackFilter == "" {
@@ -82,20 +77,28 @@ func handleRunGate(_ context.Context, _ *sdkmcp.CallToolRequest, in RunGateInput
 			"Specify 'track_a', 'track_b', or omit for all.")
 	}
 
-	trackAData := map[string]any{
-		"label":  gateResult.TrackAChecks.Label,
-		"passed": gateResult.TrackAChecks.Passed,
-		"score":  gateResult.TrackAChecks.Score,
-	}
-	trackBData := map[string]any{
-		"label":  gateResult.TrackBChecks.Label,
-		"passed": gateResult.TrackBChecks.Passed,
-		"score":  gateResult.TrackBChecks.Score,
-	}
+	info := core.InspectWorkspace(root)
+	gateResult := core.EvaluateGate(ws, info, root)
+
 	structuralData := map[string]any{
-		"label":  gateResult.StructuralChecks.Label,
 		"passed": gateResult.StructuralChecks.Passed,
 		"score":  gateResult.StructuralChecks.Score,
+		"count":  gateResult.StructuralChecks.Count,
+		"total":  gateResult.StructuralChecks.Total,
+	}
+
+	trackAData := map[string]any{
+		"passed": gateResult.TrackAChecks.Passed,
+		"score":  gateResult.TrackAChecks.Score,
+		"count":  gateResult.TrackAChecks.Count,
+		"total":  gateResult.TrackAChecks.Total,
+	}
+
+	trackBData := map[string]any{
+		"passed": gateResult.TrackBChecks.Passed,
+		"score":  gateResult.TrackBChecks.Score,
+		"count":  gateResult.TrackBChecks.Count,
+		"total":  gateResult.TrackBChecks.Total,
 	}
 
 	if in.Verbose {
@@ -206,11 +209,15 @@ func handleRunGate(_ context.Context, _ *sdkmcp.CallToolRequest, in RunGateInput
 		}
 		issueCount := len(blockingIssues)
 		env := Envelope{
+			Ok:      true,
 			Success: true,
 			Message: fmt.Sprintf("❌ PHASE 0 GATE FAILED: %s requirements not met (%d blocking issue%s). Implementation is strictly prohibited.",
 				failureScope, issueCount, plural(issueCount)),
 			Data:     data,
 			Warnings: warnings,
+			Next: &NextAction{
+				Why: fmt.Sprintf("⛔ DO NOT PROCEED TO CODE. Resolve %d blocking issue(s): %s", issueCount, strings.Join(blockingIssues, "; ")),
+			},
 			NextStep: fmt.Sprintf("⛔ DO NOT PROCEED TO CODE. Phase 0 exit criteria NOT MET. "+
 				"Resolve the %d blocking issue(s) before code scaffolding: %s",
 				issueCount, strings.Join(blockingIssues, "; ")),
@@ -219,14 +226,24 @@ func handleRunGate(_ context.Context, _ *sdkmcp.CallToolRequest, in RunGateInput
 		return env.ToResult()
 	}
 
+	next := &NextAction{
+		Why: "Phase 0 Gate PASSED. All Track A and Track B exit criteria satisfied. Ready for codebase implementation.",
+	}
+
 	env := Envelope{
+		Ok:       true,
 		Success:  true,
 		Message:  fmt.Sprintf("Phase 0 Gate: %s (Structural Completeness: %d/%d, Quality Indicators: %d/%d)", gateStatus, gateResult.StructuralChecks.Count, gateResult.StructuralChecks.Total, gateResult.QualityChecks.Count, gateResult.QualityChecks.Total),
 		Data:     data,
 		Warnings: warnings,
+		Next:     next,
 		NextStep: gateResult.NextStep,
 		Meta:     NewMeta(tool),
 	}
 	return env.ToResult()
 }
 
+// handleRunGate provides backward compatibility for unit tests calling handleRunGate.
+func handleRunGate(ctx context.Context, req *sdkmcp.CallToolRequest, in RunGateInput) (*sdkmcp.CallToolResult, Envelope, error) {
+	return handleGate(ctx, req, in)
+}

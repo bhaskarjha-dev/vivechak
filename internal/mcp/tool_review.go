@@ -12,23 +12,39 @@ import (
 	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-// ValidateInput holds the arguments for vivechak_validate.
-type ValidateInput struct {
-	ProjectRoot  string `json:"project_root,omitempty" jsonschema:"workspace root path"`
-	ArtifactType string `json:"artifact_type,omitempty" jsonschema:"what to validate: session | decision | decisions | comparison | plan | fad | conflict (omit for workspace-wide validation)"`
-	Content      string `json:"content,omitempty"        jsonschema:"content to validate (Markdown); omit with project_root for workspace-wide validation"`
+// ReviewInput holds the arguments for vivechak_review.
+type ReviewInput struct {
+	ProjectRoot  string `json:"project_root,omitempty"  jsonschema:"workspace root path (optional)"`
+	Mode         string `json:"mode,omitempty"          jsonschema:"review mode: 'validate' (dry-run quality validation) | 'challenge' (adversarial red-team stress test)"`
+	Target       string `json:"target,omitempty"        jsonschema:"target session ID (e.g. T1-01) or decision ID (e.g. D-001) or artifact path"`
+	ArtifactType string `json:"artifact_type,omitempty" jsonschema:"what to validate when mode='validate': 'session' | 'decision' | 'plan' | 'comparison' | 'fad' (omit with empty content for workspace validation)"`
+	Content      string `json:"content,omitempty"       jsonschema:"content to validate (dry run); omit for workspace-wide validation or saved session validation"`
 }
 
-func registerValidate(server *sdkmcp.Server) {
+// ValidateInput provides backward compatibility for unit tests calling handleValidate.
+type ValidateInput struct {
+	ProjectRoot  string `json:"project_root,omitempty"`
+	ArtifactType string `json:"artifact_type,omitempty"`
+	Content      string `json:"content,omitempty"`
+}
+
+// ChallengeInput provides backward compatibility for unit tests calling handleChallenge.
+type ChallengeInput struct {
+	ProjectRoot   string `json:"project_root,omitempty"`
+	SessionID     string `json:"session_id,omitempty"`
+	DecisionID    string `json:"decision_id,omitempty"`
+	Mode          string `json:"mode,omitempty"`
+	ChallengeType string `json:"challenge_type,omitempty"`
+}
+
+func registerReview(server *sdkmcp.Server) {
 	sdkmcp.AddTool(server,
 		&sdkmcp.Tool{
-			Name:  "vivechak_validate",
-			Title: "Validate Artifact",
-			Description: "Dry-run validation on any Vivechak artifact (session output, plan, " +
-				"decision record, comparison matrix, or FAD). Use for dry-run validation of in-progress content only — " +
-				"save_session validates automatically, so calling validate before save doubles token cost. " +
-				"Can also validate an entire workspace: omit content and provide only project_root " +
-				"to validate all artifacts in the workspace. Read-only — no side effects.",
+			Name:  "vivechak_review",
+			Title: "Review Research (Validate or Challenge)",
+			Description: "Inspect research artifacts for quality validation or adversarial stress-testing. " +
+				"Modes: 'validate' (runs 4-level quality ladder on content or entire workspace without saving), " +
+				"or 'challenge' (generates adversarial red-team critique prompts for One-Way Doors, premortems, and disconfirming search). Read-only.",
 			Annotations: &sdkmcp.ToolAnnotations{
 				ReadOnlyHint:    true,
 				IdempotentHint:  true,
@@ -36,18 +52,117 @@ func registerValidate(server *sdkmcp.Server) {
 				OpenWorldHint:   BoolPtr(false),
 			},
 		},
-		handleValidate,
+		handleReview,
 	)
 }
 
-func handleValidate(_ context.Context, _ *sdkmcp.CallToolRequest, in ValidateInput) (*sdkmcp.CallToolResult, Envelope, error) {
-	const tool = "vivechak_validate"
+func handleReview(ctx context.Context, req *sdkmcp.CallToolRequest, in ReviewInput) (*sdkmcp.CallToolResult, Envelope, error) {
+	const tool = "vivechak_review"
 
-	// Workspace-wide validation: content empty
+	mode := strings.ToLower(strings.TrimSpace(in.Mode))
+	if mode == "challenge" || mode == "red_team" || mode == "audit" || mode == "premortem" {
+		return handleReviewChallenge(ctx, in)
+	}
+
+	// Default to validate
+	return handleReviewValidate(tool, in)
+}
+
+func handleReviewChallenge(_ context.Context, in ReviewInput) (*sdkmcp.CallToolResult, Envelope, error) {
+	const tool = "vivechak_review"
+
+	root, err := core.ResolveWorkspace(in.ProjectRoot)
+	if err != nil {
+		return ErrorResult(tool, err, "Initialize a workspace first with vivechak_start.")
+	}
+
+	target := strings.TrimSpace(in.Target)
+	if target == "" {
+		return ErrorResult(tool, fmt.Errorf("target (session_id or decision_id) is required for challenge mode"),
+			"Provide the target ID to challenge (e.g. 'T1-01' or 'D-001').")
+	}
+
+	ws, err := store.OpenWorkspace(root)
+	if err != nil {
+		return ErrorResult(tool, fmt.Errorf("opening workspace: %w", err), "Provide a valid workspace.")
+	}
+	defer ws.Close()
+
+	sessionData, _, err := core.ReadSessionFileFS(ws, core.SessionsDir, target)
+	if err != nil || sessionData == "" {
+		found := false
+		if entries, lErr := ws.ListDir(core.ResearchDir); lErr == nil {
+			idUpper := strings.ToUpper(target)
+			for _, e := range entries {
+				if e.IsDir() || !strings.HasSuffix(strings.ToLower(e.Name()), ".md") {
+					continue
+				}
+				name := strings.TrimSuffix(e.Name(), ".md")
+				nameUpper := strings.ToUpper(name)
+				if nameUpper == idUpper || strings.HasPrefix(nameUpper, idUpper+"-") || strings.HasPrefix(nameUpper, idUpper+"_") {
+					if dData, rErr := ws.ReadFile(filepath.Join(core.ResearchDir, e.Name())); rErr == nil && len(dData) > 0 {
+						sessionData = string(dData)
+						found = true
+						break
+					}
+				}
+			}
+		}
+		if !found {
+			return ErrorResult(tool, fmt.Errorf("target %s not found in %s or %s", target, core.SessionsDir, core.ResearchDir),
+				"Ensure the session or decision file exists before challenging.")
+		}
+	}
+
+	allSessions := make(map[string][]byte)
+	if entries, lErr := ws.ListDir(core.SessionsDir); lErr == nil {
+		for _, e := range entries {
+			if e.IsDir() || !strings.HasSuffix(strings.ToLower(e.Name()), ".md") {
+				continue
+			}
+			data, rErr := ws.ReadFile(filepath.Join(core.SessionsDir, e.Name()))
+			if rErr != nil || len(data) == 0 {
+				continue
+			}
+			sid := strings.TrimSuffix(e.Name(), ".md")
+			if fm, _, pErr := core.ParseFrontmatter(data); pErr == nil && fm != nil {
+				if idVal := fm.GetString("id"); idVal != "" {
+					sid = idVal
+				} else if sessID := fm.GetString("session_id"); sessID != "" {
+					sid = sessID
+				}
+			}
+			allSessions[sid] = data
+		}
+	}
+
+	challengeResult, cErr := core.GenerateChallenges([]byte(sessionData), target, core.ModeRedTeam, allSessions)
+	if cErr != nil {
+		return ErrorResult(tool, cErr, "Verify session content is non-empty and formatted correctly.")
+	}
+
+	next := &NextAction{
+		Tool: "vivechak_amend",
+		Args: map[string]any{"session_id": target},
+		Why:  fmt.Sprintf("Execute the adversarial challenge with web search, then append findings using vivechak_amend(session_id='%s', amendment=...).", target),
+	}
+
+	env := Envelope{
+		Ok:       true,
+		Success:  true,
+		Message:  fmt.Sprintf("Generated %d red-team challenge prompts for %s.", len(challengeResult.Prompts), target),
+		Data:     challengeResult,
+		Next:     next,
+		NextStep: next.Why,
+		Meta:     NewMeta(tool),
+	}
+	return env.ToResult()
+}
+
+func handleReviewValidate(tool string, in ReviewInput) (*sdkmcp.CallToolResult, Envelope, error) {
 	if strings.TrimSpace(in.Content) == "" {
 		return handleWorkspaceValidate(tool, in.ProjectRoot)
 	}
-
 
 	artifactType := in.ArtifactType
 	if artifactType == "" {
@@ -55,84 +170,90 @@ func handleValidate(_ context.Context, _ *sdkmcp.CallToolRequest, in ValidateInp
 	}
 
 	var validation *core.ValidationResult
-
 	switch artifactType {
 	case "session":
 		validation = core.ValidateSession([]byte(in.Content))
 	case "decision", "decisions":
 		contentBytes := []byte(in.Content)
-		// Auto-detect multi-decision registries (such as DECISIONS.md with introductory preambles or HTML comment blocks)
 		if artifactType == "decisions" || strings.Contains(in.Content, "<!-- DECISION:") || len(core.ExtractUnanchoredDecisionBlocks(contentBytes)) > 1 || (strings.Contains(in.Content, "#") && !strings.HasPrefix(strings.TrimSpace(in.Content), "---")) {
 			validation = core.ValidateDecisionRegistry(contentBytes)
 		} else {
 			validation = core.ValidateDecision(contentBytes)
 		}
-	case "conflict-resolution", "conflict":
-		validation = core.ValidateConflictResolution([]byte(in.Content))
 	case "comparison", "comp":
 		validation = core.ValidateComparison([]byte(in.Content))
 	case "plan":
 		validation = core.ValidatePlan([]byte(in.Content))
 	case "fad":
 		validation = core.ValidateFAD([]byte(in.Content))
+	case "conflict", "conflict-resolution":
+		validation = core.ValidateConflictResolution([]byte(in.Content))
 	default:
-		return ErrorResult(tool, fmt.Errorf("unknown artifact_type %q", artifactType),
-			"Use 'session', 'decision', 'decisions', 'comparison', 'plan', 'fad', or 'conflict'.")
+		return ErrorResult(tool, fmt.Errorf("invalid artifact_type %q", in.ArtifactType),
+			"Use 'session', 'decision', 'comparison', 'plan', 'fad', or 'conflict'.")
 	}
 
+	var issuesList []map[string]any
 	var warnings []string
+	blockingCount := 0
 	for _, issue := range validation.Issues {
+		if issue.Level == core.L2Block || issue.Level == core.L4Gate {
+			blockingCount++
+		}
+		issuesList = append(issuesList, map[string]any{
+			"level":   issue.Level.String(),
+			"code":    issue.Code,
+			"field":   issue.Field,
+			"message": issue.Message,
+			"fix":     issue.FixHint,
+		})
 		warnings = append(warnings, issue.String())
 	}
 
-	// Gather advisory quality observations for session artifacts
 	var observations []core.QualityObservation
 	if artifactType == "session" {
 		observations = core.ObserveSessionQuality([]byte(in.Content))
 	}
 
-	var nextStep string
-	if validation.HasBlocking() {
-		nextStep = "Review the structural issues above. Address any that affect correctness, then save."
-	} else if validation.WarningCount() > 0 {
-		nextStep = fmt.Sprintf("Content is structurally valid with %d observations. "+
-			"Review the suggestions if you want to strengthen the output, then save.", validation.WarningCount())
-	} else {
-		nextStep = "Content is valid. Save it using vivechak_save_session, vivechak_save_plan, or vivechak_record_decision."
-	}
-
-	responseData := map[string]any{
-		"artifact_type": artifactType,
-		"status":        validation.Status,
-		"validation":    validation,
-		"error_count":   validation.ErrorCount(),
-		"warning_count": validation.WarningCount(),
+	data := map[string]any{
+		"artifact_type":  artifactType,
+		"status":         validation.Status,
+		"valid":          !validation.HasBlocking(),
+		"blocking_count": blockingCount,
+		"error_count":    validation.ErrorCount(),
+		"warning_count":  validation.WarningCount(),
+		"issues":         issuesList,
 	}
 	if len(observations) > 0 {
-		responseData["observations"] = observations
+		data["observations"] = observations
+	}
+
+	next := &NextAction{
+		Why: "Review validation output. Correct any blocking defects before saving.",
 	}
 
 	env := Envelope{
+		Ok:       true,
 		Success:  true,
-		Message:  fmt.Sprintf("Validation complete: %s (%d issues)", validation.Status, len(validation.Issues)),
-		Data:     responseData,
+		Message:  fmt.Sprintf("Validation complete: %s (%d blocking, %d warnings).", validation.Status, blockingCount, validation.WarningCount()),
+		Data:     data,
 		Warnings: warnings,
-		NextStep: nextStep,
+		Next:     next,
+		NextStep: next.Why,
 		Meta:     NewMeta(tool),
 	}
 	return env.ToResult()
 }
 
-// handleWorkspaceValidate validates all artifacts in a workspace and returns aggregated results.
 func handleWorkspaceValidate(tool string, projectRoot string) (*sdkmcp.CallToolResult, Envelope, error) {
 	root, err := core.ResolveWorkspace(projectRoot)
 	if err != nil {
-		return ErrorResult(tool, err, "Initialize a workspace first with vivechak_init.")
+		return ErrorResult(tool, err, "Initialize a workspace first with vivechak_start.")
 	}
 
 	if !core.WorkspaceExists(root) {
 		return ErrorResult(tool, fmt.Errorf("workspace not initialized at %s", root),
-			"Run vivechak_init first.")
+			"Run vivechak_start first.")
 	}
 
 	ws, err := store.OpenWorkspace(root)
@@ -199,7 +320,6 @@ func handleWorkspaceValidate(tool string, projectRoot string) (*sdkmcp.CallToolR
 	}
 
 	// Validate decisions: individual files in research/ are the canonical source.
-	// DECISIONS.md is a compiled view and is not validated directly to prevent double-counting.
 	decisionsValid := 0
 	decisionsWarnings := 0
 	decisionsErrors := 0
@@ -214,7 +334,6 @@ func handleWorkspaceValidate(tool string, projectRoot string) (*sdkmcp.CallToolR
 			if core.IsSpecialResearchFile(name) {
 				continue
 			}
-			// Whitelist: only D-* prefixed files or files with door_type in frontmatter
 			isCandidate := strings.HasPrefix(strings.ToUpper(name), "D-")
 			relPath := filepath.Join(core.ResearchDir, name)
 			data, err := ws.ReadFile(relPath)
@@ -295,7 +414,6 @@ func handleWorkspaceValidate(tool string, projectRoot string) (*sdkmcp.CallToolR
 			}
 		}
 
-		// Also check unanchored decision blocks in DECISIONS.md
 		for _, block := range core.ExtractUnanchoredDecisionBlocks(data) {
 			id := ""
 			if fm, _, err := core.ParseFrontmatter(block); err == nil && fm != nil {
@@ -386,7 +504,7 @@ func handleWorkspaceValidate(tool string, projectRoot string) (*sdkmcp.CallToolR
 		results["pipeline"] = pipeResult
 	}
 
-	// Validate comparisons if C-*.md, *-comparison.md, *-cmp-*.md, or COMPARISON.md exist
+	// Validate comparisons
 	var compResults []map[string]any
 	if entries, lErr := ws.ListDir(core.ResearchDir); lErr == nil {
 		for _, e := range entries {
@@ -417,7 +535,7 @@ func handleWorkspaceValidate(tool string, projectRoot string) (*sdkmcp.CallToolR
 	}
 	if len(compResults) > 0 {
 		results["comparisons"] = compResults
-		results["comparison"] = compResults[0] // backward-compatible alias for first comparison
+		results["comparison"] = compResults[0]
 	}
 
 	totalIssues := len(allWarnings)
@@ -429,12 +547,39 @@ func handleWorkspaceValidate(tool string, projectRoot string) (*sdkmcp.CallToolR
 	}
 
 	env := Envelope{
+		Ok:       true,
 		Success:  true,
 		Message:  fmt.Sprintf("Workspace validation complete (%d issue(s) found)", totalIssues),
 		Data:     results,
 		Warnings: allWarnings,
+		Next: &NextAction{
+			Why: nextStep,
+		},
 		NextStep: nextStep,
 		Meta:     NewMeta(tool),
 	}
 	return env.ToResult()
+}
+
+// handleValidate provides backward compatibility for unit tests calling handleValidate.
+func handleValidate(ctx context.Context, req *sdkmcp.CallToolRequest, in ValidateInput) (*sdkmcp.CallToolResult, Envelope, error) {
+	return handleReview(ctx, req, ReviewInput{
+		ProjectRoot:  in.ProjectRoot,
+		Mode:         "validate",
+		ArtifactType: in.ArtifactType,
+		Content:      in.Content,
+	})
+}
+
+// handleChallenge provides backward compatibility for unit tests calling handleChallenge.
+func handleChallenge(ctx context.Context, req *sdkmcp.CallToolRequest, in ChallengeInput) (*sdkmcp.CallToolResult, Envelope, error) {
+	target := in.SessionID
+	if target == "" {
+		target = in.DecisionID
+	}
+	return handleReview(ctx, req, ReviewInput{
+		ProjectRoot: in.ProjectRoot,
+		Mode:        "challenge",
+		Target:      target,
+	})
 }

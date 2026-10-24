@@ -542,21 +542,21 @@ func TestLiveHarness_EndToEnd_All21Hosts_Simulation(t *testing.T) {
 				if err != nil {
 					t.Fatalf("ListTools failed: %v", err)
 				}
-				if len(toolsRes.Tools) != 13 {
-					t.Errorf("expected 13 tools, got %d", len(toolsRes.Tools))
+				if len(toolsRes.Tools) != 9 {
+					t.Errorf("expected 9 tools, got %d", len(toolsRes.Tools))
 				}
 
-				foundInit := false
+				foundStart := false
 				foundGate := false
 				for _, tool := range toolsRes.Tools {
-					if tool.Name == "vivechak_init" {
-						foundInit = true
+					if tool.Name == "vivechak_start" {
+						foundStart = true
 					}
-					if tool.Name == "vivechak_run_gate" {
+					if tool.Name == "vivechak_gate" {
 						foundGate = true
 					}
 				}
-				if !foundInit || !foundGate {
+				if !foundStart || !foundGate {
 					t.Errorf("missing core tools in list: %v", toolsRes.Tools)
 				}
 			})

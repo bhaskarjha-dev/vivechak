@@ -35,19 +35,15 @@ func TestCompleteSolution_OmniFeature_EndToEnd(t *testing.T) {
 			t.Fatalf("ListTools failed: %v", err)
 		}
 		expectedTools := map[string]bool{
-			"vivechak_init":              true,
-			"vivechak_prepare_generator": true,
-			"vivechak_save_plan":         true,
-			"vivechak_status":            true,
-			"vivechak_next_session":      true,
-			"vivechak_save_session":      true,
-			"vivechak_record_decision":   true,
-			"vivechak_amend_session":     true,
-			"vivechak_validate":          true,
-			"vivechak_run_gate":          true,
-			"vivechak_challenge":         true,
-			"vivechak_replan":            true,
-			"vivechak_visualize":         true,
+			"vivechak_start":           true,
+			"vivechak_save":            true,
+			"vivechak_record_decision": true,
+			"vivechak_next":            true,
+			"vivechak_status":          true,
+			"vivechak_review":          true,
+			"vivechak_amend":           true,
+			"vivechak_replan":          true,
+			"vivechak_gate":            true,
 		}
 		if len(toolsRes.Tools) != len(expectedTools) {
 			t.Fatalf("expected %d tools, got %d", len(expectedTools), len(toolsRes.Tools))
@@ -180,7 +176,7 @@ func TestCompleteSolution_OmniFeature_EndToEnd(t *testing.T) {
 				t.Setenv(envVar, tmpDir)
 
 				res, err := cs.CallTool(ctx, &mcp.CallToolParams{
-					Name:      "vivechak_init",
+					Name:      "vivechak_start",
 					Arguments: map[string]any{},
 				})
 				if err != nil {

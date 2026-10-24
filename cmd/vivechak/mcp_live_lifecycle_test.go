@@ -699,8 +699,8 @@ Pino asynchronous logging may lose trailing log lines on unhandled process crash
 			}
 			toolNames = append(toolNames, tool.Name)
 		}
-		if len(toolNames) != 13 {
-			t.Fatalf("expected 13 tools from live server, got %d: %v", len(toolNames), toolNames)
+		if len(toolNames) != 9 {
+			t.Fatalf("expected 9 tools from live server, got %d: %v", len(toolNames), toolNames)
 		}
 
 		// 4.2 Verify unknown tool returns protocol error

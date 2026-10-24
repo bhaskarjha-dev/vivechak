@@ -53,17 +53,17 @@ func TestMassive_LiveIDEInheritance_RejectionAndGuidance(t *testing.T) {
 	}
 	t.Cleanup(func() { cs.Close() })
 
-	// 4. Case A: vivechak_init with empty arguments MUST fail
+	// 4. Case A: vivechak_start with empty arguments MUST fail
 	resEmpty, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name:      "vivechak_init",
+		Name:      "vivechak_start",
 		Arguments: map[string]any{},
 	})
 	if err != nil {
-		t.Fatalf("callTool vivechak_init (empty) error: %v", err)
+		t.Fatalf("callTool vivechak_start (empty) error: %v", err)
 	}
 	envEmpty := parseTestEnvelope(t, resEmpty)
 	if envEmpty.Success {
-		t.Fatal("expected vivechak_init with empty args in IDE CWD to fail, got success")
+		t.Fatal("expected vivechak_start with empty args in IDE CWD to fail, got success")
 	}
 	if !strings.Contains(envEmpty.Message, "application or system directory") {
 		t.Errorf("expected error to mention application or system directory, got: %s", envEmpty.Message)
@@ -77,26 +77,26 @@ func TestMassive_LiveIDEInheritance_RejectionAndGuidance(t *testing.T) {
 		t.Fatal("research/ directory was mistakenly created inside mock IDE program folder!")
 	}
 
-	// 5. Case B: vivechak_init with project_root="." MUST also fail
+	// 5. Case B: vivechak_start with project_root="." MUST also fail
 	resDot, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name:      "vivechak_init",
+		Name:      "vivechak_start",
 		Arguments: map[string]any{"project_root": "."},
 	})
 	if err != nil {
-		t.Fatalf("callTool vivechak_init (.) error: %v", err)
+		t.Fatalf("callTool vivechak_start (.) error: %v", err)
 	}
 	envDot := parseTestEnvelope(t, resDot)
 	if envDot.Success {
-		t.Fatal("expected vivechak_init with '.' in IDE CWD to fail, got success")
+		t.Fatal("expected vivechak_start with '.' in IDE CWD to fail, got success")
 	}
 	if _, err := os.Stat(filepath.Join(mockIDEDir, "research")); !os.IsNotExist(err) {
 		t.Fatal("research/ directory was mistakenly created inside mock IDE program folder on '.'!")
 	}
 
-	// 6. Case C: vivechak_init with EXPLICIT project workspace MUST succeed
+	// 6. Case C: vivechak_start with EXPLICIT project workspace MUST succeed
 	realProjectDir := filepath.Join(t.TempDir(), "lab", "personal-finance-dashboard")
 	resExplicit, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_init",
+		Name: "vivechak_start",
 		Arguments: map[string]any{
 			"project_root": realProjectDir,
 			"scope":        "project",
@@ -538,9 +538,9 @@ func TestMassive_SandboxesAndEnterprisePaths_LiveMCPMatrix(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			targetDir := filepath.Join(baseDir, tc.relPath)
 
-			// 1. vivechak_init
+			// 1. vivechak_start
 			resInit, err := cs.CallTool(ctx, &mcp.CallToolParams{
-				Name: "vivechak_init",
+				Name: "vivechak_start",
 				Arguments: map[string]any{
 					"project_root": targetDir,
 					"scope":        tc.scope,
@@ -634,9 +634,9 @@ func TestMassive_ContainerEnvironmentVariables_LiveMCP(t *testing.T) {
 			}
 			defer cs.Close()
 
-			// Call vivechak_init with EMPTY arguments
+			// Call vivechak_start with EMPTY arguments
 			res, err := cs.CallTool(ctx, &mcp.CallToolParams{
-				Name:      "vivechak_init",
+				Name:      "vivechak_start",
 				Arguments: map[string]any{},
 			})
 			if err != nil {

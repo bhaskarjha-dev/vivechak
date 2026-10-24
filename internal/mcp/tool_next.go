@@ -12,23 +12,25 @@ import (
 	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-// NextSessionInput holds the arguments for vivechak_next_session.
-type NextSessionInput struct {
-	ProjectRoot string `json:"project_root,omitempty" jsonschema:"workspace root path"`
-	SessionID   string `json:"session_id,omitempty"    jsonschema:"specific session ID to retrieve (optional; returns next actionable if omitted)"`
-	Verbose     bool   `json:"verbose,omitempty"        jsonschema:"if true, include full upstream findings in response"`
+// NextInput holds the arguments for vivechak_next.
+type NextInput struct {
+	ProjectRoot string `json:"project_root,omitempty" jsonschema:"workspace root path (optional)"`
+	SessionID   string `json:"session_id,omitempty"   jsonschema:"specific session ID to retrieve (optional; returns next ready session if omitted)"`
+	Verbose     bool   `json:"verbose,omitempty"      jsonschema:"if true, include full upstream findings in response"`
 }
 
-func registerNextSession(server *sdkmcp.Server) {
+// NextSessionInput provides backward compatibility for unit tests calling handleNextSession.
+type NextSessionInput = NextInput
+
+func registerNext(server *sdkmcp.Server) {
 	sdkmcp.AddTool(server,
 		&sdkmcp.Tool{
-			Name:  "vivechak_next_session",
-			Title: "Get Next Session",
+			Name:  "vivechak_next",
+			Title: "Get Next Research Session",
 			Description: "Return the next actionable research session prompt with upstream findings " +
-				"injected into context slots. Parses the research pipeline DAG to determine session " +
-				"ordering and dependency satisfaction. For SYN-01 (synthesis), returns the synthesis " +
-				"prompt with ALL session findings aggregated. This is the core value proposition — " +
-				"context injection eliminates manual copy-paste between sessions. Read-only.",
+				"automatically injected into context slots. Resolves DAG dependencies and topological order. " +
+				"For synthesis sessions (SYN-01/FAD), aggregates all finalized session findings. " +
+				"Eliminates manual copy-paste between sessions. Read-only.",
 			Annotations: &sdkmcp.ToolAnnotations{
 				ReadOnlyHint:    true,
 				IdempotentHint:  true,
@@ -36,40 +38,35 @@ func registerNextSession(server *sdkmcp.Server) {
 				OpenWorldHint:   BoolPtr(false),
 			},
 		},
-		handleNextSession,
+		handleNext,
 	)
 }
 
-func handleNextSession(_ context.Context, _ *sdkmcp.CallToolRequest, in NextSessionInput) (*sdkmcp.CallToolResult, Envelope, error) {
-	const tool = "vivechak_next_session"
+func handleNext(_ context.Context, _ *sdkmcp.CallToolRequest, in NextInput) (*sdkmcp.CallToolResult, Envelope, error) {
+	const tool = "vivechak_next"
 
 	root, err := core.ResolveWorkspace(in.ProjectRoot)
 	if err != nil {
-		return ErrorResult(tool, err,
-			"Initialize a workspace first with vivechak_init.")
+		return ErrorResult(tool, err, "Initialize a workspace first with vivechak_start.")
 	}
 
 	if !core.WorkspaceExists(root) {
-		return ErrorResult(tool, fmt.Errorf("workspace not initialized at %s", root),
-			"Run vivechak_init first.")
+		return ErrorResult(tool, fmt.Errorf("workspace not initialized at %s", root), "Run vivechak_start first.")
 	}
 
 	ws, err := store.OpenWorkspace(root)
 	if err != nil {
-		return ErrorResult(tool, fmt.Errorf("opening workspace: %w", err),
-			"Provide a valid workspace.")
+		return ErrorResult(tool, fmt.Errorf("opening workspace: %w", err), "Provide a valid workspace.")
 	}
 	defer ws.Close()
 
 	info := core.InspectWorkspace(root)
-
-	// If workspace is comparison scope, there is no multi-session pipeline DAG
 	if info.Scope == core.ScopeComparison {
 		var compFile string
 		var compContent []byte
 		if entries, lErr := ws.ListDir(core.ResearchDir); lErr == nil {
 			for _, e := range entries {
-				if !e.IsDir() && (strings.HasSuffix(e.Name(), "-comparison.md") || strings.Contains(e.Name(), "-cmp-")) {
+				if !e.IsDir() && (strings.HasSuffix(e.Name(), "-comparison.md") || strings.Contains(e.Name(), "-cmp-") || strings.EqualFold(e.Name(), "COMPARISON.md")) {
 					compFile = filepath.Join(core.ResearchDir, e.Name())
 					if data, rErr := ws.ReadFile(compFile); rErr == nil {
 						compContent = data
@@ -79,10 +76,10 @@ func handleNextSession(_ context.Context, _ *sdkmcp.CallToolRequest, in NextSess
 			}
 		}
 
-		compSessionID := core.SessionPrefix(info.Scope) + "01" // C-01
+		compSessionID := core.SessionPrefix(info.Scope) + "01"
 		if strings.Contains(compFile, "CMP-") || strings.Contains(string(compContent), "CMP-01") || strings.Contains(compFile, "COMP-") {
 			compSessionID = "CMP-01"
-		} else if idMatch := regexp.MustCompile(`(?m)^\|\s*\*\*ID\*\*\s*\|\s*([A-Za-z0-9_-]+)\s*\|`).FindSubmatch(compContent); len(idMatch) > 1 {
+		} else if idMatch := regexp.MustCompile(`(?m)^\|\s*(?:\*\*)?ID(?:\*\*)?\s*\|\s*([A-Za-z0-9_-]+)\s*\|`).FindSubmatch(compContent); len(idMatch) > 1 {
 			compSessionID = string(idMatch[1])
 		}
 
@@ -105,17 +102,17 @@ func handleNextSession(_ context.Context, _ *sdkmcp.CallToolRequest, in NextSess
 		}
 
 		env := Envelope{
-			Success: true,
-			Message: msg,
-			Data:    dataMap,
-			NextStep: fmt.Sprintf("Execute your comparison research prompt. Ground claims with current, "+
-				"verifiable evidence. Save the output with vivechak_save_session using session_id=%q.", compSessionID),
-			Meta: NewMeta(tool),
+			Ok:       true,
+			Success:  true,
+			Message:  msg,
+			Data:     dataMap,
+			Next:     &NextAction{Tool: "vivechak_save", Args: map[string]any{"kind": "comparison"}, Why: "Conduct research and grade claims with verifiable evidence. Save comparison matrix with vivechak_save(kind='comparison')."},
+			NextStep: "Conduct research and grade claims with verifiable evidence. Save comparison matrix with vivechak_save(kind='comparison').",
+			Meta:     NewMeta(tool),
 		}
 		return env.ToResult()
 	}
 
-	// Read pipeline file (or decision plan file)
 	pipelineData, err := ws.ReadFile(core.PipelineFile)
 	if err != nil {
 		// Look for decision plan file (*-plan.md) in research/
@@ -131,64 +128,64 @@ func handleNextSession(_ context.Context, _ *sdkmcp.CallToolRequest, in NextSess
 			}
 		}
 		if err != nil {
-			return ErrorResult(tool,
-				fmt.Errorf("no research pipeline found — run vivechak_save_plan first"),
-				"Run vivechak_prepare_generator to get the generator prompt, execute it, "+
-					"then save with vivechak_save_plan.")
+			return ErrorResult(tool, fmt.Errorf("reading %s: %w", core.PipelineFile, err),
+				"Create a research plan first using vivechak_save(kind='plan').")
 		}
 	}
 
-	// Parse pipeline into DAG
 	dag, err := core.ParsePipeline(pipelineData)
 	if err != nil {
-		return ErrorResult(tool,
-			fmt.Errorf("failed to parse pipeline: %w", err),
-			"The RESEARCH-PIPELINE.md may be malformed. Check its structure and try again.")
+		return ErrorResult(tool, fmt.Errorf("parsing %s: %w", core.PipelineFile, err),
+			"Fix the pipeline format and try again.")
 	}
 
-	// Scan completed sessions
-	var knownIDs []string
-	if dag != nil {
-		for _, s := range dag.Sessions {
-			knownIDs = append(knownIDs, s.ID)
-		}
+	knownIDs := make([]string, 0, len(dag.Sessions))
+	for _, s := range dag.Sessions {
+		knownIDs = append(knownIDs, s.ID)
 	}
-	completedIDs, err := scanCompletedSessions(ws, knownIDs...)
-	if err != nil {
-		return ErrorResult(tool, err, "Check workspace directory permissions.")
-	}
+	completedIDs, _ := scanCompletedSessions(ws, knownIDs...)
 
-	// If a specific session is requested, return it directly
 	if in.SessionID != "" {
-		session := dag.SessionByID(in.SessionID)
+		target := strings.TrimSpace(in.SessionID)
+		session := dag.SessionByID(target)
 		if session == nil {
-			return ErrorResult(tool,
-				fmt.Errorf("session %q not found in pipeline", in.SessionID),
-				fmt.Sprintf("Available sessions: %s", sessionIDList(dag)))
+			var avail []string
+			for _, s := range dag.Sessions {
+				avail = append(avail, s.ID)
+			}
+			return ErrorResult(tool, fmt.Errorf("session %s not found in pipeline", target),
+				fmt.Sprintf("Available sessions: %s. Check session ID against RESEARCH-PIPELINE.md.", strings.Join(avail, ", ")))
 		}
 
-		injected, err := core.InjectContextFS(*session, ws, core.SessionsDir, completedIDs)
-		if err != nil {
-			// Session found but no prompt — return what we have
-			return buildSessionResponse(tool, *session, "", completedIDs, dag, in.Verbose, nil, ws)
-		}
+		injected, injErr := core.InjectContextFS(*session, ws, core.SessionsDir, completedIDs)
+		var prompt string
 		var injWarnings []string
-		if injected.Warning != "" {
-			injWarnings = append(injWarnings, injected.Warning)
+		if injErr == nil && injected != nil {
+			prompt = injected.InjectedPrompt
+			if injected.Warning != "" {
+				injWarnings = append(injWarnings, injected.Warning)
+			}
+		} else {
+			prompt = session.Prompt
+			if injErr != nil {
+				injWarnings = append(injWarnings, fmt.Sprintf(
+					"W-INJECT-FAILED: context injection failed for %s: %v — using raw prompt without upstream findings",
+					session.ID, injErr))
+			}
 		}
+
 		if core.IsSynthesisSession(session.ID) {
 			if adv := checkPreSynthesisAdvisory(dag, completedIDs, ws); adv != "" {
 				injWarnings = append(injWarnings, adv)
 			}
 		}
-		return buildSessionResponse(tool, injected.Session, injected.InjectedPrompt, completedIDs, dag, in.Verbose, injWarnings, ws)
+
+		return buildSessionResponse(tool, *session, prompt, completedIDs, dag, in.Verbose, injWarnings, ws)
 	}
 
-	// Find next actionable sessions
 	ready := dag.NextSessions(completedIDs)
 
 	if len(ready) == 0 {
-		// Count completed sessions that belong to the DAG
 		completedCount := 0
 		for _, s := range dag.Sessions {
 			if completedIDs[s.ID] {
@@ -196,26 +193,28 @@ func handleNextSession(_ context.Context, _ *sdkmcp.CallToolRequest, in NextSess
 			}
 		}
 
-		// All DAG sessions complete
 		if completedCount == len(dag.Sessions) {
+			next := &NextAction{
+				Tool: "vivechak_gate",
+				Why:  "All research sessions are complete. Run Phase 0 Gate via vivechak_gate to verify pre-coding criteria.",
+			}
 			env := Envelope{
-				Success: true,
-				Message: fmt.Sprintf("All %d sessions complete!", len(dag.Sessions)),
+				Ok:       true,
+				Success:  true,
+				Message:  fmt.Sprintf("All %d sessions complete!", len(dag.Sessions)),
 				Data: map[string]any{
 					"workspace_root":     root,
 					"total_sessions":     len(dag.Sessions),
 					"completed_sessions": completedCount,
 					"all_complete":       true,
 				},
-				NextStep: "All research sessions are complete. Run vivechak_run_gate " +
-					"to verify the Phase 0 exit criteria, or vivechak_record_decision " +
-					"to record any outstanding decisions.",
-				Meta: NewMeta(tool),
+				Next:     next,
+				NextStep: next.Why,
+				Meta:     NewMeta(tool),
 			}
 			return env.ToResult()
 		}
 
-		// Some sessions remain but none are actionable (blocked by dependencies)
 		var blockedInfo []map[string]any
 		for _, s := range dag.Sessions {
 			if completedIDs[s.ID] {
@@ -234,22 +233,24 @@ func handleNextSession(_ context.Context, _ *sdkmcp.CallToolRequest, in NextSess
 		}
 
 		env := Envelope{
-			Success: true,
-			Message: fmt.Sprintf("%d sessions remaining but all blocked by dependencies", len(dag.Sessions)-completedCount),
+			Ok:       true,
+			Success:  true,
+			Message:  fmt.Sprintf("%d sessions remaining but all blocked by dependencies", len(dag.Sessions)-completedCount),
 			Data: map[string]any{
 				"workspace_root":     root,
 				"total_sessions":     len(dag.Sessions),
 				"completed_sessions": completedCount,
 				"blocked_sessions":   blockedInfo,
 			},
-			NextStep: "Some sessions are blocked by incomplete dependencies. " +
-				"Complete the blocking sessions first.",
-			Meta: NewMeta(tool),
+			Next: &NextAction{
+				Why: "Some sessions are blocked by incomplete dependencies. Complete the blocking sessions first.",
+			},
+			NextStep: "Some sessions are blocked by incomplete dependencies. Complete the blocking sessions first.",
+			Meta:     NewMeta(tool),
 		}
 		return env.ToResult()
 	}
 
-	// Return the first ready session with context injected
 	nextSession := ready[0]
 	injected, injErr := core.InjectContextFS(nextSession, ws, core.SessionsDir, completedIDs)
 
@@ -264,18 +265,16 @@ func handleNextSession(_ context.Context, _ *sdkmcp.CallToolRequest, in NextSess
 		prompt = nextSession.Prompt
 		if injErr != nil {
 			injWarnings = append(injWarnings, fmt.Sprintf(
-				"W-INJECT-FAILED: context injection failed for %s: %v \u2014 using raw prompt without upstream findings",
+				"W-INJECT-FAILED: context injection failed for %s: %v — using raw prompt without upstream findings",
 				nextSession.ID, injErr))
 		}
 	}
 
-	// Build response with all ready sessions listed
 	var otherReady []string
 	for _, s := range ready[1:] {
 		otherReady = append(otherReady, s.ID)
 	}
 
-	// Detect layer transition and add replan prompt
 	if dag != nil {
 		highestCompletedLayer := -1
 		for _, s := range dag.Sessions {
@@ -286,13 +285,10 @@ func handleNextSession(_ context.Context, _ *sdkmcp.CallToolRequest, in NextSess
 		if nextSession.Layer > highestCompletedLayer && highestCompletedLayer >= 0 {
 			injWarnings = append(injWarnings, fmt.Sprintf(
 				"LAYER-TRANSITION: Layer %d complete. Before proceeding: consider whether any "+
-					"remaining sessions should be adjusted based on Layer %d findings. If a session "+
-					"is no longer relevant, you may skip it by saving an empty session with a note "+
-					"explaining why.", highestCompletedLayer, highestCompletedLayer))
+					"remaining sessions should be adjusted based on Layer %d findings.", highestCompletedLayer, highestCompletedLayer))
 		}
 	}
 
-	// Detect pre-synthesis evidentiary defects on One-Way Doors
 	if core.IsSynthesisSession(nextSession.ID) {
 		if adv := checkPreSynthesisAdvisory(dag, completedIDs, ws); adv != "" {
 			injWarnings = append(injWarnings, adv)
@@ -333,12 +329,10 @@ func checkPreSynthesisAdvisory(dag *core.DAG, completedIDs map[string]bool, ws c
 	for _, s := range dag.Sessions {
 		if strings.EqualFold(s.DoorType, "one-way") && completedIDs[s.ID] {
 			if sData, _, err := core.ReadSessionFileFS(ws, core.SessionsDir, s.ID); err == nil && sData != "" {
-				// Check for recalled verification in recommendation
 				rec := core.ExtractSection(sData, "recommend", "verdict", "decision")
 				if len(rec) >= 20 && recalledCitationRe.MatchString(rec) {
 					owdIssues = append(owdIssues, fmt.Sprintf("%s (recommendation relies on Grade D recalled claims)", s.ID))
 				}
-				// Check for challenge section
 				lower := strings.ToLower(sData)
 				if !strings.Contains(lower, "challenge findings") && !strings.Contains(lower, "red-team stress test") {
 					owdIssues = append(owdIssues, fmt.Sprintf("%s (lacks adversarial challenge)", s.ID))
@@ -350,20 +344,19 @@ func checkPreSynthesisAdvisory(dag *core.DAG, completedIDs map[string]bool, ws c
 		return fmt.Sprintf(
 			"PRE-SYNTHESIS ADVISORY: %d One-Way Door session(s) have evidentiary gaps: %s. "+
 				"Note: Phase 0 Gate will FAIL after synthesis unless resolved. "+
-				"You may proceed with synthesis now or amend weak sessions first with vivechak_amend_session.",
+				"You may proceed with synthesis now or amend weak sessions first with vivechak_amend.",
 			len(owdIssues), strings.Join(owdIssues, "; "))
 	}
 	return ""
 }
 
 const calibrationBlock = "\n\n---\n### RESEARCH CALIBRATION (Active Rules)\n" +
-	"1. **Memory \u2260 Evidence:** Claims recalled from model weights cap at Grade D. Verify with web search.\n" +
-	"2. **Upstream \u2260 Exhaustive:** Injected upstream findings provide high-level architectural context, NOT implementation specifications. Exact schemas, library bundle sizes, API rate limits, and security configurations must be verified with current external sources.\n" +
+	"1. **Memory ≠ Evidence:** Claims recalled from model weights cap at Grade D. Verify with web search.\n" +
+	"2. **Upstream ≠ Exhaustive:** Injected upstream findings provide high-level architectural context, NOT implementation specifications. Exact schemas, library bundle sizes, API rate limits, and security configurations must be verified with current external sources.\n" +
 	"3. **Qualified Provenance:** Grade A claims require canonical URLs, domain anchors, RFCs, or doc titles.\n" +
 	"4. **Falsification Required:** Actively search for failure modes, gotchas, and production incident postmortems.\n" +
 	"5. **Honest Gaps:** Explicitly stating \"searched X and found no evidence\" is valued. Never hallucinate sources.\n"
 
-// buildSessionResponse creates the response envelope for a session.
 func buildSessionResponse(tool string, session core.Session, prompt string, completedIDs map[string]bool, dag *core.DAG, verbose bool, preWarnings []string, ws core.WorkspaceFS, otherReady ...string) (*sdkmcp.CallToolResult, Envelope, error) {
 	data := map[string]any{
 		"session_id":         session.ID,
@@ -378,20 +371,16 @@ func buildSessionResponse(tool string, session core.Session, prompt string, comp
 		"already_completed":  completedIDs[session.ID],
 	}
 
-	// Inject research calibration rules into non-synthesis session prompts
 	if !core.IsSynthesisSession(session.ID) && prompt != "" && !strings.Contains(prompt, "### RESEARCH CALIBRATION") {
 		prompt += calibrationBlock
 	}
 
-	// Progressive disclosure: truncate if prompt is very large
 	var warnings []string
 	warnings = append(warnings, preWarnings...)
 	displayPrompt := prompt
 	approxTokens := len(prompt) / 4
-	truncated := false
 	if !verbose && approxTokens > 10000 && !core.IsSynthesisSession(session.ID) {
 		warnings = append(warnings, "W-OUTPUT-SIZE: Prompt exceeds 10K tokens and was truncated. Use verbose=true for full prompt.")
-		truncated = true
 		if len(prompt) > 2000 {
 			displayPrompt = prompt[:2000] + "... [truncated, use verbose=true for full prompt]"
 		}
@@ -411,14 +400,12 @@ func buildSessionResponse(tool string, session core.Session, prompt string, comp
 			len(otherReady)+1, strings.Join(append([]string{session.ID}, otherReady...), ", "), len(otherReady)+1)
 	}
 
-	// Add blocked sessions with their blockers for orchestrator awareness
 	if dag != nil {
 		var blocked []map[string]any
 		for _, s := range dag.Sessions {
 			if completedIDs[s.ID] || s.ID == session.ID {
 				continue
 			}
-			// Check if this session is blocked (not in ready list)
 			isReady := false
 			for _, r := range otherReady {
 				if r == s.ID {
@@ -446,31 +433,37 @@ func buildSessionResponse(tool string, session core.Session, prompt string, comp
 		}
 	}
 
+	var next *NextAction
 	var nextStep string
 	if completedIDs[session.ID] {
-		nextStep = fmt.Sprintf("Session %s is already completed. Run vivechak_next_session without session_id for the next actionable session.", session.ID)
+		nextStep = fmt.Sprintf("Session %s is already completed. Run vivechak_next without session_id for the next actionable session.", session.ID)
+		next = &NextAction{
+			Tool: "vivechak_next",
+			Why:  nextStep,
+		}
 	} else {
 		if core.IsSynthesisSession(session.ID) {
+			advisoryPrefix := ""
+			for _, w := range warnings {
+				if strings.HasPrefix(w, "PRE-SYNTHESIS ADVISORY:") {
+					advisoryPrefix = "⚠️ " + w + "\n\n"
+					break
+				}
+			}
 			nextStep = fmt.Sprintf(
-				"Synthesize findings from all %d completed sessions into session %s. "+
+				"%sSynthesize findings from all %d completed sessions into session %s. "+
 					"Every recommendation must trace to session evidence. Conflicts between "+
 					"sessions must be surfaced, not silently averaged. "+
 					"The Belief Evolution section below shows how priors were confirmed or "+
 					"contradicted — use this to identify the research's strongest and weakest signals. "+
-					"Save with vivechak_save_session using session_id='%s'.",
-				len(completedIDs), session.ID, session.ID)
-			for _, w := range preWarnings {
-				if strings.HasPrefix(w, "PRE-SYNTHESIS ADVISORY") {
-					nextStep = "⚠️ " + w + "\n\n" + nextStep
-					break
-				}
-			}
+					"Save with vivechak_save(kind='session', id='%s', content=...).",
+				advisoryPrefix, len(completedIDs), session.ID, session.ID)
 		} else {
 			nextStep = fmt.Sprintf(
 				"Execute the prompt for session %s. Ground every significant claim "+
-					"with current, verifiable evidence — an architect should be able to "+
+					"with current, verifiable evidence quality — an architect should be able to "+
 					"make the decision based solely on your findings. "+
-					"Save with vivechak_save_session using session_id='%s'.",
+					"Save with vivechak_save(kind='session', id='%s', content=...).",
 				session.ID, session.ID)
 		}
 		if len(otherReady) > 0 {
@@ -479,24 +472,30 @@ func buildSessionResponse(tool string, session core.Session, prompt string, comp
 				len(otherReady)+1, strings.Join(append([]string{session.ID}, otherReady...), ", "))
 			nextStep = parallelPrefix + nextStep
 		}
+		next = &NextAction{
+			Tool: "vivechak_save",
+			Args: map[string]any{
+				"kind": "session",
+				"id":   session.ID,
+			},
+			Why: nextStep,
+		}
 	}
 
 	env := Envelope{
+		Ok:       true,
 		Success:  true,
-		Message:  fmt.Sprintf("Session %s: %s (%d/%d complete)", session.ID, session.Title, len(completedIDs), len(dag.Sessions)),
+		Message:  fmt.Sprintf("Ready session %s: %s", session.ID, session.Title),
 		Data:     data,
 		Warnings: warnings,
+		Next:     next,
 		NextStep: nextStep,
-		Meta:     &EnvMeta{API: 1, Tool: tool, Truncated: truncated},
+		Meta:     NewMeta(tool),
 	}
 	return env.ToResult()
 }
 
-// sessionIDList returns a comma-separated list of session IDs in the DAG.
-func sessionIDList(dag *core.DAG) string {
-	ids := make([]string, len(dag.Sessions))
-	for i, s := range dag.Sessions {
-		ids[i] = s.ID
-	}
-	return strings.Join(ids, ", ")
+// handleNextSession provides backward compatibility for unit tests calling handleNextSession.
+func handleNextSession(ctx context.Context, req *sdkmcp.CallToolRequest, in NextSessionInput) (*sdkmcp.CallToolResult, Envelope, error) {
+	return handleNext(ctx, req, in)
 }
