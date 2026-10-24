@@ -15,13 +15,13 @@ Instead of manual copy-pasting, the agent uses Vivechak's orchestration tools au
 
 ## Step 1: Initialization & Vision
 
-The agent begins by initializing the workspace for a full project and providing the raw vision dump.
+The agent begins by initializing the workspace for a full project and providing the raw vision in a single call to `vivechak_start`:
 
-**Tool Call:** `vivechak_init`
+**Tool Call:** `vivechak_start`
 ```json
 {
   "scope": "project",
-  "project_root": "./katha"
+  "question": "We want to build Katha, an interactive web app for indie novelists. Authors write chapters, and the AI maintains a real-time character graph, detects plot inconsistencies, and suggests branching outlines. Needs collaborative editing, persistent story graphs, and low-latency LLM streaming. We have standard EU/US users (GDPR compliance), but no payment data initially. Prefer TypeScript/Next.js for frontend. Unsure about database (graph DB vs Postgres) and sync architecture (Yjs vs WebSocket OT)."
 }
 ```
 
@@ -29,25 +29,12 @@ The agent begins by initializing the workspace for a full project and providing 
 ```json
 {
   "success": true,
-  "message": "Initialized project scope in ./katha/research. 6 templates copied.",
-  "next_step": "Use vivechak_prepare_generator to inject your project vision."
-}
-```
-
-**Tool Call:** `vivechak_prepare_generator`
-```json
-{
-  "scope": "project",
-  "context": "We want to build Katha, an interactive web app for indie novelists. Authors write chapters, and the AI maintains a real-time character graph, detects plot inconsistencies, and suggests branching outlines. Needs collaborative editing, persistent story graphs, and low-latency LLM streaming. We have standard EU/US users (GDPR compliance), but no payment data initially. Prefer TypeScript/Next.js for frontend. Unsure about database (graph DB vs Postgres) and sync architecture (Yjs vs WebSocket OT)."
-}
-```
-
-**Tool Response:**
-```json
-{
-  "success": true,
-  "message": "Project vision injected into GENERATOR-PROJECT.md.",
-  "next_step": "Execute the GENERATOR-PROJECT.md prompt using your frontier LLM capabilities to generate the pipeline."
+  "message": "Initialized project scope in ./research. 6 templates copied.",
+  "data": {
+    "scope": "project",
+    "prompt": "# GENERATE: Architectural Pipeline DAG (Project Scope)\n\n## VISION\nWe want to build Katha...\n\n## DEPENDENCY DAG GENERATION\nTopologically decompose into 4-6 focused sessions with explicit inputs/outputs..."
+  },
+  "next_step": "Synthesize the dependency DAG and persist RESEARCH-PIPELINE.md via vivechak_save(kind=\"plan\")."
 }
 ```
 
@@ -73,11 +60,12 @@ graph TD
 
 The agent saves this plan to the workspace.
 
-**Tool Call:** `vivechak_save_plan`
+**Tool Call:** `vivechak_save`
 ```json
 {
-  "scope": "project",
-  "content": "# RESEARCH-PIPELINE.md\\n...\\n..."
+  "kind": "plan",
+  "id": "DAG",
+  "content": "# RESEARCH-PIPELINE.md\n...\n..."
 }
 ```
 
@@ -85,8 +73,8 @@ The agent saves this plan to the workspace.
 ```json
 {
   "success": true,
-  "message": "Pipeline saved. 4 sessions detected. DAG is valid. No cycles.",
-  "next_step": "Call vivechak_next_session to get the first actionable prompt."
+  "message": "Pipeline saved in research/RESEARCH-PIPELINE.md. 4 sessions detected. DAG is valid. No cycles.",
+  "next_step": "Call vivechak_next to get the first actionable session prompt."
 }
 ```
 
@@ -96,7 +84,7 @@ The agent saves this plan to the workspace.
 
 The agent requests the first actionable session.
 
-**Tool Call:** `vivechak_next_session`
+**Tool Call:** `vivechak_next`
 ```json
 {}
 ```
@@ -113,17 +101,18 @@ The agent requests the first actionable session.
     "prompt_char_count": 1420,
     "prompt_approx_tokens": 355
   },
-  "next_step": "Execute the prompt for session T1-01 in a fresh AI session with web search enabled. Save the result with vivechak_save_session."
+  "next_step": "Execute the prompt for session T1-01 in a fresh AI session with web search enabled. Save the result with vivechak_save(kind=\"session\", id=\"T1-01\")."
 }
 ```
 
 The agent executes the research using web search and tool capabilities, producing an analysis of PostgreSQL vs Neo4j. It then saves the session output.
 
-**Tool Call:** `vivechak_save_session`
+**Tool Call:** `vivechak_save`
 ```json
 {
-  "session_id": "T1-01",
-  "content": "---\\nsession_id: T1-01\\ntitle: Graph Persistence Landscape\\ndate: 2026-09-01\\nstatus: complete\\n---\\n\\n# T1-01: Graph Persistence Landscape\\n\\n## Key Findings\\n- [Grade A] https://www.postgresql.org/docs/16/queries-with.html PostgreSQL 16 recursive CTEs handle graph traversal up to ~50k nodes at <50ms p95.\\n- [Grade B] Internal PGBench runs show minimal CPU overhead with indexed foreign keys.\\n- [Grade B] pgvector supports co-located vector search without external index sync.\\n\\n## Discovered Concerns\\nRecursive CTE performance degrades beyond 10 traversal hops without depth limiting.\\n\\n## Delta\\nContradicted initial assumption that dedicated graph database was required.\\n\\n## Recommendation\\nAdopt PostgreSQL 16 with pgvector over Neo4j. Dedicated Graph DB operational overhead is unnecessary at this scale."
+  "kind": "session",
+  "id": "T1-01",
+  "content": "---\nsession_id: T1-01\ntitle: Graph Persistence Landscape\ndate: 2026-09-01\nstatus: complete\n---\n\n# T1-01: Graph Persistence Landscape\n\n## Key Findings\n- [Grade A] https://www.postgresql.org/docs/16/queries-with.html PostgreSQL 16 recursive CTEs handle graph traversal up to ~50k nodes at <50ms p95.\n- [Grade B] Internal PGBench runs show minimal CPU overhead with indexed foreign keys.\n- [Grade B] pgvector supports co-located vector search without external index sync.\n\n## Discovered Concerns\nRecursive CTE performance degrades beyond 10 traversal hops without depth limiting.\n\n## Delta\nContradicted initial assumption that dedicated graph database was required.\n\n## Recommendation\nAdopt PostgreSQL 16 with pgvector over Neo4j. Dedicated Graph DB operational overhead is unnecessary at this scale."
 }
 ```
 
@@ -131,8 +120,8 @@ The agent executes the research using web search and tool capabilities, producin
 ```json
 {
   "success": true,
-  "message": "Saved sessions/T1-01-graph-persistence-landscape.md. Evidence grades valid.",
-  "next_step": "Record any resulting decisions with vivechak_record_decision, or call vivechak_next_session."
+  "message": "Saved research/sessions/T1-01-graph-persistence-landscape.md. Evidence grades valid.",
+  "next_step": "Record any resulting decisions with vivechak_record_decision, or call vivechak_next."
 }
 ```
 
@@ -142,8 +131,7 @@ The agent records the primary datastore decision.
 ```json
 {
   "decision_id": "D-001",
-  "artifact_type": "decision",
-  "content": "---\\nid: D-001\\ntitle: Primary Datastore - PostgreSQL 16 with pgvector and Recursive CTEs\\nstatus: accepted\\ndoor_type: one-way\\ndate: 2026-09-01\\nhuman_reviewed: true\\nevidence_refs: [E-001, E-002]\\nreview_trigger: Re-evaluate if graph traversal exceeds 200ms p95 or graph > 500k edges\\n---\\n\\n## Context\\nStory graph persistence requires low latency node retrieval with relational metadata.\\n\\n## Decision\\nAdopt PostgreSQL 16 with pgvector extension and recursive CTEs for Katha's story graph persistence. Grade A (https://www.postgresql.org/docs/16/queries-with.html)\\n\\n## Rejected Alternatives\\n- Neo4j: Operational overhead of maintaining a separate cluster with specialized backup procedures is unjustified at 50k nodes.\\n- DynamoDB: Multi-hop graph traversals require client-side join logic and costly fan-out queries.\\n\\n## Challenge Findings & Red-Team Stress Test\\nAdversarial red-team probe (`vivechak_challenge` mode=red_team) tested CTE recursion limits under cyclic author story graphs. Verified cycle detection via CYCLE syntax and depth bounds prevents runaway queries.\\n\\n## Evidence\\n- [Grade A] https://www.postgresql.org/docs/16/queries-with.html\\n- [Grade B] PGBench graph traversal benchmarks at 50k nodes"
+  "content": "---\nid: D-001\ntitle: Primary Datastore - PostgreSQL 16 with pgvector and Recursive CTEs\nstatus: accepted\ndoor_type: one-way\ndate: 2026-09-01\nhuman_reviewed: true\nevidence_refs: [E-001, E-002]\nreview_trigger: Re-evaluate if graph traversal exceeds 200ms p95 or graph > 500k edges\n---\n\n## Context\nStory graph persistence requires low latency node retrieval with relational metadata.\n\n## Decision\nAdopt PostgreSQL 16 with pgvector extension and recursive CTEs for Katha's story graph persistence. Grade A (https://www.postgresql.org/docs/16/queries-with.html)\n\n## Rejected Alternatives\n- Neo4j: Operational overhead of maintaining a separate cluster with specialized backup procedures is unjustified at 50k nodes.\n- DynamoDB: Multi-hop graph traversals require client-side join logic and costly fan-out queries.\n\n## Evidence\n- [Grade A] https://www.postgresql.org/docs/16/queries-with.html\n- [Grade B] PGBench graph traversal benchmarks at 50k nodes"
 }
 ```
 
@@ -152,7 +140,7 @@ The agent records the primary datastore decision.
 {
   "success": true,
   "message": "Decision D-001 locked. One-way door requires review trigger (provided).",
-  "next_step": "Continue pipeline."
+  "next_step": "Continue pipeline via vivechak_next."
 }
 ```
 
@@ -160,7 +148,7 @@ The agent records the primary datastore decision.
 
 When the agent asks for the next session, Vivechak automatically injects the completed T1-01 context into the dependent T2-01 session.
 
-**Tool Call:** `vivechak_next_session`
+**Tool Call:** `vivechak_next`
 ```json
 {}
 ```
@@ -177,7 +165,7 @@ When the agent asks for the next session, Vivechak automatically injects the com
     "prompt_char_count": 1850,
     "prompt_approx_tokens": 462
   },
-  "next_step": "Execute the prompt for session T2-01 in a fresh AI session with web search enabled. Save the result with vivechak_save_session."
+  "next_step": "Execute the prompt for session T2-01 in a fresh AI session with web search enabled. Save the result with vivechak_save(kind=\"session\", id=\"T2-01\")."
 }
 ```
 
@@ -185,11 +173,13 @@ When the agent asks for the next session, Vivechak automatically injects the com
 
 ## Step 4: Finalizing & The Exit Gate
 
-After completing all sessions and the `SYN-01` synthesis step, the agent runs the Phase 0 Exit Gate to ensure the architecture is ready for code.
+After completing all sessions, synthesizing the FAD via `vivechak_save(kind="fad", id="SYN-01")`, the agent runs the Phase 0 Exit Gate to ensure the architecture is ready for code:
 
-**Tool Call:** `vivechak_run_gate`
+**Tool Call:** `vivechak_gate`
 ```json
-{}
+{
+  "track": "all"
+}
 ```
 
 **Tool Response:**
@@ -201,9 +191,9 @@ After completing all sessions and the `SYN-01` synthesis step, the agent runs th
     "gate_status": "PASS",
     "gate_passed": true,
     "track_a": {"passed": 5, "issues": []},
-    "track_b": {"passed": 3, "issues": []}
+    "track_b": {"passed": 7, "issues": []}
   },
-  "next_step": "Gate passed. Proceed to implementation using FAD.md as architectural source of truth."
+  "next_step": "Gate passed. Proceed to implementation using research/FAD.md as architectural source of truth."
 }
 ```
 
@@ -217,12 +207,12 @@ With the Phase 0 Gate passed, the agent uses the sealed FAD as the architectural
 
 This is an architectural decision with lasting impact, but **it does not require a full greenfield FAD or 30-session pipeline**. The agent uses **Decision Scope**:
 
-### Step 1: Prepare the Decision Generator
-**Tool Call:** `vivechak_prepare_generator`
+### Step 1: Start the Decision Scope
+**Tool Call:** `vivechak_start`
 ```json
 {
   "scope": "decision",
-  "context": "DECISION: Should Katha migrate internal character graph sync to gRPC or remain on HTTP/2 REST?\nOPTIONS: gRPC (protobuf), HTTP/2 REST (JSON), tRPC\nCONTEXT: Node/TypeScript backend; 10k graph mutations/sec; 4 internal microservices; need schema safety and bi-directional streaming.\nSTAGE: active production"
+  "question": "Should Katha migrate internal character graph sync to gRPC or remain on HTTP/2 REST? Node/TypeScript backend; 10k graph mutations/sec; 4 internal microservices."
 }
 ```
 
@@ -230,34 +220,31 @@ This is an architectural decision with lasting impact, but **it does not require
 ```json
 {
   "success": true,
-  "message": "Prepared decision generator prompt",
-  "next_step": "Execute this prompt in a research session with web search. Save the decision plan and ADR skeleton using vivechak_save_plan."
+  "message": "Decision brief and session plan prepared.",
+  "next_step": "Execute the 2 research sessions and save with vivechak_save(kind=\"session\")."
 }
 ```
 
-### Step 2: Save the Decision Plan & ADR Skeleton
-The agent runs the prompt, receives the decision plan and ADR skeleton (`D-015`), and saves it:
-**Tool Call:** `vivechak_save_plan`
+### Step 2: Save the Decision Plan
+**Tool Call:** `vivechak_save`
 ```json
 {
-  "scope": "decision",
-  "decision_id": "D-015",
-  "slug": "internal-rpc-protocol",
-  "content": "..."
+  "kind": "plan",
+  "id": "D-015",
+  "content": "# Decision Plan: D-015\n| Decision | D-015 |\n| Scope | decision |\n| Door Type | one-way |"
 }
 ```
 
 ### Step 3: Execute Focused Sessions & Lock ADR
-The agent runs the 2 generated sessions (`L` Landscape and `F` Falsification/Premortem), saves them via `vivechak_save_session`, and locks the ADR:
+The agent runs the 2 generated sessions (`L` Landscape and `F` Falsification), saves them via `vivechak_save(kind="session")`, and locks the ADR:
 **Tool Call:** `vivechak_record_decision`
 ```json
 {
   "decision_id": "D-015",
-  "artifact_type": "decision",
   "content": "..."
 }
 ```
-*Result:* Canonical ADR `research/D-015-internal-rpc-protocol.md` is locked with reversal triggers and automatically registered in `research/DECISIONS.md`. **Total time: 25 minutes. Zero project DAG, zero FAD overhead.**
+*Result:* Canonical ADR `research/decisions/D-015-internal-rpc-protocol.md` is locked with reversal triggers and automatically registered in `research/DECISIONS.md`. **Total time: 25 minutes. Zero project DAG, zero FAD overhead.**
 
 ---
 
@@ -267,12 +254,12 @@ The agent runs the 2 generated sessions (`L` Landscape and `F` Falsification/Pre
 
 This is a bounded library evaluation. Building a DAG or running a Phase 0 Gate would be absurd bureaucracy. The agent uses **Comparison Scope**:
 
-### Step 1: Prepare the Comparison Generator
-**Tool Call:** `vivechak_prepare_generator`
+### Step 1: Start the Comparison Scope
+**Tool Call:** `vivechak_start`
 ```json
 {
   "scope": "comparison",
-  "context": "OPTIONS: Pino, Winston\nCRITERIA: throughput under high load, memory footprint, async destination logging, TypeScript support\nCONTEXT: Node.js 22 worker ingesting 15k events/sec; AWS CloudWatch export"
+  "question": "Pino vs Winston for Node.js 22 worker ingesting 15k events/sec with AWS CloudWatch export"
 }
 ```
 
@@ -280,20 +267,21 @@ This is a bounded library evaluation. Building a DAG or running a Phase 0 Gate w
 ```json
 {
   "success": true,
-  "message": "Prepared comparison generator prompt",
-  "next_step": "Execute this prompt in a research session with web search. Save the resulting WEP comparison matrix using vivechak_save_plan."
+  "message": "Prepared comparison brief.",
+  "next_step": "Execute research with web search and save WEP comparison matrix with vivechak_save(kind=\"comparison\", id=\"C-001\")."
 }
 ```
 
-### Step 2: Execute Prompt & Save Output
+### Step 2: Execute Research & Save Output
 The agent executes the self-contained prompt with web search. The model returns an evidence-graded Weighted Evaluation Protocol (WEP) matrix with sensitivity analysis (±20% weight shifts) and concrete failure modes.
 
 The agent persists the result directly:
-**Tool Call:** `vivechak_save_plan`
+**Tool Call:** `vivechak_save`
 ```json
 {
-  "scope": "comparison",
+  "kind": "comparison",
+  "id": "C-001",
   "content": "# COMPARISON: Pino vs Winston for High-Throughput Ingestion\n..."
 }
 ```
-*Result:* Output is saved to `research/C-001-comparison.md`. The engineer has an authoritative, evidence-graded recommendation based on primary benchmarks. **Total time: 4 minutes. Zero DAG, zero templates copied, zero gate required.**
+*Result:* Output is saved to `research/comparisons/C-001.md`. The engineer has an authoritative, evidence-graded recommendation based on primary benchmarks. **Total time: 4 minutes. Zero DAG, zero templates copied, zero gate required.**

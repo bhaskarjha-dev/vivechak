@@ -363,7 +363,7 @@ client.Connect(ctx, ct, nil)
 ```
 
 Key wire test suites:
-- [`TestToolListing`](../internal/mcp/server_test.go#L59-L101): Asserts all 13 tools are correctly registered.
+- [`TestToolListing`](../internal/mcp/server_test.go#L59-L101): Asserts all 9 consolidated tools and legacy aliases are correctly registered.
 - [`TestAnnotations`](../internal/mcp/server_test.go#L104-L134): Verifies tool annotations (`ReadOnlyHint`, `IdempotentHint`, `DestructiveHint`, `OpenWorldHint`).
 - [`TestStatusNoWorkspace`](../internal/mcp/server_test.go#L137-L158): Verifies `vivechak_status` succeeds gracefully even in empty directories.
 - [`TestInitAndStatus`](../internal/mcp/server_test.go#L161-L222): Verifies directory tree creation and template copying.
@@ -392,7 +392,7 @@ Comprehensive 8-scenario lifecycle test suite running over in-memory JSON-RPC tr
 Spawns the compiled `vivechak serve` binary as a genuine subprocess, connecting via JSON-RPC stdio pipes. Executes a full 17-step end-to-end lifecycle (`init` → `save_plan` → `next_session` → `save_session` → `record_decision` → `validate` → `run_gate`), validating subprocess signal handling, real stdio transport hygiene, and exit gates.
 
 ### 6. Subprocess Concurrency & Lifecycle Verification Suites (`cmd/vivechak/*_test.go`)
-- [`cmd/vivechak/mcp_live_lifecycle_test.go`](../cmd/vivechak/mcp_live_lifecycle_test.go): Full end-to-end multi-vector subprocess testing across all 13 tools, verifying live stdio JSON-RPC lifecycle, exit gates, and CLI commands (`version`, `doctor`, `mcp-config`).
+- [`cmd/vivechak/mcp_live_lifecycle_test.go`](../cmd/vivechak/mcp_live_lifecycle_test.go): Full end-to-end multi-vector subprocess testing across all consolidated tools and legacy aliases, verifying live stdio JSON-RPC lifecycle, exit gates, and CLI commands (`version`, `doctor`, `mcp-config`).
 - [`cmd/vivechak/mcp_live_hardening_test.go`](../cmd/vivechak/mcp_live_hardening_test.go): Live stdio subprocess hardening, error recovery, adversarial payloads, and signal discipline.
 - [`cmd/vivechak/real_harness_integration_test.go`](../cmd/vivechak/real_harness_integration_test.go): Live simulations across 21 host environments, JSONC comment preservation, and auto-detect logic.
 - [`cmd/vivechak/concurrency_test.go`](../cmd/vivechak/concurrency_test.go): High-concurrency subagent stress testing verifying atomic write locks, collision-free temporary file creation under rapid iteration, and race-free multi-agent decision recording.

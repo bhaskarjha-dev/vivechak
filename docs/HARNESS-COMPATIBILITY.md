@@ -14,7 +14,7 @@ Vivechak is built from the ground up to be **harness-agnostic**. It communicates
                            │ Standard MCP (JSON-RPC over stdio)
 ┌──────────────────────────▼─────────────────────────────┐
 │ vivechak MCP Server (Single Go Binary)                 │
-│  - 13 atomic tools                                     │
+│  - 9 consolidated tools (with legacy alias redirects)  │
 │  - 4 native MCP prompts (slash commands)               │
 │  - 8 canonical read-only MCP resources                 │
 │  - Universal Agent Skill & pre-packaged rules          │

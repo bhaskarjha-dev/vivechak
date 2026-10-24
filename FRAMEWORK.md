@@ -420,15 +420,15 @@ Sessions failing this rubric should be re-executed with a refined prompt before 
 
 ### 5.1 Evidentiary Tiers (A through E)
 
-| Grade | Source Classification | Starting Confidence |
-|---|---|---|
-| **A** | **Primary / Authoritative** — Official source code, published RFCs, formal API specs, peer-reviewed studies | Very High |
-| **B** | **Empirical / Experimental** — Independently reproducible benchmarks, engineering postmortems, controlled experiments | High |
-| **C** | **Vendor / Motivated** — Vendor whitepapers, commercial comparisons, marketing benchmarks | Moderate |
-| **D** | **Secondary / Opinion** — Unofficial tutorials, blog posts, forums, AI parametric recall without verification | Low-to-Moderate |
-| **E** | **Untraceable / Speculative** — Unverifiable claims, confabulations, unattributed speculation | Zero |
+| Grade | Label | Description | Allowed Provenance | Gate Impact |
+|---|---|---|---|---|
+| **Grade A** | Primary Empirical | Official specifications, canonical source code, reproducible benchmarks, or primary documentation with explicit URL anchor. | `fetched, verified` | G6, G7 |
+| **Grade B** | Secondary Empirical | Peer-reviewed papers, reputable third-party benchmarks, published postmortems, or corroborated engineering reports. | `fetched, cached` | G6 |
+| **Grade C** | Vendor & Practitioner | Vendor marketing, product whitepapers, conference talks, official tutorials, or non-reproduced claims. | `fetched, cached` | Advisory |
+| **Grade D** | Informal & Opinion | Blog posts, forum discussions, StackOverflow answers, or model memory recall (capped at Grade D). | `fetched, cached, recalled` | Advisory |
+| **Grade E** | Speculative & Unsubstantiated | Unverified hypotheses, uncorroborated parametric recall, or ungrounded assertions. | `recalled, unverified` | Advisory |
 
-**Grade E is "unverifiable," not "old."** Stale but real sources keep their actual grade with a `stale` recency modifier.
+*Rule*: Parametric memory recall is capped at **Grade D**. Grade A requires canonical URL or specification anchor.
 
 ### 5.2 Contextual Modifiers
 

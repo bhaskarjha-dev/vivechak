@@ -14,13 +14,13 @@ This walkthrough shows an AI coding agent using Vivechak to resolve an architect
 The developer prompts the agent:
 > *"Vivechak decision: Should we migrate our primary event log storage from PostgreSQL to ClickHouse? We currently ingest 25M events/day, query latency on 30-day aggregations is degrading, but our operations team has zero ClickHouse experience."*
 
-The agent calls `vivechak_prepare_generator` with `scope="decision"`:
+The agent calls `vivechak_start` with `scope="decision"`:
 
-**Tool Call:** `vivechak_prepare_generator`
+**Tool Call:** `vivechak_start`
 ```json
 {
   "scope": "decision",
-  "context": "Migrate event log storage from PostgreSQL to ClickHouse. Ingesting 25M events/day, query latency on 30-day aggregations degrading. Ops team has zero ClickHouse experience."
+  "question": "Migrate event log storage from PostgreSQL to ClickHouse. Ingesting 25M events/day, query latency on 30-day aggregations degrading. Ops team has zero ClickHouse experience."
 }
 ```
 
@@ -28,13 +28,13 @@ The agent calls `vivechak_prepare_generator` with `scope="decision"`:
 ```json
 {
   "success": true,
-  "message": "Decision generator prompt prepared.",
+  "message": "Decision brief and session plan prepared.",
   "data": {
     "scope": "decision",
     "prompt": "# GENERATE: Architectural Decision Plan (ADR)\n\n## DILEMMA\nMigrate event log storage from PostgreSQL to ClickHouse...\n\n## COMPLEXITY PROFILING\n- Reversibility (R): 2 (High data migration cost)\n- Novelty (N): 2 (Team lacks ClickHouse operational expertise)\n- Blast Radius (B): 2 (Core analytics pipeline)\n- Regulatory/Compliance (X): 0 (Standard internal logs)\n\nRoutes to 2 Sessions: L (Landscape & Benchmark) + F (Falsification & Failure Modes)...",
     "generator_file": "GENERATOR-DECISION.md"
   },
-  "next_step": "Execute the decision generator prompt using frontier LLM capabilities with web search, then call vivechak_save_plan to persist the decision plan."
+  "next_step": "Execute research across the 2 planned sessions, saving each with vivechak_save(kind=\"session\")."
 }
 ```
 
@@ -42,14 +42,13 @@ The agent calls `vivechak_prepare_generator` with `scope="decision"`:
 
 ## Step 2: Saving the Decision Plan
 
-The agent executes the generator, producing a tailored 2-session research plan (`D-01-S1` and `D-01-S2`) and calls `vivechak_save_plan`:
+The agent executes the generator, producing a tailored 2-session research plan (`D-01-S1` and `D-01-S2`) and calls `vivechak_save`:
 
-**Tool Call:** `vivechak_save_plan`
+**Tool Call:** `vivechak_save`
 ```json
 {
-  "scope": "decision",
-  "decision_id": "D-01",
-  "slug": "clickhouse-migration",
+  "kind": "plan",
+  "id": "D-01",
   "content": "# Decision Plan: D-01\n| Decision | D-01 |\n| Scope | decision |\n| Door Type | one-way |\n\n## Sessions\n1. D-01-S1: ClickHouse Ingestion Throughput & Partitioning Benchmark\n2. D-01-S2: Operational Failure Modes, Small-Batch Pitfalls & Reversibility"
 }
 ```
@@ -58,8 +57,8 @@ The agent executes the generator, producing a tailored 2-session research plan (
 ```json
 {
   "success": true,
-  "message": "Decision plan saved in research/D-01-clickhouse-migration-plan.md. 2 templates copied (DECISIONS, CONFLICT-RESOLUTION). Zero project DAG overhead.",
-  "next_step": "Call vivechak_next_session to retrieve the first research prompt (D-01-S1)."
+  "message": "Decision plan saved in research/decisions/D-01-clickhouse-migration-plan.md. 2 templates copied (DECISIONS, CONFLICT-RESOLUTION). Zero project DAG overhead.",
+  "next_step": "Execute D-01-S1 and call vivechak_save(kind=\"session\", id=\"D-01-S1\", content=...)."
 }
 ```
 
@@ -67,26 +66,25 @@ The agent executes the generator, producing a tailored 2-session research plan (
 
 ## Step 3: Executing Research Sessions
 
-The agent executes `D-01-S1` and `D-01-S2` using `vivechak_next_session` and `vivechak_save_session`:
+The agent executes `D-01-S1` and `D-01-S2` using web search, saving results with `vivechak_save(kind="session")`:
 
-1. **Session S1 Findings:**
+1. **Session S1 Findings (`vivechak_save(kind="session", id="D-01-S1")`):**
    - ClickHouse achieves 10x–50x faster column scans than PostgreSQL TimescaleDB on billion-row datasets [Grade A: https://clickhouse.com/docs/benchmark].
    - Compression ratio achieves 4:1 to 6:1 using ZSTD [Grade A: primary benchmark].
-2. **Session S2 Discovered Concerns & Falsification:**
+2. **Session S2 Discovered Concerns & Falsification (`vivechak_save(kind="session", id="D-01-S2")`):**
    - **Critical Failure Mode:** ClickHouse degrades severely under single-row inserts or micro-batches (<1,000 rows/insert), creating massive "Too many parts" merging errors [Grade A: https://clickhouse.com/docs/en/troubleshooting/too-many-parts].
    - **Operational Overhead:** Requires dedicated buffer tier (Kafka or Vector buffer) before ClickHouse to ensure batches of 10,000+ rows.
 
 ---
 
-## Step 4: Adversarial Stress-Testing (Red Team)
+## Step 4: Quality Review & Stress-Testing
 
-Before locking the decision, the agent subjects the recommendation to adversarial challenge:
+Before locking the decision, the agent reviews session quality and checks for confirmation bias:
 
-**Tool Call:** `vivechak_challenge`
+**Tool Call:** `vivechak_review`
 ```json
 {
-  "decision_id": "D-01",
-  "mode": "red_team"
+  "session_id": "D-01-S2"
 }
 ```
 
@@ -94,16 +92,8 @@ Before locking the decision, the agent subjects the recommendation to adversaria
 ```json
 {
   "success": true,
-  "message": "Generated red-team challenge prompts for D-01",
-  "data": {
-    "challenge_prompts": [
-      {
-        "type": "premortem",
-        "prompt": "Assume it is 12 months after migration and ClickHouse clusters are crashing weekly due to ZooKeeper/Keeper synchronization lag and part explosion. What specific operational guardrails did we fail to implement?"
-      }
-    ]
-  },
-  "next_step": "Run the challenge prompt to stress-test your assumptions, or proceed to vivechak_record_decision with explicit mitigations and reversal triggers."
+  "message": "Session review complete: 0 blocking defects. 1 coaching observation (Q-DC-01: Discovered concerns substantive, failure modes documented).",
+  "next_step": "Proceed to vivechak_record_decision with explicit mitigations and reversal triggers."
 }
 ```
 

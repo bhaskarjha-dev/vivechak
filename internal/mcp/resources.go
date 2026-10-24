@@ -4,40 +4,10 @@ import (
 	"context"
 
 	vembed "github.com/bhaskarjha-dev/vivechak/internal/embed"
+	"github.com/bhaskarjha-dev/vivechak/internal/method"
 	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-const evidenceGradesDoc = `# Vivechak Evidence Grading Taxonomy (Grades A–E)
-
-Every factual claim in Vivechak research must carry an inline evidence grade with modifiers and verification method.
-
-## 1. Base Evidence Grades
-- **Grade A (Primary / Authoritative):** Official vendor documentation, specification RFCs, source code implementations, peer-reviewed benchmarks, or official postmortems. Requires qualified provenance (canonical URL or doc title).
-- **Grade B (Empirical / Experimental):** Independent third-party reproducible benchmarks, production load tests, empirical user studies, or detailed postmortems from recognized engineering teams.
-- **Grade C (Vendor / Motivated):** Marketing whitepapers, sponsored benchmarks, corporate case studies, or developer advocacy posts where the author has a direct financial interest.
-- **Grade D (Secondary / Opinion / Model Recall):** Community blogs, StackOverflow answers, tutorials, forum discussions, or unverified AI model recall.
-  *Rule:* Recalled knowledge from model weights is ALWAYS capped at Grade D regardless of apparent authority.
-- **Grade E (Speculative / Unverified):** Claims without empirical backing, future promises, roadmap statements, or uncorroborated assertions.
-
-## 2. Modifiers
-- **Corroboration:**
-  - ` + "`[single]`" + `: Claim attested by only one independent source.
-  - ` + "`[corroborated]`" + `: Claim independently attested across two or more unrelated sources.
-  - ` + "`[contested]`" + `: Conflicting claims exist across credible sources.
-- **Recency:**
-  - ` + "`[fresh]`" + `: Evidence published within the last 12 months.
-  - ` + "`[aging]`" + `: Evidence published between 12 and 24 months ago.
-  - ` + "`[stale]`" + `: Evidence older than 24 months (flagged as potentially obsolete).
-- **Directness:**
-  - ` + "`[direct]`" + `: Measured directly on the exact technology/version under evaluation.
-  - ` + "`[indirect]`" + `: Extrapolated from analogous architectures or related systems.
-
-## 3. Verification Methods
-- **` + "`fetched`" + `:** Actively retrieved during the session via search or direct web fetch (URL required).
-- **` + "`cached`" + `:** Retrieved from verified local repository assets or prior recorded research.
-- **` + "`recalled`" + `:** Generated from LLM training weights without active verification (capped at Grade D).
-- **` + "`human`" + `:** Provided explicitly by the user or domain principal.
-`
 
 const corePrinciplesDoc = `# Vivechak Core Principles (P1–P8)
 
@@ -130,7 +100,7 @@ func registerResources(server *sdkmcp.Server) {
 			title:       "Evidence Grading Reference Card (Grades A–E)",
 			description: "Taxonomy of evidence grades A–E, modifiers (corroboration, recency, directness), and verification methods.",
 			readFn: func() (string, error) {
-				return evidenceGradesDoc, nil
+				return method.FormatTaxonomyMarkdown(), nil
 			},
 		},
 		{

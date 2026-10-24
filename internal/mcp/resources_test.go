@@ -87,7 +87,7 @@ func TestResourceRead_AllCanonicalResources(t *testing.T) {
 		},
 		{
 			uri:          "vivechak://methodology/grades",
-			expectedText: "Grade A (Primary / Authoritative)",
+			expectedText: "Primary Empirical",
 		},
 		{
 			uri:          "vivechak://methodology/principles",

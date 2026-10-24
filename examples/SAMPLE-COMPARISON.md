@@ -14,13 +14,13 @@ This walkthrough shows an AI coding agent using Vivechak's Model Context Protoco
 The user prompts their coding agent in chat:
 > *"Vivechak compare: Pino vs Winston for our high-throughput Express.js microservice handling 15k req/sec."*
 
-The agent calls `vivechak_prepare_generator` with `scope="comparison"`:
+The agent calls `vivechak_start` with `scope="comparison"`:
 
-**Tool Call:** `vivechak_prepare_generator`
+**Tool Call:** `vivechak_start`
 ```json
 {
   "scope": "comparison",
-  "context": "Pino vs Winston for high-throughput Express.js microservice handling 15k req/sec."
+  "question": "Pino vs Winston for high-throughput Express.js microservice handling 15k req/sec."
 }
 ```
 
@@ -28,13 +28,13 @@ The agent calls `vivechak_prepare_generator` with `scope="comparison"`:
 ```json
 {
   "success": true,
-  "message": "Comparison generator prompt prepared.",
+  "message": "Comparison brief generated.",
   "data": {
     "scope": "comparison",
-    "prompt": "# GENERATE: Bounded Options Comparison\n\n## OPTIONS\n- Pino\n- Winston\n\n## CRITERIA\n- Throughput & Latency overhead\n- Structured JSON streaming performance\n- Ecosystem & transport plugin reliability\n...",
+    "prompt": "# RESEARCH BRIEF: Pino vs Winston Comparison\n\n## OPTIONS\n- Pino\n- Winston\n\n## CRITERIA\n- Event loop latency & throughput overhead\n- Structured JSON allocation & GC pressure\n- Transport decoupling & reliability\n...",
     "generator_file": "GENERATOR-COMPARISON.md"
   },
-  "next_step": "Execute the comparison research prompt using frontier LLM capabilities with web search, then call vivechak_save_plan with the generated Weighted Evaluation Protocol (WEP) matrix."
+  "next_step": "Execute research using frontier LLM capabilities with web search, then call vivechak_save(kind=\"comparison\", id=\"C-01\", content=...) with the generated Weighted Evaluation Protocol (WEP) matrix."
 }
 ```
 
@@ -52,14 +52,14 @@ The agent executes the generator prompt using live web search, benchmarking data
 
 ## Step 3: Persisting the Comparison Plan
 
-The agent saves the completed comparison artifact directly via `vivechak_save_plan`. The server automatically handles on-the-fly workspace initialization if needed, copies only `COMPARISON-SESSION.template.md` (zero bloat), and bypasses DAG cycle constraints:
+The agent saves the completed comparison artifact directly via `vivechak_save(kind="comparison")`. The server automatically handles on-the-fly workspace initialization if needed, copies only `COMPARISON-SESSION.template.md` (zero bloat), and bypasses DAG cycle constraints:
 
-**Tool Call:** `vivechak_save_plan`
+**Tool Call:** `vivechak_save`
 ```json
 {
-  "scope": "comparison",
-  "decision_id": "C-01",
-  "content": "---\nid: C-01-cmp-pino-vs-winston\ntitle: Pino vs Winston for High-Throughput Node.js Microservice\ndate: \"2026-10-18\"\nstatus: complete\n---\n\n# C-01: Pino vs Winston Comparison\n\n## Weighted Evaluation Protocol (WEP) Matrix\n| Criterion | Weight | Pino Score (1-5) | Winston Score (1-5) | Evidence Grade & Provenance |\n|---|---|---|---|---|\n| Event Loop Latency | 0.40 | 5 (0.3ms/log) | 3 (1.8ms/log) | [Grade A: https://getpino.io/docs/benchmarks/] |\n| Memory Allocation | 0.30 | 5 (Minimal GC) | 3 (Object churn) | [Grade B: V8 heap profiler] |\n| Transport Decoupling | 0.30 | 5 (Worker thread) | 4 (In-process streams) | [Grade A: Pino transport docs] |\n| **Weighted Total** | **1.00** | **5.00** | **3.30** | **Pino Wins (+51% margin)** |\n\n## Sensitivity Check\nEven if transport weight increases to 0.50, Pino retains the winning score (4.70 vs 3.60).\n\n## Failure Modes\n- **Pino:** In unbuffered crashes, in-flight worker logs may be lost unless `pino.final()` handler is registered [Grade A: docs].\n- **Winston:** High volume synchronously saturates Node.js libuv event loop threads, creating backpressure lag on HTTP routes [Grade B: issue reports].\n\n## Recommendation\nAdopt **Pino** with externalized log shipping via worker thread. Register `pino.final()` on `SIGTERM`."
+  "kind": "comparison",
+  "id": "C-01",
+  "content": "---\nid: C-01\ntitle: Pino vs Winston for High-Throughput Node.js Microservice\ndate: \"2026-10-18\"\nstatus: complete\n---\n\n# C-01: Pino vs Winston Comparison\n\n## Weighted Evaluation Protocol (WEP) Matrix\n| Criterion | Weight | Pino Score (1-5) | Winston Score (1-5) | Evidence Grade & Provenance |\n|---|---|---|---|---|\n| Event Loop Latency | 0.40 | 5 (0.3ms/log) | 3 (1.8ms/log) | [Grade A: https://getpino.io/docs/benchmarks/] |\n| Memory Allocation | 0.30 | 5 (Minimal GC) | 3 (Object churn) | [Grade B: V8 heap profiler] |\n| Transport Decoupling | 0.30 | 5 (Worker thread) | 4 (In-process streams) | [Grade A: Pino transport docs] |\n| **Weighted Total** | **1.00** | **5.00** | **3.30** | **Pino Wins (+51% margin)** |\n\n## Sensitivity Check\nEven if transport weight increases to 0.50, Pino retains the winning score (4.70 vs 3.60).\n\n## Failure Modes\n- **Pino:** In unbuffered crashes, in-flight worker logs may be lost unless `pino.final()` handler is registered [Grade A: docs].\n- **Winston:** High volume synchronously saturates Node.js libuv event loop threads, creating backpressure lag on HTTP routes [Grade B: issue reports].\n\n## Recommendation\nAdopt **Pino** with externalized log shipping via worker thread. Register `pino.final()` on `SIGTERM`."
 }
 ```
 
@@ -67,37 +67,36 @@ The agent saves the completed comparison artifact directly via `vivechak_save_pl
 ```json
 {
   "success": true,
-  "message": "Comparison C-01 saved successfully in research/C-01-cmp-pino-vs-winston.md",
+  "message": "Comparison C-01 saved successfully in research/comparisons/C-01.md",
   "data": {
-    "decision_id": "C-01",
-    "scope": "comparison",
-    "path": "research/C-01-cmp-pino-vs-winston.md"
+    "id": "C-01",
+    "kind": "comparison",
+    "path": "research/comparisons/C-01.md"
   },
-  "next_step": "Comparison complete! The Weighted Evaluation Protocol matrix is saved in research/C-01-cmp-pino-vs-winston.md. Zero gate or DAG overhead required. You can now proceed to implementation."
+  "next_step": "Comparison complete! The Weighted Evaluation Protocol matrix is saved in research/comparisons/C-01.md. Zero gate or DAG overhead required. You can now proceed to implementation."
 }
 ```
 
 ---
 
-## Step 4: Optional Visualization
+## Step 4: Workspace Health Check
 
-To inspect or present the decision to human reviewers, the agent or user can call `vivechak_visualize`:
+To inspect workspace status, the agent or user can call `vivechak_status`:
 
-**Tool Call:** `vivechak_visualize`
+**Tool Call:** `vivechak_status`
 ```json
-{
-  "format": "mermaid"
-}
+{}
 ```
 
 **Tool Response:**
 ```json
 {
   "success": true,
-  "message": "Rendered comparison visualization",
+  "message": "Workspace active in comparison scope. 1 comparison completed.",
   "data": {
-    "format": "mermaid",
-    "rendering": "flowchart TD\n    subgraph C01[\"C-01: Pino vs Winston\"]\n        A[\"Pino: Score 5.00 ★ Winner\"]:::winner\n        B[\"Winston: Score 3.30\"]:::alternative\n    end\n    classDef winner fill:#22c55e,stroke:#15803d,color:#ffffff;\n    classDef alternative fill:#6b7280,stroke:#374151,color:#ffffff;"
+    "scope": "comparison",
+    "completed_sessions": 1,
+    "gate_eligible": true
   }
 }
 ```

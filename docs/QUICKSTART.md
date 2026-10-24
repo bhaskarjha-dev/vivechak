@@ -116,27 +116,25 @@ Open your agent chat in your project repository and choose your scope (or invoke
 
 ### 4. How the Agent Executes Each Scope
 
-- **Comparison Scope:** Agent calls `vivechak_prepare_generator(scope="comparison")` → executes prompt with search → calls `vivechak_save_plan` to persist WEP matrix in `research/C-NNN-comparison.md`. Done in 5 minutes! Zero DAG, zero gate.
-- **Decision Scope:** Agent calls `vivechak_prepare_generator(scope="decision")` → saves plan via `vivechak_save_plan` → runs 1–3 sessions → calls `vivechak_record_decision` to lock canonical ADR `research/D-NNN.md`. Zero project DAG, zero FAD.
-- **Project Scope:** Full autonomous orchestration across all 13 tools:
+- **Comparison Scope:** Agent calls `vivechak_start(scope="comparison", question="...")` → executes prompt with search → calls `vivechak_save(kind="comparison")` to persist WEP matrix in `research/comparisons/C-NNN.md`. Done in 5 minutes! Zero DAG, zero gate.
+- **Decision Scope:** Agent calls `vivechak_start(scope="decision", question="...")` → saves plan via `vivechak_save(kind="plan")` → runs 1–3 sessions → calls `vivechak_record_decision` to lock canonical ADR `research/decisions/D-NNN.md`. Zero project DAG, zero FAD.
+- **Project Scope:** Autonomous orchestration across 9 consolidated tools:
 ```
-[Agent: vivechak_init (scope: 'project')]
-  └─ Creates research/ workspace and copies all 6 operational templates
-[Agent: vivechak_prepare_generator]
-  └─ Injects your vision into GENERATOR-PROJECT.md
+[Agent: vivechak_start (scope: 'project', question: '<vision>')]
+  └─ Initializes research/ workspace and returns actionable DAG generator brief
 [Agent: executes generator prompt]
   └─ Generates RESEARCH-PIPELINE.md (DAG) & DECISIONS.md (registry)
-[Agent: vivechak_save_plan]
+[Agent: vivechak_save (kind: 'plan', id: 'DAG')]
   └─ Validates DAG dependencies & persists research plan
 [Agent: Execution Loop]
-  ├─ vivechak_next_session   ──> Injects upstream findings into next ready prompt
+  ├─ vivechak_next           ──> Injects upstream findings into next ready prompt
   ├─ [Agent executes deep research with web search]
-  ├─ vivechak_save_session   ──> Validates evidence grades (A-E) and saves session
+  ├─ vivechak_save           ──> Validates evidence grades (A-E) and saves session (kind='session')
   └─ vivechak_record_decision ──> Locks ADR with One-Way vs Two-Way Door classification
 [Agent: FAD Synthesis (SYN-01)]
-  └─ Synthesizes all findings into research/FAD.md
-[Agent: vivechak_run_gate]
-  └─ Evaluates Phase 0 Exit Gate (Track A fast-track or Track B 11-step check)
+  └─ Synthesizes all findings into research/FAD.md via vivechak_save (kind: 'fad')
+[Agent: vivechak_gate (or CLI: vck gate)]
+  └─ Evaluates Phase 0 Exit Gate across Track A and Track B (Rules G1–G12)
 ```
 
 See the [MCP Tools Reference](MCP-TOOLS.md) for full tool schemas, parameter specs, and error handling.
