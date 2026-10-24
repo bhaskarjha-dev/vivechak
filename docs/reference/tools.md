@@ -22,6 +22,9 @@ Initializes a Vivechak research workspace and generates a directly executable re
   - `scope` (string, required): `"comparison"`, `"decision"`, or `"project"`.
   - `question` (string, required): Technical question, comparison dilemma, or system architecture description.
   - `project_root` (string, optional): Absolute path to project workspace directory.
+  - `part` (integer, optional): 1-based part index for multi-part delivery of large briefs (scope="project").
+  - `options` (array of strings, optional): Named options to evaluate in comparison scope.
+  - `criteria` (string, optional): Key evaluation criteria or constraints.
 - **Guided Action:** Returns directly executable research brief with required hypotheses and evidence contracts.
 
 ---

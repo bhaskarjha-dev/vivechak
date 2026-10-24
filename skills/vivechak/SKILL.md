@@ -42,6 +42,7 @@ Use when resolving an architectural fork, migration, or dilemma in an active cod
 2. **Save Decision Plan:** Call `vivechak_save(kind="plan", id="D-NNN", content=...)`.
 3. **Execute Sessions:** Run the 1–3 research sessions (`L` Landscape, `C` Comparison, `F` Falsification) via `vivechak_next` and `vivechak_save(kind="session", id="D-NNN-S1", content=...)`.
 4. **Lock ADR:** Call `vivechak_record_decision(decision_id="D-NNN", auto_draft_from="D-NNN-S1", auto_save=true)` to draft and persist the canonical ADR in `research/D-NNN.md` and update `research/DECISIONS.md`.
+5. **Human Sign-Off:** One-way decisions need the user's sign-off (`vck signoff <D-id>`); never set `human_reviewed` yourself.
 
 ### Scope 3: Project Scope (`ScopeProject`)
 Use when designing a brand-new system or greenfield platform architecture from scratch:
@@ -50,7 +51,7 @@ Use when designing a brand-new system or greenfield platform architecture from s
 3. **Session Loop:** Loop through DAG sessions:
    - `vivechak_next` → research → `vivechak_save(kind="session", id="<session_id>", content=...)` → `vivechak_record_decision(decision_id="D-NNN", auto_draft_from="<session_id>", auto_save=true)`.
 4. **Synthesize FAD:** Compile grand synthesis session `SYN-01` into `research/FAD.md` via `vivechak_save(kind="fad", id="SYN-01", content=...)`.
-5. **Phase 0 Exit Gate:** Run `vivechak_gate(track="all")` or CLI `vck gate` to verify Track A (reversibility) and Track B (rigor G1–G12) before writing codebase implementation.
+5. **Phase 0 Exit Gate & Human Sign-Off:** Run `vivechak_gate(track="all")` or CLI `vck gate` to verify Track A (reversibility) and Track B (rigor G1–G12). One-way decisions need the user's sign-off (`vck signoff <D-id>`); never set `human_reviewed` yourself. Once the gate passes and sign-offs are granted, begin implementation.
 
 ---
 
@@ -74,3 +75,4 @@ Every factual claim in Vivechak must carry an inline evidence grade with modifie
 2. 🚫 **NEVER use Vivechak for local bug fixing or syntax:** Do not invoke Vivechak for compiler errors, stack traces, or API parameter lookups.
 3. 🚫 **NEVER answer architectural decisions from ungrounded recall:** If the user asks for a comparison or architectural choice, invoke Vivechak tools to ground the evaluation in evidence.
 4. 🚪 **Every locked ADR requires Quantitative Reversal Triggers:** Specify exact threshold conditions (e.g. latency SLA > 50ms, event volume > 100k/s) that would trigger reversing the decision.
+5. ✍️ **NEVER self-sign One-Way Decisions:** One-way decisions need the user's sign-off (`vck signoff <D-id>`); never set `human_reviewed` yourself.

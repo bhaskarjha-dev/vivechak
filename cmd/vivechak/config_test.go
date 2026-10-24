@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -1191,5 +1192,99 @@ func TestSetupWithArgs_WorkspaceFolderEnv(t *testing.T) {
 		}
 	}
 }
+
+func TestWriteConfigFile_SymlinkAndPermissions(t *testing.T) {
+	tmpDir := t.TempDir()
+	dotfilesDir := filepath.Join(tmpDir, "dotfiles")
+	if err := os.MkdirAll(dotfilesDir, 0755); err != nil {
+		t.Fatalf("failed to create dotfiles dir: %v", err)
+	}
+
+	targetFile := filepath.Join(dotfilesDir, "claude.json")
+	initialContent := []byte("{\n  \"mcpServers\": {\n    \"existing\": {\"command\": \"test\"}\n  }\n}\n")
+	if err := os.WriteFile(targetFile, initialContent, 0600); err != nil {
+		t.Fatalf("failed to write target file: %v", err)
+	}
+	_ = os.Chmod(targetFile, 0600)
+
+	linkPath := filepath.Join(tmpDir, ".claude.json")
+	if err := os.Symlink(targetFile, linkPath); err != nil {
+		t.Skipf("skipping symlink test on platform without symlink permissions: %v", err)
+	}
+
+	updatedContent := []byte("{\n  \"mcpServers\": {\n    \"existing\": {\"command\": \"test\"},\n    \"vivechak\": {\"command\": \"vck\"}\n  }\n}\n")
+	if err := writeConfigFile(linkPath, updatedContent); err != nil {
+		t.Fatalf("writeConfigFile failed on symlink: %v", err)
+	}
+
+	// 1. Verify linkPath is STILL a symlink (never replaced by regular file)
+	lfi, err := os.Lstat(linkPath)
+	if err != nil {
+		t.Fatalf("os.Lstat(linkPath) failed: %v", err)
+	}
+	if lfi.Mode()&os.ModeSymlink == 0 {
+		t.Errorf("expected linkPath to remain a symlink, but it was replaced by a regular file")
+	}
+
+	// 2. Verify target file contains the updated content
+	targetData, err := os.ReadFile(targetFile)
+	if err != nil {
+		t.Fatalf("failed to read target file: %v", err)
+	}
+	if !strings.Contains(string(targetData), "vivechak") {
+		t.Errorf("target file did not receive updated content:\n%s", string(targetData))
+	}
+
+	// 3. Verify backup file exists
+	bakPath := targetFile + ".bak"
+	if _, err := os.Stat(bakPath); err != nil {
+		t.Errorf("expected backup file at %s: %v", bakPath, err)
+	}
+
+	// 4. On non-Windows platforms, verify 0600 permissions
+	if runtime.GOOS != "windows" {
+		tfi, err := os.Stat(targetFile)
+		if err == nil && tfi.Mode().Perm() != 0600 {
+			t.Errorf("expected targetFile mode 0600, got %o", tfi.Mode().Perm())
+		}
+		bfi, err := os.Stat(bakPath)
+		if err == nil && bfi.Mode().Perm() != 0600 {
+			t.Errorf("expected bakPath mode 0600, got %o", bfi.Mode().Perm())
+		}
+	}
+}
+
+func TestWriteConfigFile_PermissionsAndBackup(t *testing.T) {
+	tmpDir := t.TempDir()
+	configFile := filepath.Join(tmpDir, "config.json")
+	initialContent := []byte("{\n  \"mcpServers\": {\n    \"existing\": {\"command\": \"test\"}\n  }\n}\n")
+	if err := os.WriteFile(configFile, initialContent, 0600); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+	_ = os.Chmod(configFile, 0600)
+
+	updatedContent := []byte("{\n  \"mcpServers\": {\n    \"existing\": {\"command\": \"test\"},\n    \"vivechak\": {\"command\": \"vck\"}\n  }\n}\n")
+	if err := writeConfigFile(configFile, updatedContent); err != nil {
+		t.Fatalf("writeConfigFile failed: %v", err)
+	}
+
+	data, err := os.ReadFile(configFile)
+	if err != nil {
+		t.Fatalf("failed to read updated file: %v", err)
+	}
+	if !strings.Contains(string(data), "vivechak") {
+		t.Errorf("file missing updated content: %s", string(data))
+	}
+
+	bakPath := configFile + ".bak"
+	bakData, err := os.ReadFile(bakPath)
+	if err != nil {
+		t.Fatalf("failed to read backup file: %v", err)
+	}
+	if !strings.Contains(string(bakData), "existing") {
+		t.Errorf("backup file missing original content: %s", string(bakData))
+	}
+}
+
 
 

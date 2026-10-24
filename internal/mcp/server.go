@@ -15,10 +15,10 @@ import (
 
 // ServerInstructions provides concise, neutral operational guidance (≤ 600 chars, AX-01/AX-02).
 const ServerInstructions = "Vivechak structures evidence-graded research for technical choices under research/ in user project.\n" +
-	"Use when asked to compare options, record an architectural decision (ADR), or plan system architecture. Not for code authoring or debugging.\n" +
-	"Flow: vivechak_start(scope, question) -> run brief with search -> save with returned id. Projects: vivechak_next -> research -> vivechak_save, repeat -> vivechak_gate.\n" +
-	"Workspace: discovered automatically; if E-ROOT-UNRESOLVED, pass project_root='<path>'.\n" +
-	"Grade every claim A-E (vivechak://methodology/grades). Recalled claims are max Grade E."
+	"Use for option comparisons, architectural ADRs, or system architecture. Not for code authoring or debugging.\n" +
+	"Flow: vivechak_start(scope, question) -> search -> vivechak_save. Projects: vivechak_next -> save -> vivechak_gate.\n" +
+	"Grade claims A-E (vivechak://methodology/grades); recalled claims are max Grade E.\n" +
+	"One-way decisions need user sign-off (vck signoff <D-id>); never set human_reviewed yourself."
 
 // Legacy retired tool mappings for clear error guidance.
 var legacyToolMap = map[string]string{

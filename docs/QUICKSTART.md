@@ -139,6 +139,24 @@ Open your agent chat in your project repository and choose your scope (or invoke
 
 See the [MCP Tools Reference](MCP-TOOLS.md) for full tool schemas, parameter specs, and error handling.
 
+### Upgrade & Uninstall
+
+**To upgrade Vivechak:**
+- **Homebrew (macOS & Linux):** `brew update && brew upgrade bhaskarjha-dev/tap/vivechak`
+- **Windows (PowerShell):** Re-run installer: `irm https://raw.githubusercontent.com/bhaskarjha-dev/vivechak/main/install.ps1 | iex`
+- **Linux / macOS Shell:** Re-run installer: `curl -fsSL https://raw.githubusercontent.com/bhaskarjha-dev/vivechak/main/install.sh | sh`
+- **WinGet / Scoop:** `winget upgrade bhaskarjha-dev.Vivechak` or `scoop update vck`
+- **Go toolchain:** `go install github.com/bhaskarjha-dev/vivechak/cmd/vivechak@latest`
+- **Zero-install runners (`npx` / `uvx`):** Always run the latest package automatically.
+
+**To uninstall:**
+1. **Remove binary:**
+   - Homebrew: `brew uninstall bhaskarjha-dev/tap/vivechak`
+   - WinGet / Scoop: `winget uninstall bhaskarjha-dev.Vivechak` or `scoop uninstall vck`
+   - Shell / Manual: Delete `vck` (and `vivechak`) from your binary directory (e.g. `~/.local/bin/vck` or `%LOCALAPPDATA%\Programs\vivechak\vck.exe`).
+2. **Remove MCP configuration:**
+   - Delete the `"vivechak"` block from your host config file (e.g. `.cursor/mcp.json`, `.vscode/mcp.json`, `~/.claude.json`), or restore the automatic `<config>.bak` backup created during `vck setup`.
+
 ---
 
 ## Path B: Manual Workflow (No Installation Needed)

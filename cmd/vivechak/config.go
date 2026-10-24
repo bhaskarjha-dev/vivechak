@@ -137,9 +137,22 @@ func runMCPConfigWithArgs(args []string, stdout, stderr io.Writer) int {
 			merged, mergeErr := mergeConfig(b, exePath, targetKey)
 			if mergeErr != nil {
 				fmt.Fprintf(stderr, "Warning: %v\n", mergeErr)
-				fmt.Fprintf(stderr, "Creating backup at %s.bak and writing fresh config\n", configPath)
-				if backupErr := os.WriteFile(configPath+".bak", b, 0644); backupErr != nil {
+				targetPath := configPath
+				if realPath, err := filepath.EvalSymlinks(configPath); err == nil && realPath != "" {
+					targetPath = realPath
+				}
+				perm := os.FileMode(0644)
+				if fi, err := os.Stat(targetPath); err == nil {
+					perm = fi.Mode().Perm()
+				}
+				fmt.Fprintf(stderr, "Creating backup at %s.bak and writing fresh config\n", targetPath)
+				if backupErr := os.WriteFile(targetPath+".bak", b, perm); backupErr != nil {
 					fmt.Fprintf(stderr, "Warning: could not create backup: %v\n", backupErr)
+				}
+				_ = os.Chmod(targetPath+".bak", perm)
+				if configPath != targetPath {
+					_ = os.WriteFile(configPath+".bak", b, perm)
+					_ = os.Chmod(configPath+".bak", perm)
 				}
 				fresh, freshErr := mergeConfig(nil, exePath, targetKey)
 				if freshErr != nil {
@@ -442,27 +455,64 @@ func mergeConfig(existingBytes []byte, exePath string, preferredKey ...string) (
 }
 
 // writeConfigFile atomically writes config content to configPath.
-// If the destination file already exists, it preserves its original permissions
-// and creates a <configPath>.bak backup before writing.
+// If configPath is a symlink, it resolves the symlink target via filepath.EvalSymlinks
+// and writes to the underlying target file directly so that the symlink remains intact.
+// If the destination file already exists, it preserves its original file permissions
+// for both the temporary file and the <file>.bak backup file.
 func writeConfigFile(configPath string, out []byte) (retErr error) {
-	dir := filepath.Dir(configPath)
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		return fmt.Errorf("failed to create directory %s: %w", dir, err)
-	}
-
-	perm := os.FileMode(0644)
-	if fi, err := os.Stat(configPath); err == nil {
-		perm = fi.Mode().Perm()
-		if existing, readErr := os.ReadFile(configPath); readErr == nil {
-			_ = os.WriteFile(configPath+".bak", existing, perm)
+	// 1. Resolve symlink destination if configPath is a symlink
+	targetPath := configPath
+	if realPath, err := filepath.EvalSymlinks(configPath); err == nil && realPath != "" {
+		targetPath = realPath
+	} else if lfi, lerr := os.Lstat(configPath); lerr == nil && (lfi.Mode()&os.ModeSymlink != 0) {
+		if linkDst, rerr := os.Readlink(configPath); rerr == nil && linkDst != "" {
+			if !filepath.IsAbs(linkDst) {
+				linkDst = filepath.Join(filepath.Dir(configPath), linkDst)
+			}
+			targetPath = filepath.Clean(linkDst)
 		}
 	}
 
-	tmpFile := configPath + ".tmp"
+	// 2. Ensure directories exist
+	if err := os.MkdirAll(filepath.Dir(configPath), 0755); err != nil {
+		return fmt.Errorf("failed to create directory %s: %w", filepath.Dir(configPath), err)
+	}
+	if filepath.Dir(targetPath) != filepath.Dir(configPath) {
+		if err := os.MkdirAll(filepath.Dir(targetPath), 0755); err != nil {
+			return fmt.Errorf("failed to create target directory %s: %w", filepath.Dir(targetPath), err)
+		}
+	}
+
+	// 3. Detect and preserve existing permissions
+	perm := os.FileMode(0644)
+	if fi, err := os.Stat(targetPath); err == nil {
+		perm = fi.Mode().Perm()
+		if existing, readErr := os.ReadFile(targetPath); readErr == nil {
+			_ = os.WriteFile(targetPath+".bak", existing, perm)
+			_ = os.Chmod(targetPath+".bak", perm)
+		}
+	} else if fi, err := os.Stat(configPath); err == nil {
+		perm = fi.Mode().Perm()
+		if existing, readErr := os.ReadFile(configPath); readErr == nil {
+			_ = os.WriteFile(configPath+".bak", existing, perm)
+			_ = os.Chmod(configPath+".bak", perm)
+		}
+	}
+
+	if configPath != targetPath {
+		if existing, readErr := os.ReadFile(targetPath); readErr == nil {
+			_ = os.WriteFile(configPath+".bak", existing, perm)
+			_ = os.Chmod(configPath+".bak", perm)
+		}
+	}
+
+	// 4. Write to temp file alongside the targetPath
+	tmpFile := targetPath + ".tmp"
 	f, err := os.OpenFile(tmpFile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, perm)
 	if err != nil {
 		return fmt.Errorf("failed to open temp file: %w", err)
 	}
+	_ = os.Chmod(tmpFile, perm)
 	defer func() {
 		if retErr != nil {
 			_ = os.Remove(tmpFile)
@@ -481,13 +531,14 @@ func writeConfigFile(configPath string, out []byte) (retErr error) {
 		return fmt.Errorf("failed to close temp file: %w", err)
 	}
 
-	err = os.Rename(tmpFile, configPath)
+	// 5. Atomically replace targetPath (preserving configPath symlink)
+	err = os.Rename(tmpFile, targetPath)
 	if err != nil && runtime.GOOS == "windows" {
 		backoff := 50 * time.Millisecond
 		for attempt := 0; attempt < 3; attempt++ {
 			time.Sleep(backoff)
 			backoff *= 2
-			if err = os.Rename(tmpFile, configPath); err == nil {
+			if err = os.Rename(tmpFile, targetPath); err == nil {
 				break
 			}
 		}
@@ -495,6 +546,7 @@ func writeConfigFile(configPath string, out []byte) (retErr error) {
 	if err != nil {
 		return fmt.Errorf("failed to rename temp file: %w", err)
 	}
+	_ = os.Chmod(targetPath, perm)
 	return nil
 }
 

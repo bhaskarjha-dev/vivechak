@@ -51,6 +51,24 @@ vck setup                # Auto-detects editor in current workspace
 ```
 *(Note: MCP slash commands such as `/compare` are supported in hosts like Claude Code).*
 
+## Upgrade & Uninstall
+
+### Upgrading
+- **Homebrew (macOS & Linux):** `brew update && brew upgrade bhaskarjha-dev/tap/vivechak`
+- **Windows (PowerShell):** Re-run `irm https://vivechak.dev/install.ps1 | iex`
+- **Linux / macOS Shell:** Re-run `curl -fsSL https://vivechak.dev/install.sh | sh`
+- **WinGet / Scoop:** `winget upgrade bhaskarjha-dev.Vivechak` or `scoop update vck`
+- **Go toolchain:** `go install github.com/bhaskarjha-dev/vivechak/cmd/vivechak@latest`
+- **Zero-install runners (`npx` / `uvx`):** Always run the latest package automatically.
+
+### Uninstalling
+1. **Remove binary:**
+   - Homebrew: `brew uninstall bhaskarjha-dev/tap/vivechak`
+   - WinGet / Scoop: `winget uninstall bhaskarjha-dev.Vivechak` or `scoop uninstall vck`
+   - Shell / Manual: Delete `vck` (and `vivechak`) from your bin directory (e.g. `~/.local/bin/vck` or `%LOCALAPPDATA%\Programs\vivechak\vck.exe`).
+2. **Remove MCP host configuration:**
+   - Delete the `"vivechak"` block from your IDE/host config file (e.g. `.cursor/mcp.json`, `.vscode/mcp.json`, `~/.claude.json`), or restore the automatic `<config>.bak` created during `vck setup`.
+
 ## The Three Decision Scopes
 
 Vivechak scales research depth to decision reversibility:

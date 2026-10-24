@@ -23,6 +23,7 @@ type StartInput struct {
 	Question    string   `json:"question,omitempty"     jsonschema:"the technical dilemma, comparison options, or project vision"`
 	Options     []string `json:"options,omitempty"      jsonschema:"optional list of named options to compare (e.g. ['Pino', 'Winston'])"`
 	Criteria    string   `json:"criteria,omitempty"     jsonschema:"optional key evaluation criteria or constraints"`
+	Part        int      `json:"part,omitempty"         jsonschema:"optional 1-based part index for multi-part delivery of large project briefs"`
 }
 
 // InitInput provides backward compatibility for unit tests calling handleInit.
@@ -275,10 +276,38 @@ func handleStart(_ context.Context, _ *sdkmcp.CallToolRequest, in StartInput) (*
 		}
 	}
 
-	data["brief"] = genPrompt
-	data["prompt"] = genPrompt
-	data["char_count"] = len(genPrompt)
-	data["approx_tokens"] = len(genPrompt) / 4
+	parts := []string{genPrompt}
+	if scope == core.ScopeProject && len(genPrompt) > 18000 {
+		parts = splitBriefIntoParts(genPrompt, 18000)
+	}
+	totalParts := len(parts)
+
+	var activeBrief string
+	var currentPart int
+	var hasMore bool
+
+	if in.Part > 0 {
+		if in.Part > totalParts {
+			return ErrorResult(tool, fmt.Errorf("invalid part %d: brief has %d total parts", in.Part, totalParts),
+				fmt.Sprintf("Request a part between 1 and %d.", totalParts))
+		}
+		currentPart = in.Part
+		activeBrief = parts[currentPart-1]
+		hasMore = currentPart < totalParts
+	} else {
+		currentPart = 1
+		activeBrief = genPrompt
+		hasMore = false
+	}
+
+	data["brief"] = activeBrief
+	data["prompt"] = activeBrief
+	data["part"] = currentPart
+	data["total_parts"] = totalParts
+	data["has_more"] = hasMore
+	data["char_count"] = len(activeBrief)
+	data["approx_tokens"] = len(activeBrief) / 4
+	data["total_char_count"] = len(genPrompt)
 	data["generator_file"] = genFile
 
 	var next *NextAction
@@ -352,14 +381,27 @@ func handleStart(_ context.Context, _ *sdkmcp.CallToolRequest, in StartInput) (*
 			projName = question
 		}
 
-		msg = fmt.Sprintf("Project workspace initialized for %s. All 6 templates ready.", projName)
-		next = &NextAction{
-			Tool: "vivechak_save",
-			Args: map[string]any{
-				"kind":    "plan",
-				"content": "<RESEARCH-PIPELINE.md content>",
-			},
-			Why: "Decompose the project vision to generate your research pipeline DAG, then save via vivechak_save (or vivechak_save_plan(kind='plan', content=...)). Do NOT write to local artifact/brain files or workspace files outside research/. (For large Tier 2/3 pipelines where output exceeds single-turn token limits, you may assemble sections in internal scratch before passing to vivechak_save_plan).",
+		if hasMore {
+			nextPart := currentPart + 1
+			msg = fmt.Sprintf("Project workspace initialized for %s. Serving brief part %d of %d.", projName, currentPart, totalParts)
+			next = &NextAction{
+				Tool: "vivechak_start",
+				Args: map[string]any{
+					"scope": "project",
+					"part":  nextPart,
+				},
+				Why: fmt.Sprintf("Retrieve part %d of %d of the project brief before generating the research pipeline DAG.", nextPart, totalParts),
+			}
+		} else {
+			msg = fmt.Sprintf("Project workspace initialized for %s. All 6 templates ready.", projName)
+			next = &NextAction{
+				Tool: "vivechak_save",
+				Args: map[string]any{
+					"kind":    "plan",
+					"content": "<RESEARCH-PIPELINE.md content>",
+				},
+				Why: "Decompose the project vision to generate your research pipeline DAG, then save via vivechak_save (or vivechak_save_plan(kind='plan', content=...)). Do NOT write to local artifact/brain files or workspace files outside research/. (For large Tier 2/3 pipelines where output exceeds single-turn token limits, you may assemble sections in internal scratch before passing to vivechak_save_plan).",
+			}
 		}
 	}
 
@@ -436,4 +478,46 @@ func extractComparisonOptions(ctx string) string {
 		}
 	}
 	return ""
+}
+
+// splitBriefIntoParts partitions a large brief into clean parts at markdown section boundaries.
+func splitBriefIntoParts(prompt string, targetPartSize int) []string {
+	if len(prompt) <= targetPartSize {
+		return []string{prompt}
+	}
+
+	parts := make([]string, 0, 2)
+	remaining := prompt
+	for len(remaining) > targetPartSize {
+		splitTarget := targetPartSize
+		searchStart := splitTarget - 3000
+		if searchStart < 0 {
+			searchStart = 0
+		}
+		searchEnd := splitTarget + 3000
+		if searchEnd > len(remaining) {
+			searchEnd = len(remaining)
+		}
+		window := remaining[searchStart:searchEnd]
+
+		splitIdx := -1
+		if idx := strings.LastIndex(window, "\n### "); idx != -1 {
+			splitIdx = searchStart + idx
+		} else if idx := strings.LastIndex(window, "\n## "); idx != -1 {
+			splitIdx = searchStart + idx
+		} else if idx := strings.LastIndex(window, "\n\n"); idx != -1 {
+			splitIdx = searchStart + idx + 1
+		}
+
+		if splitIdx <= 0 || splitIdx >= len(remaining) {
+			splitIdx = targetPartSize
+		}
+
+		parts = append(parts, strings.TrimSpace(remaining[:splitIdx]))
+		remaining = strings.TrimSpace(remaining[splitIdx:])
+	}
+	if len(remaining) > 0 {
+		parts = append(parts, remaining)
+	}
+	return parts
 }
