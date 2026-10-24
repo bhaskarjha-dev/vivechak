@@ -92,17 +92,15 @@ jobs:
       - uses: actions/setup-node@v4
         if: steps.check_token.outputs.has_token == 'true'
         with:
-          node-version: "20.x"
+          node-version: "22.x"
           registry-url: "https://registry.npmjs.org"
 
       - name: Synchronize npm versions from git tag
         if: steps.check_token.outputs.has_token == 'true'
         run: |
           TAG_VERSION="${GITHUB_REF_NAME#v}"
-          echo "Setting npm packages, dependencies, and runner to version: $TAG_VERSION"
+          echo "Setting npm package and runner to version: $TAG_VERSION"
           sed -i "s/\"version\": \".*\"/\"version\": \"$TAG_VERSION\"/" npm/vivechak/package.json
-          sed -i "s/\"version\": \".*\"/\"version\": \"$TAG_VERSION\"/" npm/vck/package.json
-          sed -i "s/\"vivechak\": \".*\"/\"vivechak\": \"^$TAG_VERSION\"/" npm/vck/package.json
           sed -i "s/const VERSION = ['\"].*['\"];/const VERSION = '$TAG_VERSION';/" npm/vivechak/bin/runner.js
 
       - name: Publish to npm
@@ -112,8 +110,6 @@ jobs:
         run: |
           echo "Publishing vivechak..."
           cd npm/vivechak && npm publish --access public
-          echo "Publishing vck..."
-          cd ../vck && npm publish --access public
 
   # 4. PyPI / uvx Publisher (Isolated, fails safe if PYPI_API_TOKEN absent)
   pypi:

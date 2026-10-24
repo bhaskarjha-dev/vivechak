@@ -18,19 +18,29 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"runtime/debug"
 	"syscall"
 
 	mcputil "github.com/bhaskarjha-dev/vivechak/internal/mcp"
+	versionPkg "github.com/bhaskarjha-dev/vivechak/internal/version"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-// version is set at build time via ldflags, e.g. -ldflags "-X main.version=vX.Y.Z".
-// During development (go run/go build without ldflags), this default is used.
-// During release, GoReleaser injects the git tag version via ldflags.
-var version = "0.1.0"
+// version is maintained in internal/version and injected at build time.
+var version = versionPkg.Version
+
+func getVersion() string {
+	v := versionPkg.Version
+	if v == "dev" || v == "" {
+		if info, ok := debug.ReadBuildInfo(); ok && info.Main.Version != "" && info.Main.Version != "(devel)" {
+			v = info.Main.Version
+		}
+	}
+	return v
+}
 
 func printUsage(w io.Writer) {
-	fmt.Fprintf(w, "vivechak (vck) %s\n\n", version)
+	fmt.Fprintf(w, "vivechak (vck) %s\n\n", getVersion())
 	fmt.Fprintf(w, "Usage: vck <command>  (or: vivechak <command>)\n\n")
 	fmt.Fprintf(w, "Commands:\n")
 	fmt.Fprintf(w, "  setup <host|path>  Set up Vivechak in an AI host or config file (alias: install)\n")
@@ -75,7 +85,7 @@ func runCLIWithContext(ctx context.Context, args []string, stdout, stderr io.Wri
 		}
 		return runServeWithContext(ctx, l)
 	case "version", "--version", "-v":
-		fmt.Fprintf(stdout, "vivechak %s\n", version)
+		fmt.Fprintf(stdout, "vivechak %s (commit %s, built %s)\n", getVersion(), versionPkg.Commit, versionPkg.Date)
 		return 0
 	case "setup", "install":
 		var subArgs []string
@@ -111,9 +121,10 @@ func runCLIWithContext(ctx context.Context, args []string, stdout, stderr io.Wri
 }
 
 func runServeWithContext(ctx context.Context, logger *slog.Logger) int {
-	server := mcputil.NewServer(version, logger)
+	v := getVersion()
+	server := mcputil.NewServer(v, logger)
 
-	logger.Info("starting vivechak MCP server", "version", version)
+	logger.Info("starting vivechak MCP server", "version", v)
 	if err := server.Run(ctx, &mcp.StdioTransport{}); err != nil && err != context.Canceled {
 		logger.Error("server exited with error", "err", err)
 		return 1

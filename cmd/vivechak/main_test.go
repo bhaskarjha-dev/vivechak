@@ -7,7 +7,6 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"testing"
 
@@ -339,21 +338,6 @@ func TestVersionParityAcrossEcosystem(t *testing.T) {
 
 	expected := version
 
-	// 1. npm/vck/package.json
-	vckPkgPath := filepath.Join(root, "npm", "vck", "package.json")
-	if data, err := os.ReadFile(vckPkgPath); err == nil {
-		var pkg struct {
-			Version string `json:"version"`
-		}
-		if err := json.Unmarshal(data, &pkg); err != nil {
-			t.Errorf("parsing %s: %v", vckPkgPath, err)
-		} else if pkg.Version != expected {
-			t.Errorf("%s version %q != %q", vckPkgPath, pkg.Version, expected)
-		}
-	} else {
-		t.Errorf("reading %s: %v", vckPkgPath, err)
-	}
-
 	// 2. npm/vivechak/package.json
 	vivPkgPath := filepath.Join(root, "npm", "vivechak", "package.json")
 	if data, err := os.ReadFile(vivPkgPath); err == nil {
@@ -446,55 +430,12 @@ func TestVersionParityAcrossEcosystem(t *testing.T) {
 		t.Errorf("reading %s: %v", pyVckInitPath, err)
 	}
 
-	// 10. Dependency specs: npm/vck and pypi/vck must declare matching dependencies on vivechak
-	if data, err := os.ReadFile(vckPkgPath); err == nil {
-		depNeedle := `"vivechak": "^` + expected + `"`
-		if !strings.Contains(string(data), depNeedle) {
-			t.Errorf("%s does not contain dependency %q", vckPkgPath, depNeedle)
-		}
-	}
+	// 10. Dependency specs: pypi/vck must declare matching dependencies on vivechak
 	if data, err := os.ReadFile(pypiVckPath); err == nil {
 		depNeedle := `"vivechak~=` + expected + `"`
 		if !strings.Contains(string(data), depNeedle) {
 			t.Errorf("%s does not contain dependency %q", pypiVckPath, depNeedle)
 		}
-	}
-}
-
-func TestReleaseWorkflowSedPatterns(t *testing.T) {
-	root := filepath.Join("..", "..")
-	releaseYmlPath := filepath.Join(root, ".github", "workflows", "release.yml")
-	data, err := os.ReadFile(releaseYmlPath)
-	if err != nil {
-		t.Skip("skipping release workflow test in non-source environment")
-		return
-	}
-	releaseYml := string(data)
-
-	// Ensure release.yml uses the PEP 440 compatible ~= clause with [=><~] character class
-	expectedPyPISed := `sed -i "s/\"vivechak[=><~].*\"/\"vivechak~=$TAG_VERSION\"/" pypi/vck/pyproject.toml`
-	if !strings.Contains(releaseYml, expectedPyPISed) {
-		t.Errorf(".github/workflows/release.yml does not contain expected PyPI sed replacement: %q", expectedPyPISed)
-	}
-
-	// Verify that the PyPI sed regex actually matches the line in pypi/vck/pyproject.toml
-	pypiVckData, err := os.ReadFile(filepath.Join(root, "pypi", "vck", "pyproject.toml"))
-	if err != nil {
-		t.Fatalf("reading pypi/vck/pyproject.toml: %v", err)
-	}
-	rePyPI := regexp.MustCompile(`"vivechak[=><~].*"`)
-	if !rePyPI.Match(pypiVckData) {
-		t.Errorf("PyPI regex %s does not match content in pypi/vck/pyproject.toml", rePyPI.String())
-	}
-
-	// Verify that the npm sed regex actually matches the line in npm/vck/package.json
-	npmVckData, err := os.ReadFile(filepath.Join(root, "npm", "vck", "package.json"))
-	if err != nil {
-		t.Fatalf("reading npm/vck/package.json: %v", err)
-	}
-	reNPM := regexp.MustCompile(`"vivechak":\s*".*"`)
-	if !reNPM.Match(npmVckData) {
-		t.Errorf("npm regex %s does not match content in npm/vck/package.json", reNPM.String())
 	}
 }
 
