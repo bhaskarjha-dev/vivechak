@@ -116,8 +116,8 @@ func extractRecommendationSnippet(body string) string {
 			if idx := strings.Index(trimmed, "."); idx > 0 && idx < 150 {
 				return strings.TrimSpace(trimmed[:idx])
 			}
-			if len(trimmed) > 120 {
-				return strings.TrimSpace(trimmed[:120]) + "..."
+			if len([]rune(trimmed)) > 120 {
+				return TruncateRunes(strings.TrimSpace(trimmed), 120)
 			}
 			return trimmed
 		}
@@ -374,8 +374,5 @@ func generateCrossSessionPrompts(currentSessionID, currentRec string, allSession
 func cleanSnippetForPrompt(s string) string {
 	s = strings.ReplaceAll(s, "\n", " ")
 	s = strings.TrimSpace(s)
-	if len(s) > 80 {
-		return s[:80] + "..."
-	}
-	return s
+	return TruncateRunes(s, 80)
 }

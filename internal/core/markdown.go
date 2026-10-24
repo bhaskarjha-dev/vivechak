@@ -105,3 +105,16 @@ func ExtractSection(body string, keywords ...string) string {
 	return strings.TrimSpace(result.String())
 }
 
+// TruncateRunes truncates a string to at most maxRunes, appending "..." if truncated,
+// without slicing across multi-byte UTF-8 boundaries.
+func TruncateRunes(s string, maxRunes int) string {
+	runes := []rune(s)
+	if len(runes) <= maxRunes {
+		return s
+	}
+	if maxRunes <= 3 {
+		return string(runes[:maxRunes])
+	}
+	return string(runes[:maxRunes-3]) + "..."
+}
+

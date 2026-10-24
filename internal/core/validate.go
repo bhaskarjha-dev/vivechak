@@ -217,16 +217,12 @@ func ValidateSessionWithContext(data []byte, isOneWay bool) *ValidationResult {
 	}
 
 	// L2: Required frontmatter fields
-	requiredFields := []string{"session_id", "title", "date"}
+	requiredFields := []string{"session_id", "title"}
 	for _, field := range requiredFields {
 		has := fm.Has(field)
 		// Accept 'id' as alias for 'session_id'
 		if !has && field == "session_id" {
 			has = fm.Has("id")
-		}
-		// Accept 'synthesis_date' as alias for 'date'
-		if !has && field == "date" {
-			has = fm.Has("synthesis_date")
 		}
 		if !has {
 			hint := fmt.Sprintf("Add '%s: <value>' to the frontmatter block", field)
@@ -239,7 +235,7 @@ func ValidateSessionWithContext(data []byte, isOneWay bool) *ValidationResult {
 		}
 	}
 
-	// L3: Check date format (YYYY-MM-DD)
+	// L3: Check date presence and format (YYYY-MM-DD)
 	dateKey := "date"
 	if !fm.Has("date") && fm.Has("synthesis_date") {
 		dateKey = "synthesis_date"
@@ -251,6 +247,10 @@ func ValidateSessionWithContext(data []byte, isOneWay bool) *ValidationResult {
 				fmt.Sprintf("%s field is not in YYYY-MM-DD format", dateKey),
 				fmt.Sprintf("Use ISO 8601 format: %s: 2026-09-29", dateKey))
 		}
+	} else {
+		result.AddFieldIssueWithHint(L3Warn, "W-MISSING-DATE", "date",
+			"Frontmatter field 'date' is missing",
+			"Add 'date: YYYY-MM-DD' to the frontmatter block")
 	}
 
 	// L2: Body must not be empty
@@ -715,71 +715,114 @@ func ValidateFAD(data []byte) *ValidationResult {
 }
 
 // ValidateComparison checks a comparison session or WEP matrix output.
-// It verifies frontmatter (id/session_id, title, date, status), substantive body content,
-// Weighted Evaluation Protocol (WEP) matrix presence, and inline evidence grades.
+// It verifies frontmatter (id/session_id, title, status), substantive body content,
+// absence of unreplaced template placeholders, Weighted Evaluation Protocol (WEP) matrix,
+// Recommendation section, and inline evidence grades.
 func ValidateComparison(data []byte) *ValidationResult {
 	result := &ValidationResult{Status: "valid"}
 
-	if len(bytes.TrimSpace(data)) == 0 {
+	trimmed := bytes.TrimSpace(data)
+	if len(trimmed) == 0 {
 		result.AddIssue(L2Block, "V-EMPTY", "Comparison content is empty")
 		result.Status = "invalid"
 		return result
 	}
 
+	if len(trimmed) < 150 {
+		result.AddIssueWithHint(L2Block, "V-TOO-SHORT",
+			"Comparison content is too short to be a substantive evaluation (< 150 characters)",
+			"Include the full research question, WEP matrix, recommendation, and sources")
+	}
+
+	contentStr := string(data)
+
+	// Check for unreplaced template placeholders
+	unreplacedPlaceholders := []string{
+		"[Comparison Title]",
+		"[Option A]",
+		"[Criterion 1]",
+		"[One-sentence neutral framing",
+		"[Why this criterion",
+	}
+	for _, ph := range unreplacedPlaceholders {
+		if strings.Contains(contentStr, ph) {
+			result.AddIssueWithHint(L2Block, "V-UNFILLED-TEMPLATE",
+				fmt.Sprintf("Comparison contains unreplaced template placeholder %q", ph),
+				"Replace all template bracketed placeholders with actual empirical research content")
+			break
+		}
+	}
+
+	// Check frontmatter
 	fm, body, err := ParseFrontmatter(data)
 	if err != nil {
-		result.AddIssue(L2Block, "V-INVALID-FRONTMATTER", "YAML frontmatter is malformed: "+err.Error())
-		result.Status = "invalid"
-		return result
-	}
-
-	if fm == nil {
-		result.AddIssueWithHint(L2Block, "V-MISSING-FRONTMATTER",
-			"Comparison record has no YAML frontmatter",
-			"Add frontmatter with at least: id (or session_id), title, date, status")
-		result.Status = "draft"
-		return result
-	}
-
-	// L2: Required frontmatter fields
-	if !fm.Has("id") && !fm.Has("session_id") {
-		result.AddFieldIssueWithHint(L2Block, "V-MISSING-FIELD", "id",
-			"Required frontmatter field 'id' (or 'session_id') is missing",
-			"Add 'id: C-01-cmp-<slug>' to frontmatter")
-	}
-	if !fm.Has("title") || strings.TrimSpace(fm.GetString("title")) == "" {
-		result.AddFieldIssueWithHint(L2Block, "V-MISSING-FIELD", "title",
-			"Required frontmatter field 'title' is missing",
-			"Add 'title: [Comparison Title]' to frontmatter")
-	}
-	if !fm.Has("date") {
-		result.AddFieldIssueWithHint(L2Block, "V-MISSING-FIELD", "date",
-			"Required frontmatter field 'date' is missing",
-			"Add 'date: YYYY-MM-DD' to frontmatter")
-	}
-
-	// Check body length
-	bodyStr := strings.TrimSpace(string(body))
-	if len(bodyStr) < 100 {
-		result.AddIssueWithHint(L3Warn, "W-SHORT-BODY",
-			"Comparison body is very short (< 100 characters)",
-			"Ensure the comparison includes research question, recommendation, and evaluation matrix")
+		result.AddIssueWithHint(L2Block, "V-MALFORMED-FRONTMATTER",
+			fmt.Sprintf("Invalid YAML frontmatter: %v", err),
+			"Ensure frontmatter is delimited by '---' and contains valid YAML syntax")
+	} else if fm == nil {
+		result.AddIssueWithHint(L3Warn, "W-MISSING-FRONTMATTER",
+			"Comparison lacks YAML frontmatter",
+			"Add frontmatter with id, title, and status: complete")
+	} else {
+		// Required frontmatter fields
+		if !fm.Has("id") && !fm.Has("session_id") {
+			result.AddFieldIssueWithHint(L2Block, "V-MISSING-FIELD", "id",
+				"Required frontmatter field 'id' (or 'session_id') is missing",
+				"Add 'id: C-01-cmp-<slug>' to frontmatter")
+		}
+		if !fm.Has("title") || strings.TrimSpace(fm.GetString("title")) == "" {
+			result.AddFieldIssueWithHint(L2Block, "V-MISSING-FIELD", "title",
+				"Required frontmatter field 'title' is missing",
+				"Add 'title: [Comparison Title]' to frontmatter")
+		}
 	}
 
 	// Check for Weighted Evaluation Protocol or criteria matrix table
-	hasWEPTable := strings.Contains(bodyStr, "| Criteria |") ||
-		strings.Contains(bodyStr, "| Criterion |") ||
-		strings.Contains(bodyStr, "| Option |") ||
-		strings.Contains(bodyStr, "Weighted Evaluation") ||
-		strings.Contains(bodyStr, "Weighted Total")
-	if !hasWEPTable {
-		result.AddIssueWithHint(L3Warn, "W-MISSING-WEP-MATRIX",
-			"Comparison artifact lacks a structured Weighted Evaluation Protocol (WEP) matrix table",
+	bodyStr := string(body)
+	if fm == nil {
+		bodyStr = contentStr
+	}
+
+	hasTable := false
+	hasMatrixKeywords := false
+	lowerBody := strings.ToLower(bodyStr)
+	if strings.Contains(lowerBody, "matrix") || strings.Contains(lowerBody, "weight") ||
+		strings.Contains(lowerBody, "criteria") || strings.Contains(lowerBody, "criterion") ||
+		strings.Contains(lowerBody, "score") {
+		hasMatrixKeywords = true
+	}
+
+	lines := strings.Split(bodyStr, "\n")
+	tableRowCount := 0
+	for _, line := range lines {
+		trimmedLine := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmedLine, "|") && strings.HasSuffix(trimmedLine, "|") {
+			tableRowCount++
+		}
+	}
+	if tableRowCount >= 3 && hasMatrixKeywords {
+		hasTable = true
+	}
+
+	if !hasTable {
+		result.AddIssueWithHint(L2Block, "W-MISSING-WEP-MATRIX",
+			"Comparison must contain a Weighted Evaluation Protocol (WEP) matrix table",
 			"Include a criteria and score matrix per COMPARISON-SESSION.template.md")
 	}
 
-	// L3: Evidence grades and recalled grade cap checks
-	checkEvidenceGrades(bodyStr, result)
+	// Check for Recommendation section
+	if !strings.Contains(lowerBody, "recommendation") && !strings.Contains(lowerBody, "verdict") {
+		result.AddIssueWithHint(L3Warn, "W-MISSING-RECOMMENDATION",
+			"Comparison lacks an explicit Recommendation or Verdict section",
+			"Add a '## Recommendation' section stating the recommended option and core rationale")
+	}
+
+	// Check for evidence grades and recalled grade cap
+	if !EvidenceGradePattern.MatchString(bodyStr) {
+		result.AddIssueWithHint(L3Warn, "W-NO-EVIDENCE-GRADES",
+			"Comparison contains no inline evidence grades (Grade A–E)",
+			"Annotate factual claims and scores with evidence grades (e.g. '[Grade A: URL]')")
+	}
 	checkRecalledGradeCap(bodyStr, result)
 
 	if result.HasBlocking() {
@@ -854,5 +897,3 @@ func ValidatePlan(data []byte) *ValidationResult {
 
 	return result
 }
-
-

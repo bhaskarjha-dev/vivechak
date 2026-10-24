@@ -163,10 +163,7 @@ func extractRecommendation(body string) string {
 			val = strings.Trim(val, "*_`")
 			val = cleanTableCell(val)
 			if val != "" {
-				if len(val) > 120 {
-					val = val[:117] + "..."
-				}
-				return val
+				return TruncateRunes(val, 120)
 			}
 		}
 	}

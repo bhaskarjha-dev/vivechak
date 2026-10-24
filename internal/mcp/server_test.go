@@ -828,6 +828,9 @@ status: complete
 ---
 # Database Selection
 Findings... A (doc)
+
+## Discovered Concerns
+Connection pool saturation under burst traffic can exhaust file descriptors in high-concurrency environments.
 `
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
 		Name:      "vivechak_save_session",

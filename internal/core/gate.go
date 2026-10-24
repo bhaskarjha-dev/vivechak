@@ -125,35 +125,52 @@ func EvaluateGate(ws WorkspaceFS, info WorkspaceInfo, root string) *GateResult {
 				if dag, err := ParsePipeline(pipeData); err == nil && len(dag.Sessions) > 0 {
 					completedCount := 0
 					for _, s := range dag.Sessions {
+						var sData []byte
 						found := false
 						if s.OutputFile != "" {
-							if _, err := ws.Stat(s.OutputFile); err == nil {
+							if data, err := ws.ReadFile(s.OutputFile); err == nil && len(data) > 0 {
+								sData = data
 								found = true
 							}
 						}
 						if !found {
 							if entries, err := ws.ListDir(SessionsDir); err == nil {
 								for _, e := range entries {
-									if strings.HasPrefix(e.Name(), s.ID) && strings.HasSuffix(e.Name(), ".md") {
-										found = true
-										break
+									if (strings.HasPrefix(e.Name(), s.ID+"-") || strings.HasPrefix(e.Name(), s.ID+"_") || strings.EqualFold(e.Name(), s.ID+".md")) && strings.HasSuffix(e.Name(), ".md") {
+										if data, err := ws.ReadFile(filepath.Join(SessionsDir, e.Name())); err == nil && len(data) > 0 {
+											sData = data
+											found = true
+											break
+										}
 									}
 								}
 							}
 						}
 						if !found && IsSynthesisSession(s.ID) {
-							if _, err := ws.Stat(FADFile); err == nil {
+							if data, err := ws.ReadFile(FADFile); err == nil && len(data) > 0 {
+								sData = data
 								found = true
 							}
 						}
-						if found {
-							completedCount++
+
+						if !found {
+							structuralIssues = append(structuralIssues, fmt.Sprintf("G2-SESSION-MISSING: Session %s has not been completed", s.ID))
+							continue
 						}
+
+						// Check frontmatter status: draft is NOT complete
+						fm, _, _ := ParseFrontmatter(sData)
+						if fm != nil && strings.EqualFold(strings.TrimSpace(fm.GetString("status")), "draft") {
+							structuralIssues = append(structuralIssues, fmt.Sprintf("G2-SESSION-DRAFT: Session %s is still in draft status", s.ID))
+							continue
+						}
+
+						completedCount++
 					}
 					if completedCount == len(dag.Sessions) {
 						structuralPassed++
 					} else {
-						structuralIssues = append(structuralIssues, fmt.Sprintf("Pipeline DAG incomplete: %d/%d sessions completed", completedCount, len(dag.Sessions)))
+						structuralIssues = append(structuralIssues, fmt.Sprintf("G2-INCOMPLETE: Pipeline DAG incomplete: %d/%d sessions completed", completedCount, len(dag.Sessions)))
 					}
 				} else if info.SessionCount > 0 {
 					structuralPassed++
@@ -492,33 +509,38 @@ func verifyDecisionsMechanical(ws WorkspaceFS, info WorkspaceInfo) (bool, []stri
 	}
 	var sources []decisionSource
 
-	if entries, err := ws.ListDir(ResearchDir); err == nil {
-		for _, e := range entries {
-			name := e.Name()
-			if e.IsDir() || !strings.HasSuffix(name, ".md") {
-				continue
-			}
-			if IsSpecialResearchFile(name) {
-				continue
-			}
-			relPath := filepath.Join(ResearchDir, name)
-			isCandidate := strings.HasPrefix(strings.ToUpper(name), "D-")
-			dData, err := ws.ReadFile(relPath)
-			if err != nil || len(dData) == 0 {
-				continue
-			}
-			if !isCandidate {
-				if fm, _, err := ParseFrontmatter(dData); err == nil && fm != nil {
-					if !fm.Has("door_type") {
-						continue // Not a decision record
-					}
-				} else {
+	scanDir := func(dir string) {
+		if entries, err := ws.ListDir(dir); err == nil {
+			for _, e := range entries {
+				name := e.Name()
+				if e.IsDir() || !strings.HasSuffix(name, ".md") {
 					continue
 				}
+				if IsSpecialResearchFile(name) {
+					continue
+				}
+				relPath := filepath.Join(dir, name)
+				isCandidate := strings.HasPrefix(strings.ToUpper(name), "D-")
+				dData, err := ws.ReadFile(relPath)
+				if err != nil || len(dData) == 0 {
+					continue
+				}
+				if !isCandidate {
+					if fm, _, err := ParseFrontmatter(dData); err == nil && fm != nil {
+						if !fm.Has("door_type") {
+							continue // Not a decision record
+						}
+					} else {
+						continue
+					}
+				}
+				sources = append(sources, decisionSource{file: relPath, data: dData})
 			}
-			sources = append(sources, decisionSource{file: relPath, data: dData})
 		}
 	}
+
+	scanDir(ResearchDir)
+	scanDir(DecisionsDir)
 
 	// Scan consolidated DECISIONS.md alongside standalone files.
 	// processedIDs guarantees standalone files take precedence on ID collisions.
@@ -665,23 +687,74 @@ func verifyEvidentiaryIntegrity(ws WorkspaceFS, info WorkspaceInfo) ([]string, [
 	decisions := CollectGateDecisions(ws)
 	lowGradeRe := regexp.MustCompile(`(?i)(?:\[(?:Grade\s*[:\s]\s*)[CDE][^\]\n]*\]|\((?:Grade\s*[:\s]\s*)[CDE][^)\n]*\)|\bGrade\s*[:\s]\s*[CDE]\b|\[[CDE]\s*[·|:,][^\]\n]*\]|\([CDE]\s*[·|:,][^)\n]*\))`)
 
+	// G4: ADR parity check - verify that all decisions referenced by sessions actually exist
+	decisionIDs := make(map[string]bool)
+	for _, d := range decisions {
+		decisionIDs[strings.ToUpper(strings.TrimSpace(d.ID))] = true
+	}
+	if sEntries, err := ws.ListDir(SessionsDir); err == nil {
+		for _, se := range sEntries {
+			if se.IsDir() || !strings.HasSuffix(se.Name(), ".md") {
+				continue
+			}
+			sData, err := ws.ReadFile(filepath.Join(SessionsDir, se.Name()))
+			if err != nil {
+				continue
+			}
+			sFm, _, _ := ParseFrontmatter(sData)
+			if sFm == nil {
+				continue
+			}
+			var referencedDecs []string
+			if sFm.Has("informs_decisions") {
+				referencedDecs = append(referencedDecs, sFm.GetStringSlice("informs_decisions")...)
+			}
+			if sFm.Has("informs") {
+				referencedDecs = append(referencedDecs, sFm.GetStringSlice("informs")...)
+			}
+			for _, ref := range referencedDecs {
+				refUpper := strings.ToUpper(strings.TrimSpace(ref))
+				if refUpper != "" && !decisionIDs[refUpper] {
+					blocking = append(blocking, fmt.Sprintf(
+						"G4-ADR-PARITY: Session %s references decision %s in informs_decisions, but %s has no corresponding ADR file or record",
+						ExtractSessionID(se.Name(), sFm), ref, ref))
+				}
+			}
+		}
+	}
+
 	for _, d := range decisions {
 		if !strings.EqualFold(d.DoorType, "one-way") {
 			continue
 		}
 
-		// Read decision file
+		// Read decision file from DecisionsDir or ResearchDir
 		var decData []byte
-		if dData, err := ws.ReadFile(filepath.Join(ResearchDir, d.ID+".md")); err == nil {
+		if dData, err := ws.ReadFile(filepath.Join(DecisionsDir, d.ID+".md")); err == nil {
+			decData = dData
+		} else if dData, err := ws.ReadFile(filepath.Join(DecisionsDir, d.ID+"-decision.md")); err == nil {
+			decData = dData
+		} else if dData, err := ws.ReadFile(filepath.Join(ResearchDir, d.ID+".md")); err == nil {
 			decData = dData
 		} else if dData, err := ws.ReadFile(filepath.Join(ResearchDir, d.ID+"-decision.md")); err == nil {
 			decData = dData
-		} else if entries, lErr := ws.ListDir(ResearchDir); lErr == nil {
+		} else if entries, lErr := ws.ListDir(DecisionsDir); lErr == nil {
 			for _, e := range entries {
 				name := e.Name()
 				if (strings.HasPrefix(name, d.ID+"-") || strings.HasPrefix(name, d.ID+"_") || strings.EqualFold(name, d.ID+".md")) && strings.HasSuffix(name, ".md") && !IsSpecialResearchFile(name) {
-					decData, _ = ws.ReadFile(filepath.Join(ResearchDir, name))
+					decData, _ = ws.ReadFile(filepath.Join(DecisionsDir, name))
 					break
+				}
+			}
+		}
+		if len(decData) == 0 {
+			if entries, lErr := ws.ListDir(ResearchDir); lErr == nil {
+				for _, e := range entries {
+					name := e.Name()
+					if (strings.HasPrefix(name, d.ID+"-") || strings.HasPrefix(name, d.ID+"_") || strings.EqualFold(name, d.ID+".md")) && strings.HasSuffix(name, ".md") && !IsSpecialResearchFile(name) {
+						decData, _ = ws.ReadFile(filepath.Join(ResearchDir, name))
+						break
+					}
 				}
 			}
 		}

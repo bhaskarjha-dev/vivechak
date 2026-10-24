@@ -341,12 +341,8 @@ func handleSavePlan(ctx context.Context, _ *sdkmcp.CallToolRequest, in SavePlanI
 
 	var validationOut any = planValidation
 	if scope == core.ScopeComparison {
-		validationOut = map[string]any{
-			"valid":      true,
-			"level":      "L1-L2",
-			"wep_matrix": true,
-			"issues":     []any{},
-		}
+		compValidation := core.ValidateComparison([]byte(in.Content))
+		validationOut = compValidation
 	}
 
 	dataMap := map[string]any{

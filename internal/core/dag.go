@@ -66,11 +66,16 @@ func (d *DAG) SessionByID(id string) *Session {
 	return nil
 }
 
+var synthesisIDRe = regexp.MustCompile(`^SYN(-\d+)?$`)
+
 // IsSynthesisSession reports whether id represents a synthesis or Founding Architecture Document
-// session (e.g. "FAD", "SYN", "SYN-01", "SYN-02").
+// session (e.g. "FAD", "SYN", "SYN-01", "SYN-02"). It strictly rejects non-synthesis prefixes like "SYNC-01".
 func IsSynthesisSession(id string) bool {
 	upper := strings.ToUpper(strings.TrimSpace(id))
-	return upper == "FAD" || strings.HasPrefix(upper, "SYN")
+	if upper == "FAD" || upper == "SYN" || upper == "SYNTHESIS" {
+		return true
+	}
+	return synthesisIDRe.MatchString(upper)
 }
 
 

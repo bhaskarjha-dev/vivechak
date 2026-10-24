@@ -193,33 +193,38 @@ func CollectGateDecisions(ws WorkspaceFS) []GateDecisionItem {
 	}
 	var sources []decisionSource
 
-	if entries, err := ws.ListDir(ResearchDir); err == nil {
-		for _, e := range entries {
-			name := e.Name()
-			if e.IsDir() || !strings.HasSuffix(name, ".md") {
-				continue
-			}
-			if IsSpecialResearchFile(name) {
-				continue
-			}
-			relPath := filepath.Join(ResearchDir, name)
-			isCandidate := strings.HasPrefix(strings.ToUpper(name), "D-")
-			dData, err := ws.ReadFile(relPath)
-			if err != nil || len(dData) == 0 {
-				continue
-			}
-			if !isCandidate {
-				if fm, _, err := ParseFrontmatter(dData); err == nil && fm != nil {
-					if !fm.Has("door_type") {
-						continue
-					}
-				} else {
+	scanDir := func(dir string) {
+		if entries, err := ws.ListDir(dir); err == nil {
+			for _, e := range entries {
+				name := e.Name()
+				if e.IsDir() || !strings.HasSuffix(name, ".md") {
 					continue
 				}
+				if IsSpecialResearchFile(name) {
+					continue
+				}
+				relPath := filepath.Join(dir, name)
+				isCandidate := strings.HasPrefix(strings.ToUpper(name), "D-")
+				dData, err := ws.ReadFile(relPath)
+				if err != nil || len(dData) == 0 {
+					continue
+				}
+				if !isCandidate {
+					if fm, _, err := ParseFrontmatter(dData); err == nil && fm != nil {
+						if !fm.Has("door_type") {
+							continue
+						}
+					} else {
+						continue
+					}
+				}
+				sources = append(sources, decisionSource{file: relPath, data: dData})
 			}
-			sources = append(sources, decisionSource{file: relPath, data: dData})
 		}
 	}
+
+	scanDir(ResearchDir)
+	scanDir(DecisionsDir)
 
 	// Scan consolidated DECISIONS.md alongside standalone files.
 	// The processedIDs map below guarantees standalone files take precedence on ID collisions.

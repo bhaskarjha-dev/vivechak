@@ -20,9 +20,7 @@ func RenderComparisonMermaid(data []byte) string {
 
 	rec := ExtractSection(content, "recommendation", "verdict")
 	rec = strings.TrimSpace(rec)
-	if len(rec) > 60 {
-		rec = rec[:57] + "..."
-	}
+	rec = TruncateRunes(rec, 60)
 	rec = strings.ReplaceAll(rec, "\"", "'")
 	rec = strings.ReplaceAll(rec, "\n", " ")
 
