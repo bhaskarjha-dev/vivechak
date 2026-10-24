@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -12,7 +13,12 @@ import (
 	"github.com/bhaskarjha-dev/vivechak/internal/store"
 )
 
-func runSignoff(args []string) error {
+func runSignoff(args []string, streams ...io.Writer) error {
+	var stdout io.Writer = os.Stdout
+	if len(streams) > 0 && streams[0] != nil {
+		stdout = streams[0]
+	}
+
 	var explicitWs string
 	var force bool
 	var decisionID string
@@ -20,15 +26,15 @@ func runSignoff(args []string) error {
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
 		if arg == "--help" || arg == "-h" || arg == "help" {
-			fmt.Println("Usage: vivechak signoff [flags] <decision-id>  (or: vck signoff [flags] <decision-id>)")
-			fmt.Println("")
-			fmt.Println("Interactively sign off on an Architectural Decision (One-Way Door).")
-			fmt.Println("Requires an interactive terminal session (os.ModeCharDevice).")
-			fmt.Println("")
-			fmt.Println("Flags:")
-			fmt.Println("  --project-root <path>  Path to project workspace root (default: current directory)")
-			fmt.Println("  --root <path>          Path to project workspace root (shorthand)")
-			fmt.Println("  -f, --force            Sign off without prompt confirmation")
+			fmt.Fprintln(stdout, "Usage: vivechak signoff [flags] <decision-id>  (or: vck signoff [flags] <decision-id>)")
+			fmt.Fprintln(stdout, "")
+			fmt.Fprintln(stdout, "Interactively sign off on an Architectural Decision (One-Way Door).")
+			fmt.Fprintln(stdout, "Requires an interactive terminal session (os.ModeCharDevice).")
+			fmt.Fprintln(stdout, "")
+			fmt.Fprintln(stdout, "Flags:")
+			fmt.Fprintln(stdout, "  --project-root <path>  Path to project workspace root (default: current directory)")
+			fmt.Fprintln(stdout, "  --root <path>          Path to project workspace root (shorthand)")
+			fmt.Fprintln(stdout, "  -f, --force            Sign off without prompt confirmation")
 			return nil
 		} else if arg == "--project-root" || arg == "-project-root" || arg == "--root" || arg == "-root" {
 			if i+1 < len(args) {
@@ -52,9 +58,10 @@ func runSignoff(args []string) error {
 
 	// Strictly verify interactive TTY (os.ModeCharDevice check)
 	isTestAllowed := os.Getenv("VCK_TEST_ALLOW_NON_TTY_SIGNOFF") == "1"
+	isTestForceNonTTY := os.Getenv("VCK_TEST_FORCE_NON_TTY_SIGNOFF") == "1"
 	fi, err := os.Stdin.Stat()
-	if !isTestAllowed && (err != nil || (fi.Mode()&os.ModeCharDevice) == 0) {
-		return fmt.Errorf("E-TTY-REQUIRED: vck signoff requires an interactive terminal session (os.ModeCharDevice). Autonomous agent execution is prohibited.")
+	if isTestForceNonTTY || (!isTestAllowed && (err != nil || (fi.Mode()&os.ModeCharDevice) == 0)) {
+		return fmt.Errorf("E-TTY-REQUIRED: vck signoff requires an interactive terminal session (os.ModeCharDevice); autonomous agent execution is prohibited")
 	}
 
 	decisionID = strings.TrimSpace(decisionID)
@@ -130,24 +137,24 @@ func runSignoff(args []string) error {
 		reviewTrigger = "None specified"
 	}
 
-	fmt.Println("=======================================================")
-	fmt.Printf("Vivechak Interactive Architecture Decision Sign-off\n")
-	fmt.Println("=======================================================")
-	fmt.Printf("Decision ID:      %s\n", decisionID)
-	fmt.Printf("File:             %s\n", targetFile)
-	fmt.Printf("Title:            %s\n", title)
-	fmt.Printf("Door Type:        %s\n", doorType)
-	fmt.Printf("Review Trigger:   %s\n", reviewTrigger)
-	fmt.Println("-------------------------------------------------------")
+	fmt.Fprintln(stdout, "=======================================================")
+	fmt.Fprintf(stdout, "Vivechak Interactive Architecture Decision Sign-off\n")
+	fmt.Fprintln(stdout, "=======================================================")
+	fmt.Fprintf(stdout, "Decision ID:      %s\n", decisionID)
+	fmt.Fprintf(stdout, "File:             %s\n", targetFile)
+	fmt.Fprintf(stdout, "Title:            %s\n", title)
+	fmt.Fprintf(stdout, "Door Type:        %s\n", doorType)
+	fmt.Fprintf(stdout, "Review Trigger:   %s\n", reviewTrigger)
+	fmt.Fprintln(stdout, "-------------------------------------------------------")
 
 	bodyStr := string(body)
 	if rejected := core.ExtractSection(bodyStr, "rejected alternatives", "rejected alternative"); rejected != "" {
-		fmt.Printf("Rejected Alternatives:\n%s\n", strings.TrimSpace(rejected))
-		fmt.Println("-------------------------------------------------------")
+		fmt.Fprintf(stdout, "Rejected Alternatives:\n%s\n", strings.TrimSpace(rejected))
+		fmt.Fprintln(stdout, "-------------------------------------------------------")
 	}
 
 	if !force {
-		fmt.Printf("Type 'CONFIRM' to sign off on Decision %s: ", decisionID)
+		fmt.Fprintf(stdout, "Type 'CONFIRM' to sign off on Decision %s: ", decisionID)
 		reader := bufio.NewReader(os.Stdin)
 		input, err := reader.ReadString('\n')
 		if err != nil {
@@ -158,11 +165,11 @@ func runSignoff(args []string) error {
 			return fmt.Errorf("signoff cancelled: expected 'CONFIRM', got %q", input)
 		}
 	} else {
-		fmt.Printf("Force flag specified. Proceeding with sign-off on Decision %s...\n", decisionID)
+		fmt.Fprintf(stdout, "Force flag specified. Proceeding with sign-off on Decision %s...\n", decisionID)
 	}
 
 	// Detect reviewer
-	reviewer := getGitUserName()
+	reviewer := getGitUserName(root)
 	if reviewer == "" {
 		reviewer = os.Getenv("USER")
 		if reviewer == "" {
@@ -178,12 +185,16 @@ func runSignoff(args []string) error {
 		return fmt.Errorf("signing off decision: %w", err)
 	}
 
-	fmt.Printf("\n✓ Decision %s successfully signed off by %s.\nSaved to %s.\n", decisionID, reviewer, savedPath)
+	fmt.Fprintf(stdout, "\n✓ Decision %s successfully signed off by %s.\nSaved to %s.\n", decisionID, reviewer, savedPath)
 	return nil
 }
 
-func getGitUserName() string {
-	out, err := exec.Command("git", "config", "user.name").Output()
+func getGitUserName(workspace string) string {
+	cmd := exec.Command("git", "config", "user.name")
+	if workspace != "" {
+		cmd.Dir = workspace
+	}
+	out, err := cmd.Output()
 	if err == nil {
 		return strings.TrimSpace(string(out))
 	}

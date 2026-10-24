@@ -10,7 +10,7 @@ Vivechak is an evidence-grounded research meta-framework for technical decisions
 2. **Decision** ([`GENERATOR-DECISION.md`](../GENERATOR-DECISION.md)) — Single architectural decision producing an Architectural Decision Record (ADR) across 1–3 sessions.
 3. **Comparison** ([`GENERATOR-COMPARISON.md`](../GENERATOR-COMPARISON.md)) — Bounded technology evaluation producing a Weighted Evaluation Protocol (WEP) matrix in a single session.
 
-The project ships as both a zero-dependency manual workflow and an autonomous **Model Context Protocol (MCP)** server providing 13 purpose-built tools.
+The project ships as both a zero-dependency manual workflow and an autonomous **Model Context Protocol (MCP)** server providing 9 consolidated tools (plus backward-compatible legacy aliases).
 
 ---
 
@@ -45,7 +45,7 @@ vivechak/
 │   ├── mcp/                # MCP protocol server, tools, prompts, and resources (package mcputil)
 │   │   ├── server.go       # Server factory and triumvirate registration dispatcher
 │   │   ├── envelope.go     # Standardized JSON response envelope & dual-channel encoding
-│   │   ├── tool_*.go       # 13 individual MCP tool handlers
+│   │   ├── tool_*.go       # 9 consolidated MCP tool handlers + legacy aliases
 │   │   ├── prompts.go      # 4 native MCP prompt templates (slash commands)
 │   │   ├── resources.go    # 8 canonical read-only MCP resources (templates & methodology)
 │   │   └── server_test.go  # In-memory JSON-RPC wire tests

@@ -146,7 +146,11 @@ func checkWorkspace(workspace string) (bool, []string, []string) {
 	if data, err := os.ReadFile(filepath.Join(workspace, core.DecisionsFile)); err == nil {
 		adrContents = append(adrContents, string(data))
 	}
-	if entries, err := os.ReadDir(filepath.Join(workspace, core.ResearchDir)); err == nil {
+	scanADRDir := func(dirPath string) {
+		entries, err := os.ReadDir(dirPath)
+		if err != nil {
+			return
+		}
 		for _, e := range entries {
 			name := e.Name()
 			if e.IsDir() || !strings.HasSuffix(name, ".md") {
@@ -156,7 +160,7 @@ func checkWorkspace(workspace string) (bool, []string, []string) {
 				continue
 			}
 			isCandidate := strings.HasPrefix(strings.ToUpper(name), "D-")
-			path := filepath.Join(workspace, core.ResearchDir, name)
+			path := filepath.Join(dirPath, name)
 			data, err := os.ReadFile(path)
 			if err != nil || len(data) == 0 {
 				continue
@@ -173,6 +177,9 @@ func checkWorkspace(workspace string) (bool, []string, []string) {
 			adrContents = append(adrContents, string(data))
 		}
 	}
+
+	scanADRDir(filepath.Join(workspace, core.ResearchDir))
+	scanADRDir(filepath.Join(workspace, core.DecisionsDir))
 	if len(adrContents) > 0 {
 		decisionsContent = strings.Join(adrContents, "\n")
 	}

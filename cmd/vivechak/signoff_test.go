@@ -8,6 +8,7 @@ import (
 )
 
 func TestSignoff_RequiresInteractiveTTY(t *testing.T) {
+	t.Setenv("VCK_TEST_FORCE_NON_TTY_SIGNOFF", "1")
 	// In standard go test execution, Stdin is not an interactive character device terminal.
 	// runSignoff MUST strictly reject non-TTY execution with E-TTY-REQUIRED.
 	err := runSignoff([]string{"D-001"})
@@ -20,6 +21,7 @@ func TestSignoff_RequiresInteractiveTTY(t *testing.T) {
 }
 
 func TestSignoff_RequiresInteractiveTTY_EvenWithForce(t *testing.T) {
+	t.Setenv("VCK_TEST_FORCE_NON_TTY_SIGNOFF", "1")
 	// Autonomous agent attempting to pass --force must still fail with E-TTY-REQUIRED without a real TTY.
 	err := runSignoff([]string{"D-001", "--force"})
 	if err == nil {

@@ -145,8 +145,8 @@ func TestPromptGet_Compare(t *testing.T) {
 	if !strings.Contains(text, "High-throughput microservices") {
 		t.Errorf("missing injected context in prompt text: %s", text)
 	}
-	if !strings.Contains(text, "vivechak_save_plan") {
-		t.Errorf("missing save_plan directive in prompt text")
+	if !strings.Contains(text, "vivechak_save") {
+		t.Errorf("missing save directive in prompt text")
 	}
 	if strings.Contains(text, "From the context block, output a SCOPE CHECK line") {
 		t.Errorf("meta-generator instruction was not stripped from prompt output: %s", text)
@@ -197,8 +197,8 @@ func TestPromptGet_Decision(t *testing.T) {
 	if !strings.Contains(tc.Text, "100k events/sec") {
 		t.Errorf("missing injected context: %s", tc.Text)
 	}
-	if !strings.Contains(tc.Text, "vivechak_save_plan") {
-		t.Errorf("missing save_plan directive")
+	if !strings.Contains(tc.Text, "vivechak_save") {
+		t.Errorf("missing save directive")
 	}
 }
 
@@ -228,8 +228,8 @@ func TestPromptGet_Project(t *testing.T) {
 	if !strings.Contains(tc.Text, "Go backend, WebSockets") {
 		t.Errorf("missing injected context: %s", tc.Text)
 	}
-	if !strings.Contains(tc.Text, "pipeline_content") {
-		t.Errorf("missing pipeline_content directive: %s", tc.Text)
+	if !strings.Contains(tc.Text, "vivechak_save") {
+		t.Errorf("missing save directive: %s", tc.Text)
 	}
 }
 
@@ -253,8 +253,8 @@ func TestPromptGet_Gate(t *testing.T) {
 		t.Fatalf("expected TextContent, got %T", res.Messages[0].Content)
 	}
 
-	if !strings.Contains(tc.Text, "vivechak_run_gate") {
-		t.Errorf("missing vivechak_run_gate instruction: %s", tc.Text)
+	if !strings.Contains(tc.Text, "vivechak_gate") {
+		t.Errorf("missing vivechak_gate instruction: %s", tc.Text)
 	}
 	if !strings.Contains(tc.Text, `"track_b"`) {
 		t.Errorf("missing track_b parameter: %s", tc.Text)

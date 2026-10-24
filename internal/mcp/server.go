@@ -17,7 +17,7 @@ import (
 const ServerInstructions = "Vivechak structures evidence-graded research for technical choices under research/ in user project.\n" +
 	"Use for option comparisons, architectural ADRs, or system architecture. Not for code authoring or debugging.\n" +
 	"Flow: vivechak_start(scope, question) -> search -> vivechak_save. Projects: vivechak_next -> save -> vivechak_gate.\n" +
-	"Grade claims A-E (vivechak://methodology/grades); recalled claims are max Grade E.\n" +
+	"Grade claims A-E (vivechak://methodology/grades); recalled claims are max Grade D.\n" +
 	"One-way decisions need user sign-off (vck signoff <D-id>); never set human_reviewed yourself."
 
 // Legacy retired tool mappings for clear error guidance.

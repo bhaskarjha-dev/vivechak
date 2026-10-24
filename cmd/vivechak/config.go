@@ -292,7 +292,7 @@ func mergeGooseYAML(existingBytes []byte, exePath string) []byte {
 	cmd, args := resolveLauncher(exePath)
 	var argsYAML strings.Builder
 	for _, a := range args {
-		argsYAML.WriteString(fmt.Sprintf("      - %s\n", a))
+		fmt.Fprintf(&argsYAML, "      - %s\n", a)
 	}
 	cleanExisting := strings.TrimSpace(string(existingBytes))
 	vivechakBlock := fmt.Sprintf("  vivechak:\n    name: vivechak\n    type: stdio\n    cmd: %q\n    args:\n%s    enabled: true\n    timeout: 300", cmd, argsYAML.String())

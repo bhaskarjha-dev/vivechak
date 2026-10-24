@@ -56,7 +56,7 @@ func handleRecordDecision(ctx context.Context, _ *sdkmcp.CallToolRequest, in Rec
 	root, err := core.ResolveWorkspace(in.ProjectRoot)
 	if err != nil {
 		return ErrorResult(tool, err,
-			"Initialize a workspace first with vivechak_init.")
+			"Initialize a workspace first with vivechak_start.")
 	}
 
 	if strings.TrimSpace(in.DecisionID) == "" {
@@ -98,7 +98,7 @@ func handleRecordDecision(ctx context.Context, _ *sdkmcp.CallToolRequest, in Rec
 		content, _, err := core.ReadSessionFileFS(ws, core.SessionsDir, in.AutoDraftFrom)
 		if err != nil {
 			return ErrorResult(tool, fmt.Errorf("reading session %s: %w", in.AutoDraftFrom, err),
-				"Ensure the session has been saved with vivechak_save_session first.")
+				"Ensure the session has been saved with vivechak_save first.")
 		}
 		if content == "" {
 			return ErrorResult(tool, fmt.Errorf("session file for %q not found", in.AutoDraftFrom),
@@ -358,7 +358,7 @@ func handleRecordDecision(ctx context.Context, _ *sdkmcp.CallToolRequest, in Rec
 	progress["decisions_recorded"] = len(gateDecisions)
 	dataMap["progress"] = progress
 
-	nextStep := "Run vivechak_next_session for the next research session, or " +
+	nextStep := "Run vivechak_next for the next research session, or " +
 		"vivechak_record_decision with auto_draft_from=[session_id] to auto-draft " +
 		"a decision from session findings. Use vivechak_status to review progress."
 	if fm, _, _ := core.ParseFrontmatter([]byte(in.Content)); fm != nil {

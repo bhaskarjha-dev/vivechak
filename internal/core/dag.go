@@ -486,6 +486,30 @@ func parsePipelineFromMachineBlock(data []byte, block *PlanMachineBlock) (*DAG, 
 		}
 	}
 
+	// Expand any __ALL_PRIOR__ or natural language prior dependencies to all preceding sessions in the pipeline
+	for i := range dag.Sessions {
+		var resolved []string
+		seen := make(map[string]bool)
+		for _, dep := range dag.Sessions[i].Dependencies {
+			depTrim := strings.TrimSpace(dep)
+			if depTrim == "__ALL_PRIOR__" || isAllPriorSessions(depTrim) {
+				for j := 0; j < i; j++ {
+					prevID := dag.Sessions[j].ID
+					if !seen[prevID] {
+						seen[prevID] = true
+						resolved = append(resolved, prevID)
+					}
+				}
+			} else if depTrim != "" {
+				if !seen[depTrim] {
+					seen[depTrim] = true
+					resolved = append(resolved, depTrim)
+				}
+			}
+		}
+		dag.Sessions[i].Dependencies = resolved
+	}
+
 	dag.Preamble = strings.TrimSpace(strings.Join(preambleLines, "\n"))
 	if lastPromptEndLine >= 0 && lastPromptEndLine < len(lines)-1 {
 		dag.Epilogue = strings.TrimSpace(strings.Join(lines[lastPromptEndLine+1:], "\n"))

@@ -257,10 +257,10 @@ func handleSavePlanKind(_ context.Context, ws *store.Workspace, root string, in 
 			var sb strings.Builder
 			sb.WriteString("# Architectural Decisions Registry\n\n")
 			for _, d := range machineBlock.Decisions {
-				sb.WriteString(fmt.Sprintf("<!-- DECISION: %s -->\n", d.ID))
-				sb.WriteString(fmt.Sprintf("---\nid: %s\ntitle: %q\nstatus: proposed\ndoor_type: %s\n---\n\n", d.ID, d.Title, d.Door))
-				sb.WriteString(fmt.Sprintf("# %s: %s\n\n[Pending research]\n\n", d.ID, d.Title))
-				sb.WriteString(fmt.Sprintf("<!-- /DECISION: %s -->\n\n", d.ID))
+				fmt.Fprintf(&sb, "<!-- DECISION: %s -->\n", d.ID)
+				fmt.Fprintf(&sb, "---\nid: %s\ntitle: %q\nstatus: proposed\ndoor_type: %s\n---\n\n", d.ID, d.Title, d.Door)
+				fmt.Fprintf(&sb, "# %s: %s\n\n[Pending research]\n\n", d.ID, d.Title)
+				fmt.Fprintf(&sb, "<!-- /DECISION: %s -->\n\n", d.ID)
 			}
 			decisionsContent = sb.String()
 		} else if !strings.EqualFold(scope, "decision") {
@@ -560,7 +560,7 @@ func handleSaveSession(ctx context.Context, req *sdkmcp.CallToolRequest, in Save
 func buildNextStep(sessionID string, errorCount int, observations []core.QualityObservation, dag *core.DAG) string {
 	if errorCount > 0 {
 		return fmt.Sprintf("Session saved as draft (%d blocking issues). Fix the issues and re-save, "+
-			"or run vivechak_validate for a dry-run check.", errorCount)
+			"or run vivechak_review for quality coaching.", errorCount)
 	}
 
 	var parts []string
@@ -580,7 +580,7 @@ func buildNextStep(sessionID string, errorCount int, observations []core.Quality
 	if core.IsSynthesisSession(sessionID) {
 		parts = append(parts, "🎉 FAD synthesis saved to research/FAD.md. "+
 			"All research pipeline sessions are complete, but Phase 0 is NOT yet passed.\n\n"+
-			"➡️ NEXT REQUIRED STEP: Run 'vivechak_run_gate' to evaluate Phase 0 exit criteria "+
+			"➡️ NEXT REQUIRED STEP: Run 'vivechak_gate' to evaluate Phase 0 exit criteria "+
 			"before code scaffolding or implementation.")
 		return strings.Join(parts, "\n\n")
 	}
@@ -597,13 +597,13 @@ func buildNextStep(sessionID string, errorCount int, observations []core.Quality
 	if isOneWay {
 		parts = append(parts, fmt.Sprintf(
 			"🛑 ONE-WAY DOOR: Session '%s' informs an irreversible decision.\n"+
-				"1. Run 'vivechak_challenge(session_id=\"%s\", mode=\"red_team\")' to stress-test findings.\n"+
-				"2. Amend findings via 'vivechak_amend_session'.\n"+
+				"1. Run 'vivechak_review(session_id=\"%s\", mode=\"challenge\")' to stress-test findings.\n"+
+				"2. Amend findings via 'vivechak_amend'.\n"+
 				"3. Auto-draft and record canonical ADR via 'vivechak_record_decision(decision_id=\"<D-ID>\", auto_draft_from=\"%s\")'.",
 			sessionID, sessionID, sessionID))
 	} else {
 		parts = append(parts, fmt.Sprintf(
-			"Next: Run 'vivechak_next_session' for the next session, or "+
+			"Next: Run 'vivechak_next' for the next session, or "+
 				"record an ADR via 'vivechak_record_decision(decision_id=\"<D-ID>\", auto_draft_from=\"%s\")'.",
 			sessionID))
 	}

@@ -57,7 +57,7 @@ func handleReplan(ctx context.Context, _ *sdkmcp.CallToolRequest, in ReplanInput
 
 	root, err := core.ResolveWorkspace(in.ProjectRoot)
 	if err != nil {
-		return ErrorResult(tool, err, "Initialize a workspace first with vivechak_init.")
+		return ErrorResult(tool, err, "Initialize a workspace first with vivechak_start.")
 	}
 
 	ws, err := store.OpenWorkspace(root)
@@ -80,7 +80,7 @@ func handleReplan(ctx context.Context, _ *sdkmcp.CallToolRequest, in ReplanInput
 		}
 		if !found {
 			return ErrorResult(tool, fmt.Errorf("pipeline file %s not found", core.PipelineFile),
-				"Save a plan first using vivechak_save_plan before mutating it.")
+				"Save a plan first using vivechak_save(kind=\"plan\") before mutating it.")
 		}
 	}
 
@@ -209,7 +209,7 @@ func handleReplan(ctx context.Context, _ *sdkmcp.CallToolRequest, in ReplanInput
 	case "remove_session":
 		if isCompleted {
 			return ErrorResult(tool, fmt.Errorf("cannot remove completed session %s", sessionID),
-				"Completed sessions cannot be removed. Use vivechak_amend_session if findings have evolved.")
+				"Completed sessions cannot be removed. Use vivechak_amend if findings have evolved.")
 		}
 		if err := dag.RemoveSession(sessionID); err != nil {
 			return ErrorResult(tool, err, "Check if other sessions depend on this session.")
@@ -240,7 +240,7 @@ func handleReplan(ctx context.Context, _ *sdkmcp.CallToolRequest, in ReplanInput
 	case "update_prompt":
 		if isCompleted {
 			return ErrorResult(tool, fmt.Errorf("cannot update prompt of completed session %s", sessionID),
-				"Session is already completed. Use vivechak_amend_session to add findings.")
+				"Session is already completed. Use vivechak_amend to add findings.")
 		}
 		newPrompt := in.NewPrompt
 		if newPrompt == "" {
@@ -315,7 +315,7 @@ func handleReplan(ctx context.Context, _ *sdkmcp.CallToolRequest, in ReplanInput
 		resData["impact"] = in.Impact
 	}
 
-	nextStep := "Pipeline updated. Run vivechak_next_session to get the next research prompt, or vivechak_visualize to inspect the DAG."
+	nextStep := "Pipeline updated. Run vivechak_next to get the next research prompt, or vivechak_status to inspect the DAG."
 	env := Envelope{
 		Success:  true,
 		Message:  fmt.Sprintf("Pipeline successfully updated: %s %s (total sessions: %d)", op, sessionID, len(dag.Sessions)),

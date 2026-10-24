@@ -3,7 +3,7 @@
 > **Last verified against code:** 2026-10-21 (v0.1.0)
 > Tool schemas and behaviors described here match `internal/mcp/server.go`. If you find discrepancies, please file an issue.
 
-The Model Context Protocol (MCP) server for [Vivechak](../README.md) exposes 13 specialized tools designed to run evidence-grounded research pipelines directly inside any MCP-compatible AI host, agent runtime, or IDE.
+The Model Context Protocol (MCP) server for [Vivechak](../README.md) exposes 9 consolidated tools (plus backward-compatible legacy aliases) designed to run evidence-grounded research pipelines directly inside any MCP-compatible AI host, agent runtime, or IDE. Complete machine-generated documentation for the 9 primary tools is available in [`docs/reference/tools.md`](reference/tools.md).
 
 Vivechak supports two execution models:
 1. **MCP Server Workflow**: Autonomous or semi-autonomous execution where the host agent calls MCP tools to prepare prompts, manage DAG session progression, validate outputs, record ADRs, and verify Phase 0 exit gates.
@@ -90,51 +90,46 @@ Vivechak operates across three distinct research scope levels defined in [`Scope
 
 ### 1. Project Scope (Full Research Pipeline &rarr; FAD)
 *Duration:* 4–30 sessions.  
-*Outcome:* Full `RESEARCH-PIPELINE.md`, individual session outputs, architectural decisions, and a final Founding Architecture Document (`FAD.md`).
-
-```mermaid
+*Outcome:* Full `RESEARCH-PIPELINE.md`, individual session outputs, architectural decisions, and a final Founding Architecture Document (`FAD.md`).```mermaid
 flowchart TD
-    S["vivechak_status"] --> I["vivechak_init (scope: 'project')"]
-    I --> P["vivechak_prepare_generator"]
-    P --> R1["Host Agent Runs Generator with Web Search"]
-    R1 --> SP["vivechak_save_plan"]
-    SP --> NS["vivechak_next_session"]
+    S["vivechak_status"] --> ST["vivechak_start (scope: 'project')"]
+    ST --> R1["Host Agent Runs Generator with Web Search"]
+    R1 --> SP["vivechak_save (kind: 'plan')"]
+    SP --> NS["vivechak_next"]
     NS --> R2["Host Agent Runs Session Prompt with Web Search"]
-    R2 --> SS["vivechak_save_session"]
+    R2 --> SS["vivechak_save (kind: 'session')"]
     SS --> RD["vivechak_record_decision"]
     RD --> Check{"More sessions in DAG?"}
     Check -- Yes --> NS
-    Check -- No (SYN-01) --> SYN["vivechak_next_session (SYN-01)"]
+    Check -- No (SYN-01) --> SYN["vivechak_next (SYN-01)"]
     SYN --> RSYN["Host Agent Synthesizes FAD"]
-    RSYN --> SSYN["vivechak_save_session (FAD)"]
-    SSYN --> RG["vivechak_run_gate"]
+    RSYN --> SSYN["vivechak_save (kind: 'fad')"]
+    SSYN --> RG["vivechak_gate"]
 ```
 
 **Step-by-step workflow:**
 1. Call `vivechak_status` to orient and verify workspace presence.
-2. Call `vivechak_init` with `scope: "project"` to scaffold `research/`, `research/sessions/`, and copy template files.
-3. Call `vivechak_prepare_generator` with `scope: "project"` and your comprehensive project description in `context`.
-4. Run the returned generator prompt in a research session with live web search enabled.
-5. Save the generated pipeline using `vivechak_save_plan`.
-6. Loop through sessions:
-   - Call `vivechak_next_session` to receive the next dependency-cleared research prompt with upstream context injected.
+2. Call `vivechak_start` with `scope: "project"` and your comprehensive project description in `question` to scaffold `research/` and generate the actionable DAG brief. *(Legacy alternative: `vivechak_init` followed by `vivechak_prepare_generator`).*
+3. Run the returned generator prompt in a research session with live web search enabled.
+4. Save the generated pipeline using `vivechak_save(kind: "plan", id: "DAG", content: ...)`.
+5. Loop through sessions:
+   - Call `vivechak_next` to receive the next dependency-cleared research prompt with upstream context injected.
    - Run the session prompt with web search enabled.
-   - Save the raw session report using `vivechak_save_session`.
-   - Record any Architectural Decision Records (ADRs) produced in that session using `vivechak_record_decision`.
-7. When all research tracks finish, call `vivechak_next_session` for `SYN-01` (Synthesis). All prior session outputs are automatically aggregated into the prompt.
-8. Persist the generated `research/FAD.md` using `vivechak_save_session` (or `vivechak_record_decision`).
-9. Call `vivechak_run_gate` to perform automated verification of the Phase 0 Exit Gate (Track A structural completeness and Track B mechanical quality).
+   - Save the raw session report using `vivechak_save(kind: "session", id: "<session_id>", content: ...)`.
+   - Record any Architectural Decision Records (ADRs) produced in that session using `vivechak_record_decision(decision_id: "D-NNN", auto_draft_from: "<session_id>", auto_save: true)`.
+6. When all research tracks finish, call `vivechak_next` for `SYN-01` (Synthesis). All prior session outputs are automatically aggregated into the prompt.
+7. Persist the generated `research/FAD.md` using `vivechak_save(kind: "fad", id: "SYN-01", content: ...)`.
+8. Call `vivechak_gate` (or CLI `vck gate`) to perform automated verification of the Phase 0 Exit Gate (Track A structural completeness and Track B mechanical quality).
 
 *Manual Alternative:* Copy [`GENERATOR-PROJECT.md`](../GENERATOR-PROJECT.md), replace the placeholder with your project vision, run it in an AI web session, and manually save outputs to `research/RESEARCH-PIPELINE.md`.
 
 #### Planning-Only (Deferred Execution Flow)
 When the user wants to decompose and plan the architecture pipeline without executing research immediately (e.g. *"create research pipeline for X, do not run research yet"*):
-1. `vivechak_init(scope="project")`
-2. `vivechak_prepare_generator(scope="project", context="<project vision>")`
-3. Host agent runs the generator prompt and synthesizes the session DAG and initial decisions.
-4. `vivechak_save_plan(content="<pipeline markdown>", scope="project")`
-5. `vivechak_visualize()` (Optional: render Mermaid dependency graph for visual verification)
-6. **STOP** — The agent reports the plan and pauses. It does **not** call `vivechak_next_session` until the user explicitly directs it to begin research.
+1. `vivechak_start(scope="project", question="<project vision>")`
+2. Host agent runs the generator prompt and synthesizes the session DAG and initial decisions.
+3. `vivechak_save(kind="plan", id="DAG", content="<pipeline markdown>")`
+4. `vivechak_status(format="mermaid")` (Optional: render Mermaid dependency graph for visual verification)
+5. **STOP** — The agent reports the plan and pauses. It does **not** call `vivechak_next` until the user explicitly directs it to begin research.
 
 ---
 
@@ -144,24 +139,22 @@ When the user wants to decompose and plan the architecture pipeline without exec
 
 ```mermaid
 flowchart TD
-    S["vivechak_status"] --> I["vivechak_init (scope: 'decision')"]
-    I --> P["vivechak_prepare_generator (scope: 'decision')"]
-    P --> R1["Host Agent Runs Generator"]
-    R1 --> SP["vivechak_save_plan (decision_id, slug)"]
-    SP --> NS["vivechak_next_session"]
+    S["vivechak_status"] --> ST["vivechak_start (scope: 'decision')"]
+    ST --> R1["Host Agent Runs Decision Brief"]
+    R1 --> SP["vivechak_save (kind: 'plan', id: 'D-NNN')"]
+    SP --> NS["vivechak_next"]
     NS --> R2["Host Agent Researches Decision"]
-    R2 --> SS["vivechak_save_session"]
-    SS --> RD["vivechak_record_decision (artifact_type: 'decision')"]
+    R2 --> SS["vivechak_save (kind: 'session')"]
+    SS --> RD["vivechak_record_decision"]
 ```
 
 **Step-by-step workflow:**
 1. Call `vivechak_status` to inspect workspace.
-2. Call `vivechak_init` with `scope: "decision"`.
-3. Call `vivechak_prepare_generator` with `scope: "decision"`, passing the architectural dilemma in `context`.
-4. Execute the prompt in a web research session.
-5. Call `vivechak_save_plan` with `scope: "decision"`, `decision_id: "D-015"`, `slug: "cache-layer"`, and the generated plan in `content`.
-6. Execute research sessions via `vivechak_next_session` and `vivechak_save_session`.
-7. Persist the resulting ADR via `vivechak_record_decision` with `artifact_type: "decision"` and `decision_id: "D-015"`.
+2. Call `vivechak_start` with `scope: "decision"` and `question: "<architectural dilemma>"`.
+3. Execute the brief in a web research session.
+4. Call `vivechak_save` with `kind: "plan"`, `id: "D-015"`, and the generated plan in `content`.
+5. Execute research sessions via `vivechak_next` and `vivechak_save(kind: "session", ...)`.
+6. Persist the resulting ADR via `vivechak_record_decision` with `decision_id: "D-015"` (or `auto_draft_from: "D-015-S1", auto_save: true`).
 
 *Manual Alternative:* Copy [`GENERATOR-DECISION.md`](../GENERATOR-DECISION.md) into an AI session, inject context, and manually write ADRs to `research/D-xxx-decision.md`.
 
@@ -173,19 +166,16 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    S["vivechak_status"] --> I["vivechak_init (scope: 'comparison')"]
-    I --> P["vivechak_prepare_generator (scope: 'comparison')"]
-    P --> R1["Host Agent Runs Comparison with Web Search"]
-    R1 --> VAL["vivechak_validate (artifact_type: 'session')"]
-    VAL --> SS["vivechak_save_session"]
+    S["vivechak_status"] --> ST["vivechak_start (scope: 'comparison')"]
+    ST --> R1["Host Agent Runs Comparison with Web Search"]
+    R1 --> SC["vivechak_save (kind: 'comparison')"]
 ```
 
 **Step-by-step workflow:**
-1. Call `vivechak_init` with `scope: "comparison"`.
-2. Call `vivechak_prepare_generator` with `scope: "comparison"`, specifying the competing options and evaluation criteria in `context`.
-3. Run the returned comparison prompt with web search.
-4. (Optional) Run `vivechak_validate` to verify frontmatter and evidence grades.
-5. Call `vivechak_save_session` or `vivechak_save_plan` with `scope: "comparison"` to persist the comparison document.
+1. Call `vivechak_start` with `scope: "comparison"` and `question: "<comparison question>"` (or specify `options` and `criteria`).
+2. Run the returned comparison brief with live web search.
+3. Call `vivechak_save` with `kind: "comparison"`, `id: "C-01"`, and the WEP matrix content to persist `research/comparisons/C-01.md`.
+4. Done! 0 DAG overhead, 0 gate overhead.
 
 *Manual Alternative:* Copy [`GENERATOR-COMPARISON.md`](../GENERATOR-COMPARISON.md), specify options, and paste output directly into `research/COMPARISON.md`.
 

@@ -154,12 +154,12 @@ func handleAmend(ctx context.Context, req *sdkmcp.CallToolRequest, in AmendInput
 	if by != "" && by != "Post-hoc Review" {
 		amendSource = fmt.Sprintf(" (appended by %s)", by)
 	}
-	sb.WriteString(fmt.Sprintf("\n\n---\n\n## Post-Hoc Amendment%s\n\n", amendSource))
+	fmt.Fprintf(&sb, "\n\n---\n\n## Post-Hoc Amendment%s\n\n", amendSource)
 	if in.Reason != "" {
-		sb.WriteString(fmt.Sprintf("**Reason:** %s\n\n", in.Reason))
+		fmt.Fprintf(&sb, "**Reason:** %s\n\n", in.Reason)
 	}
 	sb.WriteString(strings.TrimSpace(amendmentContent))
-	sb.WriteString(fmt.Sprintf("\n\n*Added: %s*\n", now))
+	fmt.Fprintf(&sb, "\n\n*Added: %s*\n", now)
 
 	updatedContent := []byte(sb.String())
 

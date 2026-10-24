@@ -338,22 +338,3 @@ func CollectGateDecisions(ws WorkspaceFS) []GateDecisionItem {
 
 	return decisions
 }
-
-// hasDecisionTableRow checks if markdown content contains a table row recording a decision ID.
-func hasDecisionTableRow(content string) bool {
-	lines := strings.Split(content, "\n")
-	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if strings.HasPrefix(trimmed, "|") {
-			parts := strings.Split(trimmed, "|")
-			if len(parts) >= 3 {
-				col1 := strings.TrimSpace(parts[1])
-				upper := strings.ToUpper(col1)
-				if strings.HasPrefix(upper, "D-") || strings.HasPrefix(upper, "[D-") {
-					return true
-				}
-			}
-		}
-	}
-	return false
-}

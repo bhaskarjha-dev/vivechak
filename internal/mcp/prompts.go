@@ -181,7 +181,7 @@ func handlePromptCompare(_ context.Context, req *sdkmcp.GetPromptRequest) (*sdkm
 	// Append anti-spill persistence directive
 	promptText += "\n\n---\n**CRITICAL PERSISTENCE DIRECTIVE FOR AI AGENT:**\n" +
 		"Execute web research to evaluate these options with inline evidence grades (A–E) and produce the Weighted Evaluation Protocol (WEP) matrix.\n" +
-		"Once your research is complete, invoke the MCP tool `vivechak_save_plan` with `scope=\"comparison\"` and `content` set to your complete WEP markdown document to persist it to disk at `research/C-NNN-comparison.md`."
+		"Once your research is complete, invoke the MCP tool `vivechak_save` (or `vivechak_save_plan`) with `kind=\"comparison\"` and `content` set to your complete WEP markdown document to persist it to disk at `research/C-NNN-comparison.md`."
 
 	return &sdkmcp.GetPromptResult{
 		Description: fmt.Sprintf("Evidence-calibrated comparison brief for: %s", options),
@@ -223,7 +223,7 @@ func handlePromptDecision(_ context.Context, req *sdkmcp.GetPromptRequest) (*sdk
 	promptText = strings.Replace(promptText, "DATE: [today]", "DATE: "+today, 1)
 
 	promptText += "\n\n---\n**CRITICAL PERSISTENCE DIRECTIVE FOR AI AGENT:**\n" +
-		"Output the decision research plan and proposed ADR. Once drafted, call the MCP tool `vivechak_save_plan` with `scope=\"decision\"` and `content` set to your output to save the plan, or invoke `vivechak_record_decision` to lock the final ADR."
+		"Output the decision research plan and proposed ADR. Once drafted, call the MCP tool `vivechak_save` (or `vivechak_save_plan`) with `kind=\"plan\"` and `content` set to your output to save the plan, or invoke `vivechak_record_decision` to lock the final ADR."
 
 	return &sdkmcp.GetPromptResult{
 		Description: fmt.Sprintf("Architectural decision research plan for: %s", dilemma),
@@ -282,7 +282,7 @@ func handlePromptProject(_ context.Context, req *sdkmcp.GetPromptRequest) (*sdkm
 
 	genPrompt += "\n\n---\n**CRITICAL PERSISTENCE DIRECTIVE FOR AI AGENT:**\n" +
 		"Decompose this project architecture into a structured research pipeline DAG.\n" +
-		"Once synthesized, call the MCP tool `vivechak_save_plan` with `scope=\"project\"` and `pipeline_content` set to your complete RESEARCH-PIPELINE.md document to persist it into `research/`."
+		"Once synthesized, call the MCP tool `vivechak_save` (or `vivechak_save_plan`) with `kind=\"plan\"` and `content` (or `pipeline_content`) set to your complete RESEARCH-PIPELINE.md document to persist it into `research/`."
 
 	return &sdkmcp.GetPromptResult{
 		Description: "Greenfield system architecture decomposition brief",
@@ -311,7 +311,7 @@ func handlePromptGate(_ context.Context, req *sdkmcp.GetPromptRequest) (*sdkmcp.
 		"# Phase 0 Pre-Codebase Exit Gate Audit\n\n"+
 			"Please audit the current research workspace against the Vivechak Phase 0 Gate criteria before writing any codebase implementation.\n\n"+
 			"**Instructions for AI Agent:**\n"+
-			"1. Invoke the MCP tool `vivechak_run_gate` with `track=%q`", track)
+			"1. Invoke the MCP tool `vivechak_gate` (or `vivechak_run_gate`) with `track=%q`", track)
 
 	if projectRoot != "" {
 		promptText += fmt.Sprintf(" and `project_root=%q`", projectRoot)

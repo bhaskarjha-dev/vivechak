@@ -13,13 +13,13 @@ import (
 
 func TestBuildNextStep_Synthesis_ExitGate(t *testing.T) {
 	nextStep := buildNextStep("SYN-01", 0, nil, nil)
-	if !strings.Contains(nextStep, "vivechak_run_gate") {
-		t.Errorf("expected synthesis nextStep to mandate vivechak_run_gate, got: %s", nextStep)
+	if !strings.Contains(nextStep, "vivechak_gate") {
+		t.Errorf("expected synthesis nextStep to mandate vivechak_gate, got: %s", nextStep)
 	}
 
 	nextStepFAD := buildNextStep("FAD", 0, nil, nil)
-	if !strings.Contains(nextStepFAD, "vivechak_run_gate") {
-		t.Errorf("expected FAD nextStep to mandate vivechak_run_gate, got: %s", nextStepFAD)
+	if !strings.Contains(nextStepFAD, "vivechak_gate") {
+		t.Errorf("expected FAD nextStep to mandate vivechak_gate, got: %s", nextStepFAD)
 	}
 }
 

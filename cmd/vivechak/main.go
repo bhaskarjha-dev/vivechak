@@ -122,7 +122,7 @@ func runCLIWithContext(ctx context.Context, args []string, stdout, stderr io.Wri
 		if len(args) > 2 {
 			subArgs = args[2:]
 		}
-		if err := runSignoff(subArgs); err != nil {
+		if err := runSignoff(subArgs, stdout, stderr); err != nil {
 			fmt.Fprintf(stderr, "Error: %v\n", err)
 			return 1
 		}

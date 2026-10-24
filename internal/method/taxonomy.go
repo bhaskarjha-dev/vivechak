@@ -82,8 +82,8 @@ func FormatTaxonomyMarkdown() string {
 		if len(g.GateSatisfies) > 0 {
 			gate = strings.Join(g.GateSatisfies, ", ")
 		}
-		b.WriteString(fmt.Sprintf("| **Grade %s** | %s | %s | `%s` | %s |\n",
-			g.Grade, g.Label, g.Description, prov, gate))
+		fmt.Fprintf(&b, "| **Grade %s** | %s | %s | `%s` | %s |\n",
+			g.Grade, g.Label, g.Description, prov, gate)
 	}
 	b.WriteString("\n*Rule*: Parametric memory recall is capped at **Grade D**. Grade A requires canonical URL or specification anchor.\n")
 	return b.String()

@@ -110,7 +110,7 @@ For each critical decision the project requires:
    | **Reversible (two-way)** | SKIP — decide by convention | FAST SPIKE — 1 session |
    | **Irreversible (one-way)** | CONFIRM & COMMIT — 1 session + ADR | DEEP RESEARCH — 2–5 sessions + ADR + premortem |
 
-   One-Way Door decisions MUST undergo adversarial red-teaming via `vivechak_challenge(mode='red_team')` before the ADR is locked.
+   One-Way Door decisions MUST undergo adversarial red-teaming via `vivechak_review(mode='challenge')` before the ADR is locked.
 
 3. Organize sessions as a DAG (Directed Acyclic Graph):
    - Layer 0: Landscape & Discovery (fully parallel, no dependencies)
@@ -300,7 +300,7 @@ these placeholders (the MCP server replaces them with extracted findings):
 - `[KNOWN_CONTEXT]` — replaced with the same upstream context (alternative slot)
 
 For the synthesis session (SYN-01), use `[ALL_SESSION_FINDINGS]` to receive all
-completed session findings. Note that saving with `vivechak_save_session` (session_id='SYN-01') automatically writes the output to `research/FAD.md` as the canonical Founding Architecture Document. Do NOT manually create additional copies. The template `FOUNDING-ARCHITECTURE.template.md` defines the structure — the canonical internal file is always `research/FAD.md`.
+completed session findings. Note that saving with `vivechak_save` (kind='fad' or id='SYN-01') automatically writes the output to `research/FAD.md` as the canonical Founding Architecture Document. Do NOT manually create additional copies. The template `FOUNDING-ARCHITECTURE.template.md` defines the structure — the canonical internal file is always `research/FAD.md`.
 
 Example in a session prompt's KNOWN block:
 ```
@@ -348,8 +348,8 @@ Requirements:
 - Sessions must be ordered by layer (Layer 0 -> Layer 1 -> Layer 2 -> Sink)
 - The Pipeline Overview section must include a "How to Execute" guide:
   - **With Vivechak MCP Server (Recommended):** Orchestrate sessions sequentially
-    or concurrently using `vivechak_next_session`, `vivechak_save_session`, `vivechak_challenge(session_id, mode='red_team')` (required for One-Way Doors), `vivechak_record_decision`,
-    and `vivechak_run_gate`. The server automatically injects context and validates schemas;
+    or concurrently using `vivechak_next`, `vivechak_save`, `vivechak_review(session_id, mode='challenge')` (required for One-Way Doors), `vivechak_record_decision`,
+    and `vivechak_gate`. The server automatically injects context and validates schemas;
     agents should NOT manually read template files from disk.
   - **Manual Execution (Without MCP):** Reference the contract templates in `templates/`
     (DECISIONS.template.md, CONFLICT-RESOLUTION.template.md, COMPARISON-SESSION.template.md,
@@ -476,19 +476,19 @@ See the generated RESEARCH-PIPELINE.md for the complete execution guide, or foll
 When using an MCP-enabled agent, orchestrate via Vivechak tools for maximum token efficiency and schema enforcement without disk template reading:
 
 **Execute a research session:**
-> *Run `vivechak_next_session` to get the next prioritized research brief. Execute the deep research with web search, grade all evidence, and save using `vivechak_save_session`. Do not read template files from disk — Vivechak automatically validates schemas and injects format requirements.*
+> *Run `vivechak_next` to get the next prioritized research brief. Execute the deep research with web search, grade all evidence, and save using `vivechak_save(kind='session', id='...')`. Do not read template files from disk — Vivechak automatically validates schemas and injects format requirements.*
 
 **Challenge findings (required for One-Way Doors):**
-> *Run `vivechak_challenge(session_id="...", mode="red_team")` to adversarially stress-test findings before locking the decision. One-Way Door decisions MUST undergo adversarial red-teaming via `vivechak_challenge(mode='red_team')` before the ADR is locked.*
+> *Run `vivechak_review(session_id="...", mode="challenge")` to adversarially stress-test findings before locking the decision. One-Way Door decisions MUST undergo adversarial red-teaming via `vivechak_review(mode='challenge')` before the ADR is locked.*
 
 **Record a decision:**
 > *Formulate the decision from session findings and record it using `vivechak_record_decision`. The server validates required fields and compiles `research/DECISIONS.md` automatically.*
 
 **Compile the FAD:**
-> *Synthesize all finalized sessions into `SYN-01` and save using `vivechak_save_session(session_id='SYN-01')`. The tool automatically saves `research/FAD.md` as the canonical Founding Architecture Document.*
+> *Synthesize all finalized sessions into `SYN-01` and save using `vivechak_save(kind='fad', id='SYN-01')`. The tool automatically saves `research/FAD.md` as the canonical Founding Architecture Document.*
 
 **Run the gate:**
-> *Execute `vivechak_run_gate`. The server mechanically evaluates Track A and Track B exit criteria, conducts the One-Way Door premortem checks, and generates `research/PHASE-0-GATE.md`.*
+> *Execute `vivechak_gate`. The server mechanically evaluates Track A and Track B exit criteria, conducts the One-Way Door premortem checks, and generates `research/PHASE-0-GATE.md`.*
 
 ### Manual Execution (Without MCP)
 

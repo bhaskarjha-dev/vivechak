@@ -1493,4 +1493,40 @@ Investigate architecture.
 	}
 }
 
+func TestDAG_ParsePipeline_MachineBlockAllPriorExpansion(t *testing.T) {
+	plan := "```yaml vivechak-plan\n" +
+		"schema_version: \"0.1.0\"\n" +
+		"sessions:\n" +
+		"  - id: T0-01\n" +
+		"    title: Core Framework\n" +
+		"    layer: 0\n" +
+		"    door: two-way\n" +
+		"    depends: []\n" +
+		"  - id: T1-01\n" +
+		"    title: Datastore Selection\n" +
+		"    layer: 1\n" +
+		"    door: one-way\n" +
+		"    depends: [\"T0-01\"]\n" +
+		"  - id: SYN-01\n" +
+		"    title: Architecture Synthesis\n" +
+		"    layer: 2\n" +
+		"    door: one-way\n" +
+		"    depends: [\"all prior\"]\n" +
+		"```\n\n# Research Pipeline\n"
+	dag, err := ParsePipeline([]byte(plan))
+	if err != nil {
+		t.Fatalf("ParsePipeline failed: %v", err)
+	}
+	syn := dag.SessionByID("SYN-01")
+	if syn == nil {
+		t.Fatalf("SYN-01 not found")
+	}
+	if len(syn.Dependencies) != 2 {
+		t.Fatalf("expected 2 expanded dependencies for SYN-01, got %v", syn.Dependencies)
+	}
+	if syn.Dependencies[0] != "T0-01" || syn.Dependencies[1] != "T1-01" {
+		t.Fatalf("expected [T0-01, T1-01], got %v", syn.Dependencies)
+	}
+}
+
 

@@ -463,7 +463,7 @@ func EvaluateGate(ws WorkspaceFS, info WorkspaceInfo, root string) *GateResult {
 		case "WARN":
 			nextStep = "Gate quality checks incomplete. Resolve the listed quality warnings before proceeding to code scaffolding."
 		case "FAIL":
-			nextStep = "Gate FAILED. All blocking issues must be resolved before proceeding to code. Fix the listed issues and re-run vivechak_run_gate."
+			nextStep = "Gate FAILED. All blocking issues must be resolved before proceeding to code. Fix the listed issues and re-run vivechak_gate."
 		}
 	}
 
@@ -951,7 +951,7 @@ func verifyEvidentiaryIntegrity(ws WorkspaceFS, info WorkspaceInfo) ([]string, [
 			if lowGrades > 0 {
 				blocking = append(blocking, fmt.Sprintf(
 					"B3-EVIDENTIARY: Session %s informs one-way door %s but recommendation has %d Grade C/D/E citation(s). "+
-						"One-way decisions require Grade A/B evidence. (help: re-verify with web search and update via vivechak_amend_session(session_id=%q))",
+						"One-way decisions require Grade A/B evidence. (help: re-verify with web search and update via vivechak_amend(session_id=%q))",
 					sid, d.ID, lowGrades, sid))
 			}
 
@@ -960,7 +960,7 @@ func verifyEvidentiaryIntegrity(ws WorkspaceFS, info WorkspaceInfo) ([]string, [
 			if recalledCount > 0 {
 				blocking = append(blocking, fmt.Sprintf(
 					"B4-VERIFICATION: Session %s informs one-way door %s but recommendation has %d 'recalled' citation(s). "+
-						"One-way decisions require fetched/cached verification. (help: fetch primary evidence and update via vivechak_amend_session(session_id=%q))",
+						"One-way decisions require fetched/cached verification. (help: fetch primary evidence and update via vivechak_amend(session_id=%q))",
 					sid, d.ID, recalledCount, sid))
 			}
 		}

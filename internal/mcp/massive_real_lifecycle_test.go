@@ -905,8 +905,8 @@ Katha ingests streaming audio via WebRTC [Grade A, RFC 7845], dispatches transcr
 	if !saveFadEnv.Success {
 		t.Fatalf("save_session FAD error: %s", saveFadEnv.Message)
 	}
-	if !strings.Contains(saveFadEnv.NextStep, "vivechak_run_gate") {
-		t.Errorf("expected next_step to suggest vivechak_run_gate, got: %s", saveFadEnv.NextStep)
+	if !strings.Contains(saveFadEnv.NextStep, "vivechak_gate") && !strings.Contains(saveFadEnv.NextStep, "vivechak_run_gate") {
+		t.Errorf("expected next_step to suggest vivechak_gate, got: %s", saveFadEnv.NextStep)
 	}
 
 	// 11. Run Phase 0 Gate

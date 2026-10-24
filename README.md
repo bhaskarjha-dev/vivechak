@@ -99,8 +99,8 @@ Every factual claim in Vivechak requires an inline evidentiary grade:
 - **Grade A (`E-A`):** Canonical documentation, empirical measurement, RFC, vendor-neutral spec with URL.
 - **Grade B (`E-B`):** Third-party production postmortem, peer-reviewed paper, public issue tracker.
 - **Grade C (`E-C`):** Community benchmark, vendor comparison, tutorial, blog post.
-- **Grade D (`E-D`):** Unverified forum claim, ecosystem reputation, personal anecdote.
-- **Grade E (`E-E`):** Model training recall (recalled without live verification).
+- **Grade D (`E-D`):** Unverified forum claim, ecosystem reputation, blog post, or model memory recall (capped at Grade D per Principle P3).
+- **Grade E (`E-E`):** Speculative hypothesis, uncorroborated assertion, or unsubstantiated claim.
 
 *(See [Methodology Specification](FRAMEWORK.md) and [Sample Decision Walkthrough](examples/SAMPLE-DECISION.md) for illustrative examples with graded evidence).*
 
