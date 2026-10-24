@@ -75,6 +75,12 @@ func handleRecordDecision(ctx context.Context, _ *sdkmcp.CallToolRequest, in Rec
 			"Use a valid session ID like 'T1-01'.")
 	}
 
+	if in.Slug != "" {
+		if err := store.ValidateSlug(in.Slug); err != nil {
+			return ErrorResult(tool, fmt.Errorf("E-INVALID-ARGUMENT: %w", err), "Provide a URL-safe alphanumeric slug without path traversal or reserved names.")
+		}
+	}
+
 	// Auto-draft mode: generate draft from session if auto_draft_from is set and content is empty
 	if strings.TrimSpace(in.Content) == "" && strings.TrimSpace(in.AutoDraftFrom) != "" {
 		ws, err := store.OpenWorkspace(root)

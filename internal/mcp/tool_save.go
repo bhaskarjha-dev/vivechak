@@ -80,6 +80,12 @@ func handleSave(ctx context.Context, req *sdkmcp.CallToolRequest, in SaveInput) 
 		return ErrorResult(tool, err, "Reduce content size to under 10 MB.")
 	}
 
+	if in.Slug != "" {
+		if err := store.ValidateSlug(in.Slug); err != nil {
+			return ErrorResult(tool, fmt.Errorf("E-INVALID-ARGUMENT: %w", err), "Provide a URL-safe alphanumeric slug without path traversal or reserved names.")
+		}
+	}
+
 	if !core.WorkspaceExists(root) {
 		_ = os.MkdirAll(root, 0o755)
 		_ = os.MkdirAll(filepath.Join(root, core.ResearchDir), 0o755)

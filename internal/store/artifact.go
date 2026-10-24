@@ -96,8 +96,8 @@ func ArchiveRevision(ws *Workspace, relPath string, existing []byte) error {
 // and optional revision archiving.
 func (w *Workspace) WriteArtifact(relPath string, data []byte, perm os.FileMode, revise bool) error {
 	// 1. Path confinement check
-	if !filepath.IsLocal(relPath) || filepath.IsAbs(relPath) {
-		return fmt.Errorf("E-CONFINEMENT: path escapes workspace: %s", relPath)
+	if err := ValidateSafePath(relPath); err != nil {
+		return err
 	}
 	cleanSlash := filepath.ToSlash(filepath.Clean(relPath))
 	if cleanSlash != "research" && !strings.HasPrefix(cleanSlash, "research/") && cleanSlash != ".gitignore" {
