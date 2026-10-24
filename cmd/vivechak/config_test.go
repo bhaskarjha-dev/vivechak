@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/tailscale/hujson"
 )
 
 func TestResolveConfigPath(t *testing.T) {
@@ -409,9 +411,16 @@ func TestMergeConfig(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to merge JSONC config: %v", err)
 		}
+		if !strings.Contains(string(out), "// VS Code / Zed style settings comment") {
+			t.Errorf("line comment was not preserved in JSONC output: %s", string(out))
+		}
+		std, err := hujson.Standardize(bytes.Clone(out))
+		if err != nil {
+			t.Fatalf("standardizing merged JSONC failed: %v", err)
+		}
 		var parsed map[string]any
-		if err := json.Unmarshal(out, &parsed); err != nil {
-			t.Fatalf("merged output is not valid JSON: %v", err)
+		if err := json.Unmarshal(std, &parsed); err != nil {
+			t.Fatalf("standardized output is not valid JSON: %v", err)
 		}
 		servers := parsed["context_servers"].(map[string]any)
 		if servers["custom"] == nil {
@@ -423,40 +432,69 @@ func TestMergeConfig(t *testing.T) {
 	})
 }
 
-func TestStripJSONComments(t *testing.T) {
+func TestMergeConfigPreservesComments(t *testing.T) {
 	raw := `{
-		// Line comment
+		// Line comment before servers
 		"url": "https://example.com/test//not-a-comment",
-		"comment_in_str": "/* also not comment */",
-		"escaped_quote": "test \"with\" quotes",
 		/* Multi
 		   line
 		   comment */
-		"items": [
-			1,
-			2, // trailing comment
-		],
-		"enabled": true,
+		"mcpServers": {
+			// server comment
+			"existing": {
+				"command": "node",
+				"args": ["server.js",], // trailing comma
+			},
+		},
 	}`
 
-	cleaned := stripJSONComments([]byte(raw))
-	var val map[string]any
-	if err := json.Unmarshal(cleaned, &val); err != nil {
-		t.Fatalf("unmarshal cleaned json failed: %v\nCleaned content:\n%s", err, string(cleaned))
+	merged, err := mergeConfig([]byte(raw), "/path/to/vivechak")
+	if err != nil {
+		t.Fatalf("mergeConfig failed: %v", err)
 	}
 
-	if val["url"] != "https://example.com/test//not-a-comment" {
-		t.Errorf("string with // was corrupted: %v", val["url"])
+	mergedStr := string(merged)
+	if !strings.Contains(mergedStr, "// Line comment before servers") {
+		t.Errorf("line comment lost: %s", mergedStr)
 	}
-	if val["comment_in_str"] != "/* also not comment */" {
-		t.Errorf("string with /* was corrupted: %v", val["comment_in_str"])
+	if !strings.Contains(mergedStr, "Multi") {
+		t.Errorf("multi-line comment lost: %s", mergedStr)
 	}
-	items := val["items"].([]any)
-	if len(items) != 2 {
-		t.Errorf("expected 2 items, got %d", len(items))
+	if !strings.Contains(mergedStr, "// server comment") {
+		t.Errorf("inner server comment lost: %s", mergedStr)
 	}
-	if val["enabled"] != true {
-		t.Errorf("expected enabled true, got %v", val["enabled"])
+	if !strings.Contains(mergedStr, "vivechak") {
+		t.Errorf("vivechak entry missing: %s", mergedStr)
+	}
+}
+
+func TestResolveLauncher(t *testing.T) {
+	tests := []struct {
+		input       string
+		expectedCmd string
+		isNPX       bool
+	}{
+		{"/usr/local/bin/vivechak", "/usr/local/bin/vivechak", false},
+		{"C:\\Users\\User\\AppData\\Local\\npm-cache\\_npx\\12345\\node_modules\\.bin\\vivechak.exe", "npx", true},
+		{"/home/user/.npm/_npx/abc/bin/vivechak", "npx", true},
+		{"/home/user/project/node_modules/.cache/bin/vivechak", "npx", true},
+		{"/opt/homebrew/Cellar/vivechak/0.1.0/tmp/build/vck", "npx", true},
+	}
+
+	for _, tt := range tests {
+		cmd, args := resolveLauncher(tt.input)
+		if cmd != tt.expectedCmd {
+			t.Errorf("resolveLauncher(%q) cmd = %s, want %s", tt.input, cmd, tt.expectedCmd)
+		}
+		if tt.isNPX {
+			if len(args) != 3 || args[0] != "-y" || args[1] != "vivechak" || args[2] != "serve" {
+				t.Errorf("resolveLauncher(%q) args = %v, want [-y vivechak serve]", tt.input, args)
+			}
+		} else {
+			if len(args) != 1 || args[0] != "serve" {
+				t.Errorf("resolveLauncher(%q) args = %v, want [serve]", tt.input, args)
+			}
+		}
 	}
 }
 
@@ -488,6 +526,16 @@ func TestWriteConfigFile(t *testing.T) {
 	}
 	if !bytes.Equal(readBack2, newContent) {
 		t.Errorf("got %q, want %q", readBack2, newContent)
+	}
+
+	// Verify backup file was created with previous content
+	bakPath := targetPath + ".bak"
+	bakContent, err := os.ReadFile(bakPath)
+	if err != nil {
+		t.Fatalf("backup file not created: %v", err)
+	}
+	if !bytes.Equal(bakContent, content) {
+		t.Errorf("backup got %q, want %q", bakContent, content)
 	}
 }
 
@@ -616,18 +664,33 @@ func TestRunSetupWithArgs_JSONC_PreservesUserConfig(t *testing.T) {
 		t.Fatalf("setup failed with code %d (stderr: %s)", code, stderr.String())
 	}
 
-	// Verify no backup was created since config was valid JSONC
-	if _, err := os.Stat(tempFile + ".bak"); !os.IsNotExist(err) {
-		t.Errorf("unexpected backup file created for valid JSONC: %s.bak", tempFile)
+	// Verify backup was created with original content
+	bakContent, err := os.ReadFile(tempFile + ".bak")
+	if err != nil {
+		t.Fatalf("expected backup file to be created: %v", err)
+	}
+	if !bytes.Equal(bakContent, []byte(initialJSONC)) {
+		t.Errorf("backup content mismatch: got %q, want %q", bakContent, initialJSONC)
 	}
 
 	data, err := os.ReadFile(tempFile)
 	if err != nil {
 		t.Fatalf("reading merged file: %v", err)
 	}
+	if !strings.Contains(string(data), "// User editor preferences") {
+		t.Errorf("user comments were lost in merged JSONC: %s", string(data))
+	}
+	if !strings.Contains(string(data), "// Existing custom tool") {
+		t.Errorf("inner comments were lost in merged JSONC: %s", string(data))
+	}
+
+	std, err := hujson.Standardize(data)
+	if err != nil {
+		t.Fatalf("standardizing merged JSONC failed: %v", err)
+	}
 	var parsed map[string]any
-	if err := json.Unmarshal(data, &parsed); err != nil {
-		t.Fatalf("merged file is not valid JSON: %v", err)
+	if err := json.Unmarshal(std, &parsed); err != nil {
+		t.Fatalf("standardized file is not valid JSON: %v", err)
 	}
 
 	if parsed["theme"] != "Nord" {

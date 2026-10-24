@@ -10,6 +10,8 @@ import (
 	"runtime"
 	"strings"
 	"time"
+
+	"github.com/tailscale/hujson"
 )
 
 const desktopShortcutsList = "cursor, vscode, claude-desktop (or claude), claude-code, mcp (or portable), opencode, copilot, void, continue, goose, windsurf, antigravity (or agy), zed, kiro, trae, omp, openhands, droid, cline, roo, devin"
@@ -124,10 +126,11 @@ func runMCPConfigWithArgs(args []string, stdout, stderr io.Writer) int {
 			// If existing file is valid JSON/JSONC, check its existing key
 			if len(bytes.TrimSpace(b)) > 0 {
 				var existing map[string]any
-				cleaned := stripJSONComments(b)
-				dec := json.NewDecoder(bytes.NewReader(cleaned))
-				if dec.Decode(&existing) == nil {
-					targetKey = determineServerKey(host, configPath, existing)
+				if std, err := hujson.Standardize(bytes.Clone(b)); err == nil {
+					dec := json.NewDecoder(bytes.NewReader(std))
+					if dec.Decode(&existing) == nil {
+						targetKey = determineServerKey(host, configPath, existing)
+					}
 				}
 			}
 
@@ -219,28 +222,42 @@ func determineServerKey(host, configPath string, existing map[string]any) string
 	return "mcpServers"
 }
 
+// resolveLauncher detects ephemeral execution wrappers (such as npx cache paths
+// or Homebrew Cellar temporary locations) and falls back to running via npx.
+func resolveLauncher(exePath string) (cmd string, args []string) {
+	clean := strings.ToLower(filepath.ToSlash(exePath))
+	if strings.Contains(clean, "_npx") ||
+		strings.Contains(clean, "node_modules/.cache") ||
+		(strings.Contains(clean, "cellar") && strings.Contains(clean, "tmp")) {
+		return "npx", []string{"-y", "vivechak", "serve"}
+	}
+	return exePath, []string{"serve"}
+}
+
 // buildServerConfig returns the appropriate configuration object for the given server key and optional host.
 func buildServerConfig(serverKey, exePath string, host ...string) map[string]any {
+	cmd, args := resolveLauncher(exePath)
 	switch serverKey {
 	case "mcp":
+		fullCmd := append([]string{cmd}, args...)
 		return map[string]any{
 			"type":    "local",
-			"command": []string{exePath, "serve"},
+			"command": fullCmd,
 			"enabled": true,
 		}
 	case "extensions":
 		return map[string]any{
 			"name":    "vivechak",
 			"type":    "stdio",
-			"cmd":     exePath,
-			"args":    []string{"serve"},
+			"cmd":     cmd,
+			"args":    args,
 			"enabled": true,
 			"timeout": 300,
 		}
 	default:
 		cfg := map[string]any{
-			"command": exePath,
-			"args":    []string{"serve"},
+			"command": cmd,
+			"args":    args,
 		}
 		var h string
 		if len(host) > 0 {
@@ -259,8 +276,13 @@ func buildServerConfig(serverKey, exePath string, host ...string) map[string]any
 
 // mergeGooseYAML merges the vivechak extension into a Goose YAML configuration file.
 func mergeGooseYAML(existingBytes []byte, exePath string) []byte {
+	cmd, args := resolveLauncher(exePath)
+	var argsYAML strings.Builder
+	for _, a := range args {
+		argsYAML.WriteString(fmt.Sprintf("      - %s\n", a))
+	}
 	cleanExisting := strings.TrimSpace(string(existingBytes))
-	vivechakBlock := fmt.Sprintf("  vivechak:\n    name: vivechak\n    type: stdio\n    cmd: %q\n    args:\n      - serve\n    enabled: true\n    timeout: 300", exePath)
+	vivechakBlock := fmt.Sprintf("  vivechak:\n    name: vivechak\n    type: stdio\n    cmd: %q\n    args:\n%s    enabled: true\n    timeout: 300", cmd, argsYAML.String())
 
 	if cleanExisting == "" {
 		return []byte(fmt.Sprintf("extensions:\n%s\n", vivechakBlock))
@@ -330,165 +352,114 @@ func mergeGooseYAML(existingBytes []byte, exePath string) []byte {
 	return []byte(strings.Join(newLines, "\n") + "\n")
 }
 
-// stripJSONComments removes C-style single-line (//) and multi-line (/* */) comments
-// as well as trailing commas before closing braces/brackets, making JSONC valid standard JSON.
-// It preserves whitespace and newlines so character offsets and line structure are retained.
-func stripJSONComments(data []byte) []byte {
-	out := make([]byte, len(data))
-	copy(out, data)
-
-	inString := false
-	escaped := false
-	n := len(out)
-
-	for i := 0; i < n; i++ {
-		c := out[i]
-
-		if inString {
-			if escaped {
-				escaped = false
-			} else if c == '\\' {
-				escaped = true
-			} else if c == '"' {
-				inString = false
-			}
-			continue
-		}
-
-		if c == '"' {
-			inString = true
-			continue
-		}
-
-		// Line comment //
-		if c == '/' && i+1 < n && out[i+1] == '/' {
-			out[i] = ' '
-			out[i+1] = ' '
-			i += 2
-			for i < n && out[i] != '\n' && out[i] != '\r' {
-				out[i] = ' '
-				i++
-			}
-			i--
-			continue
-		}
-
-		// Block comment /* ... */
-		if c == '/' && i+1 < n && out[i+1] == '*' {
-			out[i] = ' '
-			out[i+1] = ' '
-			i += 2
-			for i < n {
-				if out[i] == '*' && i+1 < n && out[i+1] == '/' {
-					out[i] = ' '
-					out[i+1] = ' '
-					i++
-					break
-				}
-				if out[i] != '\n' && out[i] != '\r' {
-					out[i] = ' '
-				}
-				i++
-			}
-			continue
-		}
-	}
-
-	// Pass 2: Trailing commas before } or ]
-	inString = false
-	escaped = false
-	for i := 0; i < n; i++ {
-		c := out[i]
-
-		if inString {
-			if escaped {
-				escaped = false
-			} else if c == '\\' {
-				escaped = true
-			} else if c == '"' {
-				inString = false
-			}
-			continue
-		}
-
-		if c == '"' {
-			inString = true
-			continue
-		}
-
-		if c == ',' {
-			j := i + 1
-			for j < n && (out[j] == ' ' || out[j] == '\t' || out[j] == '\n' || out[j] == '\r') {
-				j++
-			}
-			if j < n && (out[j] == '}' || out[j] == ']') {
-				out[i] = ' '
-			}
-		}
-	}
-
-	return out
-}
-
-// mergeConfig merges the vivechak MCP server entry into existing config JSON,
-// preserving number fidelity with json.Number.
+// mergeConfig merges the vivechak MCP server entry into existing config JSON/JSONC,
+// preserving comments and formatting using hujson.
 func mergeConfig(existingBytes []byte, exePath string, preferredKey ...string) ([]byte, error) {
-	var existing map[string]any
+	var v hujson.Value
+	var err error
+
 	if len(bytes.TrimSpace(existingBytes)) > 0 {
-		cleaned := stripJSONComments(existingBytes)
-		dec := json.NewDecoder(bytes.NewReader(cleaned))
-		dec.UseNumber()
-		if err := dec.Decode(&existing); err != nil {
+		v, err = hujson.Parse(existingBytes)
+		if err != nil {
 			return nil, fmt.Errorf("existing config is not valid JSON: %w", err)
 		}
+	} else {
+		v, err = hujson.Parse([]byte("{\n}\n"))
+		if err != nil {
+			return nil, fmt.Errorf("initializing empty config: %w", err)
+		}
 	}
-	if existing == nil {
-		existing = make(map[string]any)
+
+	if v.Value == nil || v.Value.Kind() != '{' {
+		return nil, fmt.Errorf("existing config root is not a JSON object")
 	}
 
 	key := "mcpServers"
 	if len(preferredKey) > 0 && preferredKey[0] != "" {
 		key = preferredKey[0]
-	} else if existing != nil {
-		if existing["servers"] != nil && existing["mcpServers"] == nil {
+	} else {
+		if v.Find("/servers") != nil && v.Find("/mcpServers") == nil {
 			key = "servers"
-		} else if existing["context_servers"] != nil && existing["mcpServers"] == nil {
+		} else if v.Find("/context_servers") != nil && v.Find("/mcpServers") == nil {
 			key = "context_servers"
+		} else if v.Find("/mcp") != nil && v.Find("/mcpServers") == nil {
+			key = "mcp"
+		} else if v.Find("/extensions") != nil && v.Find("/mcpServers") == nil {
+			key = "extensions"
 		}
 	}
 
-	if existing[key] == nil {
-		existing[key] = make(map[string]any)
-	}
-
-	servers, ok := existing[key].(map[string]any)
-	if !ok {
-		return nil, fmt.Errorf("%s in config is not a JSON object", key)
+	// Check if key exists and is an object
+	if targetVal := v.Find("/" + key); targetVal != nil {
+		if targetVal.Value == nil || targetVal.Value.Kind() != '{' {
+			return nil, fmt.Errorf("%s in config is not a JSON object", key)
+		}
+	} else {
+		// Key does not exist; add it as an empty object
+		patchKey := []map[string]any{
+			{
+				"op":    "add",
+				"path":  "/" + key,
+				"value": map[string]any{},
+			},
+		}
+		patchBytes, err := json.Marshal(patchKey)
+		if err != nil {
+			return nil, fmt.Errorf("marshaling key patch: %w", err)
+		}
+		if err := v.Patch(patchBytes); err != nil {
+			return nil, fmt.Errorf("patching %s: %w", key, err)
+		}
 	}
 
 	var hostHint string
 	if len(preferredKey) > 1 {
 		hostHint = preferredKey[1]
 	}
-	servers["vivechak"] = buildServerConfig(key, exePath, hostHint)
 
-	out, err := json.MarshalIndent(existing, "", "  ")
-	if err != nil {
-		return nil, fmt.Errorf("marshaling merged config: %w", err)
+	serverCfg := buildServerConfig(key, exePath, hostHint)
+	patchServer := []map[string]any{
+		{
+			"op":    "add",
+			"path":  "/" + key + "/vivechak",
+			"value": serverCfg,
+		},
 	}
-	out = append(out, '\n')
+	patchServerBytes, err := json.Marshal(patchServer)
+	if err != nil {
+		return nil, fmt.Errorf("marshaling server patch: %w", err)
+	}
+	if err := v.Patch(patchServerBytes); err != nil {
+		return nil, fmt.Errorf("patching %s/vivechak: %w", key, err)
+	}
+
+	v.Format()
+	out := v.Pack()
+	if !bytes.HasSuffix(out, []byte("\n")) {
+		out = append(out, '\n')
+	}
 	return out, nil
 }
 
 // writeConfigFile atomically writes config content to configPath.
+// If the destination file already exists, it preserves its original permissions
+// and creates a <configPath>.bak backup before writing.
 func writeConfigFile(configPath string, out []byte) (retErr error) {
 	dir := filepath.Dir(configPath)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return fmt.Errorf("failed to create directory %s: %w", dir, err)
 	}
 
+	perm := os.FileMode(0644)
+	if fi, err := os.Stat(configPath); err == nil {
+		perm = fi.Mode().Perm()
+		if existing, readErr := os.ReadFile(configPath); readErr == nil {
+			_ = os.WriteFile(configPath+".bak", existing, perm)
+		}
+	}
+
 	tmpFile := configPath + ".tmp"
-	f, err := os.OpenFile(tmpFile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+	f, err := os.OpenFile(tmpFile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, perm)
 	if err != nil {
 		return fmt.Errorf("failed to open temp file: %w", err)
 	}
@@ -1022,10 +993,11 @@ func runSetupWithArgs(args []string, stdout, stderr io.Writer) int {
 		if err == nil {
 			if len(bytes.TrimSpace(b)) > 0 {
 				var existing map[string]any
-				cleaned := stripJSONComments(b)
-				dec := json.NewDecoder(bytes.NewReader(cleaned))
-				if dec.Decode(&existing) == nil {
-					targetKey = determineServerKey(target, configPath, existing)
+				if std, err := hujson.Standardize(bytes.Clone(b)); err == nil {
+					dec := json.NewDecoder(bytes.NewReader(std))
+					if dec.Decode(&existing) == nil {
+						targetKey = determineServerKey(target, configPath, existing)
+					}
 				}
 			}
 			merged, mergeErr := mergeConfig(b, exePath, targetKey, hostHint)

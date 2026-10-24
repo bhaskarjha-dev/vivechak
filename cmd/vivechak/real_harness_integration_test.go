@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+	"github.com/tailscale/hujson"
 )
 
 // TestLiveHarness_EndToEnd_All21Hosts_Simulation validates Level 3 (idempotence, non-destructive merging,
@@ -601,9 +602,19 @@ func TestLiveHarness_Adversarial_EdgeCases(t *testing.T) {
 		}
 
 		resBytes, _ := os.ReadFile(cfgFile)
+		std, err := hujson.Standardize(bytes.Clone(resBytes))
+		if err != nil {
+			t.Fatalf("standardizing JSONC output failed: %v\ncontent: %s", err, string(resBytes))
+		}
 		var parsed map[string]any
-		if err := json.Unmarshal(resBytes, &parsed); err != nil {
-			t.Fatalf("resulting config is not valid standard JSON: %v\ncontent: %s", err, string(resBytes))
+		if err := json.Unmarshal(std, &parsed); err != nil {
+			t.Fatalf("resulting config is not valid JSONC: %v\ncontent: %s", err, string(resBytes))
+		}
+		if !strings.Contains(string(resBytes), "// User comments at top") {
+			t.Errorf("user comments were not preserved: %s", string(resBytes))
+		}
+		if !strings.Contains(string(resBytes), "/* Multiline block comment */") {
+			t.Errorf("block comments were not preserved: %s", string(resBytes))
 		}
 		mcpServers := parsed["mcpServers"].(map[string]any)
 		if mcpServers["legacy_tool"] == nil || mcpServers["vivechak"] == nil {

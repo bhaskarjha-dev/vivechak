@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -73,10 +74,20 @@ func checkWorkspace(workspace string) (bool, []string, []string) {
 	}
 	successes = append(successes, "✓ Workspace exists")
 
-	// 2. Scope & Templates
+	// 2. Scope & Metadata
 	info := core.InspectWorkspace(workspace)
 	if info.Scope != "" {
 		successes = append(successes, fmt.Sprintf("✓ Scope: %s", info.Scope))
+	}
+	metaPath := filepath.Join(workspace, core.MetadataFile)
+	if metaData, err := os.ReadFile(metaPath); err == nil {
+		var meta core.WorkspaceMeta
+		if err := json.Unmarshal(metaData, &meta); err == nil && core.ValidScope(meta.Scope) {
+			successes = append(successes, fmt.Sprintf("✓ Workspace metadata (%s) valid", core.MetadataFile))
+		} else {
+			errs = append(errs, fmt.Sprintf("✗ Corrupted workspace metadata in %s", core.MetadataFile))
+			hasErrors = true
+		}
 	}
 
 	templatesDir := filepath.Join(workspace, core.TemplatesDir)

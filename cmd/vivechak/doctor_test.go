@@ -518,8 +518,25 @@ Evidence Grade A (docs)
 	}
 }
 
+func TestCheckWorkspace_CorruptedMetadata(t *testing.T) {
+	tmpDir := t.TempDir()
+	_ = os.MkdirAll(filepath.Join(tmpDir, core.ResearchDir), 0o755)
 
+	// Write invalid JSON metadata
+	_ = os.WriteFile(filepath.Join(tmpDir, core.MetadataFile), []byte("{invalid-json"), 0o644)
 
-
-
-
+	hasErrors, _, errs := checkWorkspace(tmpDir)
+	if !hasErrors {
+		t.Error("expected hasErrors=true for corrupted metadata")
+	}
+	found := false
+	for _, e := range errs {
+		if strings.Contains(e, "Corrupted workspace metadata") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("expected error about corrupted metadata, got: %v", errs)
+	}
+}

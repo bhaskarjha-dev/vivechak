@@ -73,6 +73,11 @@ func runCLIWithContext(ctx context.Context, args []string, stdout, stderr io.Wri
 	cmd := "serve"
 	if len(args) > 1 {
 		cmd = args[1]
+	} else {
+		// Check if stdin is a terminal (character device) rather than an MCP pipe
+		if fi, err := os.Stdin.Stat(); err == nil && fi.Mode()&os.ModeCharDevice != 0 {
+			cmd = "help"
+		}
 	}
 
 	switch cmd {
