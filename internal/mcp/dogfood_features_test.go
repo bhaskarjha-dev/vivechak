@@ -1208,8 +1208,8 @@ Provides robust security with zero client secret exposure.
 	}
 }
 
-// TestSaveSession_FADRootCopy verifies Task 5: save SYN-01 writes research/FAD.md and mirrors to FOUNDING-ARCHITECTURE.md
-func TestSaveSession_FADRootCopy(t *testing.T) {
+// TestSaveSession_FADNoRootCopy verifies that save SYN-01 writes research/FAD.md and does NOT create FOUNDING-ARCHITECTURE.md in root
+func TestSaveSession_FADNoRootCopy(t *testing.T) {
 	cs := testServer(t)
 	ctx := context.Background()
 	tmpDir := t.TempDir()
@@ -1244,42 +1244,28 @@ Adopt Solution X. Grade A (official docs)
 	if !env.Success {
 		t.Fatalf("save_session SYN-01 unsuccessful: %s", env.Message)
 	}
-	dataMap, ok := env.Data.(map[string]any)
-	if !ok {
-		t.Fatalf("expected data map, got: %T", env.Data)
-	}
-	if dataMap["root_copy"] != "FOUNDING-ARCHITECTURE.md" {
-		t.Errorf("expected root_copy to be 'FOUNDING-ARCHITECTURE.md', got: %v", dataMap["root_copy"])
-	}
 
 	// 1. research/FAD.md exists
 	internalFADPath := filepath.Join(tmpDir, core.FADFile)
-	internalBytes, err := os.ReadFile(internalFADPath)
-	if err != nil {
+	if _, err := os.ReadFile(internalFADPath); err != nil {
 		t.Fatalf("expected %s to exist: %v", core.FADFile, err)
 	}
 
-	// 2. FOUNDING-ARCHITECTURE.md exists at project root
+	// 2. FOUNDING-ARCHITECTURE.md does NOT exist at project root
 	rootFADPath := filepath.Join(tmpDir, "FOUNDING-ARCHITECTURE.md")
-	rootBytes, err := os.ReadFile(rootFADPath)
-	if err != nil {
-		t.Fatalf("expected FOUNDING-ARCHITECTURE.md at root to exist: %v", err)
+	if _, err := os.Stat(rootFADPath); !os.IsNotExist(err) {
+		t.Fatalf("expected FOUNDING-ARCHITECTURE.md at root to NOT exist: %v", err)
 	}
 
-	// 3. Both contents are identical
-	if string(internalBytes) != string(rootBytes) {
-		t.Errorf("internal FAD and root FAD content mismatch:\nInternal:\n%s\nRoot:\n%s", string(internalBytes), string(rootBytes))
-	}
-
-	// 4. sessions/SYN-01.md does NOT exist
+	// 3. sessions/SYN-01.md does NOT exist
 	unwantedPath := filepath.Join(tmpDir, core.SessionsDir, "SYN-01.md")
 	if _, err := os.Stat(unwantedPath); err == nil {
 		t.Errorf("sessions/SYN-01.md should NOT exist (dual-write was removed)")
 	}
 }
 
-// TestAmendSession_FADRootCopy verifies that amending SYN-01 mirrors updates to root FOUNDING-ARCHITECTURE.md
-func TestAmendSession_FADRootCopy(t *testing.T) {
+// TestAmendSession_FADNoRootCopy verifies that amending SYN-01 updates research/FAD.md and does NOT touch root
+func TestAmendSession_FADNoRootCopy(t *testing.T) {
 	cs := testServer(t)
 	ctx := context.Background()
 	tmpDir := t.TempDir()
@@ -1327,13 +1313,6 @@ Adopt Solution X. Grade A (https://solutionx.org/docs | fetched)
 	if !env.Success {
 		t.Fatalf("amend_session SYN-01 unsuccessful: %s", env.Message)
 	}
-	dataMap, ok := env.Data.(map[string]any)
-	if !ok {
-		t.Fatalf("expected data map, got: %T", env.Data)
-	}
-	if dataMap["root_copy"] != "FOUNDING-ARCHITECTURE.md" {
-		t.Errorf("expected root_copy to be 'FOUNDING-ARCHITECTURE.md', got: %v", dataMap["root_copy"])
-	}
 
 	// 1. Verify research/FAD.md contains amendment
 	internalBytes, err := os.ReadFile(filepath.Join(tmpDir, core.FADFile))
@@ -1344,20 +1323,13 @@ Adopt Solution X. Grade A (https://solutionx.org/docs | fetched)
 		t.Errorf("internal FAD does not contain amendment text")
 	}
 
-	// 2. Verify root FOUNDING-ARCHITECTURE.md contains amendment
-	rootBytes, err := os.ReadFile(filepath.Join(tmpDir, "FOUNDING-ARCHITECTURE.md"))
-	if err != nil {
-		t.Fatalf("expected root FOUNDING-ARCHITECTURE.md to exist: %v", err)
-	}
-	if !strings.Contains(string(rootBytes), "Disaster recovery failover testing") {
-		t.Errorf("root FOUNDING-ARCHITECTURE.md does not contain amendment text")
-	}
-
-	// 3. Both are identical
-	if string(internalBytes) != string(rootBytes) {
-		t.Errorf("internal FAD and root FAD mismatch after amendment")
+	// 2. Verify root FOUNDING-ARCHITECTURE.md does NOT exist
+	rootFADPath := filepath.Join(tmpDir, "FOUNDING-ARCHITECTURE.md")
+	if _, err := os.Stat(rootFADPath); !os.IsNotExist(err) {
+		t.Fatalf("expected root FOUNDING-ARCHITECTURE.md to NOT exist: %v", err)
 	}
 }
+
 
 // TestNextSession_SingleReadySession_NoParallelHint verifies that a single ready session has no parallelism_hint
 func TestNextSession_SingleReadySession_NoParallelHint(t *testing.T) {

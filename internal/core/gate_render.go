@@ -1,10 +1,16 @@
 package core
 
 import (
+	"bytes"
 	"fmt"
 	"path/filepath"
 	"strings"
 	"time"
+)
+
+const (
+	GateMarkerBegin = "<!-- vivechak:begin -->"
+	GateMarkerEnd   = "<!-- vivechak:end -->"
 )
 
 // DetectProjectName extracts the project name from RESEARCH-PIPELINE.md or falls back to workspace folder name.
@@ -231,4 +237,54 @@ func RenderGateArtifact(ws WorkspaceFS, tmplBytes []byte, root, projectName, gat
 	tmpl = strings.Replace(tmpl, "**Date:** `[YYYY-MM-DD]`", fmt.Sprintf("**Date:** %s", today), 1)
 
 	return []byte(tmpl)
+}
+
+// MergeGateArtifactContent merges newly rendered gate content into an existing gate file,
+// preserving any human notes or sign-offs outside the <!-- vivechak:begin --> and <!-- vivechak:end --> markers.
+func MergeGateArtifactContent(existingContent, newGeneratedContent []byte) []byte {
+	if len(existingContent) == 0 {
+		var sb strings.Builder
+		sb.WriteString(GateMarkerBegin)
+		sb.WriteString("\n")
+		sb.Write(newGeneratedContent)
+		if !bytes.HasSuffix(newGeneratedContent, []byte("\n")) {
+			sb.WriteString("\n")
+		}
+		sb.WriteString(GateMarkerEnd)
+		sb.WriteString("\n")
+		return []byte(sb.String())
+	}
+
+	existingStr := string(existingContent)
+	beginIdx := strings.Index(existingStr, GateMarkerBegin)
+	endIdx := strings.Index(existingStr, GateMarkerEnd)
+
+	if beginIdx != -1 && endIdx != -1 && endIdx >= beginIdx {
+		prefix := existingStr[:beginIdx]
+		suffix := existingStr[endIdx+len(GateMarkerEnd):]
+
+		var sb strings.Builder
+		sb.WriteString(prefix)
+		sb.WriteString(GateMarkerBegin)
+		sb.WriteString("\n")
+		sb.Write(newGeneratedContent)
+		if !bytes.HasSuffix(newGeneratedContent, []byte("\n")) {
+			sb.WriteString("\n")
+		}
+		sb.WriteString(GateMarkerEnd)
+		sb.WriteString(suffix)
+		return []byte(sb.String())
+	}
+
+	// If no markers exist yet, wrap the new content in markers
+	var sb strings.Builder
+	sb.WriteString(GateMarkerBegin)
+	sb.WriteString("\n")
+	sb.Write(newGeneratedContent)
+	if !bytes.HasSuffix(newGeneratedContent, []byte("\n")) {
+		sb.WriteString("\n")
+	}
+	sb.WriteString(GateMarkerEnd)
+	sb.WriteString("\n")
+	return []byte(sb.String())
 }

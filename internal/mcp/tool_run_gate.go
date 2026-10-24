@@ -167,8 +167,13 @@ func handleRunGate(_ context.Context, _ *sdkmcp.CallToolRequest, in RunGateInput
 	allAdvisories := append(append([]string{}, gateResult.Advisories...), warnings...)
 	gateContent := core.RenderGateArtifact(ws, tmplBytes, root, projectName, gateResult.Status, gateResult.TrackAChecks.Passed, gateResult.TrackBChecks.Passed, gateResult.TrackAChecks.Issues, gateResult.TrackBChecks.Issues, decisions, allAdvisories...)
 	if len(gateContent) > 0 {
+		var existingGate []byte
+		if d, err := ws.ReadFile(core.GateFile); err == nil {
+			existingGate = d
+		}
+		mergedContent := core.MergeGateArtifactContent(existingGate, gateContent)
 		_ = ws.MkdirAll(core.ResearchDir, 0o755)
-		if writeErr := store.WriteFileAtomic(ws.Root(), core.GateFile, gateContent, 0o644); writeErr != nil {
+		if writeErr := store.WriteFileAtomic(ws.Root(), core.GateFile, mergedContent, 0o644); writeErr != nil {
 			warnings = append(warnings, fmt.Sprintf("W-GATE-WRITE: failed to write gate artifact: %v", writeErr))
 		} else {
 			data["gate_artifact"] = core.GateFile

@@ -500,7 +500,7 @@ prompt 1
 		t.Fatalf("expected replan to succeed when unlocked: %v, env: %+v", err, envReplan2)
 	}
 
-	// 3. Verify synthesis save mirrors FOUNDING-ARCHITECTURE.md to root
+	// 3. Verify synthesis save writes to research/FAD.md and NOT to root
 	fadContent := `---
 session_id: SYN-01
 title: Architecture
@@ -508,7 +508,7 @@ status: complete
 date: 2026-10-07
 ---
 # Founding Architecture
-Complete spec.
+Complete spec with Grade A (canonical docs: https://example.com).
 `
 	_, envSaveFAD, err := handleSaveSession(ctx, nil, SaveSessionInput{
 		ProjectRoot: tmpDir,
@@ -519,12 +519,17 @@ Complete spec.
 		t.Fatalf("save FAD failed: %v", err)
 	}
 
-	rootFADPath := filepath.Join(tmpDir, "FOUNDING-ARCHITECTURE.md")
-	if _, err := os.Stat(rootFADPath); os.IsNotExist(err) {
-		t.Fatalf("expected root FOUNDING-ARCHITECTURE.md to exist after synthesis save")
+	fadPath := filepath.Join(tmpDir, core.FADFile)
+	if _, err := os.Stat(fadPath); os.IsNotExist(err) {
+		t.Fatalf("expected research/FAD.md to exist after synthesis save")
 	}
 
-	// 4. Verify amend_session updates root FOUNDING-ARCHITECTURE.md
+	rootFADPath := filepath.Join(tmpDir, "FOUNDING-ARCHITECTURE.md")
+	if _, err := os.Stat(rootFADPath); !os.IsNotExist(err) {
+		t.Fatalf("expected root FOUNDING-ARCHITECTURE.md to NOT exist after synthesis save")
+	}
+
+	// 4. Verify amend_session updates research/FAD.md
 	amendmentNote := `
 ### Amendment 2026-10-07
 Founding Architecture Updated with additional telemetry notes.
@@ -538,12 +543,12 @@ Founding Architecture Updated with additional telemetry notes.
 		t.Fatalf("amend FAD failed: %v", err)
 	}
 
-	rootBytes, err := os.ReadFile(rootFADPath)
+	fadBytes, err := os.ReadFile(fadPath)
 	if err != nil {
-		t.Fatalf("reading amended root FAD: %v", err)
+		t.Fatalf("reading amended FAD: %v", err)
 	}
-	if !strings.Contains(string(rootBytes), "Founding Architecture Updated") {
-		t.Errorf("expected amended content in root FAD, got: %s", string(rootBytes))
+	if !strings.Contains(string(fadBytes), "Founding Architecture Updated") {
+		t.Errorf("expected amended content in research/FAD.md, got: %s", string(fadBytes))
 	}
 }
 

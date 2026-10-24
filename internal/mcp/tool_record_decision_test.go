@@ -871,5 +871,67 @@ Adopt PostgreSQL with pg_partman for scalable time-series events [Grade A: offic
 	}
 }
 
+func TestRecordDecision_SupersedesRollbackOnValidationFailure(t *testing.T) {
+	tmpDir := t.TempDir()
+	ctx := context.Background()
+
+	// Initialize workspace
+	_, _, err := handleInit(ctx, nil, InitInput{ProjectRoot: tmpDir, Scope: "project"})
+	if err != nil {
+		t.Fatalf("handleInit failed: %v", err)
+	}
+
+	// 1. Record D-001 successfully
+	d1Content := `---
+decision_id: D-001
+title: Original Database Choice
+status: accepted
+door_type: two-way
+date: 2026-10-14
+---
+# Original Database Choice
+Use MySQL. Grade A (https://mysql.com)
+`
+	_, envD1, err := handleRecordDecision(ctx, nil, RecordDecisionInput{
+		ProjectRoot: tmpDir,
+		DecisionID:  "D-001",
+		Content:     d1Content,
+	})
+	if err != nil || !envD1.Success {
+		t.Fatalf("recording D-001 failed: err=%v, env=%+v", err, envD1)
+	}
+
+	// 2. Attempt to record D-002 superseding D-001, but D-002 has INVALID content (missing title, body)
+	invalidD2Content := `---
+decision_id: D-002
+status: accepted
+door_type: two-way
+date: 2026-10-15
+---
+`
+	resD2, envD2, err := handleRecordDecision(ctx, nil, RecordDecisionInput{
+		ProjectRoot: tmpDir,
+		DecisionID:  "D-002",
+		Supersedes:  "D-001",
+		Content:     invalidD2Content,
+	})
+	if err == nil && envD2.Success {
+		t.Fatalf("expected invalid D-002 to fail validation, but succeeded: res=%+v", resD2)
+	}
+
+	// 3. Verify D-001 is STILL accepted, NOT superseded!
+	d1Path := filepath.Join(tmpDir, core.ResearchDir, "D-001-decision.md")
+	d1Bytes, err := os.ReadFile(d1Path)
+	if err != nil {
+		t.Fatalf("reading D-001: %v", err)
+	}
+	if strings.Contains(string(d1Bytes), "status: superseded") {
+		t.Errorf("D-001 was prematurely marked as superseded despite D-002 validation failure!")
+	}
+	if !strings.Contains(string(d1Bytes), "status: accepted") {
+		t.Errorf("expected D-001 to retain status: accepted, got:\n%s", string(d1Bytes))
+	}
+}
+
 
 

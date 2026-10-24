@@ -2,11 +2,45 @@ package core
 
 import (
 	"fmt"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strconv"
 	"strings"
+
+	"gopkg.in/yaml.v3"
 )
+
+// PlanMachineBlock represents the machine-readable DAG block in a research pipeline.
+type PlanMachineBlock struct {
+	Plan      string             `yaml:"plan"`
+	Sessions  []PlanSessionItem  `yaml:"sessions"`
+	Decisions []PlanDecisionItem `yaml:"decisions,omitempty"`
+}
+
+// PlanSessionItem represents a session entry in the PlanMachineBlock.
+type PlanSessionItem struct {
+	ID           string   `yaml:"id"`
+	Title        string   `yaml:"title"`
+	Layer        int      `yaml:"layer"`
+	Door         string   `yaml:"door"`
+	DoorType     string   `yaml:"door_type"`
+	Kind         string   `yaml:"kind"`
+	Informs      []string `yaml:"informs"`
+	Decision     string   `yaml:"decision"`
+	DecisionRef  string   `yaml:"decision_ref"`
+	Depends      []string `yaml:"depends"`
+	Dependencies []string `yaml:"dependencies"`
+	OutputFile   string   `yaml:"output_file"`
+}
+
+// PlanDecisionItem represents a decision stub in the PlanMachineBlock.
+type PlanDecisionItem struct {
+	ID       string `yaml:"id"`
+	Title    string `yaml:"title"`
+	Door     string `yaml:"door"`
+	DoorType string `yaml:"door_type"`
+}
 
 // Session represents a single research session in the pipeline DAG.
 type Session struct {
@@ -299,8 +333,173 @@ func isSessionIDString(s string) bool {
 	return strings.ContainsAny(s, "0123456789")
 }
 
+var planMachineBlockRe = regexp.MustCompile("(?s)(?:```|~~~)(?:yaml\\s+vivechak-plan|vivechak-plan)\\s*\\r?\\n(.*?)\\r?\\n(?:```|~~~)")
+
+// ParsePlanMachineBlock extracts and unmarshals the fenced ```yaml vivechak-plan block if present.
+func ParsePlanMachineBlock(data []byte) (*PlanMachineBlock, error) {
+	m := planMachineBlockRe.FindSubmatch(data)
+	if len(m) < 2 {
+		return nil, nil
+	}
+	var block PlanMachineBlock
+	if err := yaml.Unmarshal(m[1], &block); err != nil {
+		return nil, err
+	}
+	return &block, nil
+}
+
+func parsePipelineFromMachineBlock(data []byte, block *PlanMachineBlock) (*DAG, error) {
+	dag := &DAG{}
+	sessionMap := make(map[string]*Session)
+	for _, item := range block.Sessions {
+		id := strings.TrimSpace(item.ID)
+		if id == "" {
+			continue
+		}
+		door := item.Door
+		if door == "" {
+			door = item.DoorType
+		}
+		decisionRef := item.Decision
+		if decisionRef == "" {
+			decisionRef = item.DecisionRef
+		}
+		if decisionRef == "" && len(item.Informs) > 0 {
+			decisionRef = item.Informs[0]
+		}
+		deps := item.Depends
+		if len(deps) == 0 {
+			deps = item.Dependencies
+		}
+		out := item.OutputFile
+		if out == "" {
+			if IsSynthesisSession(id) {
+				out = FADFile
+			} else {
+				out = filepath.Join(SessionsDir, id+".md")
+			}
+		}
+		s := Session{
+			ID:           id,
+			Title:        item.Title,
+			Layer:        item.Layer,
+			DoorType:     door,
+			DecisionRef:  decisionRef,
+			Dependencies: deps,
+			OutputFile:   out,
+		}
+		dag.Sessions = append(dag.Sessions, s)
+		sessionMap[strings.ToUpper(id)] = &dag.Sessions[len(dag.Sessions)-1]
+	}
+
+	// Extract prompt blocks for each session from markdown body
+	lines := strings.Split(string(data), "\n")
+	var currentSess *Session
+	inPrompt := false
+	var promptLines []string
+	outerFenceLen := 0
+	inInnerBlock := false
+
+	var preambleLines []string
+	seenMainSection := false
+	lastPromptEndLine := -1
+
+	for i := 0; i < len(lines); i++ {
+		line := lines[i]
+		trimmed := strings.TrimSpace(line)
+
+		if inPrompt {
+			numBackticks := 0
+			for j := 0; j < len(trimmed) && trimmed[j] == '`'; j++ {
+				numBackticks++
+			}
+			isClosingFence := false
+			if outerFenceLen >= 4 {
+				if numBackticks >= outerFenceLen && len(strings.TrimSpace(trimmed[numBackticks:])) == 0 {
+					isClosingFence = true
+				}
+			} else {
+				if numBackticks >= 3 {
+					afterTicks := strings.TrimSpace(trimmed[numBackticks:])
+					if afterTicks != "" {
+						inInnerBlock = !inInnerBlock
+					} else {
+						if inInnerBlock {
+							inInnerBlock = false
+						} else {
+							isClosingFence = true
+						}
+					}
+				}
+			}
+
+			if isClosingFence {
+				inPrompt = false
+				lastPromptEndLine = i
+				if currentSess != nil {
+					currentSess.Prompt = strings.Join(promptLines, "\n")
+				}
+				promptLines = nil
+			} else {
+				promptLines = append(promptLines, line)
+			}
+			continue
+		}
+
+		if !seenMainSection {
+			if strings.HasPrefix(trimmed, "```yaml vivechak-plan") || strings.HasPrefix(trimmed, "```vivechak-plan") ||
+				strings.HasPrefix(trimmed, "## Sessions") || sessionHeaderRe.MatchString(trimmed) {
+				seenMainSection = true
+			} else {
+				preambleLines = append(preambleLines, line)
+			}
+		}
+
+		if promptStartRe.MatchString(trimmed) {
+			outerFenceLen = 0
+			for j := 0; j < len(trimmed) && trimmed[j] == '`'; j++ {
+				outerFenceLen++
+			}
+			inPrompt = true
+			inInnerBlock = false
+			promptLines = nil
+			continue
+		}
+
+		if matches := sessionHeaderRe.FindStringSubmatch(trimmed); matches != nil {
+			id := ""
+			for k := 1; k <= 3; k++ {
+				if matches[k] != "" {
+					id = strings.TrimSpace(matches[k])
+					break
+				}
+			}
+			if s, ok := sessionMap[strings.ToUpper(id)]; ok {
+				currentSess = s
+				if s.Title == "" && matches[4] != "" {
+					t := strings.TrimSpace(strings.TrimPrefix(matches[4], "—"))
+					t = strings.TrimSpace(strings.TrimPrefix(t, "-"))
+					t = strings.TrimSpace(strings.TrimPrefix(t, ":"))
+					s.Title = t
+				}
+			}
+		}
+	}
+
+	dag.Preamble = strings.TrimSpace(strings.Join(preambleLines, "\n"))
+	if lastPromptEndLine >= 0 && lastPromptEndLine < len(lines)-1 {
+		dag.Epilogue = strings.TrimSpace(strings.Join(lines[lastPromptEndLine+1:], "\n"))
+	}
+
+	return dag, nil
+}
+
 // ParsePipeline parses a RESEARCH-PIPELINE.md or decision plan file into a DAG structure.
 func ParsePipeline(data []byte) (*DAG, error) {
+	if block, err := ParsePlanMachineBlock(data); err == nil && block != nil && len(block.Sessions) > 0 {
+		return parsePipelineFromMachineBlock(data, block)
+	}
+
 	dag := &DAG{}
 	lines := strings.Split(string(data), "\n")
 
@@ -992,6 +1191,144 @@ func (d *DAG) Serialize() []byte {
 	}
 
 	return []byte(sb.String())
+}
+
+// GeneratePlanMachineBlock serializes the DAG's sessions and decisions into a ```yaml vivechak-plan block.
+func (d *DAG) GeneratePlanMachineBlock() string {
+	var block PlanMachineBlock
+	block.Plan = "PROJECT"
+	for _, s := range d.Sessions {
+		door := s.DoorType
+		if door == "" {
+			door = "two-way"
+		}
+		var informs []string
+		if s.DecisionRef != "" {
+			informs = []string{s.DecisionRef}
+		}
+		deps := s.Dependencies
+		if deps == nil {
+			deps = []string{}
+		}
+		block.Sessions = append(block.Sessions, PlanSessionItem{
+			ID:         s.ID,
+			Title:      s.Title,
+			Layer:      s.Layer,
+			Door:       door,
+			Informs:    informs,
+			Depends:    deps,
+			OutputFile: s.OutputFile,
+		})
+	}
+	yamlBytes, _ := yaml.Marshal(block)
+	return fmt.Sprintf("```yaml vivechak-plan\n%s```\n", string(yamlBytes))
+}
+
+// ReplanParams holds the parameters for in-place DAG replanning.
+type ReplanParams struct {
+	SessionID    string
+	Topic        string
+	Layer        int
+	DoorType     string
+	DecisionRef  string
+	Dependencies []string
+	Prompt       string
+	Reason       string
+	Impact       string
+}
+
+// ReplanInPlace performs an in-place mutation on pipeline markdown, editing only the
+// ```yaml vivechak-plan block and the target session's section without discarding custom prose.
+func ReplanInPlace(pipelineData []byte, op string, p ReplanParams) ([]byte, error) {
+	block, err := ParsePlanMachineBlock(pipelineData)
+	if err != nil {
+		return nil, fmt.Errorf("parsing machine block: %w", err)
+	}
+	if block == nil {
+		// No machine block present, return nil to signal caller to fall back
+		return nil, nil
+	}
+
+	content := string(pipelineData)
+	targetID := strings.TrimSpace(p.SessionID)
+
+	switch op {
+	case "add_session":
+		door := strings.ToLower(strings.TrimSpace(p.DoorType))
+		if door == "" {
+			door = "two-way"
+		}
+		topic := strings.TrimSpace(p.Topic)
+		if topic == "" {
+			topic = targetID
+		}
+		var informs []string
+		if strings.TrimSpace(p.DecisionRef) != "" {
+			informs = []string{strings.TrimSpace(p.DecisionRef)}
+		}
+		deps := p.Dependencies
+		if deps == nil {
+			deps = []string{}
+		}
+		block.Sessions = append(block.Sessions, PlanSessionItem{
+			ID:         targetID,
+			Title:      topic,
+			Layer:      p.Layer,
+			Door:       door,
+			Informs:    informs,
+			Depends:    deps,
+			OutputFile: fmt.Sprintf("sessions/%s.md", targetID),
+		})
+
+		prompt := strings.TrimSpace(p.Prompt)
+		if prompt == "" {
+			prompt = fmt.Sprintf("# %s: %s\n\nBRIEF:\nConduct research for %s.\n", targetID, topic, topic)
+		}
+		newSection := fmt.Sprintf("\n\n### Session %s: %s\n\n| **Field** | **Value** |\n|---|---|\n| **ID** | %s |\n| **Layer** | %d |\n| **Dependencies** | %s |\n| **Door Type** | %s |\n| **Output** | sessions/%s.md |\n\n````prompt\n%s\n````\n",
+			targetID, topic, targetID, p.Layer, strings.Join(deps, ", "), door, targetID, prompt)
+
+		if idx := strings.Index(content, "## Phase 0 Exit Gate"); idx != -1 {
+			content = content[:idx] + newSection + "\n---\n\n" + content[idx:]
+		} else {
+			content = content + newSection
+		}
+
+	case "remove_session":
+		var updatedSessions []PlanSessionItem
+		for _, s := range block.Sessions {
+			if !strings.EqualFold(s.ID, targetID) {
+				updatedSessions = append(updatedSessions, s)
+			}
+		}
+		block.Sessions = updatedSessions
+
+		sessRegex := regexp.MustCompile(`(?ms)^#{3,4}\s+(?:Session\s+)?` + regexp.QuoteMeta(targetID) + `\b.*?(?=^#{2,4}\s+|\z)`)
+		content = sessRegex.ReplaceAllString(content, "")
+
+	case "update_deps":
+		for i, s := range block.Sessions {
+			if strings.EqualFold(s.ID, targetID) {
+				block.Sessions[i].Depends = p.Dependencies
+				block.Sessions[i].Dependencies = p.Dependencies
+				break
+			}
+		}
+
+	case "update_prompt":
+		promptRegex := regexp.MustCompile(`(?s)(^#{3,4}\s+(?:Session\s+)?` + regexp.QuoteMeta(targetID) + `\b.*?)(?:` + "````prompt|```prompt" + `)(.*?)(?:` + "````|```" + `)`)
+		if promptRegex.MatchString(content) {
+			content = promptRegex.ReplaceAllString(content, `${1}`+"````prompt\n"+strings.TrimSpace(p.Prompt)+"\n````")
+		}
+
+	default:
+		return nil, fmt.Errorf("unsupported replan operation %q", op)
+	}
+
+	newBlockYAML, _ := yaml.Marshal(block)
+	newBlockStr := fmt.Sprintf("```yaml vivechak-plan\n%s```", string(newBlockYAML))
+	content = planMachineBlockRe.ReplaceAllString(content, newBlockStr)
+
+	return []byte(content), nil
 }
 
 // ToMermaid generates a Mermaid flowchart representation of the DAG,

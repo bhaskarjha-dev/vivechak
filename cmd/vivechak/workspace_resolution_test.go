@@ -485,10 +485,12 @@ Proceed to implementation.
 		"research/D-001-decision.md",
 		"research/sessions/T1-01.md",
 		"research/FAD.md",
-		"FOUNDING-ARCHITECTURE.md",
 		"research/PHASE-0-GATE.md",
 		"research/templates/SESSION.template.md",
 	})
+	if _, err := os.Stat(filepath.Join(realProjectDir, "FOUNDING-ARCHITECTURE.md")); !os.IsNotExist(err) {
+		t.Errorf("expected FOUNDING-ARCHITECTURE.md to NOT exist in root")
+	}
 }
 
 // TestMassive_SandboxesAndEnterprisePaths_LiveMCPMatrix tests that Vivechak functions

@@ -93,7 +93,20 @@ func handleRecordDecision(ctx context.Context, _ *sdkmcp.CallToolRequest, in Rec
 				fmt.Sprintf("Ensure session %s has been saved first.", in.AutoDraftFrom))
 		}
 
-		draft, err := core.DraftDecisionFromSession([]byte(content), in.DecisionID)
+		// Check for existing decision to do non-destructive merge (BUG-07 fix)
+		var existingADR []byte
+		if strings.TrimSpace(in.Content) != "" {
+			existingADR = []byte(in.Content)
+		} else {
+			existingFilename := resolveDecisionFilename(ws, in.DecisionID, in.Slug)
+			if d, err := ws.ReadFile(filepath.Join(core.DecisionsDir, existingFilename)); err == nil && len(d) > 0 {
+				existingADR = d
+			} else if d, err := ws.ReadFile(filepath.Join(core.ResearchDir, existingFilename)); err == nil && len(d) > 0 {
+				existingADR = d
+			}
+		}
+
+		draft, err := core.DraftDecisionFromSessionWithExisting(existingADR, []byte(content), in.DecisionID)
 		if err != nil {
 			return ErrorResult(tool, fmt.Errorf("auto-drafting decision: %w", err),
 				"Check session content and try again.")
@@ -144,6 +157,24 @@ func handleRecordDecision(ctx context.Context, _ *sdkmcp.CallToolRequest, in Rec
 	}
 	defer ws.Close()
 
+	// 1. Validate content first (BUG-12 fix: validate before modifying superseded ADR on disk)
+	var validation *core.ValidationResult
+	switch artifactType {
+	case "conflict-resolution":
+		validation = core.ValidateConflictResolution([]byte(in.Content))
+	default:
+		validation = core.ValidateDecision([]byte(in.Content))
+	}
+
+	if validation.HasBlocking() || validation.Status == "invalid" {
+		msg := "decision validation failed"
+		if len(validation.Issues) > 0 {
+			msg = validation.Issues[0].Message
+		}
+		return ErrorResult(tool, fmt.Errorf("decision validation failed: %s", msg),
+			"Fix the validation errors and try again.")
+	}
+
 	var supersededFile string
 	if in.Supersedes != "" {
 		if artifactType != "decision" {
@@ -159,7 +190,10 @@ func handleRecordDecision(ctx context.Context, _ *sdkmcp.CallToolRequest, in Rec
 				"Use a valid decision ID like 'D-001'.")
 		}
 		oldFilename := resolveDecisionFilename(ws, in.Supersedes, "")
-		oldRelPath := filepath.Join(core.ResearchDir, oldFilename)
+		oldRelPath := filepath.Join(core.DecisionsDir, oldFilename)
+		if _, statErr := ws.Stat(oldRelPath); statErr != nil {
+			oldRelPath = filepath.Join(core.ResearchDir, oldFilename)
+		}
 		oldData, readErr := ws.ReadFile(oldRelPath)
 		if readErr != nil {
 			return ErrorResult(tool, fmt.Errorf("superseded decision %s not found: %w", in.Supersedes, readErr),
@@ -192,15 +226,6 @@ func handleRecordDecision(ctx context.Context, _ *sdkmcp.CallToolRequest, in Rec
 		if updateNewErr == nil {
 			in.Content = string(updatedNewContent)
 		}
-	}
-
-	// Validate content
-	var validation *core.ValidationResult
-	switch artifactType {
-	case "conflict-resolution":
-		validation = core.ValidateConflictResolution([]byte(in.Content))
-	default:
-		validation = core.ValidateDecision([]byte(in.Content))
 	}
 
 	// Determine filename, harmonizing with existing ADR files in research/

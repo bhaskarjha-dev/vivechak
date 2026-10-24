@@ -300,7 +300,7 @@ these placeholders (the MCP server replaces them with extracted findings):
 - `[KNOWN_CONTEXT]` — replaced with the same upstream context (alternative slot)
 
 For the synthesis session (SYN-01), use `[ALL_SESSION_FINDINGS]` to receive all
-completed session findings. Note that saving with `vivechak_save_session` (session_id='SYN-01') automatically writes the output to `research/FAD.md` as the canonical Founding Architecture Document and mirrors a human-facing copy to `FOUNDING-ARCHITECTURE.md` at the project root. Do NOT manually create additional copies. The template `FOUNDING-ARCHITECTURE.template.md` defines the structure — the canonical internal file is always `research/FAD.md`.
+completed session findings. Note that saving with `vivechak_save_session` (session_id='SYN-01') automatically writes the output to `research/FAD.md` as the canonical Founding Architecture Document. Do NOT manually create additional copies. The template `FOUNDING-ARCHITECTURE.template.md` defines the structure — the canonical internal file is always `research/FAD.md`.
 
 Example in a session prompt's KNOWN block:
 ```
@@ -485,7 +485,7 @@ When using an MCP-enabled agent, orchestrate via Vivechak tools for maximum toke
 > *Formulate the decision from session findings and record it using `vivechak_record_decision`. The server validates required fields and compiles `research/DECISIONS.md` automatically.*
 
 **Compile the FAD:**
-> *Synthesize all finalized sessions into `SYN-01` and save using `vivechak_save_session(session_id='SYN-01')`. The tool automatically saves `research/FAD.md` as the canonical Founding Architecture Document and mirrors a human-facing copy to `FOUNDING-ARCHITECTURE.md` at the project root.*
+> *Synthesize all finalized sessions into `SYN-01` and save using `vivechak_save_session(session_id='SYN-01')`. The tool automatically saves `research/FAD.md` as the canonical Founding Architecture Document.*
 
 **Run the gate:**
 > *Execute `vivechak_run_gate`. The server mechanically evaluates Track A and Track B exit criteria, conducts the One-Way Door premortem checks, and generates `research/PHASE-0-GATE.md`.*

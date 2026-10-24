@@ -259,8 +259,44 @@ func handleReplan(ctx context.Context, _ *sdkmcp.CallToolRequest, in ReplanInput
 			"Supported operations: 'add_session', 'remove_session', 'update_deps', 'update_prompt'.")
 	}
 
-	// Re-serialize and atomically save
-	newPipelineContent := dag.Serialize()
+	// In-place replan if machine block is present (BUG-11 fix), else fallback to Serialize
+	var newPipelineContent []byte
+	replanParams := core.ReplanParams{
+		SessionID:   sessionID,
+		Topic:       in.Topic,
+		DoorType:    in.DoorType,
+		DecisionRef: in.DecisionRef,
+		Prompt:      in.Prompt,
+		Reason:      in.Reason,
+		Impact:      in.Impact,
+	}
+	rawDeps := in.Dependencies
+	if in.NewDeps != "" {
+		rawDeps = in.NewDeps
+	}
+	if rawDeps != "" {
+		for _, d := range strings.Split(rawDeps, ",") {
+			d = strings.TrimSpace(d)
+			if d != "" && !strings.EqualFold(d, "none") {
+				replanParams.Dependencies = append(replanParams.Dependencies, d)
+			}
+		}
+	}
+	if in.NewPrompt != "" {
+		replanParams.Prompt = in.NewPrompt
+	}
+	if in.Layer != "" {
+		if l, err := strconv.Atoi(strings.TrimSpace(in.Layer)); err == nil {
+			replanParams.Layer = l
+		}
+	}
+
+	if inPlaceBytes, err := core.ReplanInPlace(pipelineData, op, replanParams); err == nil && len(inPlaceBytes) > 0 {
+		newPipelineContent = inPlaceBytes
+	} else {
+		newPipelineContent = dag.Serialize()
+	}
+
 	if err := store.WriteFileAtomic(ws.Root(), pipelineFile, newPipelineContent, 0o644); err != nil {
 		return ErrorResult(tool, fmt.Errorf("saving mutated pipeline: %w", err),
 			"Retry the operation.")

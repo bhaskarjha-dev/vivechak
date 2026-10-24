@@ -13,12 +13,18 @@ import (
 // Returns the draft as markdown content with YAML frontmatter, ready for
 // review and editing before saving via vivechak_record_decision.
 func DraftDecisionFromSession(sessionContent []byte, decisionID string) (string, error) {
+	return DraftDecisionFromSessionWithExisting(nil, sessionContent, decisionID)
+}
+
+// DraftDecisionFromSessionWithExisting extracts key sections from a session and non-destructively
+// merges them with an existing decision record (if any), preserving user-edited titles, review triggers,
+// and substantive content sections while filling placeholders.
+func DraftDecisionFromSessionWithExisting(existingADR []byte, sessionContent []byte, decisionID string) (string, error) {
 	if len(sessionContent) == 0 {
 		return "", fmt.Errorf("session content is empty")
 	}
 
 	fm, body, _ := ParseFrontmatter(sessionContent)
-
 	bodyStr := string(body)
 
 	// Extract session metadata
@@ -33,24 +39,39 @@ func DraftDecisionFromSession(sessionContent []byte, decisionID string) (string,
 	}
 
 	// Extract sections from session body
-	recommendation := ExtractSection(bodyStr, "recommend", "decision outcome", "chosen", "verdict")
+	recommendation := ExtractSection(bodyStr, "recommend", "decision outcome", "chosen", "verdict", "executive summary", "summary")
 	alternatives := ExtractSection(bodyStr, "evaluated option", "alternatives", "candidate", "shortlist", "option")
 	concerns := ExtractSection(bodyStr, "concern", "failure", "risk", "premortem", "reversal")
 	evidenceRefs := extractEvidenceGrades(bodyStr)
 
-	// Build the draft
-	var b strings.Builder
-
-	// YAML frontmatter
-	b.WriteString("---\n")
-	fmt.Fprintf(&b, "id: %s\n", decisionID)
-	if sessionTitle != "" {
-		escapedTitle := strings.ReplaceAll(strings.ReplaceAll(sessionTitle, `\`, `\\`), `"`, `\"`)
-		fmt.Fprintf(&b, "title: \"%s\"\n", escapedTitle)
-	} else {
-		b.WriteString("title: \"[Decision Title]\"\n")
+	// If existing ADR is provided, extract its existing frontmatter and body for non-destructive merge
+	var existFM Frontmatter
+	var existBodyStr string
+	if len(existingADR) > 0 {
+		efm, ebody, _ := ParseFrontmatter(existingADR)
+		existFM = efm
+		existBodyStr = string(ebody)
 	}
-	b.WriteString("status: proposed\n")
+
+	isPlaceholder := func(val string) bool {
+		val = strings.TrimSpace(val)
+		return val == "" || (strings.HasPrefix(val, "[") && strings.HasSuffix(val, "]")) ||
+			strings.EqualFold(val, "null") || strings.EqualFold(val, "tbd") || strings.EqualFold(val, "todo")
+	}
+
+	// Determine fields: preserve existing non-placeholder values
+	title := sessionTitle
+	if existFM != nil && !isPlaceholder(existFM.GetString("title")) {
+		title = existFM.GetString("title")
+	} else if title == "" {
+		title = "[Decision Title]"
+	}
+
+	status := "proposed"
+	if existFM != nil && !isPlaceholder(existFM.GetString("status")) {
+		status = existFM.GetString("status")
+	}
+
 	doorType := "one-way"
 	contentLower := strings.ToLower(bodyStr)
 	if strings.Contains(contentLower, "door: two-way") ||
@@ -59,37 +80,112 @@ func DraftDecisionFromSession(sessionContent []byte, decisionID string) (string,
 		strings.Contains(contentLower, "two-way door") {
 		doorType = "two-way"
 	}
-	fmt.Fprintf(&b, "door_type: %s             # one-way | two-way\n", doorType)
-	fmt.Fprintf(&b, "date: %s\n", time.Now().UTC().Format("2006-01-02"))
-	b.WriteString("confidence: medium             # high | medium | low\n")
-	b.WriteString("evidence_refs: []              # Optional: E-NNN IDs if you maintain a separate evidence ledger\n")
-	if sessionID != "" {
-		fmt.Fprintf(&b, "informed_by_sessions: [\"%s\"]\n", sessionID)
+	if existFM != nil && !isPlaceholder(existFM.GetString("door_type")) {
+		doorType = existFM.GetString("door_type")
+	}
+
+	date := time.Now().UTC().Format("2006-01-02")
+	if existFM != nil && !isPlaceholder(existFM.GetString("date")) {
+		date = existFM.GetString("date")
+	}
+
+	confidence := "medium"
+	if existFM != nil && !isPlaceholder(existFM.GetString("confidence")) {
+		confidence = existFM.GetString("confidence")
+	}
+
+	reviewTrigger := "[Condition or date for mandatory re-evaluation]"
+	if existFM != nil && !isPlaceholder(existFM.GetString("review_trigger")) {
+		reviewTrigger = existFM.GetString("review_trigger")
+	}
+
+	humanReviewed := "false"
+	if existFM != nil && existFM.GetString("human_reviewed") != "" {
+		humanReviewed = existFM.GetString("human_reviewed")
+	}
+
+	// Informed by sessions: combine existing + current session
+	var informedSessions []string
+	seenSessions := make(map[string]bool)
+	if existFM != nil {
+		for _, s := range existFM.GetStringSlice("informed_by_sessions") {
+			s = strings.TrimSpace(s)
+			if s != "" && !seenSessions[s] {
+				seenSessions[s] = true
+				informedSessions = append(informedSessions, s)
+			}
+		}
+	}
+	if sessionID != "" && !seenSessions[sessionID] {
+		informedSessions = append(informedSessions, sessionID)
+	}
+
+	var b strings.Builder
+	b.WriteString("---\n")
+	fmt.Fprintf(&b, "id: %s\n", decisionID)
+	escapedTitle := strings.ReplaceAll(strings.ReplaceAll(title, `\`, `\\`), `"`, `\"`)
+	fmt.Fprintf(&b, "title: \"%s\"\n", escapedTitle)
+	fmt.Fprintf(&b, "status: %s\n", status)
+	fmt.Fprintf(&b, "door_type: %s\n", doorType)
+	fmt.Fprintf(&b, "date: %s\n", date)
+	fmt.Fprintf(&b, "confidence: %s\n", confidence)
+	b.WriteString("evidence_refs: []\n")
+	if len(informedSessions) > 0 {
+		var quoted []string
+		for _, s := range informedSessions {
+			quoted = append(quoted, fmt.Sprintf("%q", s))
+		}
+		fmt.Fprintf(&b, "informed_by_sessions: [%s]\n", strings.Join(quoted, ", "))
 	} else {
 		b.WriteString("informed_by_sessions: []\n")
 	}
 	b.WriteString("supersedes: null\n")
 	b.WriteString("superseded_by: null\n")
 	b.WriteString("amends: null\n")
-	b.WriteString("review_trigger: \"[Condition or date for mandatory re-evaluation]\"\n")
+	if !isPlaceholder(reviewTrigger) {
+		escapedTrigger := strings.ReplaceAll(strings.ReplaceAll(reviewTrigger, `\`, `\\`), `"`, `\"`)
+		fmt.Fprintf(&b, "review_trigger: \"%s\"\n", escapedTrigger)
+	} else {
+		b.WriteString("review_trigger: \"[Condition or date for mandatory re-evaluation]\"\n")
+	}
 	b.WriteString("review_date: null\n")
 	b.WriteString("prediction: null\n")
 	b.WriteString("tags: []\n")
 	b.WriteString("authored_by: \"auto-drafted from session\"\n")
-	b.WriteString("human_reviewed: false\n")
+	fmt.Fprintf(&b, "human_reviewed: %s\n", humanReviewed)
 	b.WriteString("schema_version: \"0.1.0\"\n")
 	b.WriteString("---\n\n")
 
 	// Body
-	fmt.Fprintf(&b, "# %s: %s\n\n", decisionID, sessionTitle)
+	fmt.Fprintf(&b, "# %s: %s\n\n", decisionID, title)
+
+	isSubstantiveSection := func(secContent string) bool {
+		t := strings.TrimSpace(secContent)
+		if len(t) < 20 {
+			return false
+		}
+		if strings.HasPrefix(t, "[Auto-drafted") || strings.HasPrefix(t, "[Extract") ||
+			strings.HasPrefix(t, "[Review") || strings.HasPrefix(t, "[Document") {
+			return false
+		}
+		return true
+	}
 
 	// Context
 	b.WriteString("## Context & Problem Statement\n\n")
-	b.WriteString("[Auto-drafted — review and refine the context from session findings.]\n\n")
+	existContext := ExtractSection(existBodyStr, "context", "problem")
+	if isSubstantiveSection(existContext) {
+		b.WriteString(existContext + "\n\n")
+	} else {
+		b.WriteString("[Auto-drafted — review and refine the context from session findings.]\n\n")
+	}
 
 	// Evaluated Options
 	b.WriteString("## Evaluated Options\n\n")
-	if alternatives != "" {
+	existOptions := ExtractSection(existBodyStr, "evaluated option", "option", "candidate")
+	if isSubstantiveSection(existOptions) {
+		b.WriteString(existOptions + "\n\n")
+	} else if alternatives != "" {
 		b.WriteString(alternatives + "\n\n")
 	} else {
 		b.WriteString("[Extract evaluated options from session findings.]\n\n")
@@ -97,7 +193,10 @@ func DraftDecisionFromSession(sessionContent []byte, decisionID string) (string,
 
 	// Decision Outcome
 	b.WriteString("## Decision Outcome\n\n")
-	if recommendation != "" {
+	existOutcome := ExtractSection(existBodyStr, "decision outcome", "chosen option", "chosen", "verdict")
+	if isSubstantiveSection(existOutcome) {
+		b.WriteString(existOutcome + "\n\n")
+	} else if recommendation != "" {
 		b.WriteString(recommendation + "\n\n")
 	} else {
 		b.WriteString("**Chosen Option:** [Extract from session recommendation.]\n\n")
@@ -105,16 +204,29 @@ func DraftDecisionFromSession(sessionContent []byte, decisionID string) (string,
 
 	// Rejected Alternatives
 	b.WriteString("## Rejected Alternatives & Tradeoffs\n\n")
-	b.WriteString("[Review session findings and document why alternatives were rejected.]\n\n")
+	existAlt := ExtractSection(existBodyStr, "rejected alternative", "tradeoff")
+	if isSubstantiveSection(existAlt) {
+		b.WriteString(existAlt + "\n\n")
+	} else {
+		b.WriteString("[Review session findings and document why alternatives were rejected.]\n\n")
+	}
 
 	// Challenge Findings & Red-Team Stress Test
 	b.WriteString("## Challenge Findings & Red-Team Stress Test\n\n")
-	b.WriteString("> Required for One-Way Doors: run `vivechak_challenge(session_id=\"...\", mode=\"red_team\")` before commitment.\n")
-	b.WriteString("[Document disconfirming search results, premortem failure modes, and adversarial stress-test findings.]\n\n")
+	existChallenge := ExtractSection(existBodyStr, "challenge findings", "red-team", "stress test")
+	if isSubstantiveSection(existChallenge) {
+		b.WriteString(existChallenge + "\n\n")
+	} else {
+		b.WriteString("> Required for One-Way Doors: run `vivechak_challenge(session_id=\"...\", mode=\"red_team\")` before commitment.\n")
+		b.WriteString("[Document disconfirming search results, premortem failure modes, and adversarial stress-test findings.]\n\n")
+	}
 
 	// Failure Modes & Reversal Triggers
 	b.WriteString("## Failure Modes & Reversal Triggers\n\n")
-	if concerns != "" {
+	existConcerns := ExtractSection(existBodyStr, "failure mode", "reversal trigger")
+	if isSubstantiveSection(existConcerns) {
+		b.WriteString(existConcerns + "\n\n")
+	} else if concerns != "" {
 		b.WriteString(concerns + "\n\n")
 	} else {
 		b.WriteString("[Extract failure modes and reversal triggers from session concerns.]\n\n")

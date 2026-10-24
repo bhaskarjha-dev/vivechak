@@ -473,19 +473,14 @@ Replay performance monitored with snapshotting. Grade B (operational runbook)
 		t.Fatalf("save FAD failed: %s", envSaveFAD.Message)
 	}
 
-	// Verify single-source persistence & byte-exact root copy
+	// Verify single-source persistence in research/FAD.md and NO root copy
 	fadPath := filepath.Join(projectDir, core.FADFile)
-	fadBytes, err := os.ReadFile(fadPath)
-	if err != nil {
+	if _, err := os.ReadFile(fadPath); err != nil {
 		t.Fatalf("reading research/FAD.md: %v", err)
 	}
 	rootFADPath := filepath.Join(projectDir, "FOUNDING-ARCHITECTURE.md")
-	rootFADBytes, err := os.ReadFile(rootFADPath)
-	if err != nil {
-		t.Fatalf("reading root FOUNDING-ARCHITECTURE.md: %v", err)
-	}
-	if string(fadBytes) != string(rootFADBytes) {
-		t.Errorf("root FOUNDING-ARCHITECTURE.md differs from research/FAD.md")
+	if _, err := os.Stat(rootFADPath); !os.IsNotExist(err) {
+		t.Errorf("root FOUNDING-ARCHITECTURE.md should NOT exist")
 	}
 
 	// Verify NO duplicate session file created in research/sessions/FAD.md

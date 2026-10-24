@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/bhaskarjha-dev/vivechak/internal/core"
 	"github.com/bhaskarjha-dev/vivechak/internal/store"
@@ -187,7 +186,7 @@ Found major connection limits and serialization anomalies under high concurrent 
 	}
 }
 
-func TestHandleSaveSession_SynthesisLockTimeoutWarning(t *testing.T) {
+func TestHandleSaveSession_NoRootFADCopy(t *testing.T) {
 	ctx := t.Context()
 	tmpDir := t.TempDir()
 
@@ -197,20 +196,6 @@ func TestHandleSaveSession_SynthesisLockTimeoutWarning(t *testing.T) {
 		t.Fatalf("handleInit failed: %v, env: %+v", err, initEnv)
 	}
 
-	ws, err := store.OpenWorkspace(tmpDir)
-	if err != nil {
-		t.Fatalf("OpenWorkspace failed: %v", err)
-	}
-	defer ws.Close()
-
-	// Hold an exclusive lock on FOUNDING-ARCHITECTURE.md.lock
-	rootFADPath := filepath.Join(tmpDir, "FOUNDING-ARCHITECTURE.md")
-	unlockRoot, err := store.LockFile(ctx, rootFADPath, 1*time.Second)
-	if err != nil {
-		t.Fatalf("failed to hold test lock on root FAD: %v", err)
-	}
-	defer func() { _ = unlockRoot() }()
-
 	fadContent := `---
 session_id: SYN-01
 title: Founding Architecture Document
@@ -218,7 +203,7 @@ status: complete
 date: 2026-10-14
 ---
 # Founding Architecture Document
-Content here.
+Content here with Grade A (canonical docs: https://example.com) architecture.
 `
 	// Attempt to save synthesis session SYN-01
 	res, env, err := handleSaveSession(ctx, nil, SaveSessionInput{
@@ -230,19 +215,20 @@ Content here.
 		t.Fatalf("handleSaveSession failed: %v, env: %+v", err, env)
 	}
 
-	hasLockWarning := false
-	for _, w := range env.Warnings {
-		if strings.Contains(w, "W-LOCK-TIMEOUT") {
-			hasLockWarning = true
-			break
-		}
+	// 1. research/FAD.md must exist
+	fadPath := filepath.Join(tmpDir, "research", "FAD.md")
+	if _, err := os.Stat(fadPath); err != nil {
+		t.Fatalf("expected research/FAD.md to exist: %v", err)
 	}
-	if !hasLockWarning {
-		t.Errorf("expected W-LOCK-TIMEOUT warning when root FAD lock is held, got warnings: %v", env.Warnings)
+
+	// 2. FOUNDING-ARCHITECTURE.md in project root must NOT exist
+	rootFAD := filepath.Join(tmpDir, "FOUNDING-ARCHITECTURE.md")
+	if _, err := os.Stat(rootFAD); !os.IsNotExist(err) {
+		t.Errorf("expected FOUNDING-ARCHITECTURE.md in root to NOT exist, but stat returned: %v", err)
 	}
 }
 
-func TestHandleAmendSession_SynthesisLockTimeoutWarning(t *testing.T) {
+func TestHandleAmendSession_NoRootFADCopy(t *testing.T) {
 	tmpDir := t.TempDir()
 	ctx := context.Background()
 
@@ -259,7 +245,7 @@ status: complete
 date: 2026-10-14
 ---
 # Founding Architecture Document
-Base architecture content.
+Base architecture content with Grade A (canonical docs: https://example.com).
 `
 	// Save initial SYN-01
 	res, env, err := handleSaveSession(ctx, nil, SaveSessionInput{
@@ -271,15 +257,7 @@ Base architecture content.
 		t.Fatalf("handleSaveSession failed: %v, env: %+v", err, env)
 	}
 
-	// Hold an exclusive lock on FOUNDING-ARCHITECTURE.md
-	rootFADPath := filepath.Join(tmpDir, "FOUNDING-ARCHITECTURE.md")
-	unlockRoot, err := store.LockFile(ctx, rootFADPath, 1*time.Second)
-	if err != nil {
-		t.Fatalf("failed to hold test lock on root FAD: %v", err)
-	}
-	defer func() { _ = unlockRoot() }()
-
-	// Amend synthesis session SYN-01 while root FAD lock is held
+	// Amend synthesis session SYN-01
 	resAmend, envAmend, err := handleAmendSession(ctx, nil, AmendSessionInput{
 		ProjectRoot: tmpDir,
 		SessionID:   "SYN-01",
@@ -289,15 +267,19 @@ Base architecture content.
 		t.Fatalf("handleAmendSession failed: %v, env: %+v", err, envAmend)
 	}
 
-	hasLockWarning := false
-	for _, w := range envAmend.Warnings {
-		if strings.Contains(w, "W-LOCK-TIMEOUT") {
-			hasLockWarning = true
-			break
-		}
+	// 1. research/FAD.md must contain amendment
+	fadBytes, err := os.ReadFile(filepath.Join(tmpDir, "research", "FAD.md"))
+	if err != nil {
+		t.Fatalf("reading research/FAD.md: %v", err)
 	}
-	if !hasLockWarning {
-		t.Errorf("expected W-LOCK-TIMEOUT warning when root FAD lock is held during amend, got warnings: %v", envAmend.Warnings)
+	if !strings.Contains(string(fadBytes), "Validated edge caching layer.") {
+		t.Errorf("research/FAD.md does not contain amendment")
+	}
+
+	// 2. Root FOUNDING-ARCHITECTURE.md must NOT exist
+	rootFAD := filepath.Join(tmpDir, "FOUNDING-ARCHITECTURE.md")
+	if _, err := os.Stat(rootFAD); !os.IsNotExist(err) {
+		t.Errorf("expected FOUNDING-ARCHITECTURE.md in root to NOT exist, but stat returned: %v", err)
 	}
 }
 
