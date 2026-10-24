@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/tailscale/hujson"
 )
 
 // WorkspaceExists checks if a workspace has been initialized at the given path.
@@ -54,6 +56,9 @@ func InspectWorkspace(root string) WorkspaceInfo {
 	hasMetadataScope := false
 	if metaData, err := os.ReadFile(filepath.Join(root, MetadataFile)); err == nil {
 		var meta WorkspaceMeta
+		if std, sErr := hujson.Standardize(metaData); sErr == nil {
+			metaData = std
+		}
 		if json.Unmarshal(metaData, &meta) == nil && ValidScope(meta.Scope) {
 			info.Scope = meta.Scope
 			hasMetadataScope = true

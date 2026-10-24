@@ -34,6 +34,15 @@ Vivechak operates at three distinct scope levels calibrated to decision blast ra
 
 *(For detailed scope methodology, invariants I1–I9, and decision routing, see [§9. Multi-Scope Research](#9-multi-scope-research).)*
 
+### Positioning: What Vivechak Is vs. What Vivechak Is Not
+
+| What Vivechak IS | What Vivechak IS NOT |
+|---|---|
+| **Epistemic Grounding Engine:** Pre-coding research meta-framework providing empirical evidence grades (`E-A` through `E-E`) | **A Code Generator:** It does not write production code, components, endpoints, or scripts |
+| **Architectural Gatekeeper:** Enforces pre-coding exit criteria (`Track A` Two-Way vs. `Track B` One-Way Doors) with interactive human sign-off (`vck signoff`) | **A Linter or Static Analyzer:** It does not analyze ASTs, enforce formatting, or typecheck code |
+| **Reversibility-Calibrated Sieve:** 1-session comparisons (`C-NNN`), 1–3 session ADRs (`D-NNN`), or multi-session DAG pipelines | **An Autonomous Orchestrator for Everything:** Not an open-ended loop for routine programming tasks |
+| **Structured Falsification:** Mandates disconfirming evidence searches, substantive discovered concerns, and premortems | **A Prompt Persona:** No expert persona roleplays, XML prompt bloat, or arbitrary search count quotas |
+
 ### How Project Scope Operates (Full Pipeline)
 
 ```

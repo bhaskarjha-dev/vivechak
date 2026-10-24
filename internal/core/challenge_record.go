@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/bhaskarjha-dev/vivechak/internal/store"
+	"github.com/tailscale/hujson"
 )
 
 // ChallengesDir is the directory where challenge records are stored.
@@ -59,6 +60,9 @@ func HasValidChallengeRecord(ws WorkspaceFS, targetID string) bool {
 	relPath := filepath.Join(ChallengesDir, filename)
 	if data, err := ws.ReadFile(relPath); err == nil && len(data) > 0 {
 		var rec ChallengeRecord
+		if std, sErr := hujson.Standardize(data); sErr == nil {
+			data = std
+		}
 		if err := json.Unmarshal(data, &rec); err == nil {
 			if strings.EqualFold(rec.TargetID, targetID) && len(rec.Prompts) > 0 {
 				return true

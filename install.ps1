@@ -69,18 +69,23 @@ try {
 
     # Verify checksum
     Write-Host 'Verifying checksum...'
-    $ExpectedLine = Get-Content (Join-Path $TmpDir 'checksums.txt') | Where-Object { $_ -match $Archive }
-    if ($ExpectedLine) {
-        $ExpectedHash = ($ExpectedLine -split '\s+')[0]
-        $ActualHash = (Get-FileHash (Join-Path $TmpDir $Archive) -Algorithm SHA256).Hash.ToLower()
-        if ($ActualHash -ne $ExpectedHash.ToLower()) {
-            Write-Error "Checksum mismatch! Expected: $ExpectedHash, Got: $ActualHash"
-            return
-        }
-        Write-Host 'Checksum verified.' -ForegroundColor Green
-    } else {
-        Write-Warning 'Could not find checksum entry, skipping verification'
+    $EscapedArchive = [regex]::Escape($Archive)
+    $ExpectedLine = Get-Content (Join-Path $TmpDir 'checksums.txt') | Where-Object { $_ -match "\s+$EscapedArchive$" }
+    if (-not $ExpectedLine) {
+        $ExpectedLine = Get-Content (Join-Path $TmpDir 'checksums.txt') | Where-Object { ($_ -split '\s+')[-1] -eq $Archive }
     }
+    if (-not $ExpectedLine) {
+        Write-Error "Archive $Archive not found in checksums.txt! Cannot verify download integrity."
+        return
+    }
+
+    $ExpectedHash = ($ExpectedLine -split '\s+')[0].Trim().ToLower()
+    $ActualHash = (Get-FileHash (Join-Path $TmpDir $Archive) -Algorithm SHA256).Hash.Trim().ToLower()
+    if ($ActualHash -ne $ExpectedHash) {
+        Write-Error "Checksum mismatch! Expected: $ExpectedHash, Got: $ActualHash"
+        return
+    }
+    Write-Host "✓ Checksum verified ($ActualHash)" -ForegroundColor Green
 
     # Extract
     Write-Host 'Extracting...'

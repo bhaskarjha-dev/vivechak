@@ -7,14 +7,50 @@ on:
       - "v*"
 
 permissions:
-  contents: write
-  packages: write
+  contents: read
 
 jobs:
+  preflight:
+    name: Preflight Credential Check
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Verify Release Credentials
+        run: |
+          echo "=== Release Preflight Check ==="
+          if [ -z "${{ secrets.GITHUB_TOKEN }}" ]; then
+            echo "::error::GITHUB_TOKEN is missing or empty"
+            exit 1
+          fi
+          echo "✓ GITHUB_TOKEN present"
+
+          if [ -n "${{ secrets.TAP_GITHUB_TOKEN }}" ]; then
+            echo "✓ TAP_GITHUB_TOKEN configured (Homebrew tap push enabled)"
+          else
+            echo "::notice::TAP_GITHUB_TOKEN not configured (Homebrew tap push will be skipped)"
+          fi
+
+          if [ -n "${{ secrets.NPM_TOKEN }}" ]; then
+            echo "✓ NPM_TOKEN configured"
+          else
+            echo "::notice::NPM_TOKEN not configured (npm publish will be skipped)"
+          fi
+
+          if [ -n "${{ secrets.PYPI_API_TOKEN }}" ]; then
+            echo "✓ PYPI_API_TOKEN configured"
+          else
+            echo "::notice::PYPI_API_TOKEN not configured (PyPI publish will be skipped)"
+          fi
+          echo "=== Preflight check completed ==="
+
   # 1. Primary Native Release (macOS runner for universal lipo + 7 OS targets + nfpms)
   goreleaser:
     name: Core GoReleaser
+    needs: preflight
     runs-on: macos-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -43,6 +79,9 @@ jobs:
     name: Docker GHCR
     needs: goreleaser
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     steps:
       - uses: actions/checkout@v4
 
@@ -76,6 +115,8 @@ jobs:
     name: npm Registry
     needs: goreleaser
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
 
@@ -116,6 +157,8 @@ jobs:
     name: PyPI Registry
     needs: goreleaser
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
 

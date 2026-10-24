@@ -11,6 +11,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/bhaskarjha-dev/vivechak/internal/core"
+	"github.com/tailscale/hujson"
 )
 
 var decisionRefRe = regexp.MustCompile(`(?i)\[(D-[A-Za-z0-9_-]+)\]|\b(?:ADR|decision|informs|refers?\s+to)\s+(D-[A-Za-z0-9_-]+)\b`)
@@ -82,6 +83,9 @@ func checkWorkspace(workspace string) (bool, []string, []string) {
 	metaPath := filepath.Join(workspace, core.MetadataFile)
 	if metaData, err := os.ReadFile(metaPath); err == nil {
 		var meta core.WorkspaceMeta
+		if std, sErr := hujson.Standardize(metaData); sErr == nil {
+			metaData = std
+		}
 		if err := json.Unmarshal(metaData, &meta); err == nil && core.ValidScope(meta.Scope) {
 			successes = append(successes, fmt.Sprintf("✓ Workspace metadata (%s) valid", core.MetadataFile))
 		} else {

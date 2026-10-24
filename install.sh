@@ -61,13 +61,31 @@ curl -fsSL -o "${TMP_DIR}/checksums.txt" "${CHECKSUM_URL}"
 # Verify checksum
 echo "Verifying checksum..."
 cd "$TMP_DIR"
-if command -v sha256sum > /dev/null 2>&1; then
-  grep "${ARCHIVE}" checksums.txt | sha256sum -c --quiet
-elif command -v shasum > /dev/null 2>&1; then
-  grep "${ARCHIVE}" checksums.txt | shasum -a 256 -c --quiet
-else
-  echo "Warning: no sha256sum or shasum found, skipping checksum verification"
+EXPECTED_SHA=$(grep -E "[[:space:]]${ARCHIVE}$" checksums.txt | awk '{print $1}' || true)
+if [ -z "$EXPECTED_SHA" ]; then
+  EXPECTED_SHA=$(grep -F " ${ARCHIVE}" checksums.txt | awk '{print $1}' || true)
 fi
+if [ -z "$EXPECTED_SHA" ]; then
+  echo "Error: archive ${ARCHIVE} not found in checksums.txt (verification failed)"
+  exit 1
+fi
+
+if command -v sha256sum > /dev/null 2>&1; then
+  ACTUAL_SHA=$(sha256sum "${ARCHIVE}" | awk '{print $1}')
+elif command -v shasum > /dev/null 2>&1; then
+  ACTUAL_SHA=$(shasum -a 256 "${ARCHIVE}" | awk '{print $1}')
+else
+  echo "Error: neither sha256sum nor shasum found for cryptographic verification"
+  exit 1
+fi
+
+if [ "$EXPECTED_SHA" != "$ACTUAL_SHA" ]; then
+  echo "Error: checksum mismatch for ${ARCHIVE}"
+  echo "Expected: ${EXPECTED_SHA}"
+  echo "Actual:   ${ACTUAL_SHA}"
+  exit 1
+fi
+echo "✓ Checksum verified (${ACTUAL_SHA})"
 
 # Extract
 echo "Extracting..."

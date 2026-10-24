@@ -172,7 +172,10 @@ async function main() {
   }
 
   if (args.includes("--triage")) {
-    triageRuns();
+    const triage = triageRuns();
+    if (triage.failed > 0) {
+      process.exit(1);
+    }
     return;
   }
 
@@ -240,14 +243,25 @@ async function main() {
   console.log(`Scenarios: ${targets.join(", ")}`);
   console.log(`Harnesses: ${harnesses.join(", ")}\n`);
 
+  let hasFailures = false;
   for (const h of harnesses) {
     for (const s of targets) {
       try {
-        await runOrchestration(s, h, modelArg);
+        const result = await runOrchestration(s, h, modelArg);
+        if (!result || !result.success) {
+          hasFailures = true;
+          console.error(`❌ Scenario ${s} failed on ${h}: ${result?.error || result?.status || "unsuccessful"}`);
+        }
       } catch (err) {
+        hasFailures = true;
         console.error(`❌ Scenario ${s} failed on ${h}:`, err.message);
       }
     }
+  }
+
+  if (hasFailures) {
+    console.error("\n❌ Autonomous test execution encountered failures.");
+    process.exit(1);
   }
 }
 

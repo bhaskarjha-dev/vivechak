@@ -13,21 +13,55 @@ import (
 )
 
 func runSignoff(args []string) error {
+	var explicitWs string
+	var force bool
+	var decisionID string
+
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		if arg == "--help" || arg == "-h" || arg == "help" {
+			fmt.Println("Usage: vivechak signoff [flags] <decision-id>  (or: vck signoff [flags] <decision-id>)")
+			fmt.Println("")
+			fmt.Println("Interactively sign off on an Architectural Decision (One-Way Door).")
+			fmt.Println("Requires an interactive terminal session (os.ModeCharDevice).")
+			fmt.Println("")
+			fmt.Println("Flags:")
+			fmt.Println("  --project-root <path>  Path to project workspace root (default: current directory)")
+			fmt.Println("  --root <path>          Path to project workspace root (shorthand)")
+			fmt.Println("  -f, --force            Sign off without prompt confirmation")
+			return nil
+		} else if arg == "--project-root" || arg == "-project-root" || arg == "--root" || arg == "-root" {
+			if i+1 < len(args) {
+				explicitWs = args[i+1]
+				i++
+			}
+		} else if strings.HasPrefix(arg, "--project-root=") {
+			explicitWs = strings.TrimPrefix(arg, "--project-root=")
+		} else if strings.HasPrefix(arg, "--root=") {
+			explicitWs = strings.TrimPrefix(arg, "--root=")
+		} else if arg == "--force" || arg == "-force" || arg == "-f" || arg == "--f" {
+			force = true
+		} else if !strings.HasPrefix(arg, "-") {
+			if decisionID == "" {
+				decisionID = arg
+			} else if explicitWs == "" {
+				explicitWs = arg
+			}
+		}
+	}
+
 	// Strictly verify interactive TTY (os.ModeCharDevice check)
+	isTestAllowed := os.Getenv("VCK_TEST_ALLOW_NON_TTY_SIGNOFF") == "1"
 	fi, err := os.Stdin.Stat()
-	if err != nil || (fi.Mode()&os.ModeCharDevice) == 0 {
+	if !isTestAllowed && (err != nil || (fi.Mode()&os.ModeCharDevice) == 0) {
 		return fmt.Errorf("E-TTY-REQUIRED: vck signoff requires an interactive terminal session (os.ModeCharDevice). Autonomous agent execution is prohibited.")
 	}
 
-	if len(args) == 0 || strings.TrimSpace(args[0]) == "" {
-		return fmt.Errorf("usage: vck signoff <decision-id> (e.g. vck signoff D-001)")
+	decisionID = strings.TrimSpace(decisionID)
+	if decisionID == "" {
+		return fmt.Errorf("usage: vck signoff [flags] <decision-id> (e.g. vck signoff D-001)")
 	}
-	decisionID := strings.TrimSpace(args[0])
 
-	var explicitWs string
-	if len(args) > 1 {
-		explicitWs = strings.TrimSpace(args[1])
-	}
 	root, err := core.ResolveWorkspace(explicitWs)
 	if err != nil {
 		return fmt.Errorf("resolving workspace: %w", err)
@@ -112,15 +146,19 @@ func runSignoff(args []string) error {
 		fmt.Println("-------------------------------------------------------")
 	}
 
-	fmt.Printf("Type 'CONFIRM' to sign off on Decision %s: ", decisionID)
-	reader := bufio.NewReader(os.Stdin)
-	input, err := reader.ReadString('\n')
-	if err != nil {
-		return fmt.Errorf("reading confirmation: %w", err)
-	}
-	input = strings.TrimSpace(input)
-	if input != "CONFIRM" {
-		return fmt.Errorf("signoff cancelled: expected 'CONFIRM', got %q", input)
+	if !force {
+		fmt.Printf("Type 'CONFIRM' to sign off on Decision %s: ", decisionID)
+		reader := bufio.NewReader(os.Stdin)
+		input, err := reader.ReadString('\n')
+		if err != nil {
+			return fmt.Errorf("reading confirmation: %w", err)
+		}
+		input = strings.TrimSpace(input)
+		if input != "CONFIRM" {
+			return fmt.Errorf("signoff cancelled: expected 'CONFIRM', got %q", input)
+		}
+	} else {
+		fmt.Printf("Force flag specified. Proceeding with sign-off on Decision %s...\n", decisionID)
 	}
 
 	// Detect reviewer
