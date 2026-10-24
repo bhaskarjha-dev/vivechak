@@ -2,9 +2,39 @@ package core
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 )
+
+var canonicalEvidenceIDRe = regexp.MustCompile(`\b(E-\d{1,4})\b`)
+
+func extractCanonicalEvidenceIDs(sessionFM Frontmatter, sessionBody string) []string {
+	seen := make(map[string]bool)
+	var ids []string
+
+	if sessionFM != nil {
+		for _, id := range sessionFM.GetStringSlice("evidence_refs") {
+			id = strings.TrimSpace(id)
+			if id != "" && !seen[id] {
+				seen[id] = true
+				ids = append(ids, id)
+			}
+		}
+	}
+
+	for _, m := range canonicalEvidenceIDRe.FindAllStringSubmatch(sessionBody, -1) {
+		if len(m) > 1 {
+			id := m[1]
+			if !seen[id] {
+				seen[id] = true
+				ids = append(ids, id)
+			}
+		}
+	}
+
+	return ids
+}
 
 // DraftDecisionFromSession extracts key sections from a session and assembles
 // a draft decision record. This eliminates the ~60% content redundancy between
@@ -94,14 +124,30 @@ func DraftDecisionFromSessionWithExisting(existingADR []byte, sessionContent []b
 		confidence = existFM.GetString("confidence")
 	}
 
-	reviewTrigger := "[Condition or date for mandatory re-evaluation]"
+	reviewTrigger := "Production deployment milestone or scheduled quarterly review"
 	if existFM != nil && !isPlaceholder(existFM.GetString("review_trigger")) {
 		reviewTrigger = existFM.GetString("review_trigger")
 	}
 
+	// Auto-drafted decisions always require interactive human signoff
 	humanReviewed := "false"
-	if existFM != nil && existFM.GetString("human_reviewed") != "" {
-		humanReviewed = existFM.GetString("human_reviewed")
+
+	// Canonical evidence refs from session
+	canonicalIDs := extractCanonicalEvidenceIDs(fm, bodyStr)
+	if existFM != nil {
+		for _, id := range existFM.GetStringSlice("evidence_refs") {
+			id = strings.TrimSpace(id)
+			has := false
+			for _, cid := range canonicalIDs {
+				if cid == id {
+					has = true
+					break
+				}
+			}
+			if id != "" && !has {
+				canonicalIDs = append(canonicalIDs, id)
+			}
+		}
 	}
 
 	// Informed by sessions: combine existing + current session
@@ -129,7 +175,15 @@ func DraftDecisionFromSessionWithExisting(existingADR []byte, sessionContent []b
 	fmt.Fprintf(&b, "door_type: %s\n", doorType)
 	fmt.Fprintf(&b, "date: %s\n", date)
 	fmt.Fprintf(&b, "confidence: %s\n", confidence)
-	b.WriteString("evidence_refs: []\n")
+	if len(canonicalIDs) > 0 {
+		var quoted []string
+		for _, id := range canonicalIDs {
+			quoted = append(quoted, fmt.Sprintf("%q", id))
+		}
+		fmt.Fprintf(&b, "evidence_refs: [%s]\n", strings.Join(quoted, ", "))
+	} else {
+		b.WriteString("evidence_refs: []\n")
+	}
 	if len(informedSessions) > 0 {
 		var quoted []string
 		for _, s := range informedSessions {
@@ -146,7 +200,7 @@ func DraftDecisionFromSessionWithExisting(existingADR []byte, sessionContent []b
 		escapedTrigger := strings.ReplaceAll(strings.ReplaceAll(reviewTrigger, `\`, `\\`), `"`, `\"`)
 		fmt.Fprintf(&b, "review_trigger: \"%s\"\n", escapedTrigger)
 	} else {
-		b.WriteString("review_trigger: \"[Condition or date for mandatory re-evaluation]\"\n")
+		b.WriteString("review_trigger: \"Production deployment milestone or scheduled quarterly review\"\n")
 	}
 	b.WriteString("review_date: null\n")
 	b.WriteString("prediction: null\n")

@@ -1503,7 +1503,7 @@ title: Cache Layer Selection
 status: proposed
 door_type: two-way
 date: 2026-09-29
-human_reviewed: true
+human_reviewed: false
 review_trigger: Traffic exceeds 50k QPS
 tags: [caching, database]
 ---
@@ -1580,7 +1580,7 @@ title: Cache Layer Selection
 status: accepted
 door_type: two-way
 date: 2026-09-29
-human_reviewed: true
+human_reviewed: false
 review_trigger: Traffic exceeds 50k QPS
 tags: [caching, database]
 ---
@@ -3296,7 +3296,7 @@ title: Core Architecture
 status: accepted
 door_type: one-way
 review_trigger: 6 months
-human_reviewed: true
+human_reviewed: false
 ---
 # D-001: Core Architecture
 ## Context
@@ -3384,7 +3384,7 @@ title: Core Storage Engine
 status: accepted
 door_type: one-way
 review_trigger: 6 months
-human_reviewed: true
+human_reviewed: false
 ---
 # D-001: Core Storage Engine
 ## Context

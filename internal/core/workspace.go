@@ -51,6 +51,12 @@ func DirFS(dir string) WorkspaceFS {
 	return dirFS{dir: dir}
 }
 
+// FileExistsFS reports whether a file exists in the given WorkspaceFS.
+func FileExistsFS(ws WorkspaceFS, relPath string) bool {
+	_, err := ws.Stat(relPath)
+	return err == nil
+}
+
 // Workspace re-exports from internal/workspace for core package consumers.
 
 const (
@@ -183,6 +189,9 @@ type GateDecisionItem struct {
 	Track         string `json:"track"`
 	Status        string `json:"status"`
 	HumanReviewed bool   `json:"human_reviewed"`
+	ReviewedBy    string `json:"reviewed_by,omitempty"`
+	ReviewedAt    string `json:"reviewed_at,omitempty"`
+	ChallengeRef  string `json:"challenge_ref,omitempty"`
 }
 
 // CollectGateDecisions collects all recorded decisions from ADR files and DECISIONS.md.
@@ -276,6 +285,9 @@ func CollectGateDecisions(ws WorkspaceFS) []GateDecisionItem {
 		}
 
 		reviewed := strings.EqualFold(strings.TrimSpace(fm.GetString("human_reviewed")), "true")
+		reviewedBy := fm.GetString("reviewed_by")
+		reviewedAt := fm.GetString("reviewed_at")
+		challengeRef := fm.GetString("challenge_ref")
 
 		decisions = append(decisions, GateDecisionItem{
 			ID:            id,
@@ -284,6 +296,9 @@ func CollectGateDecisions(ws WorkspaceFS) []GateDecisionItem {
 			Track:         track,
 			Status:        status,
 			HumanReviewed: reviewed,
+			ReviewedBy:    reviewedBy,
+			ReviewedAt:    reviewedAt,
+			ChallengeRef:  challengeRef,
 		})
 	}
 

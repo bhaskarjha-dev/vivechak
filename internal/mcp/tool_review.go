@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/bhaskarjha-dev/vivechak/internal/core"
 	"github.com/bhaskarjha-dev/vivechak/internal/store"
@@ -140,6 +141,23 @@ func handleReviewChallenge(_ context.Context, in ReviewInput) (*sdkmcp.CallToolR
 	if cErr != nil {
 		return ErrorResult(tool, cErr, "Verify session content is non-empty and formatted correctly.")
 	}
+
+	// Persist challenge record into research/.challenges/
+	rec := core.ChallengeRecord{
+		TargetID:   target,
+		TargetHash: core.ComputeContentHash([]byte(sessionData)),
+		Timestamp:  time.Now().UTC().Format(time.RFC3339),
+		Mode:       string(core.ModeRedTeam),
+	}
+	for _, p := range challengeResult.Prompts {
+		rec.Prompts = append(rec.Prompts, p.Prompt)
+	}
+	challengeRef, _ := core.SaveChallengeRecord(ws, rec)
+	if challengeResult.Context == nil {
+		challengeResult.Context = make(map[string]any)
+	}
+	challengeResult.Context["challenge_ref"] = challengeRef
+	challengeResult.Context["target_hash"] = rec.TargetHash
 
 	next := &NextAction{
 		Tool: "vivechak_amend",

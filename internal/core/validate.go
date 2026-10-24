@@ -163,6 +163,38 @@ func (r *ValidationResult) AddFieldIssueWithHint(level ValidationLevel, code, fi
 	})
 }
 
+var reHumanReviewed = regexp.MustCompile(`(?i)\bhuman_reviewed\s*:\s*(?:true\b|yes\b|"true"|'true')`)
+
+// CheckHumanOnlyField checks if content attempts to set human_reviewed to true,
+// which is strictly reserved for human interactive signoff.
+func CheckHumanOnlyField(content []byte) error {
+	if reHumanReviewed.Match(content) {
+		return fmt.Errorf("E-HUMAN-ONLY-FIELD: agents are prohibited from setting human_reviewed: true. A human must review and sign off via 'vck signoff <decision-id>' on an interactive terminal")
+	}
+	return nil
+}
+
+var placeholderRegexes = []*regexp.Regexp{
+	regexp.MustCompile(`(?i)\[(?:topic-slug|insert\s+[^\]]+|paste\s+[^\]]+|todo(?::\s*[^\]]*)?|your\s+project[^\]]*|project\s+name|option\s+[a-z]|criterion\s+\d+|condition\s+or\s+date[^\]]*|comparison\s+title|why\s+this\s+criterion[^\]]*)\]`),
+	regexp.MustCompile(`(?i)<!--\s*TODO.*-->`),
+}
+
+// ScanPlaceholders searches for unexpanded template placeholders in content.
+func ScanPlaceholders(content []byte) []string {
+	var matches []string
+	seen := make(map[string]bool)
+	for _, re := range placeholderRegexes {
+		for _, m := range re.FindAll(content, -1) {
+			str := string(m)
+			if !seen[str] {
+				seen[str] = true
+				matches = append(matches, str)
+			}
+		}
+	}
+	return matches
+}
+
 // ValidateDiscoveredConcerns verifies that Discovered Concerns contains substantive analysis on one-way door sessions.
 func ValidateDiscoveredConcerns(bodyStr string, isOneWay bool, result *ValidationResult) {
 	hasHeading := hasSectionHeading(bodyStr, "discovered concerns", "discovered concern")
@@ -233,6 +265,13 @@ func ValidateSessionWithContext(data []byte, isOneWay bool) *ValidationResult {
 				fmt.Sprintf("Required frontmatter field %q is missing", field),
 				hint)
 		}
+	}
+
+	// L2: Check for unexpanded template placeholders
+	if phs := ScanPlaceholders(data); len(phs) > 0 {
+		result.AddIssueWithHint(L2Block, "E-PLACEHOLDER-REMAINS",
+			fmt.Sprintf("Artifact contains unexpanded placeholder %q", phs[0]),
+			"Replace all template bracketed placeholders with actual empirical research content.")
 	}
 
 	// L3: Check date presence and format (YYYY-MM-DD)
@@ -316,6 +355,13 @@ func ValidateDecision(data []byte) *ValidationResult {
 				fmt.Sprintf("Required field %q missing from decision", field),
 				fmt.Sprintf("Add '%s: <value>' to the frontmatter", field))
 		}
+	}
+
+	// L2: Check for unexpanded template placeholders
+	if phs := ScanPlaceholders(data); len(phs) > 0 {
+		result.AddIssueWithHint(L2Block, "E-PLACEHOLDER-REMAINS",
+			fmt.Sprintf("Artifact contains unexpanded placeholder %q", phs[0]),
+			"Replace all template bracketed placeholders with actual empirical research content.")
 	}
 
 	// L3: door_type should be present
@@ -693,6 +739,13 @@ func ValidateFAD(data []byte) *ValidationResult {
 		}
 	}
 
+	// L2: Check for unexpanded template placeholders
+	if phs := ScanPlaceholders(data); len(phs) > 0 {
+		result.AddIssueWithHint(L2Block, "E-PLACEHOLDER-REMAINS",
+			fmt.Sprintf("FAD contains unexpanded placeholder %q", phs[0]),
+			"Replace all template bracketed placeholders with actual empirical research content.")
+	}
+
 	// Check body length
 	bodyStr := strings.TrimSpace(string(body))
 	if len(bodyStr) < 100 {
@@ -737,6 +790,11 @@ func ValidateComparison(data []byte) *ValidationResult {
 	contentStr := string(data)
 
 	// Check for unreplaced template placeholders
+	if phs := ScanPlaceholders(data); len(phs) > 0 {
+		result.AddIssueWithHint(L2Block, "E-PLACEHOLDER-REMAINS",
+			fmt.Sprintf("Comparison contains unexpanded placeholder %q", phs[0]),
+			"Replace all template bracketed placeholders with actual empirical research content.")
+	}
 	unreplacedPlaceholders := []string{
 		"[Comparison Title]",
 		"[Option A]",
@@ -746,9 +804,9 @@ func ValidateComparison(data []byte) *ValidationResult {
 	}
 	for _, ph := range unreplacedPlaceholders {
 		if strings.Contains(contentStr, ph) {
-			result.AddIssueWithHint(L2Block, "V-UNFILLED-TEMPLATE",
+			result.AddIssueWithHint(L2Block, "E-PLACEHOLDER-REMAINS",
 				fmt.Sprintf("Comparison contains unreplaced template placeholder %q", ph),
-				"Replace all template bracketed placeholders with actual empirical research content")
+				"Replace all template bracketed placeholders with actual empirical research content.")
 			break
 		}
 	}

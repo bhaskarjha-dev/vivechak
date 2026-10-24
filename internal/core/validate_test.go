@@ -674,6 +674,8 @@ func TestValidateSession_TemplateFile(t *testing.T) {
 	filled = strings.ReplaceAll(filled, `"[A-E]"`, `"A"`)
 	filled = strings.ReplaceAll(filled, `"[modifiers]"`, `"corroborated · fresh"`)
 	filled = strings.ReplaceAll(filled, `"[verification]"`, `"fetched"`)
+	filled = strings.ReplaceAll(filled, `[Option A]`, `PostgreSQL`)
+	filled = strings.ReplaceAll(filled, `[Option B]`, `MySQL`)
 	filled = strings.ReplaceAll(filled, `status: draft`, `status: complete`)
 
 	res := ValidateSession([]byte(filled))

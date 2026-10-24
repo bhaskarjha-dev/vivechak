@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/bhaskarjha-dev/vivechak/internal/core"
+	"github.com/bhaskarjha-dev/vivechak/internal/store"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -334,7 +335,7 @@ door_type: one-way
 date: 2026-10-15
 confidence: high
 informed_by_sessions: ["D-001-S1"]
-human_reviewed: true
+human_reviewed: false
 review_trigger: "If write volume exceeds 100k tx/sec requiring horizontal write sharding"
 ---
 # D-001: Adopt PostgreSQL for Medical Billing
@@ -370,6 +371,17 @@ If write volume exceeds 100k tx/sec requiring horizontal write sharding, re-eval
 	if !recEnv.Success {
 		t.Fatalf("record_decision error: %s", recEnv.Message)
 	}
+
+	// Sign off decision via SignoffDecision
+	wsDec, err := store.OpenWorkspace(tmpDir)
+	if err != nil {
+		t.Fatalf("open workspace: %v", err)
+	}
+	if _, err := core.SignoffDecision(wsDec, "D-001", "Dr. Lead"); err != nil {
+		wsDec.Close()
+		t.Fatalf("signoff D-001: %v", err)
+	}
+	wsDec.Close()
 
 	// 6. Run Phase 0 Exit Gate — should pass Track B checks
 	gateRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
@@ -765,7 +777,7 @@ door_type: one-way
 date: 2026-10-15
 confidence: high
 informed_by_sessions: ["T1-01"]
-human_reviewed: true
+human_reviewed: false
 review_trigger: "If audio streaming bandwidth exceeds 500 MB/s"
 ---
 # WebRTC Audio Ingestion
@@ -800,7 +812,7 @@ door_type: one-way
 date: 2026-10-15
 confidence: high
 informed_by_sessions: ["T2-01"]
-human_reviewed: true
+human_reviewed: false
 review_trigger: "If vector collection exceeds 100M embeddings"
 ---
 # Qdrant Vector Store
@@ -834,6 +846,21 @@ If vector collection exceeds 100M embeddings.
 			t.Fatalf("record_decision %s failed: %s", id, recEnv.Message)
 		}
 	}
+
+	// Sign off one-way door decisions
+	wsProj, err := store.OpenWorkspace(tmpDir)
+	if err != nil {
+		t.Fatalf("open workspace: %v", err)
+	}
+	if _, err := core.SignoffDecision(wsProj, "D-001", "Lead Architect"); err != nil {
+		wsProj.Close()
+		t.Fatalf("signoff D-001: %v", err)
+	}
+	if _, err := core.SignoffDecision(wsProj, "D-003", "Lead Architect"); err != nil {
+		wsProj.Close()
+		t.Fatalf("signoff D-003: %v", err)
+	}
+	wsProj.Close()
 
 	// 10. Save FAD synthesis session
 	fadContent := `---

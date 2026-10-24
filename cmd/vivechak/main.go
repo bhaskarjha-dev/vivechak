@@ -47,6 +47,7 @@ func printUsage(w io.Writer) {
 	fmt.Fprintf(w, "  serve              Start MCP server over stdio (default — connects to ANY MCP client)\n")
 	fmt.Fprintf(w, "  doctor [path]      Check workspace integrity (default: current workspace)\n")
 	fmt.Fprintf(w, "  gate [flags] [path] Evaluate Phase 0 exit gate (flags: --track, --format, --verbose)\n")
+	fmt.Fprintf(w, "  signoff <decision-id> Sign off on an Architectural Decision (interactive TTY required)\n")
 	fmt.Fprintf(w, "  mcp-config         Output universal MCP JSON configuration (pipeable)\n")
 	fmt.Fprintf(w, "  version            Print version\n")
 }
@@ -116,6 +117,16 @@ func runCLIWithContext(ctx context.Context, args []string, stdout, stderr io.Wri
 			subArgs = args[2:]
 		}
 		return runGateWithArgs(subArgs, stdout, stderr)
+	case "signoff":
+		var subArgs []string
+		if len(args) > 2 {
+			subArgs = args[2:]
+		}
+		if err := runSignoff(subArgs); err != nil {
+			fmt.Fprintf(stderr, "Error: %v\n", err)
+			return 1
+		}
+		return 0
 	case "help", "--help", "-h":
 		printUsage(stdout)
 		return 0

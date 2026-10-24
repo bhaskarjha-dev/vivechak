@@ -299,7 +299,7 @@ title: Persistent Datastore
 status: accepted
 door_type: one-way
 date: 2026-10-07
-human_reviewed: true
+human_reviewed: false
 informed_by_sessions:
   - T1-01
 review_trigger: "Data exceeds 100 GB"
@@ -314,6 +314,16 @@ review_trigger: "Data exceeds 100 GB"
 		if err != nil || !envADR.Success {
 			t.Fatalf("record decision failed: %v", err)
 		}
+
+		ws, err := store.OpenWorkspace(tmpDir)
+		if err != nil {
+			t.Fatalf("open ws: %v", err)
+		}
+		if _, err := core.SignoffDecision(ws, "D-001", "Lead"); err != nil {
+			ws.Close()
+			t.Fatalf("signoff D-001: %v", err)
+		}
+		ws.Close()
 
 		// Run gate
 		_, envGate, err := handleRunGate(ctx, nil, RunGateInput{
@@ -1072,7 +1082,7 @@ title: Storage Engine
 status: accepted
 door_type: one-way
 date: 2026-10-18
-human_reviewed: true
+human_reviewed: false
 informed_by_sessions:
   - T1-01
 review_trigger: "Data exceeds 100 GB"
@@ -1096,6 +1106,16 @@ Challenged lock contention under 100 concurrent writers. WAL mode sustains requi
 		if err != nil || !envADR.Success {
 			t.Fatalf("record decision: %v", err)
 		}
+
+		ws, err := store.OpenWorkspace(tmpDir)
+		if err != nil {
+			t.Fatalf("open ws: %v", err)
+		}
+		if _, err := core.SignoffDecision(ws, "D-001", "Lead"); err != nil {
+			ws.Close()
+			t.Fatalf("signoff D-001: %v", err)
+		}
+		ws.Close()
 
 		_, envGate, err := handleRunGate(ctx, nil, RunGateInput{ProjectRoot: tmpDir})
 		if err != nil || !envGate.Success {
@@ -1160,7 +1180,7 @@ title: Storage Engine
 status: accepted
 door_type: one-way
 date: 2026-10-18
-human_reviewed: true
+human_reviewed: false
 informed_by_sessions:
   - T1-01
 review_trigger: "Data exceeds 100 GB"
@@ -1175,6 +1195,16 @@ Adopt SQLite with WAL mode. Grade A (https://sqlite.org/wal.html)
 - Data size exceeds 100 GB.
 `
 		_, _, _ = handleRecordDecision(ctx, nil, RecordDecisionInput{ProjectRoot: tmpDir, DecisionID: "D-001", Content: adrContent})
+
+		ws, err := store.OpenWorkspace(tmpDir)
+		if err != nil {
+			t.Fatalf("open ws: %v", err)
+		}
+		if _, err := core.SignoffDecision(ws, "D-001", "Lead"); err != nil {
+			ws.Close()
+			t.Fatalf("signoff D-001: %v", err)
+		}
+		ws.Close()
 
 		_, envGate, err := handleRunGate(ctx, nil, RunGateInput{ProjectRoot: tmpDir})
 		if err != nil || !envGate.Success {

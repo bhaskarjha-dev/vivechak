@@ -180,6 +180,23 @@ func RenderGateArtifact(ws WorkspaceFS, tmplBytes []byte, root, projectName, gat
 		}
 		if hasOneWay && allHumanReviewed {
 			tmpl = strings.Replace(tmpl, "- [ ] Named Principal Architect has reviewed", "- [x] Named Principal Architect has reviewed", 1)
+			reviewerName := ""
+			reviewDate := ""
+			for _, d := range decisions {
+				if strings.EqualFold(d.DoorType, "one-way") && d.ReviewedBy != "" {
+					reviewerName = d.ReviewedBy
+					reviewDate = d.ReviewedAt
+					break
+				}
+			}
+			if reviewerName != "" {
+				tmpl = strings.Replace(tmpl, "Reviewer: `[Name]`", fmt.Sprintf("Reviewer: %s", reviewerName), 1)
+				tmpl = strings.Replace(tmpl, "- [ ] Reviewer: ", "- [x] Reviewer: ", 1)
+			}
+			if reviewDate != "" {
+				tmpl = strings.Replace(tmpl, "Review date: `[YYYY-MM-DD]`", fmt.Sprintf("Review date: %s", reviewDate), 1)
+				tmpl = strings.Replace(tmpl, "- [ ] Review date: ", "- [x] Review date: ", 1)
+			}
 		}
 
 		// B9: FAD Sealed

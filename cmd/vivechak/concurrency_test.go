@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/bhaskarjha-dev/vivechak/internal/core"
+	"github.com/bhaskarjha-dev/vivechak/internal/store"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -302,7 +303,7 @@ id: D-001
 title: Event-Sourced Core Domain
 status: accepted
 door_type: one-way
-human_reviewed: true
+human_reviewed: false
 review_trigger: "Event replay latency exceeds 100ms"
 review_date: 2026-12-01
 ---
@@ -875,7 +876,7 @@ id: D-001
 title: Adopt CockroachDB for Multi-Region SQL
 status: accepted
 door_type: one-way
-human_reviewed: true
+human_reviewed: false
 review_trigger: "WAN partition query latency > 500ms"
 review_date: 2026-12-01
 ---
@@ -896,6 +897,16 @@ We adopt CockroachDB. Grade A (benchmark)
 		if !envRec.Success {
 			t.Fatalf("record decision failed: %s", envRec.Message)
 		}
+
+		ws, err := store.OpenWorkspace(dDir)
+		if err != nil {
+			t.Fatalf("open workspace: %v", err)
+		}
+		if _, err := core.SignoffDecision(ws, "D-001", "Database Lead"); err != nil {
+			ws.Close()
+			t.Fatalf("signoff D-001: %v", err)
+		}
+		ws.Close()
 
 		// 7. Validate: D-001-plan.md must be whitelisted by IsSpecialResearchFile
 		envVal := callAndParse("vivechak_validate", map[string]any{

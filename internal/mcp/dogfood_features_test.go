@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/bhaskarjha-dev/vivechak/internal/core"
+	"github.com/bhaskarjha-dev/vivechak/internal/store"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -708,8 +709,8 @@ High write throughput achieved across regions.
 		t.Errorf("expected advisory warning for unreviewed one-way door, got warnings: %v", envGate1.Warnings)
 	}
 
-	// 2. Update with human_reviewed: true
-	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
+	// 2. Setting human_reviewed: true directly via MCP must fail with E-HUMAN-ONLY-FIELD
+	resTry, _ := cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_record_decision",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
@@ -731,6 +732,21 @@ High write throughput achieved across regions.
 `,
 		},
 	})
+	envTry := parseEnvelope(t, resTry)
+	if envTry.Success || !strings.Contains(envTry.Message, "E-HUMAN-ONLY-FIELD") {
+		t.Fatalf("expected E-HUMAN-ONLY-FIELD error, got: %s", envTry.Message)
+	}
+
+	// Human signoff via SignoffDecision
+	ws, err := store.OpenWorkspace(tmpDir)
+	if err != nil {
+		t.Fatalf("open workspace: %v", err)
+	}
+	if _, err := core.SignoffDecision(ws, "D-001", "Lead Architect"); err != nil {
+		ws.Close()
+		t.Fatalf("signoff failed: %v", err)
+	}
+	ws.Close()
 
 	resGate2, _ := cs.CallTool(ctx, &mcp.CallToolParams{
 		Name:      "vivechak_run_gate",
@@ -1157,7 +1173,7 @@ title: Auth Strategy
 status: accepted
 door_type: one-way
 review_trigger: 6 months or major breaking RFC change
-human_reviewed: true
+human_reviewed: false
 ---
 # D-001: Auth Strategy
 ## Context
@@ -1171,6 +1187,17 @@ Provides robust security with zero client secret exposure.
 `,
 		},
 	})
+
+	// Sign off decision via SignoffDecision
+	ws, err := store.OpenWorkspace(tmpDir)
+	if err != nil {
+		t.Fatalf("open workspace: %v", err)
+	}
+	if _, err := core.SignoffDecision(ws, "D-001", "Security Architect"); err != nil {
+		ws.Close()
+		t.Fatalf("signoff D-001: %v", err)
+	}
+	ws.Close()
 
 	// 5. Run gate again — should PASS
 	resPass, err := cs.CallTool(ctx, &mcp.CallToolParams{

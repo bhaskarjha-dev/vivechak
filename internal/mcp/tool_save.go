@@ -80,6 +80,17 @@ func handleSave(ctx context.Context, req *sdkmcp.CallToolRequest, in SaveInput) 
 		return ErrorResult(tool, err, "Reduce content size to under 10 MB.")
 	}
 
+	if in.Content != "" {
+		if err := core.CheckHumanOnlyField([]byte(in.Content)); err != nil {
+			return ErrorResult(tool, err, "Ask the human architect to run 'vck signoff <decision-id>' in an interactive terminal.")
+		}
+	}
+	if in.DecisionsContent != "" {
+		if err := core.CheckHumanOnlyField([]byte(in.DecisionsContent)); err != nil {
+			return ErrorResult(tool, err, "Ask the human architect to run 'vck signoff <decision-id>' in an interactive terminal.")
+		}
+	}
+
 	if in.Slug != "" {
 		if err := store.ValidateSlug(in.Slug); err != nil {
 			return ErrorResult(tool, fmt.Errorf("E-INVALID-ARGUMENT: %w", err), "Provide a URL-safe alphanumeric slug without path traversal or reserved names.")

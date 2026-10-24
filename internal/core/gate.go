@@ -41,11 +41,70 @@ func EvaluateGate(ws WorkspaceFS, info WorkspaceInfo, root string) *GateResult {
 	switch info.Scope {
 	case ScopeDecision:
 		structuralTotal = 3
-		// Check 1: At least 1 session completed
-		if info.SessionCount > 0 {
-			structuralPassed++
+
+		// Check 1: Verify all sessions declared in decision plan(s) are completed
+		var planDeclaredSessions []string
+		if entries, err := ws.ListDir(ResearchDir); err == nil {
+			for _, e := range entries {
+				name := e.Name()
+				if !e.IsDir() && strings.HasSuffix(name, "-plan.md") {
+					if planData, pErr := ws.ReadFile(filepath.Join(ResearchDir, name)); pErr == nil {
+						if block, bErr := ParsePlanMachineBlock(planData); bErr == nil && block != nil && len(block.Sessions) > 0 {
+							for _, s := range block.Sessions {
+								planDeclaredSessions = append(planDeclaredSessions, s.ID)
+							}
+						} else if dag, dErr := ParsePipeline(planData); dErr == nil && len(dag.Sessions) > 0 {
+							for _, s := range dag.Sessions {
+								planDeclaredSessions = append(planDeclaredSessions, s.ID)
+							}
+						} else {
+							reSess := regexp.MustCompile(`(?m)^\s*(?:\d+\.|\-|\*)\s+([A-Za-z0-9_-]+)\s*:`)
+							for _, m := range reSess.FindAllSubmatch(planData, -1) {
+								if len(m) > 1 {
+									planDeclaredSessions = append(planDeclaredSessions, string(m[1]))
+								}
+							}
+						}
+					}
+					if len(planDeclaredSessions) > 0 {
+						break
+					}
+				}
+			}
+		}
+
+		if len(planDeclaredSessions) > 0 {
+			var missingSessions []string
+			for _, sid := range planDeclaredSessions {
+				found := false
+				if entries, err := ws.ListDir(SessionsDir); err == nil {
+					idUpper := strings.ToUpper(sid)
+					for _, se := range entries {
+						name := strings.TrimSuffix(se.Name(), ".md")
+						nameUpper := strings.ToUpper(name)
+						if nameUpper == idUpper || strings.HasPrefix(nameUpper, idUpper+"-") || strings.HasPrefix(nameUpper, idUpper+"_") {
+							if sData, err := ws.ReadFile(filepath.Join(SessionsDir, se.Name())); err == nil && len(sData) > 0 {
+								found = true
+								break
+							}
+						}
+					}
+				}
+				if !found {
+					missingSessions = append(missingSessions, sid)
+				}
+			}
+			if len(missingSessions) == 0 {
+				structuralPassed++
+			} else {
+				structuralIssues = append(structuralIssues, fmt.Sprintf("Planned session(s) missing or incomplete: %s", strings.Join(missingSessions, ", ")))
+			}
 		} else {
-			structuralIssues = append(structuralIssues, "No completed sessions found")
+			if info.SessionCount > 0 {
+				structuralPassed++
+			} else {
+				structuralIssues = append(structuralIssues, "No completed sessions found")
+			}
 		}
 
 		// Check 2: Templates present
@@ -611,6 +670,7 @@ func verifyDecisionsMechanical(ws WorkspaceFS, info WorkspaceInfo) (bool, []stri
 	anchoredRe := regexp.MustCompile(`(?s)<!-- DECISION:\s*([A-Za-z0-9_-]+)\s*-->\s*(.*?)\s*<!-- /DECISION:\s*[A-Za-z0-9_-]+\s*-->`)
 	unanchoredRe := regexp.MustCompile(`(?ms)^---\s*\n(.*?)\n---`)
 
+	var issues []string
 	for _, src := range sources {
 		chunk := src.data
 		file := src.file
@@ -643,9 +703,13 @@ func verifyDecisionsMechanical(ws WorkspaceFS, info WorkspaceInfo) (bool, []stri
 				checkDecisionFM(fm, file)
 			}
 		}
+
+		// Check for unexpanded placeholders in decision chunk
+		if phs := ScanPlaceholders(chunk); len(phs) > 0 {
+			issues = append(issues, fmt.Sprintf("E-PLACEHOLDER-REMAINS: Decision file %s contains unexpanded placeholder %q", file, phs[0]))
+		}
 	}
 
-	var issues []string
 	if !hasDecisionsParsed {
 		issues = append(issues, "No architectural decisions recorded yet — record decisions using vivechak_record_decision before running the gate")
 		return false, issues, nil
@@ -826,13 +890,29 @@ func verifyEvidentiaryIntegrity(ws WorkspaceFS, info WorkspaceInfo) ([]string, [
 		// B11: Check red-team challenge verification
 		checkChallengeText := func(text string) bool {
 			lower := strings.ToLower(text)
-			return strings.Contains(lower, "## challenge findings") ||
+			hasHeading := strings.Contains(lower, "## challenge findings") ||
 				strings.Contains(lower, "## red-team stress test") ||
 				strings.Contains(lower, "## red team stress test") ||
-				strings.Contains(lower, "challenge findings") ||
-				strings.Contains(lower, "red-team stress test")
+				strings.Contains(lower, "### b11. adversarial red-team challenge")
+			if !hasHeading {
+				return false
+			}
+			sec := ExtractSection(text, "challenge findings", "red-team stress test", "red team stress test", "adversarial red-team challenge")
+			trimmed := strings.TrimSpace(sec)
+			if len(trimmed) < 40 {
+				return false
+			}
+			if strings.EqualFold(trimmed, "None.") || strings.EqualFold(trimmed, "N/A") || strings.EqualFold(trimmed, "None identified.") {
+				return false
+			}
+			if strings.Contains(strings.ToLower(trimmed), "[todo") || (strings.Contains(strings.ToLower(trimmed), "pending") && len(trimmed) < 60) {
+				return false
+			}
+			return true
 		}
-		hasChallenge := checkChallengeText(bodyStr)
+		hasChallenge := checkChallengeText(bodyStr) ||
+			(d.ChallengeRef != "" && FileExistsFS(ws, d.ChallengeRef)) ||
+			HasValidChallengeRecord(ws, d.ID)
 
 		for _, sid := range sessIDs {
 			var sData []byte
@@ -853,8 +933,11 @@ func verifyEvidentiaryIntegrity(ws WorkspaceFS, info WorkspaceInfo) ([]string, [
 				continue
 			}
 			sessStr := string(sData)
-			if !hasChallenge && checkChallengeText(sessStr) {
+			if !hasChallenge && (HasValidChallengeRecord(ws, sid) || checkChallengeText(sessStr)) {
 				hasChallenge = true
+			}
+			if phs := ScanPlaceholders(sData); len(phs) > 0 {
+				blocking = append(blocking, fmt.Sprintf("E-PLACEHOLDER-REMAINS: Session %s contains unexpanded placeholder %q", sid, phs[0]))
 			}
 			checkStr := extractRecommendationText(sessStr)
 			if len(strings.TrimSpace(checkStr)) < 20 {

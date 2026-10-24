@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/bhaskarjha-dev/vivechak/internal/core"
+	"github.com/bhaskarjha-dev/vivechak/internal/store"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -357,7 +358,7 @@ door_type: "one-way"
 status: "accepted"
 date: "2026-10-06"
 confidence: "high"
-human_reviewed: true
+human_reviewed: false
 review_trigger: "Write latency exceeds 50ms"
 review_date: "2026-12-01"
 informing_sessions: ["T1-01"]
@@ -397,6 +398,16 @@ If Turso changes licensing or Go driver deprecates native encryption.
 	if !envDec.Success {
 		t.Fatalf("record_decision failed: %s", envDec.Message)
 	}
+
+	ws, err := store.OpenWorkspace(realProjectDir)
+	if err != nil {
+		t.Fatalf("open workspace: %v", err)
+	}
+	if _, err := core.SignoffDecision(ws, "D-001", "Security Lead"); err != nil {
+		ws.Close()
+		t.Fatalf("signoff D-001: %v", err)
+	}
+	ws.Close()
 
 	// 7.7 save synthesis FAD session
 	fadContent := `---

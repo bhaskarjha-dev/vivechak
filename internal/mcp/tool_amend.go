@@ -77,6 +77,10 @@ func handleAmend(ctx context.Context, req *sdkmcp.CallToolRequest, in AmendInput
 			"Provide the amendment text explaining the new finding or correction.")
 	}
 
+	if err := core.CheckHumanOnlyField([]byte(amendmentContent)); err != nil {
+		return ErrorResult(tool, err, "Ask the human architect to run 'vck signoff <decision-id>' in an interactive terminal.")
+	}
+
 	ws, err := store.OpenWorkspace(root)
 	if err != nil {
 		return ErrorResult(tool, fmt.Errorf("opening workspace: %w", err),

@@ -182,11 +182,11 @@ func generateRedTeamPrompts(rec string, rejectedAlts []string) []ChallengePrompt
 	prompts = append(prompts, ChallengePrompt{
 		Type: "disconfirming_search",
 		Prompt: fmt.Sprintf(
-			"Execute a disconfirming search to challenge the recommendation (%q):\n"+
-				"Search for: %q problems, %q failures, %q limitations, %q criticism, %q postmortem.\n"+
-				"Target: Uncover at least 2 real-world production failure modes, scale ceilings, or operational regressions. "+
-				"Document the findings with evidence grades.",
-			cleanRec, cleanRec, cleanRec, cleanRec, cleanRec, cleanRec),
+			"Execute a targeted disconfirming search to challenge the recommendation %q:\n"+
+				"Investigate known production failure modes, scaling ceilings, operational pitfalls, and postmortems specific to %q under realistic workload constraints.\n"+
+				"Target: Uncover at least 2 substantiated failure modes, anti-patterns, or negative engineering reports. "+
+				"Document all disconfirming findings with inline evidence grades.",
+			cleanRec, cleanRec),
 		Rationale: "Principle P8 (Structured Falsification): Disconfirming evidence must be prioritized. Meta-research indicates a 74% confirmation bias rate without adversarial search.",
 	})
 

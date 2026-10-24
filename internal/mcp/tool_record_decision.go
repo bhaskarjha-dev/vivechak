@@ -81,6 +81,12 @@ func handleRecordDecision(ctx context.Context, _ *sdkmcp.CallToolRequest, in Rec
 		}
 	}
 
+	if in.Content != "" {
+		if err := core.CheckHumanOnlyField([]byte(in.Content)); err != nil {
+			return ErrorResult(tool, err, "Ask the human architect to run 'vck signoff <decision-id>' in an interactive terminal.")
+		}
+	}
+
 	// Auto-draft mode: generate draft from session if auto_draft_from is set and content is empty
 	if strings.TrimSpace(in.Content) == "" && strings.TrimSpace(in.AutoDraftFrom) != "" {
 		ws, err := store.OpenWorkspace(root)
