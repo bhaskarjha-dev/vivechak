@@ -12,6 +12,7 @@
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const crypto = require('crypto');
 const https = require('https');
 const http = require('http');
 const { spawn, spawnSync } = require('child_process');
@@ -135,13 +136,43 @@ async function ensureBinary() {
   }
 
   const downloadUrl = `https://github.com/${REPO}/releases/download/v${VERSION}/${archiveName}`;
+  const checksumUrl = `https://github.com/${REPO}/releases/download/v${VERSION}/checksums.txt`;
   fs.mkdirSync(cacheDir, { recursive: true });
 
   const tempArchive = path.join(cacheDir, `${archiveName}.${process.pid}.tmp`);
+  const tempChecksum = path.join(cacheDir, `checksums.${process.pid}.tmp`);
   process.stderr.write(`[vck] Fetching Vivechak v${VERSION} for ${osName}/${archName}...\n`);
 
   try {
     await downloadFile(downloadUrl, tempArchive);
+    await downloadFile(checksumUrl, tempChecksum);
+
+    // Compute SHA-256 of downloaded archive
+    const fileBuffer = fs.readFileSync(tempArchive);
+    const hash = crypto.createHash('sha256').update(fileBuffer).digest('hex');
+
+    // Parse checksums.txt
+    const checksums = fs.readFileSync(tempChecksum, 'utf8');
+    const lines = checksums.split(/\r?\n/);
+    let expectedHash = null;
+    for (const line of lines) {
+      const parts = line.trim().split(/\s+/);
+      if (parts.length >= 2 && parts[1] === archiveName) {
+        expectedHash = parts[0];
+        break;
+      }
+    }
+
+    if (!expectedHash) {
+      throw new Error(`Checksum entry for ${archiveName} not found in checksums.txt`);
+    }
+
+    if (hash.toLowerCase() !== expectedHash.toLowerCase()) {
+      throw new Error(`Checksum verification failed for ${archiveName}! Expected: ${expectedHash}, computed: ${hash}`);
+    }
+
+    process.stderr.write(`[vck] Checksum verified: ${hash.slice(0, 8)}...\n`);
+
     extractArchive(tempArchive, cacheDir);
     if (!isWin) {
       const vckPath = path.join(cacheDir, 'vck');
@@ -149,10 +180,11 @@ async function ensureBinary() {
       if (fs.existsSync(vckPath)) fs.chmodSync(vckPath, 0o755);
       if (fs.existsSync(vivPath)) fs.chmodSync(vivPath, 0o755);
     }
-    try { fs.unlinkSync(tempArchive); } catch (_) {}
   } catch (err) {
-    try { fs.unlinkSync(tempArchive); } catch (_) {}
     throw new Error(`Failed to download and setup Vivechak: ${err.message}`);
+  } finally {
+    try { fs.unlinkSync(tempArchive); } catch (_) {}
+    try { fs.unlinkSync(tempChecksum); } catch (_) {}
   }
 
   if (!fs.existsSync(targetBinPath)) {

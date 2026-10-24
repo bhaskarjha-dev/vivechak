@@ -30,6 +30,7 @@ Vivechak (विवेचक) is designed as a sovereign, local-first research m
 Vivechak maintains an intentionally minimal dependency footprint to eliminate supply-chain vulnerabilities:
 - `github.com/modelcontextprotocol/go-sdk` — Official Go SDK for Model Context Protocol.
 - `github.com/gofrs/flock` — POSIX and Windows advisory file locking.
+- `github.com/tailscale/hujson` — JSONC comment-preserving parser for non-destructive IDE configuration.
 - `gopkg.in/yaml.v3` — Standard YAML parsing and serialization.
 - Standard Library for all cryptographic, path, AST, and confinement logic.
 

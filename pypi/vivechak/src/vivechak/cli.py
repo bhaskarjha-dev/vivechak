@@ -6,6 +6,7 @@ sys.stdout remains 100% clean for MCP JSON-RPC protocol communication.
 import os
 import sys
 import platform
+import hashlib
 import urllib.request
 import tarfile
 import zipfile
@@ -86,7 +87,9 @@ def ensure_binary(prog_name):
 
     cache_dir.mkdir(parents=True, exist_ok=True)
     archive_path = cache_dir / f"{archive}.{os.getpid()}.tmp"
+    checksum_path = cache_dir / f"checksums.{os.getpid()}.tmp"
     url = f"https://github.com/{REPO}/releases/download/v{VERSION}/{archive}"
+    checksum_url = f"https://github.com/{REPO}/releases/download/v{VERSION}/checksums.txt"
 
     sys.stderr.write(f"[vck] Fetching Vivechak v{VERSION} for {os_name}/{arch_name}...\n")
     sys.stderr.flush()
@@ -102,6 +105,43 @@ def ensure_binary(prog_name):
                     if not chunk:
                         break
                     f.write(chunk)
+
+        # Download checksums.txt
+        req_chk = urllib.request.Request(checksum_url, headers={"User-Agent": f"vivechak-runner/{VERSION}"})
+        with urllib.request.urlopen(req_chk, timeout=30.0) as resp:
+            if resp.status != 200:
+                raise RuntimeError(f"Checksum download failed with HTTP status {resp.status} from {checksum_url}")
+            checksum_data = resp.read()
+            with open(checksum_path, "wb") as f:
+                f.write(checksum_data)
+
+        # Compute SHA-256 of downloaded archive
+        hasher = hashlib.sha256()
+        with open(archive_path, "rb") as f:
+            while True:
+                chunk = f.read(64 * 1024)
+                if not chunk:
+                    break
+                hasher.update(chunk)
+        computed_sha = hasher.hexdigest().lower()
+
+        # Parse checksums.txt
+        expected_sha = None
+        for line in checksum_data.decode("utf-8", errors="replace").splitlines():
+            parts = line.strip().split()
+            if len(parts) >= 2 and parts[1] == archive:
+                expected_sha = parts[0].lower()
+                break
+
+        if not expected_sha:
+            raise RuntimeError(f"Checksum entry for {archive} not found in checksums.txt")
+
+        if computed_sha != expected_sha:
+            raise RuntimeError(f"Checksum mismatch for {archive}! Expected {expected_sha}, computed {computed_sha}")
+
+        sys.stderr.write(f"[vck] Checksum verified: {computed_sha[:8]}...\n")
+        sys.stderr.flush()
+
         if archive.endswith(".zip"):
             with zipfile.ZipFile(archive_path, "r") as zf:
                 zf.extractall(cache_dir)
@@ -109,11 +149,12 @@ def ensure_binary(prog_name):
             with tarfile.open(archive_path, "r:gz") as tf:
                 tf.extractall(cache_dir)
     finally:
-        if archive_path.exists():
-            try:
-                archive_path.unlink()
-            except Exception:
-                pass
+        for p in (archive_path, checksum_path):
+            if p.exists():
+                try:
+                    p.unlink()
+                except Exception:
+                    pass
 
     if not is_win:
         for b in [cache_dir / "vivechak", cache_dir / "vck"]:

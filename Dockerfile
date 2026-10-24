@@ -23,7 +23,8 @@ COPY --from=builder /build/vivechak /usr/local/bin/vivechak
 COPY --from=builder /build/vck /usr/local/bin/vck
 
 RUN chmod +x /usr/local/bin/vivechak /usr/local/bin/vck && \
-    adduser -D -u 10001 -s /bin/sh vivechak
+    adduser -D -u 10001 -s /bin/sh vivechak && \
+    mkdir -p /workspace && chown -R vivechak:vivechak /workspace
 
 WORKDIR /workspace
 USER vivechak:vivechak

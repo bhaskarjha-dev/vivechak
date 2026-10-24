@@ -69,9 +69,30 @@ jobs:
       - name: Build
         run: go build ./cmd/vivechak/
 
-      - name: CLI Subcommands Verification
+      - name: Documentation Drift Check
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          go run ./tools/docgen
+          git diff --exit-code docs/
+
+      - name: CLI Subcommands & Research Gate Verification
         run: |
           go run ./cmd/vivechak version
           go run ./cmd/vivechak doctor --help
           go run ./cmd/vivechak gate --help
+          go run ./cmd/vivechak gate --track all
           go run ./cmd/vivechak mcp-config
+
+  release-dryrun:
+    name: GoReleaser Dry Run
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: "~> v2"
+          args: release --snapshot --clean
