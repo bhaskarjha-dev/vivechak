@@ -13,11 +13,13 @@ import (
 // TestUniversal_PrepareGenerator_AllScopes verifies prepare_generator for technical, algorithmic, and business contexts.
 func TestUniversal_PrepareGenerator_AllScopes(t *testing.T) {
 	ctx := context.Background()
+	tmpDir := t.TempDir()
 
 	// 1. Comparison Scope — AI Models (Explicit Scope)
 	resComp, envComp, err := handlePrepareGenerator(ctx, nil, PrepareGeneratorInput{
-		Scope:   "comparison",
-		Context: "Claude 3.5 Sonnet vs GPT-4o for complex multi-turn coding agent workflows",
+		ProjectRoot: tmpDir,
+		Scope:       "comparison",
+		Context:     "Claude 3.5 Sonnet vs GPT-4o for complex multi-turn coding agent workflows",
 	})
 	if err != nil || resComp.IsError {
 		t.Fatalf("prepare_generator comparison failed: %v, env: %+v", err, envComp)
@@ -33,7 +35,8 @@ func TestUniversal_PrepareGenerator_AllScopes(t *testing.T) {
 
 	// 2. Decision Scope — Strategic Business Decision (Auto-inferred Scope)
 	resDec, envDec, err := handlePrepareGenerator(ctx, nil, PrepareGeneratorInput{
-		Context: "strategic decision: build in-house sales team vs partner agency for US enterprise market entry",
+		ProjectRoot: tmpDir,
+		Context:     "strategic decision: build in-house sales team vs partner agency for US enterprise market entry",
 	})
 	if err != nil || resDec.IsError {
 		t.Fatalf("prepare_generator decision failed: %v, env: %+v", err, envDec)
@@ -45,7 +48,8 @@ func TestUniversal_PrepareGenerator_AllScopes(t *testing.T) {
 
 	// 3. Project Scope — Business Venture Pipeline (Auto-inferred Scope)
 	resProj, envProj, err := handlePrepareGenerator(ctx, nil, PrepareGeneratorInput{
-		Context: "we are planning a new business venture for global freight brokerage and logistics marketplace",
+		ProjectRoot: tmpDir,
+		Context:     "we are planning a new business venture for global freight brokerage and logistics marketplace",
 	})
 	if err != nil || resProj.IsError {
 		t.Fatalf("prepare_generator project failed: %v, env: %+v", err, envProj)

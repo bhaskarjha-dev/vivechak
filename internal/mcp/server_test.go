@@ -351,12 +351,14 @@ func TestInitAndStatus(t *testing.T) {
 func TestPrepareGenerator(t *testing.T) {
 	cs := testServer(t)
 	ctx := context.Background()
+	tmpDir := t.TempDir()
 
 	result, err := cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_prepare_generator",
 		Arguments: map[string]any{
-			"scope":   "project",
-			"context": "A web application for managing research projects",
+			"project_root": tmpDir,
+			"scope":        "project",
+			"context":      "A web application for managing research projects",
 		},
 	})
 	if err != nil {
@@ -3584,11 +3586,13 @@ func TestMCPProtocolTriumvirate_ListingAndExecution(t *testing.T) {
 	}
 
 	// Pillar C: Invoke an orchestration tool
+	tmpDir := t.TempDir()
 	tRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_prepare_generator",
 		Arguments: map[string]any{
-			"scope":   "comparison",
-			"context": "Option A vs Option B",
+			"project_root": tmpDir,
+			"scope":        "comparison",
+			"context":      "Option A vs Option B",
 		},
 	})
 	if err != nil {

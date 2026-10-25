@@ -627,8 +627,9 @@ func TestNoWebSearchEnabledInAnyNextStep(t *testing.T) {
 	res, _ = cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_prepare_generator",
 		Arguments: map[string]any{
-			"scope":   "project",
-			"context": "Test project",
+			"project_root": tmpDir,
+			"scope":        "project",
+			"context":      "Test project",
 		},
 	})
 	env = parseEnvelope(t, res)
@@ -697,11 +698,13 @@ func TestGenerator_8BlockStructure(t *testing.T) {
 
 	for _, scope := range scopes {
 		t.Run(scope, func(t *testing.T) {
+			tmpDir := t.TempDir()
 			result, err := cs.CallTool(ctx, &mcp.CallToolParams{
 				Name: "vivechak_prepare_generator",
 				Arguments: map[string]any{
-					"scope":   scope,
-					"context": "A test application for research",
+					"project_root": tmpDir,
+					"scope":        scope,
+					"context":      "A test application for research",
 				},
 			})
 			if err != nil {
@@ -750,11 +753,13 @@ func TestGenerator_NoCoverageChecklist(t *testing.T) {
 	scopes := []string{"project", "decision", "comparison"}
 	for _, scope := range scopes {
 		t.Run(scope, func(t *testing.T) {
+			tmpDir := t.TempDir()
 			result, err := cs.CallTool(ctx, &mcp.CallToolParams{
 				Name: "vivechak_prepare_generator",
 				Arguments: map[string]any{
-					"scope":   scope,
-					"context": "Test",
+					"project_root": tmpDir,
+					"scope":        scope,
+					"context":      "Test",
 				},
 			})
 			if err != nil {
@@ -783,11 +788,13 @@ func TestGenerator_PriorDeltaInFormat(t *testing.T) {
 	scopes := []string{"project", "decision", "comparison"}
 	for _, scope := range scopes {
 		t.Run(scope, func(t *testing.T) {
+			tmpDir := t.TempDir()
 			result, err := cs.CallTool(ctx, &mcp.CallToolParams{
 				Name: "vivechak_prepare_generator",
 				Arguments: map[string]any{
-					"scope":   scope,
-					"context": "Test",
+					"project_root": tmpDir,
+					"scope":        scope,
+					"context":      "Test",
 				},
 			})
 			if err != nil {
@@ -819,11 +826,13 @@ func TestGenerator_IterativeGuidance(t *testing.T) {
 	scopes := []string{"project", "decision", "comparison"}
 	for _, scope := range scopes {
 		t.Run(scope, func(t *testing.T) {
+			tmpDir := t.TempDir()
 			result, err := cs.CallTool(ctx, &mcp.CallToolParams{
 				Name: "vivechak_prepare_generator",
 				Arguments: map[string]any{
-					"scope":   scope,
-					"context": "Test",
+					"project_root": tmpDir,
+					"scope":        scope,
+					"context":      "Test",
 				},
 			})
 			if err != nil {
@@ -861,11 +870,13 @@ func TestGenerator_CalibrationBlock(t *testing.T) {
 	scopes := []string{"decision", "comparison"}
 	for _, scope := range scopes {
 		t.Run(scope, func(t *testing.T) {
+			tmpDir := t.TempDir()
 			result, err := cs.CallTool(ctx, &mcp.CallToolParams{
 				Name: "vivechak_prepare_generator",
 				Arguments: map[string]any{
-					"scope":   scope,
-					"context": "Test",
+					"project_root": tmpDir,
+					"scope":        scope,
+					"context":      "Test",
 				},
 			})
 			if err != nil {
