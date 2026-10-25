@@ -1,15 +1,22 @@
 version: 2
 updates:
-  # Maintain Go module dependencies weekly
+  # Maintain Go module dependencies weekly (grouped to avoid PR spam)
   - package-ecosystem: "gomod"
     directory: "/"
     schedule:
       interval: "weekly"
-    open-pull-requests-limit: 5
+    groups:
+      go-dependencies:
+        patterns:
+          - "*"
 
-  # Maintain GitHub Actions dependencies weekly
+  # Maintain GitHub Actions dependencies weekly (grouped into a single PR)
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
-    open-pull-requests-limit: 5
+    groups:
+      actions-dependencies:
+        patterns:
+          - "*"
+
