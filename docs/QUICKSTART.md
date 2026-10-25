@@ -30,7 +30,7 @@ Give your AI coding agent (Cursor, VS Code, Claude Desktop, Antigravity, etc.) d
 **Instant / Ephemeral Runners (Zero Pre-Installation Required):**
 ```sh
 # Node.js / npx (macOS, Linux, Windows)
-npx -y vck serve                              # or: npx -y vivechak serve
+npx -y vivechak serve
 
 # Python / uvx (macOS, Linux, Windows)
 uvx vck serve                                 # or: uvx vivechak serve

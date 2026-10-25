@@ -20,14 +20,6 @@
       }
     },
     {
-      "registryType": "npm",
-      "identifier": "vck",
-      "version": "0.1.0",
-      "transport": {
-        "type": "stdio"
-      }
-    },
-    {
       "registryType": "pypi",
       "identifier": "vivechak",
       "version": "0.1.0",

@@ -94,7 +94,7 @@ If you prefer not to install the binary onto your system `$PATH`, you can config
   "mcpServers": {
     "vivechak": {
       "command": "npx",
-      "args": ["-y", "vck", "serve"]
+      "args": ["-y", "vivechak", "serve"]
     }
   }
 }

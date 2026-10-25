@@ -1,8 +1,8 @@
-# Vivechak (विवेचक) & vck
+# Vivechak (विवेचक)
 
 > **Evidence-grounded research for technical decisions — Autonomous Model Context Protocol (MCP) server.**
 
-Official Node.js binary runner for **Vivechak** and shorthand alias **`vck`**. Automatically fetches and caches the pre-compiled, zero-dependency native Go binary for your OS and architecture (`darwin`, `linux`, `windows`, `freebsd`).
+Official Node.js binary runner for **Vivechak** (providing CLI binaries `vivechak` and alias `vck`). Automatically fetches and caches the pre-compiled, zero-dependency native Go binary for your OS and architecture (`darwin`, `linux`, `windows`, `freebsd`).
 
 ---
 
@@ -13,8 +13,6 @@ Official Node.js binary runner for **Vivechak** and shorthand alias **`vck`**. A
 ```bash
 # Run MCP server over stdio for AI hosts
 npx -y vivechak serve
-# or using official 3-letter shorthand
-npx -y vck serve
 
 # Or install Universal Agent Skill (Cursor, Claude Code, Antigravity, OpenCode)
 npx skills add bhaskarjha-dev/vivechak
@@ -28,7 +26,7 @@ npx skills add bhaskarjha-dev/vivechak
   "mcpServers": {
     "vivechak": {
       "command": "npx",
-      "args": ["-y", "vck", "serve"]
+      "args": ["-y", "vivechak", "serve"]
     }
   }
 }
@@ -40,7 +38,7 @@ npx skills add bhaskarjha-dev/vivechak
   "mcpServers": {
     "vivechak": {
       "command": "npx",
-      "args": ["-y", "vck", "serve"]
+      "args": ["-y", "vivechak", "serve"]
     }
   }
 }
@@ -52,7 +50,7 @@ npx skills add bhaskarjha-dev/vivechak
   "servers": {
     "vivechak": {
       "command": "npx",
-      "args": ["-y", "vck", "serve"]
+      "args": ["-y", "vivechak", "serve"]
     }
   }
 }
@@ -64,7 +62,7 @@ npx skills add bhaskarjha-dev/vivechak
   "mcpServers": {
     "vivechak": {
       "command": "npx",
-      "args": ["-y", "vck", "serve"]
+      "args": ["-y", "vivechak", "serve"]
     }
   }
 }
@@ -74,23 +72,25 @@ npx skills add bhaskarjha-dev/vivechak
 
 ## CLI Commands
 
-You can also run developer subcommands directly:
+You can run developer subcommands directly with `npx`:
 
 ```bash
 # Workspace integrity checker
-npx -y vck doctor
+npx -y vivechak doctor
 
 # Headless Phase 0 exit gate evaluation (CI-ready)
-npx -y vck gate --track all
+npx -y vivechak gate --track all
 
 # 1-second host auto-configuration (21 presets)
-npx -y vck setup cursor
-npx -y vck setup claude
-npx -y vck setup agy
+npx -y vivechak setup cursor
+npx -y vivechak setup claude
+npx -y vivechak setup agy
 
 # Output universal MCP JSON configuration
-npx -y vck mcp-config
+npx -y vivechak mcp-config
 ```
+
+*(Note: If you install globally via `npm install -g vivechak`, both `vivechak` and shorthand `vck` binaries are linked into your `$PATH`, allowing you to run `vck doctor`, `vck gate`, etc. directly).*
 
 ---
 
