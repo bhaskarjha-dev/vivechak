@@ -109,6 +109,31 @@ func TestScanPlaceholders_Detection(t *testing.T) {
 			wantLen: 1,
 		},
 		{
+			name:    "contains auto-drafted placeholder",
+			content: "# Context\n[Auto-drafted — review and refine the context from session findings.]",
+			wantLen: 1,
+		},
+		{
+			name:    "contains extract placeholder",
+			content: "## Evaluated Options\n[Extract evaluated options from session findings.]",
+			wantLen: 1,
+		},
+		{
+			name:    "contains review and document placeholders",
+			content: "[Review session findings and document why alternatives were rejected.]\n[Document disconfirming search results, premortem failure modes, and adversarial stress-test findings.]",
+			wantLen: 2,
+		},
+		{
+			name:    "markdown link with Review text is not a placeholder",
+			content: "See our [Review of Pino](https://github.com/pinojs/pino) for details.",
+			wantLen: 0,
+		},
+		{
+			name:    "markdown reference link is not a placeholder",
+			content: "See our [Review of Pino][ref] and [Document on Kafka] [2].",
+			wantLen: 0,
+		},
+		{
 			name:    "clean research content",
 			content: "# Heading\nProduction deployment milestone or scheduled quarterly review.",
 			wantLen: 0,

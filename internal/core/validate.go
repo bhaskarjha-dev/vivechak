@@ -175,17 +175,33 @@ func CheckHumanOnlyField(content []byte) error {
 }
 
 var placeholderRegexes = []*regexp.Regexp{
-	regexp.MustCompile(`(?i)\[(?:topic-slug|insert\s+[^\]]+|paste\s+[^\]]+|todo(?::\s*[^\]]*)?|your\s+project[^\]]*|project\s+name|option\s+[a-z]|criterion\s+\d+|condition\s+or\s+date[^\]]*|comparison\s+title|why\s+this\s+criterion[^\]]*)\]`),
+	regexp.MustCompile(`(?i)\[(?:auto-drafted[^\]]*|extract\s+[^\]]+|review\s+[^\]]+|document\s+[^\]]+|topic-slug|insert\s+[^\]]+|paste\s+[^\]]+|todo(?::\s*[^\]]*)?|your\s+project[^\]]*|project\s+name|option\s+[a-z]|criterion\s+\d+|condition\s+or\s+date[^\]]*|comparison\s+title|why\s+this\s+criterion[^\]]*)\]`),
 	regexp.MustCompile(`(?i)<!--\s*TODO.*-->`),
 }
 
-// ScanPlaceholders searches for unexpanded template placeholders in content.
+// ScanPlaceholders searches for unexpanded template placeholders in content,
+// ignoring standard markdown links (e.g. [Link Text](url)).
 func ScanPlaceholders(content []byte) []string {
 	var matches []string
 	seen := make(map[string]bool)
 	for _, re := range placeholderRegexes {
-		for _, m := range re.FindAll(content, -1) {
-			str := string(m)
+		for _, loc := range re.FindAllIndex(content, -1) {
+			end := loc[1]
+			// If followed by '(' or '[', this is a markdown inline or reference link, not an unexpanded placeholder
+			isLink := false
+			for j := end; j < len(content); j++ {
+				if content[j] == ' ' || content[j] == '\t' {
+					continue
+				}
+				if content[j] == '(' || content[j] == '[' {
+					isLink = true
+				}
+				break
+			}
+			if isLink {
+				continue
+			}
+			str := string(content[loc[0]:loc[1]])
 			if !seen[str] {
 				seen[str] = true
 				matches = append(matches, str)
@@ -357,11 +373,18 @@ func ValidateDecision(data []byte) *ValidationResult {
 		}
 	}
 
-	// L2: Check for unexpanded template placeholders
+	// L2: Check for unexpanded template placeholders (warn for proposed drafts, block for accepted/committed ADRs)
 	if phs := ScanPlaceholders(data); len(phs) > 0 {
-		result.AddIssueWithHint(L2Block, "E-PLACEHOLDER-REMAINS",
-			fmt.Sprintf("Artifact contains unexpanded placeholder %q", phs[0]),
-			"Replace all template bracketed placeholders with actual empirical research content.")
+		statusVal := strings.ToLower(strings.TrimSpace(fm.GetString("status")))
+		if statusVal == "proposed" {
+			result.AddIssueWithHint(L3Warn, "W-PLACEHOLDER-REMAINS",
+				fmt.Sprintf("Proposed decision draft contains placeholder %q", phs[0]),
+				"Refine empirical research content before advancing to 'accepted'.")
+		} else {
+			result.AddIssueWithHint(L2Block, "E-PLACEHOLDER-REMAINS",
+				fmt.Sprintf("Artifact contains unexpanded placeholder %q", phs[0]),
+				"Replace all template bracketed placeholders with actual empirical research content.")
+		}
 	}
 
 	// L3: door_type should be present

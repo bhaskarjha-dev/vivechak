@@ -15,6 +15,7 @@ Vivechak uses structured, deterministic codes across its MCP server envelope, va
 | `E-CONFLICT` | Conflicting session IDs or concurrent edit detected | Review revision history in `research/.history/` |
 | `E-LOCKED` | Target workspace file is locked by a concurrent subagent | Wait for lock release or inspect `research/.locks/` |
 | `E-FILE-EXISTS` | File already exists and overwrite flag was false | Use amend tool or confirm overwrite |
+| `E-PLACEHOLDER-REMAINS` | Accepted ADR or FAD contains unexpanded bracketed placeholders | Replace all template or auto-draft placeholders with empirical findings before locking ADR |
 
 ---
 
@@ -44,3 +45,19 @@ Evaluated during deliverable persistence:
 | `V-REC-UNSUPPORTED` | Recommendation not grounded in findings | The chosen option must cite findings documented in the session |
 | `V-GRADE-INVALID` | Evidence grade not in A–E range | All claims must carry recognized grade `[A-E]` |
 | `V-PROVENANCE-INVALID` | Unrecognized provenance tag | Verification must be `fetched`, `cached`, `recalled`, or `human` |
+
+---
+
+## 4. Advisory Warning Codes (`W-*`)
+
+Non-blocking diagnostic warnings surfaced in envelope `warnings` arrays:
+
+| Warning Code | Meaning | Remediation |
+|---|---|---|
+| `W-PLACEHOLDER-REMAINS` | Proposed ADR draft contains unexpanded placeholders | Informational during drafting; replace with empirical research findings before promotion to `accepted` |
+| `W-STALE-DOWNSTREAM` | Upstream session was amended after downstream sessions completed | Review downstream deliverables and update with `vivechak_amend` if dependencies changed |
+| `W-STALE-DECISION-REFERENCE` | Session references an ADR that has been superseded | Update citations to the new superseding decision ID (`D-NEW`) |
+| `W-OWD-NO-CHALLENGE` | One-Way Door decision lacks recorded adversarial red-team stress test | Execute `vivechak_review(mode="challenge")` on informing session and record findings in ADR |
+| `W-NO-EVIDENCE-GRADES` | Completed research deliverable lacks inline evidence citations | Add inline evidence grades (`[Grade A]`, `[Grade B]`) to factual claims |
+| `W-RECALLED-GRADE-CAP` | Model parametric memory claim assigned Grade A/B/C | Verify claim against canonical primary sources with web search, or downgrade to Grade D |
+| `W-LOCK-TIMEOUT` | Root FAD mirror lock acquisition timed out under high concurrency | Primary `research/FAD.md` was safely written; copy to root when concurrent agents finish |

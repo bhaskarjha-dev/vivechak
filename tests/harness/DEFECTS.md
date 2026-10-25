@@ -503,7 +503,29 @@
 
 ---
 
-<!-- End of Milestone Multi-Harness Empirical Audit (67 Runs Ingested, 83.1% Aggregate Pass, 100% Deterministic Pass) -->
+## Run 32: Zero-Trust Epistemic Falsification & Quality Audit Remediation Wave
+* **Date:** 2026-10-25
+* **Scope:** Universal (DAG Replanning, Config Integrity, Doctor Diagnostics, Gate Placeholder Hardening, Launcher Resolution)
+* **Target:** Multi-Model Adversarial Audit Verification & First-Principles Codebase Hardening
+* **Score:** **100/100 (Clean PASS across all packages and test suites)**
+
+### Defects & Polish Items Catalog
+
+| # | Severity | Category | Defect Description | Empirical Root Cause | Resolution Implemented |
+|---|---|---|---|---|---|
+| **D-32-01** | Critical | DAG Engine | `ReplanInPlace` corrupted pipeline files and duplicated headers when prompts or dependencies contained `$` (`$1`, `$VAR`, `$50/mo`). | `regexp.ReplaceAllString` interprets `$` as capture group backreferences in replacement strings. | **RESOLVED**: Replaced `ReplaceAllString` with submatch index slicing (`content[:loc[4]] + val + content[loc[5]:]`) across all replan branches and YAML machine blocks in `internal/core/dag.go`. |
+| **D-32-02** | High | CLI Safety | `vck mcp-config --write` created `.bak` and overwrote active user config with a blank template on merge error, deleting existing server configs. | Legacy fallback branch in `runMCPConfigWithArgs` fell back to `mergeConfig(nil, ...)` on error. | **RESOLVED**: Aligned `runMCPConfigWithArgs` with `runSetupWithArgs` in `cmd/vivechak/config.go` to fail-closed with exit code 1 without touching user files. Added fail-closed regression tests in `config_test.go` and `main_test.go`. |
+| **D-32-03** | High | Diagnostics | `vck doctor` ran frontmatter and UTF-8 corruption checks strictly on `research/sessions/`, completely ignoring `research/decisions/`, `research/comparisons/`, and root `research/*.md`. | `checkWorkspace` in `doctor.go` only iterated over `core.SessionsDir`. | **RESOLVED**: Expanded `checkWorkspace` in `cmd/vivechak/doctor.go` to scan all research directories (`research/`, `sessions/`, `decisions/`, `comparisons/`), verifying frontmatter and UTF-8 integrity across all markdown files. Added regression tests in `doctor_test.go`. |
+| **D-32-04** | High | Exit Gate | `ScanPlaceholders` failed to match auto-drafted tokens (`[Auto-drafted...]`, `[Extract...]`, `[Review...]`, `[Document...]`), allowing hollow, unwritten ADRs to pass Phase 0 Gate. | `placeholderRegexes` in `internal/core/validate.go` only checked generic template tokens like `[topic-slug]` and `[TODO]`. | **RESOLVED**: Expanded `placeholderRegexes` to match auto-draft and extraction tokens while ignoring standard markdown links `[Text](url)`. Calibrated `ValidateDecisionArtifact` to warn on proposed drafts while strictly blocking unexpanded placeholders on accepted ADRs and at Phase 0 Gate (Rule G9). Added unit tests in `challenge_record_test.go`. |
+| **D-32-05** | High | Launcher / CLI | `uvx vivechak setup` wrote ephemeral cache executable paths into IDE configs that broke when the `uv` cache was pruned. | `resolveLauncher` in `cmd/vivechak/config.go` only checked for `_npx` and `node_modules/.cache`. | **RESOLVED**: Added detection for `/uv/cache`, `/uv/archive`, and `uv-cache` in `resolveLauncher`, returning `uvx vivechak serve`. Added test cases in `config_test.go`. |
+| **D-32-06** | Medium | DAG Parser | Inner untagged code blocks (`` ``` ``) inside 3-backtick prompt blocks prematurely closed the prompt, truncating research briefs. | `parsePipelineFromMachineBlock` in `internal/core/dag.go` lacked fence lookahead matching `parsePipelineSessionsFromMarkdown`. | **RESOLVED**: Added boundary lookahead in `parsePipelineFromMachineBlock` in `internal/core/dag.go` to ensure untagged code blocks within 3-backtick prompts do not terminate prompts prematurely. |
+| **D-32-07** | Medium | DAG Engine | `ValidateDAG` DFS cycle traversal used unnormalized strings in `visited` map despite case-insensitive session lookups. | Casing mismatches caused redundant DFS traversals. | **RESOLVED**: Normalized session IDs to uppercase in `visited` map (`visited[upperID]`) in `internal/core/dag.go`. |
+| **D-32-08** | High | Root & Home Safety | `vivechak_start` permitted workspace creation at filesystem roots (`/`, `C:\`) or user home directories (`~`), risking polluting system or user profiles with `research/`. | Missing root/home boundary check in `tool_start.go`. | **RESOLVED**: Added `isRootOrHomeDir` guard in `internal/mcp/tool_start.go` returning `E-INVALID-ARGUMENT` when callers attempt to initialize research directly at drive roots or user home directories without an application subdirectory. Added tests in `tool_start_test.go`. |
+| **D-32-09** | Medium | Tool Polymorphism | `vivechak_save` failed when called with `kind: "fad"` despite generators and documentation prescribing `vivechak_save(kind="fad", id="SYN-01")`. | `handleSave` in `internal/mcp/tool_save.go` only switched on `"plan"`, `"comparison"`, and `"session"`. | **RESOLVED**: Added `case "session", "fad":` handling in `internal/mcp/tool_save.go` defaulting `ID` to `"SYN-01"` when omitted, bringing runtime tool behavior into 100% parity with documentation. |
+
+---
+
+<!-- End of Milestone Multi-Harness Empirical Audit (68 Runs Ingested, 83.3% Aggregate Pass, 100% Deterministic Pass) -->
 
 
 

@@ -19,7 +19,7 @@ import (
 // SaveInput holds the arguments for vivechak_save.
 type SaveInput struct {
 	ProjectRoot      string `json:"project_root,omitempty"       jsonschema:"workspace root path (optional)"`
-	Kind             string `json:"kind"                         jsonschema:"artifact kind (REQUIRED): 'plan' (RESEARCH-PIPELINE.md) | 'session' (research session) | 'comparison' (WEP matrix)"`
+	Kind             string `json:"kind"                         jsonschema:"artifact kind (REQUIRED): 'plan' (RESEARCH-PIPELINE.md) | 'session' (research session) | 'comparison' (WEP matrix) | 'fad' (FAD.md)"`
 	Scope            string `json:"scope,omitempty"              jsonschema:"optional scope hint ('comparison' | 'decision' | 'project')"`
 	ID               string `json:"id,omitempty"                 jsonschema:"identifier: session_id (e.g. T1-01, SYN-01) or comparison_id (e.g. C-001)"`
 	Content          string `json:"content"                      jsonschema:"markdown artifact content to save"`
@@ -54,8 +54,9 @@ func registerSave(server *sdkmcp.Server) {
 			Title: "Save Research Artifact",
 			Description: "Validate and persist research artifacts into the workspace. " +
 				"Pass 'kind': 'plan' (persists RESEARCH-PIPELINE.md and compiles initial decision stubs), " +
-				"'session' (validates evidence and persists research/sessions/<id>.md or research/FAD.md for synthesis), " +
-				"or 'comparison' (validates and persists research/<id>-comparison.md). " +
+				"'session' (validates evidence and persists research/sessions/<id>.md), " +
+				"'comparison' (validates and persists research/<id>-comparison.md), " +
+				"or 'fad' (validates and persists research/FAD.md for synthesis). " +
 				"Validates artifacts against the 4-level quality ladder before saving.",
 			Annotations: &sdkmcp.ToolAnnotations{
 				ReadOnlyHint:    false,
@@ -154,11 +155,14 @@ func handleSave(ctx context.Context, req *sdkmcp.CallToolRequest, in SaveInput) 
 		return handleSavePlanKind(ctx, ws, root, in)
 	case "comparison":
 		return handleSaveComparisonKind(ctx, ws, root, in)
-	case "session":
+	case "session", "fad":
+		if kind == "fad" && strings.TrimSpace(in.ID) == "" {
+			in.ID = "SYN-01"
+		}
 		return handleSaveSessionKind(ctx, ws, root, in)
 	default:
 		return ErrorResult(tool, fmt.Errorf("invalid kind %q", in.Kind),
-			"Use kind 'plan', 'session', or 'comparison'.")
+			"Use kind 'plan', 'session', 'comparison', or 'fad'.")
 	}
 }
 

@@ -3303,6 +3303,499 @@ Raft. Grade A (https://raft.github.io)
 	})
 }
 
+// TestComprehensive_AuditRemediations_ZeroTrust_FullLifecycle executes a zero-trust end-to-end
+// verification of all audit remediations: filesystem root guards, machine block parsing with
+// inner unescaped triple-backtick blocks, dollar sign immunity in prompt and dependency replans,
+// auto-drafting ADRs with proposed status warnings vs accepted status blocking on auto-draft tokens,
+// link lookahead false-positive immunity, ADR signoff, and Phase 0 gate passing.
+func TestComprehensive_AuditRemediations_ZeroTrust_FullLifecycle(t *testing.T) {
+	cs := testServer(t)
+	ctx := context.Background()
+	wsDir := t.TempDir()
+
+	// 1. Filesystem root rejection guard (F-05)
+	resRoot, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_start",
+		Arguments: map[string]any{
+			"project_root": "/",
+			"scope":        "project",
+			"question":     "Vision: Zero-Trust Epistemic Engine",
+		},
+	})
+	if err != nil {
+		t.Fatalf("vivechak_start root call failed: %v", err)
+	}
+	envRoot := parseEnvelope(t, resRoot)
+	if envRoot.Success {
+		t.Errorf("expected failure when initializing at filesystem root '/', got success")
+	}
+	if !strings.Contains(envRoot.Message, "cannot be a filesystem root") {
+		t.Errorf("expected filesystem root error message, got: %s", envRoot.Message)
+	}
+
+	// 2. Normal project initialization via vivechak_start
+	resStart, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_start",
+		Arguments: map[string]any{
+			"project_root": wsDir,
+			"scope":        "project",
+			"question":     "Vision: Zero-Trust Epistemic Engine",
+		},
+	})
+	if err != nil {
+		t.Fatalf("vivechak_start valid call failed: %v", err)
+	}
+	envStart := parseEnvelope(t, resStart)
+	if !envStart.Success {
+		t.Fatalf("vivechak_start failed: %s", envStart.Message)
+	}
+
+	// 3. Save initial pipeline containing machine block and an untagged inner code block in prompt (F-10)
+	initialPipeline := `# Research Pipeline
+
+## Pipeline Topology
+
+| ID | Topic | Dependencies | Output File |
+|---|---|---|---|
+| T0-01 | Architecture Foundation | none | sessions/T0-01.md |
+| T1-01 | Event Broker Engine | T0-01 | sessions/T1-01.md |
+| T1-02 | Analytics Database | T1-01 | sessions/T1-02.md |
+
+## Session Prompts
+
+### Session T0-01: Architecture Foundation
+| **Field** | **Value** |
+|---|---|
+| **ID** | T0-01 |
+| **Dependencies** | none |
+
+` + "````prompt\n" +
+`# T0-01: Foundation
+Baseline architecture.
+` + "````\n\n" +
+`### Session T1-01: Event Broker Engine
+| **Field** | **Value** |
+|---|---|
+| **ID** | T1-01 |
+| **Dependencies** | T0-01 |
+
+` + "````prompt\n" +
+`# T1-01: Research Prompt
+Evaluate messaging brokers against payload throughput.
+Example usage:
+` + "```\n" +
+`func BenchmarkBroker() {
+    // Broker benchmark
+}
+` + "```\n" +
+`Ensure throughput > 50k msg/sec.
+` + "````\n\n" +
+`### Session T1-02: Analytics Database
+| **Field** | **Value** |
+|---|---|
+| **ID** | T1-02 |
+| **Dependencies** | T1-01 |
+
+` + "````prompt\n" +
+`# T1-02: Analytics Prompt
+Evaluate ClickHouse vs DuckDB.
+` + "````\n\n" +
+"```yaml vivechak-plan\n" +
+`sessions:
+  - id: T0-01
+    title: Architecture Foundation
+    door: two-way
+    dependencies: []
+    output_file: research/sessions/T0-01.md
+  - id: T1-01
+    title: Event Broker Engine
+    door: one-way
+    dependencies:
+      - T0-01
+    output_file: research/sessions/T1-01.md
+  - id: T1-02
+    title: Analytics Database
+    door: two-way
+    dependencies:
+      - T1-01
+    output_file: research/sessions/T1-02.md
+` + "```\n"
+
+	resSavePlan, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_save",
+		Arguments: map[string]any{
+			"project_root": wsDir,
+			"kind":         "plan",
+			"content":      initialPipeline,
+		},
+	})
+	if err != nil {
+		t.Fatalf("save plan failed: %v", err)
+	}
+	envSavePlan := parseEnvelope(t, resSavePlan)
+	if !envSavePlan.Success {
+		t.Fatalf("expected plan save to succeed, got: %s", envSavePlan.Message)
+	}
+
+	// 4. Update prompt with dollar signs: $50/mo, $VAR, $1, $2 (F-03 dollar sign immunity)
+	dollarPrompt := "# T1-01: Event Broker Engine\nCost limit: $50/mo. Env variable: $BROKER_URL. Regex capture: $1 and $2."
+	resReplanPrompt, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_replan",
+		Arguments: map[string]any{
+			"project_root": wsDir,
+			"operation":    "update_prompt",
+			"session_id":   "T1-01",
+			"new_prompt":   dollarPrompt,
+			"reason":       "Incorporate cost constraints ($50/mo) and env var format",
+			"impact":       "Refines session T1-01 evaluation criteria",
+		},
+	})
+	if err != nil {
+		t.Fatalf("vivechak_replan update_prompt failed: %v", err)
+	}
+	envReplanPrompt := parseEnvelope(t, resReplanPrompt)
+	if !envReplanPrompt.Success {
+		t.Fatalf("expected update_prompt to succeed, got: %s", envReplanPrompt.Message)
+	}
+
+	// Read back RESEARCH-PIPELINE.md to verify dollar signs were preserved verbatim
+	pipelineBytes, err := os.ReadFile(filepath.Join(wsDir, core.PipelineFile))
+	if err != nil {
+		t.Fatalf("read pipeline: %v", err)
+	}
+	pipelineStr := string(pipelineBytes)
+	if !strings.Contains(pipelineStr, "$50/mo") {
+		t.Errorf("expected $50/mo preserved in pipeline markdown, got:\n%s", pipelineStr)
+	}
+	if !strings.Contains(pipelineStr, "$BROKER_URL") {
+		t.Errorf("expected $BROKER_URL preserved in pipeline markdown, got:\n%s", pipelineStr)
+	}
+	if !strings.Contains(pipelineStr, "$1 and $2") {
+		t.Errorf("expected '$1 and $2' preserved in pipeline markdown without regex expansion, got:\n%s", pipelineStr)
+	}
+
+	// 5. Update dependencies of T1-02 to depend on both T0-01 and T1-01
+	resReplanDeps, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_replan",
+		Arguments: map[string]any{
+			"project_root":     wsDir,
+			"operation":        "update_deps",
+			"session_id":       "T1-02",
+			"new_dependencies": "T0-01, T1-01",
+			"reason":           "Analytics database depends on both Foundation and Broker",
+			"impact":           "Updates topology row and machine block",
+		},
+	})
+	if err != nil {
+		t.Fatalf("vivechak_replan update_deps failed: %v", err)
+	}
+	envReplanDeps := parseEnvelope(t, resReplanDeps)
+	if !envReplanDeps.Success {
+		t.Fatalf("expected update_deps to succeed, got: %s", envReplanDeps.Message)
+	}
+
+	pipelineBytes2, _ := os.ReadFile(filepath.Join(wsDir, core.PipelineFile))
+	pipelineStr2 := string(pipelineBytes2)
+	if !strings.Contains(pipelineStr2, "T0-01, T1-01") {
+		t.Errorf("expected T0-01, T1-01 in topology table, got:\n%s", pipelineStr2)
+	}
+
+	// 5b. Add session with dollar signs in topic and prompt (F-03 dollar sign immunity)
+	resAddSess, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_replan",
+		Arguments: map[string]any{
+			"project_root": wsDir,
+			"operation":    "add_session",
+			"session_id":   "T1-03",
+			"layer":        "1",
+			"door_type":    "two-way",
+			"topic":        "Cost Model ($50/mo budget)",
+			"dependencies": "T0-01",
+			"prompt":       "# T1-03: Cost Budget\nEvaluate $50/mo hosting budget with $1/GB egress limits.",
+			"reason":       "Incorporate explicit budget modeling",
+			"impact":       "Adds downstream financial evaluation",
+		},
+	})
+	if err != nil {
+		t.Fatalf("add_session failed: %v", err)
+	}
+	envAddSess := parseEnvelope(t, resAddSess)
+	if !envAddSess.Success {
+		t.Fatalf("expected add_session to succeed, got: %s", envAddSess.Message)
+	}
+
+	pipelineBytes3, _ := os.ReadFile(filepath.Join(wsDir, core.PipelineFile))
+	pipelineStr3 := string(pipelineBytes3)
+	if !strings.Contains(pipelineStr3, "Cost Model ($50/mo budget)") {
+		t.Errorf("expected $50/mo in topic preserved verbatim, got:\n%s", pipelineStr3)
+	}
+	if !strings.Contains(pipelineStr3, "$1/GB") {
+		t.Errorf("expected $1/GB in prompt preserved verbatim, got:\n%s", pipelineStr3)
+	}
+
+	// 6. Save research session T1-01
+	s1Content := `---
+session_id: T1-01
+title: Event Broker Engine
+date: 2026-10-25
+status: complete
+door_type: one-way
+informed_decisions: ["D-001"]
+---
+# Research Session T1-01: Event Broker Engine
+
+## Key Findings
+- Finding 1: Apache Kafka supports partition scalability with high throughput. Grade A (https://kafka.apache.org/documentation)
+- Finding 2: NATS JetStream provides simpler operational footprint. Grade A (https://docs.nats.io/nats-concepts/jetstream)
+
+## Discovered Concerns
+Kafka cluster operational overhead requires ZooKeeper or KRaft quorum monitoring which introduces non-trivial Day 2 SRE complexity.
+`
+	resSaveS1, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_save",
+		Arguments: map[string]any{
+			"project_root": wsDir,
+			"kind":         "session",
+			"id":           "T1-01",
+			"content":      s1Content,
+		},
+	})
+	if err != nil {
+		t.Fatalf("save session T1-01 failed: %v", err)
+	}
+	envSaveS1 := parseEnvelope(t, resSaveS1)
+	if !envSaveS1.Success {
+		t.Fatalf("expected session save to succeed, got: %s", envSaveS1.Message)
+	}
+
+	// 7. Auto-draft decision D-001 with auto_save: true (F-06 auto-draft placeholder warnings)
+	resAutoDraft, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_record_decision",
+		Arguments: map[string]any{
+			"project_root":    wsDir,
+			"decision_id":     "D-001",
+			"auto_draft_from": "T1-01",
+			"auto_save":       true,
+		},
+	})
+	if err != nil {
+		t.Fatalf("record_decision auto-draft failed: %v", err)
+	}
+	envAutoDraft := parseEnvelope(t, resAutoDraft)
+	if !envAutoDraft.Success {
+		t.Fatalf("expected auto-save on proposed draft to succeed, got error: %s", envAutoDraft.Message)
+	}
+	// Verify warning about placeholders was emitted but did NOT block saving
+	foundWarning := false
+	for _, w := range envAutoDraft.Warnings {
+		if strings.Contains(w, "W-PLACEHOLDER-REMAINS") || strings.Contains(w, "placeholder") {
+			foundWarning = true
+			break
+		}
+	}
+	if !foundWarning {
+		t.Errorf("expected placeholder warning on auto-drafted proposed decision, got warnings: %v", envAutoDraft.Warnings)
+	}
+
+	// Verify D-001 file was written with status: proposed
+	autoDraftData := envAutoDraft.Data.(map[string]any)
+	d1FilePath, ok := autoDraftData["file_path"].(string)
+	if !ok || d1FilePath == "" {
+		t.Fatalf("expected file_path in autoDraftData, got: %v", autoDraftData)
+	}
+	d1Bytes, err := os.ReadFile(filepath.Join(wsDir, d1FilePath))
+	if err != nil {
+		t.Fatalf("read %s: %v", d1FilePath, err)
+	}
+	d1Str := string(d1Bytes)
+	if !strings.Contains(d1Str, "status: proposed") {
+		t.Errorf("expected status: proposed in auto-drafted decision, got:\n%s", d1Str)
+	}
+
+	// 8. Attempt to save D-001 with status: accepted while keeping auto-draft placeholders (must fail with E-PLACEHOLDER-REMAINS)
+	badAcceptedD1 := strings.Replace(d1Str, "status: proposed", "status: accepted", 1)
+	resBadAccepted, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_record_decision",
+		Arguments: map[string]any{
+			"project_root": wsDir,
+			"decision_id":  "D-001",
+			"content":      badAcceptedD1,
+		},
+	})
+	if err != nil {
+		t.Fatalf("record_decision bad accepted call failed: %v", err)
+	}
+	envBadAccepted := parseEnvelope(t, resBadAccepted)
+	if envBadAccepted.Success {
+		t.Fatalf("expected accepted decision with placeholders to FAIL, but got success")
+	}
+	if !strings.Contains(envBadAccepted.Message, "unexpanded placeholder") {
+		t.Errorf("expected placeholder error message, got: %s", envBadAccepted.Message)
+	}
+
+	// 9. Save clean accepted decision containing legitimate markdown links with 'Review' and 'Document' text
+	// (Verifying F-06 markdown link lookahead immunity)
+	cleanAcceptedD1 := `---
+decision_id: D-001
+title: Primary Event Broker Selection
+status: accepted
+door_type: one-way
+reversal_cost: high
+review_trigger: "Broker maintenance exceeds 10 engineering hours/month"
+human_reviewed: false
+informed_by_sessions: ["T1-01"]
+date: 2026-10-25
+---
+# Context
+We evaluated Kafka and NATS JetStream for event streaming.
+See our [Review of Event Streaming Standards](https://kafka.apache.org/documentation) and [Document on JetStream Architecture](https://docs.nats.io) for comparative benchmarks.
+
+# Decision
+We select Apache Kafka for primary event streaming. Grade A (https://kafka.apache.org)
+
+## Rejected Alternatives
+- NATS JetStream: lacks native multi-region partition replication required by compliance.
+- RabbitMQ: message throughput insufficient for target ingestion velocity.
+
+# Consequences
+Requires dedicated operational monitoring for broker partition rebalances.
+`
+	resCleanAccepted, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_record_decision",
+		Arguments: map[string]any{
+			"project_root": wsDir,
+			"decision_id":  "D-001",
+			"content":      cleanAcceptedD1,
+		},
+	})
+	if err != nil {
+		t.Fatalf("clean accepted record_decision failed: %v", err)
+	}
+	envCleanAccepted := parseEnvelope(t, resCleanAccepted)
+	if !envCleanAccepted.Success {
+		t.Fatalf("expected clean accepted decision to succeed without link false positives, got error: %s (warnings: %v)", envCleanAccepted.Message, envCleanAccepted.Warnings)
+	}
+
+	// 10. Human sign-off via core.SignoffDecision
+	ws, err := store.OpenWorkspace(wsDir)
+	if err != nil {
+		t.Fatalf("open workspace: %v", err)
+	}
+	if _, err := core.SignoffDecision(ws, "D-001", "Epistemic Architect"); err != nil {
+		ws.Close()
+		t.Fatalf("signoff D-001 failed: %v", err)
+	}
+	ws.Close()
+
+	// 11. Complete structural requirements: save T0-01, T1-02, prune pending T1-03, and synthesize FAD via SYN-01
+	s0Content := `---
+session_id: T0-01
+title: Architecture Foundation
+date: 2026-10-25
+status: complete
+---
+# Research Session T0-01: Architecture Foundation
+## Key Findings
+- Finding 1: Microservice event boundary established. Grade A (https://microservices.io)
+## Discovered Concerns
+Network partition handling requires strict SLA timeouts.
+`
+	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_save",
+		Arguments: map[string]any{
+			"project_root": wsDir,
+			"kind":         "session",
+			"id":           "T0-01",
+			"content":      s0Content,
+		},
+	})
+
+	s2Content := `---
+session_id: T1-02
+title: Analytics Database
+date: 2026-10-25
+status: complete
+---
+# Research Session T1-02: Analytics Database
+## Key Findings
+- Finding 1: ClickHouse provides columnar vector execution. Grade A (https://clickhouse.com/docs)
+## Discovered Concerns
+ClickHouse cluster mutation limits require batching writes.
+`
+	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_save",
+		Arguments: map[string]any{
+			"project_root": wsDir,
+			"kind":         "session",
+			"id":           "T1-02",
+			"content":      s2Content,
+		},
+	})
+
+	// Prune T1-03 so DAG only consists of completed sessions (T0-01, T1-01, T1-02: meets minimum 3 sessions)
+	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_replan",
+		Arguments: map[string]any{
+			"project_root": wsDir,
+			"operation":    "remove_session",
+			"session_id":   "T1-03",
+			"reason":       "Prune auxiliary cost modeling session",
+			"impact":       "Refines pipeline",
+		},
+	})
+
+	// Synthesize FAD via synthesis session SYN-01
+	fadContent := `---
+id: SYN-01
+title: Founding Architecture Document
+date: 2026-10-25
+status: complete
+---
+# Founding Architecture Document
+Synthesizes decisions D-001 with empirical evidence.
+- Architecture Foundation established based on Grade A (https://microservices.io).
+- Event streaming selected based on Grade A (https://kafka.apache.org/documentation).
+- Analytics storage engine selected based on Grade A (https://clickhouse.com/docs).
+This architecture establishes the primary event-driven backbone connecting high-throughput ingress with resilient downstream datastores.
+`
+	saveFadRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_save",
+		Arguments: map[string]any{
+			"project_root": wsDir,
+			"kind":         "session",
+			"id":           "SYN-01",
+			"content":      fadContent,
+		},
+	})
+	if err != nil {
+		t.Fatalf("save FAD failed: %v", err)
+	}
+	envFad := parseEnvelope(t, saveFadRes)
+	if !envFad.Success {
+		t.Fatalf("expected FAD save to succeed, got: %s", envFad.Message)
+	}
+
+	// 12. Run Phase 0 Exit Gate: should PASS
+	resGate, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_gate",
+		Arguments: map[string]any{
+			"project_root": wsDir,
+			"track":        "track_b",
+		},
+	})
+	if err != nil {
+		t.Fatalf("vivechak_gate call failed: %v", err)
+	}
+	envGate := parseEnvelope(t, resGate)
+	gateData, ok := envGate.Data.(map[string]any)
+	if !ok {
+		t.Fatalf("expected gate Data map, got %T", envGate.Data)
+	}
+	if gateData["gate_passed"] != true {
+		t.Errorf("expected Track B gate to PASS, got gate_passed=%v, status=%v, warnings=%v", gateData["gate_passed"], gateData["gate_status"], envGate.Warnings)
+	}
+}
+
 
 
 

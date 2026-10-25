@@ -918,4 +918,181 @@ Investigate gRPC vs Arrow Flight for graph query results.
 			t.Errorf("expected 'Workspace is healthy' in doctor output, got:\n%s", string(docOut))
 		}
 	})
+
+	// =========================================================================
+	// 6. AUDIT REMEDIATIONS LIVE VERIFICATION (SUBPROCESS STDIO JSON-RPC)
+	// =========================================================================
+	t.Run("06_AuditRemediations_LiveVerification", func(t *testing.T) {
+		projectDir := t.TempDir()
+
+		cs, cleanup := startLiveMCPServer(t, ctx, binPath, projectDir)
+		t.Cleanup(cleanup)
+
+		callTool := func(toolName string, args map[string]any) testEnvelope {
+			t.Helper()
+			res, err := cs.CallTool(ctx, &mcp.CallToolParams{
+				Name:      toolName,
+				Arguments: args,
+			})
+			if err != nil {
+				t.Fatalf("call to %s failed: %v", toolName, err)
+			}
+			return parseTestEnvelope(t, res)
+		}
+
+		// 6.1 Initialize project workspace
+		initEnv := callTool("vivechak_start", map[string]any{
+			"project_root": projectDir,
+			"scope":        "project",
+			"question":     "Vision: Live Subprocess Epistemic Verification",
+		})
+		if !initEnv.Success {
+			t.Fatalf("live start failed: %s", initEnv.Message)
+		}
+
+		// 6.2 Save initial plan
+		initialPipeline := `# Research Pipeline
+
+## Pipeline Topology
+
+| ID | Topic | Dependencies | Output File |
+|---|---|---|---|
+| T1-01 | Ingestion Tier | none | sessions/T1-01.md |
+
+## Session Prompts
+
+### Session T1-01: Ingestion Tier
+| **Field** | **Value** |
+|---|---|
+| **ID** | T1-01 |
+| **Dependencies** | none |
+
+` + "````prompt\n" +
+`# T1-01: Ingestion
+Baseline throughput.
+` + "````\n\n" +
+"```yaml vivechak-plan\n" +
+`sessions:
+  - id: T1-01
+    title: Ingestion Tier
+    door: two-way
+    dependencies: []
+    output_file: research/sessions/T1-01.md
+` + "```\n"
+
+		savePlanEnv := callTool("vivechak_save", map[string]any{
+			"project_root": projectDir,
+			"kind":         "plan",
+			"content":      initialPipeline,
+		})
+		if !savePlanEnv.Success {
+			t.Fatalf("live save plan failed: %s", savePlanEnv.Message)
+		}
+
+		// 6.3 Replan prompt with dollar signs ($100/month, $PORT, $1) over live stdio JSON-RPC
+		dollarPrompt := "# T1-01: Ingestion Tier\nTarget budget is $100/month. Target port: $PORT. Pattern match: $1."
+		replanEnv := callTool("vivechak_replan", map[string]any{
+			"project_root": projectDir,
+			"operation":    "update_prompt",
+			"session_id":   "T1-01",
+			"new_prompt":   dollarPrompt,
+			"reason":       "Set $100/month budget over live wire",
+			"impact":       "Refines requirements",
+		},)
+		if !replanEnv.Success {
+			t.Fatalf("live replan failed: %s", replanEnv.Message)
+		}
+
+		// Read back RESEARCH-PIPELINE.md to verify literal preservation
+		pipeBytes, err := os.ReadFile(filepath.Join(projectDir, core.PipelineFile))
+		if err != nil {
+			t.Fatalf("reading pipeline file: %v", err)
+		}
+		pipeStr := string(pipeBytes)
+		if !strings.Contains(pipeStr, "$100/month") || !strings.Contains(pipeStr, "$PORT") || !strings.Contains(pipeStr, "$1.") {
+			t.Errorf("dollar signs corrupted over live stdio replan:\n%s", pipeStr)
+		}
+
+		// 6.4 Save completed session T1-01
+		sessContent := `---
+session_id: T1-01
+title: Ingestion Tier
+date: 2026-10-25
+status: complete
+---
+# Ingestion Tier
+## Key Findings
+- Finding 1: Protocol throughput verified. Grade A (https://grpc.io)
+## Discovered Concerns
+TLS handshake CPU overhead on connection churn.
+`
+		saveSessEnv := callTool("vivechak_save", map[string]any{
+			"project_root": projectDir,
+			"kind":         "session",
+			"id":           "T1-01",
+			"content":      sessContent,
+		})
+		if !saveSessEnv.Success {
+			t.Fatalf("live save session failed: %s", saveSessEnv.Message)
+		}
+
+		// 6.5 Auto-draft decision D-001 with auto_save: true
+		draftEnv := callTool("vivechak_record_decision", map[string]any{
+			"project_root":    projectDir,
+			"decision_id":     "D-001",
+			"auto_draft_from": "T1-01",
+			"auto_save":       true,
+		})
+		if !draftEnv.Success {
+			t.Fatalf("live auto-draft decision failed: %s", draftEnv.Message)
+		}
+
+		// 6.6 Execute live CLI 'vck doctor' subprocess: must be healthy
+		docCmd := exec.CommandContext(ctx, binPath, "doctor", projectDir)
+		docOut, err := docCmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("live vck doctor failed: %v\noutput: %s", err, string(docOut))
+		}
+		if !strings.Contains(string(docOut), "Workspace is healthy") {
+			t.Errorf("expected healthy workspace from live doctor, got:\n%s", string(docOut))
+		}
+
+		// 6.7 Corrupt an ADR file in research/decisions/ with invalid UTF-8 and verify doctor detects it
+		decDir := filepath.Join(projectDir, core.DecisionsDir)
+		_ = os.MkdirAll(decDir, 0o755)
+		corruptFile := filepath.Join(decDir, "D-099.md")
+		if err := os.WriteFile(corruptFile, []byte{0xff, 0xfe, 0xfd}, 0o644); err != nil {
+			t.Fatalf("writing corrupt decision file: %v", err)
+		}
+
+		docCorruptCmd := exec.CommandContext(ctx, binPath, "doctor", projectDir)
+		corruptOut, err := docCorruptCmd.CombinedOutput()
+		if err == nil {
+			t.Fatalf("expected live vck doctor to FAIL on corrupted UTF-8 decision file, but succeeded:\n%s", string(corruptOut))
+		}
+		if !strings.Contains(string(corruptOut), "Corrupted UTF-8") || !strings.Contains(string(corruptOut), "D-099.md") {
+			t.Errorf("expected 'Corrupted UTF-8' in doctor output, got:\n%s", string(corruptOut))
+		}
+		_ = os.Remove(corruptFile)
+
+		// 6.8 Verify live CLI 'vck mcp-config --write' fail-closed behavior on corrupted JSON
+		corruptConfig := filepath.Join(projectDir, "corrupt-mcp.json")
+		if err := os.WriteFile(corruptConfig, []byte("{invalid-json-content:"), 0o644); err != nil {
+			t.Fatalf("writing corrupt config: %v", err)
+		}
+		cfgCmd := exec.CommandContext(ctx, binPath, "mcp-config", "--preset", "cursor", "--path", corruptConfig, "--write")
+		cfgOut, err := cfgCmd.CombinedOutput()
+		if err == nil {
+			t.Fatalf("expected vck mcp-config to fail on corrupted JSON, but succeeded:\n%s", string(cfgOut))
+		}
+		// Verify file was NOT overwritten with fresh template
+		cfgBytes, _ := os.ReadFile(corruptConfig)
+		if string(cfgBytes) != "{invalid-json-content:" {
+			t.Errorf("corrupt config was overwritten! Got:\n%s", string(cfgBytes))
+		}
+		// Verify no .bak was created
+		if _, err := os.Stat(corruptConfig + ".bak"); !os.IsNotExist(err) {
+			t.Errorf("expected no .bak file on parse error, but found one")
+		}
+	})
 }

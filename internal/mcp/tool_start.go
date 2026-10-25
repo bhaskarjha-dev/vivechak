@@ -64,7 +64,7 @@ func registerStart(server *sdkmcp.Server) {
 func handleStart(_ context.Context, _ *sdkmcp.CallToolRequest, in StartInput) (*sdkmcp.CallToolResult, Envelope, error) {
 	const tool = "vivechak_start"
 
-	// Resolve workspace: explicit argument -> environment variable -> CWD
+	// Resolve workspace: explicit argument -> environment variable -> CWD walk-up
 	root := in.ProjectRoot
 	if root == "" {
 		if env := os.Getenv("VIVECHAK_PROJECT_ROOT"); env != "" && !strings.HasPrefix(env, "${") {
@@ -80,12 +80,17 @@ func handleStart(_ context.Context, _ *sdkmcp.CallToolRequest, in StartInput) (*
 		} else if env := os.Getenv("PROJECT_ROOT"); env != "" && !strings.HasPrefix(env, "${") {
 			root = env
 		} else {
-			cwd, err := os.Getwd()
-			if err != nil {
-				return ErrorResult(tool, fmt.Errorf("E-ROOT-UNRESOLVED: cannot determine working directory: %w", err),
-					"Pass project_root explicitly with your target project directory path.")
+			// Walk up from CWD checking for existing research/ or project anchors
+			if resolved, err := core.ResolveWorkspace(""); err == nil {
+				root = resolved
+			} else {
+				cwd, err := os.Getwd()
+				if err != nil {
+					return ErrorResult(tool, fmt.Errorf("E-ROOT-UNRESOLVED: cannot determine working directory: %w", err),
+						"Pass project_root explicitly with your target project directory path.")
+				}
+				root = cwd
 			}
-			root = cwd
 		}
 	}
 
@@ -96,7 +101,10 @@ func handleStart(_ context.Context, _ *sdkmcp.CallToolRequest, in StartInput) (*
 	}
 
 	// Guard against initializing at a filesystem root
-	if absRoot == "/" || absRoot == "\\" || filepath.Dir(absRoot) == absRoot {
+	cleanAbs := filepath.Clean(absRoot)
+	vol := filepath.VolumeName(cleanAbs)
+	isDriveRoot := vol != "" && (cleanAbs == vol || cleanAbs == vol+"\\" || cleanAbs == vol+"/")
+	if cleanAbs == "/" || cleanAbs == "\\" || filepath.Dir(absRoot) == absRoot || isDriveRoot {
 		return ErrorResult(tool, fmt.Errorf("project_root cannot be a filesystem root: %q", absRoot),
 			"Provide a project directory path, not a filesystem root.")
 	}

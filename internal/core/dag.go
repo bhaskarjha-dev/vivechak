@@ -153,7 +153,8 @@ func (d *DAG) ValidateDAG() error {
 	visited := make(map[string]int)
 	var dfs func(id string, path []string) error
 	dfs = func(id string, path []string) error {
-		visited[id] = 1 // visiting (gray)
+		upperID := strings.ToUpper(id)
+		visited[upperID] = 1 // visiting (gray)
 		path = append(path, id)
 
 		session := d.SessionByID(id)
@@ -162,10 +163,11 @@ func (d *DAG) ValidateDAG() error {
 				if dep == "__ALL_PRIOR__" {
 					continue
 				}
-				if visited[dep] == 1 {
+				upperDep := strings.ToUpper(dep)
+				if visited[upperDep] == 1 {
 					return fmt.Errorf("cycle detected in pipeline DAG: %s -> %s", strings.Join(path, " -> "), dep)
 				}
-				if visited[dep] == 0 {
+				if visited[upperDep] == 0 {
 					if err := dfs(dep, path); err != nil {
 						return err
 					}
@@ -173,12 +175,12 @@ func (d *DAG) ValidateDAG() error {
 			}
 		}
 
-		visited[id] = 2 // visited (black)
+		visited[upperID] = 2 // visited (black)
 		return nil
 	}
 
 	for _, s := range d.Sessions {
-		if visited[s.ID] == 0 {
+		if visited[strings.ToUpper(s.ID)] == 0 {
 			if err := dfs(s.ID, nil); err != nil {
 				return err
 			}
@@ -427,7 +429,27 @@ func parsePipelineFromMachineBlock(data []byte, block *PlanMachineBlock) (*DAG, 
 						if inInnerBlock {
 							inInnerBlock = false
 						} else {
-							isClosingFence = true
+							nextIsBoundary := true
+							for k := i + 1; k < len(lines); k++ {
+								kTrim := strings.TrimSpace(lines[k])
+								if kTrim == "" {
+									continue
+								}
+								if strings.HasPrefix(kTrim, "---") ||
+									strings.HasPrefix(kTrim, "###") ||
+									strings.HasPrefix(kTrim, "##") ||
+									promptStartRe.MatchString(kTrim) {
+									nextIsBoundary = true
+								} else {
+									nextIsBoundary = false
+								}
+								break
+							}
+							if nextIsBoundary {
+								isClosingFence = true
+							} else {
+								inInnerBlock = true
+							}
 						}
 					}
 				}
@@ -1379,18 +1401,20 @@ func ReplanInPlace(pipelineData []byte, op string, p ReplanParams) ([]byte, erro
 
 		// Update session detail table: | **Dependencies** | ... |
 		sessDepRe := regexp.MustCompile(fmt.Sprintf(`(?ms)(^#{3,4}\s+(?:Session\s+)?%s\b.*?\|\s*\*\*Dependencies\*\*\s*\|\s*)([^|\n]+)(\s*\|)`, regexp.QuoteMeta(targetID)))
-		content = sessDepRe.ReplaceAllString(content, fmt.Sprintf("${1}%s${3}", depsStr))
+		if loc := sessDepRe.FindStringSubmatchIndex(content); len(loc) >= 8 {
+			content = content[:loc[4]] + depsStr + content[loc[5]:]
+		}
 
 		// Update Pipeline Topology summary table row: | ID | Topic | Dependencies | Output File |
 		topoRowRe := regexp.MustCompile(fmt.Sprintf(`(?m)^(\|[\s]*%s[\s]*\|[^|\n]*\|[\s]*)([^|\n]+?)([\s]*\|[^|\n]*\|[\s]*)$`, regexp.QuoteMeta(targetID)))
-		if topoRowRe.MatchString(content) {
-			content = topoRowRe.ReplaceAllString(content, fmt.Sprintf("${1}%s${3}", depsStr))
+		if loc := topoRowRe.FindStringSubmatchIndex(content); len(loc) >= 8 {
+			content = content[:loc[4]] + depsStr + content[loc[5]:]
 		}
 
 	case "update_prompt":
-		promptRegex := regexp.MustCompile(`(?s)(^#{3,4}\s+(?:Session\s+)?` + regexp.QuoteMeta(targetID) + `\b.*?)(?:` + "````prompt|```prompt" + `)(.*?)(?:` + "````|```" + `)`)
-		if promptRegex.MatchString(content) {
-			content = promptRegex.ReplaceAllString(content, `${1}`+"````prompt\n"+strings.TrimSpace(p.Prompt)+"\n````")
+		promptRegex := regexp.MustCompile(`(?ms)(^#{3,4}\s+(?:Session\s+)?` + regexp.QuoteMeta(targetID) + `\b.*?)(?:` + "````prompt|```prompt" + `)(.*?)(?:` + "````|```" + `)`)
+		if loc := promptRegex.FindStringSubmatchIndex(content); len(loc) >= 6 {
+			content = content[:loc[3]] + "````prompt\n" + strings.TrimSpace(p.Prompt) + "\n````" + content[loc[1]:]
 		}
 
 	default:
@@ -1399,7 +1423,9 @@ func ReplanInPlace(pipelineData []byte, op string, p ReplanParams) ([]byte, erro
 
 	newBlockYAML, _ := yaml.Marshal(block)
 	newBlockStr := fmt.Sprintf("```yaml vivechak-plan\n%s```", string(newBlockYAML))
-	content = planMachineBlockRe.ReplaceAllString(content, newBlockStr)
+	if loc := planMachineBlockRe.FindStringIndex(content); len(loc) >= 2 {
+		content = content[:loc[0]] + newBlockStr + content[loc[1]:]
+	}
 
 	return []byte(content), nil
 }

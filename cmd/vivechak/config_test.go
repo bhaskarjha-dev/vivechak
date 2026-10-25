@@ -816,6 +816,60 @@ func TestRunSetupWithArgs_CorruptConfigFailsFastWithoutOverwrite(t *testing.T) {
 	}
 }
 
+func TestRunMCPConfigWithArgs_CorruptConfigFailsFastWithoutOverwrite(t *testing.T) {
+	tempFile := filepath.Join(t.TempDir(), "corrupt_config.json")
+	corruptContent := `{"unclosed_json": `
+	if err := os.WriteFile(tempFile, []byte(corruptContent), 0o644); err != nil {
+		t.Fatalf("failed to write corrupt config: %v", err)
+	}
+
+	var stdout, stderr bytes.Buffer
+	code := runMCPConfigWithArgs([]string{"--path", tempFile, "--write"}, &stdout, &stderr)
+	if code != 1 {
+		t.Fatalf("expected exit code 1 for corrupt config, got %d", code)
+	}
+	if !strings.Contains(stderr.String(), "could not merge Vivechak into existing configuration") {
+		t.Errorf("expected merge failure error message in stderr, got: %s", stderr.String())
+	}
+	if !strings.Contains(stderr.String(), "will not overwrite this file") {
+		t.Errorf("expected protection message in stderr, got: %s", stderr.String())
+	}
+
+	after, err := os.ReadFile(tempFile)
+	if err != nil {
+		t.Fatalf("reading file after mcp-config: %v", err)
+	}
+	if string(after) != corruptContent {
+		t.Errorf("corrupt file was overwritten! got: %s, want: %s", string(after), corruptContent)
+	}
+}
+
+func TestResolveLauncher_Uvx(t *testing.T) {
+	cases := []struct {
+		path string
+		wantCmd string
+	}{
+		{"/home/user/.cache/uv/archive-v0/xyz/vivechak", "uvx"},
+		{"C:\\Users\\user\\AppData\\Local\\uv\\cache\\archive\\vivechak.exe", "uvx"},
+		{"/root/.cache/uv-cache/bin/vivechak", "uvx"},
+		{"/home/user/_npx/1234/node_modules/.bin/vivechak", "npx"},
+		{"/usr/local/bin/vivechak", "/usr/local/bin/vivechak"},
+	}
+
+	for _, tc := range cases {
+		cmd, args := resolveLauncher(tc.path)
+		if cmd != tc.wantCmd {
+			t.Errorf("resolveLauncher(%q) cmd = %s, want %s", tc.path, cmd, tc.wantCmd)
+		}
+		if tc.wantCmd == "uvx" {
+			if len(args) != 2 || args[0] != "vivechak" || args[1] != "serve" {
+				t.Errorf("resolveLauncher(%q) args = %v, want [vivechak serve]", tc.path, args)
+			}
+		}
+	}
+}
+
+
 func TestResolveConfigPath_ExpandedHarnesses(t *testing.T) {
 	homeDir := "/home/testuser"
 	cwd := "/workspace/testproject"

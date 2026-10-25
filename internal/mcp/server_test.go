@@ -567,7 +567,7 @@ func TestGuidedWorkerPattern(t *testing.T) {
 	}{
 		{"vivechak_status", map[string]any{"project_root": tmpDir}},
 		{"vivechak_start", map[string]any{"project_root": tmpDir, "scope": "project"}},
-		{"vivechak_start", map[string]any{"scope": "project", "question": "test project"}},
+		{"vivechak_start", map[string]any{"project_root": tmpDir, "scope": "project", "question": "test project"}},
 		{"vivechak_review", map[string]any{"content": "# test", "artifact_type": "session"}},
 	}
 

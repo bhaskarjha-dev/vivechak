@@ -186,19 +186,47 @@ func checkWorkspace(workspace string) (bool, []string, []string) {
 
 	// 3. Frontmatter valid, 4. Orphaned sessions, 5. Stale cross-references, 6. No corruption
 	sessionsDir := filepath.Join(workspace, core.SessionsDir)
-	entries, err := os.ReadDir(sessionsDir)
-	if err == nil {
-		invalidFrontmatter := 0
-		orphaned := 0
-		staleRefs := 0
-		corruptCount := 0
+	decisionsDir := filepath.Join(workspace, core.DecisionsDir)
+	comparisonsDir := filepath.Join(workspace, core.ComparisonsDir)
+	researchDir := filepath.Join(workspace, core.ResearchDir)
 
+	invalidFrontmatter := 0
+	orphaned := 0
+	staleRefs := 0
+	corruptCount := 0
+	checkedSessions := 0
+	checkedTotalFiles := 0
+
+	type dirCheck struct {
+		path      string
+		isSession bool
+	}
+	dirs := []dirCheck{
+		{path: sessionsDir, isSession: true},
+		{path: decisionsDir, isSession: false},
+		{path: comparisonsDir, isSession: false},
+		{path: researchDir, isSession: false},
+	}
+
+	seenPaths := make(map[string]bool)
+
+	for _, d := range dirs {
+		entries, err := os.ReadDir(d.path)
+		if err != nil {
+			continue
+		}
 		for _, e := range entries {
 			if e.IsDir() || filepath.Ext(e.Name()) != ".md" {
 				continue
 			}
-			path := filepath.Join(sessionsDir, e.Name())
-			data, err := os.ReadFile(path)
+			filePath := filepath.Join(d.path, e.Name())
+			if seenPaths[filePath] {
+				continue
+			}
+			seenPaths[filePath] = true
+			checkedTotalFiles++
+
+			data, err := os.ReadFile(filePath)
 			if err != nil {
 				continue
 			}
@@ -216,79 +244,93 @@ func checkWorkspace(workspace string) (bool, []string, []string) {
 				hasErrors = true
 			}
 
-			// Check orphaned
-			id := core.ExtractSessionID(e.Name(), fm)
+			if d.isSession {
+				checkedSessions++
+				// Check orphaned
+				id := core.ExtractSessionID(e.Name(), fm)
 
-			if pipelineContent != "" && id != "" {
-				inPipeline := strings.Contains(pipelineContent, id)
-				if !inPipeline && info.Scope == core.ScopeComparison && (strings.HasPrefix(strings.ToUpper(id), "C-") || strings.HasPrefix(strings.ToUpper(id), "CMP-") || strings.HasPrefix(strings.ToUpper(id), "COMP-")) {
-					inPipeline = true
-				}
-				if !inPipeline {
-					// Check progressively shorter hyphen- or underscore-delimited prefixes for slugged filenames
-					// e.g. "D-001-S1-slug" -> "D-001-S1", "T1-01-database-selection" -> "T1-01", "T1_01_database" -> "T1_01"
-					parts := strings.FieldsFunc(id, func(r rune) bool { return r == '-' || r == '_' })
-					for k := len(parts) - 1; k >= 1; k-- {
-						prefixHyphen := strings.Join(parts[:k], "-")
-						prefixUnderscore := strings.Join(parts[:k], "_")
-						if strings.Contains(pipelineContent, prefixHyphen) || strings.Contains(pipelineContent, prefixUnderscore) {
-							inPipeline = true
-							break
+				if pipelineContent != "" && id != "" {
+					inPipeline := strings.Contains(pipelineContent, id)
+					if !inPipeline && info.Scope == core.ScopeComparison && (strings.HasPrefix(strings.ToUpper(id), "C-") || strings.HasPrefix(strings.ToUpper(id), "CMP-") || strings.HasPrefix(strings.ToUpper(id), "COMP-")) {
+						inPipeline = true
+					}
+					if !inPipeline {
+						// Check progressively shorter hyphen- or underscore-delimited prefixes for slugged filenames
+						// e.g. "D-001-S1-slug" -> "D-001-S1", "T1-01-database-selection" -> "T1-01", "T1_01_database" -> "T1_01"
+						parts := strings.FieldsFunc(id, func(r rune) bool { return r == '-' || r == '_' })
+						for k := len(parts) - 1; k >= 1; k-- {
+							prefixHyphen := strings.Join(parts[:k], "-")
+							prefixUnderscore := strings.Join(parts[:k], "_")
+							if strings.Contains(pipelineContent, prefixHyphen) || strings.Contains(pipelineContent, prefixUnderscore) {
+								inPipeline = true
+								break
+							}
 						}
 					}
+					if !inPipeline {
+						errs = append(errs, fmt.Sprintf("✗ Orphaned session (not in pipeline): %s", e.Name()))
+						orphaned++
+						hasErrors = true
+					}
 				}
-				if !inPipeline {
-					errs = append(errs, fmt.Sprintf("✗ Orphaned session (not in pipeline): %s", e.Name()))
-					orphaned++
-					hasErrors = true
-				}
-			}
 
-			// Check stale decisions references from structured frontmatter and explicit references
-			if decisionsContent != "" {
-				var refs []string
-				if fm != nil {
-					refs = append(refs, fm.GetStringSlice("informs_decisions")...)
-					refs = append(refs, fm.GetStringSlice("decisions")...)
-					if s := fm.GetString("decision"); s != "" {
-						refs = append(refs, s)
-					}
-					if s := fm.GetString("informs_decision"); s != "" {
-						refs = append(refs, s)
-					}
-				}
-				for _, match := range decisionRefRe.FindAllStringSubmatch(string(data), -1) {
-					for k := 1; k < len(match); k++ {
-						if match[k] != "" {
-							refs = append(refs, match[k])
+				// Check stale decisions references from structured frontmatter and explicit references
+				if decisionsContent != "" {
+					var refs []string
+					if fm != nil {
+						refs = append(refs, fm.GetStringSlice("informs_decisions")...)
+						refs = append(refs, fm.GetStringSlice("decisions")...)
+						if s := fm.GetString("decision"); s != "" {
+							refs = append(refs, s)
+						}
+						if s := fm.GetString("informs_decision"); s != "" {
+							refs = append(refs, s)
 						}
 					}
-				}
-
-				seenMatches := make(map[string]bool)
-				for _, match := range refs {
-					match = strings.TrimSpace(match)
-					if match == "" || seenMatches[match] {
-						continue
+					for _, match := range decisionRefRe.FindAllStringSubmatch(string(data), -1) {
+						for k := 1; k < len(match); k++ {
+							if match[k] != "" {
+								refs = append(refs, match[k])
+							}
+						}
 					}
-					seenMatches[match] = true
-					decIDPattern := regexp.MustCompile(`(?i)\b` + regexp.QuoteMeta(match) + `\b`)
-					if !decIDPattern.MatchString(decisionsContent) {
-						if pipelineContent != "" && decIDPattern.MatchString(pipelineContent) {
-							successes = append(successes, fmt.Sprintf("ℹ In-flight planned decision in %s: %s (declared in pipeline, awaiting ADR)", e.Name(), match))
-						} else {
-							errs = append(errs, fmt.Sprintf("✗ Stale decision ref in %s: %s", e.Name(), match))
-							staleRefs++
-							hasErrors = true
+
+					seenMatches := make(map[string]bool)
+					for _, match := range refs {
+						match = strings.TrimSpace(match)
+						if match == "" || seenMatches[match] {
+							continue
+						}
+						seenMatches[match] = true
+						decIDPattern := regexp.MustCompile(`(?i)\b` + regexp.QuoteMeta(match) + `\b`)
+						if !decIDPattern.MatchString(decisionsContent) {
+							if pipelineContent != "" && decIDPattern.MatchString(pipelineContent) {
+								successes = append(successes, fmt.Sprintf("ℹ In-flight planned decision in %s: %s (declared in pipeline, awaiting ADR)", e.Name(), match))
+							} else {
+								errs = append(errs, fmt.Sprintf("✗ Stale decision ref in %s: %s", e.Name(), match))
+								staleRefs++
+								hasErrors = true
+							}
 						}
 					}
 				}
 			}
 		}
+	}
 
+	if checkedTotalFiles > 0 {
 		if invalidFrontmatter == 0 {
 			successes = append(successes, "✓ All frontmatters valid")
 		}
+		if corruptCount == 0 {
+			successes = append(successes, "✓ No corrupted files (valid UTF-8)")
+		}
+	} else {
+		successes = append(successes, "✓ Frontmatter check skipped (no files)")
+		successes = append(successes, "✓ Integrity check skipped (no files)")
+	}
+
+	if checkedSessions > 0 {
 		if pipelineContent != "" {
 			if orphaned == 0 {
 				successes = append(successes, "✓ No orphaned sessions")
@@ -303,15 +345,9 @@ func checkWorkspace(workspace string) (bool, []string, []string) {
 		} else {
 			successes = append(successes, "✓ Cross-reference check skipped (no decision registry)")
 		}
-		if corruptCount == 0 {
-			successes = append(successes, "✓ No corrupted files (valid UTF-8)")
-		}
-
 	} else {
-		successes = append(successes, "✓ Frontmatter check skipped (no sessions)")
 		successes = append(successes, "✓ Orphan check skipped (no sessions)")
 		successes = append(successes, "✓ Cross-reference check skipped (no sessions)")
-		successes = append(successes, "✓ Integrity check skipped (no sessions)")
 	}
 
 	return hasErrors, successes, errs

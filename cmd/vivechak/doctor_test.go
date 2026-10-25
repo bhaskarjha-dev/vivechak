@@ -540,3 +540,32 @@ func TestCheckWorkspace_CorruptedMetadata(t *testing.T) {
 		t.Errorf("expected error about corrupted metadata, got: %v", errs)
 	}
 }
+
+func TestCheckWorkspace_CorruptedDecisionsDir(t *testing.T) {
+	tmpDir := t.TempDir()
+	_ = os.MkdirAll(filepath.Join(tmpDir, core.TemplatesDir), 0o755)
+	_ = os.MkdirAll(filepath.Join(tmpDir, core.DecisionsDir), 0o755)
+	for _, tmpl := range core.TemplatesToCopy {
+		_ = os.WriteFile(filepath.Join(tmpDir, core.TemplatesDir, tmpl), []byte("# Template "+tmpl), 0o644)
+	}
+
+	// Corrupted UTF-8 in decisions/D-001.md
+	corruptBytes := []byte{0xff, 0xfe, 0xfd}
+	_ = os.WriteFile(filepath.Join(tmpDir, core.DecisionsDir, "D-001.md"), corruptBytes, 0o644)
+
+	hasErrors, _, errs := checkWorkspace(tmpDir)
+	if !hasErrors {
+		t.Error("expected hasErrors=true for corrupted decision file")
+	}
+	found := false
+	for _, e := range errs {
+		if strings.Contains(e, "Corrupted UTF-8") && strings.Contains(e, "D-001.md") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("expected Corrupted UTF-8 in D-001.md, got %v", errs)
+	}
+}
+

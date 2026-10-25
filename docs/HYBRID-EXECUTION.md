@@ -11,14 +11,14 @@
 There is no "pure automated" or "pure manual" path in Vivechak. Every real
 pipeline is hybrid:
 
-- **MCP-automated sessions** run through `vivechak_next_session` →
-  agent execution → `vivechak_save_session`. The server handles context
+- **MCP-automated sessions** run through `vivechak_next` →
+  agent execution → `vivechak_save`. The server handles context
   injection, DAG resolution, and validation.
 - **Manual sessions** run by pasting the prompt into a browser AI tool
   (Gemini Deep Research, ChatGPT with browsing, Claude with web search),
   copying the output, and saving the file to `research/sessions/`.
 - **Assisted sessions** are a mix: the agent retrieves the prompt with
-  `vivechak_next_session`, the user runs it manually, then tells the
+  `vivechak_next`, the user runs it manually, then tells the
   agent to save the result.
 
 All three produce the same artifact format. The DAG doesn't care how a
@@ -133,21 +133,21 @@ After running a session manually:
 
 1. Copy the AI's output
 2. Tell the agent: "Save this as T1-03" and paste the content
-3. The agent calls `vivechak_save_session` with the content,
+3. The agent calls `vivechak_save(kind="session", id="T1-03", content=...)`,
    which handles frontmatter construction and validation
 
 ### Option C: Hybrid Save
 
 1. Save the raw output to the sessions directory
 2. Ask the agent to validate it: "Validate T1-03"
-3. The agent calls `vivechak_validate` and reports any observations
+3. The agent calls `vivechak_review(target="T1-03", mode="validate")` and reports any observations
 4. Address any structural issues, or proceed as-is
 
 ### What Happens Next
 
 Once the session file exists, the DAG automatically unblocks any
 downstream sessions that depended on it. The next call to
-`vivechak_next_session` will pick up the completed session and
+`vivechak_next` will pick up the completed session and
 return the next actionable one with upstream context injected.
 
 ---
@@ -219,13 +219,13 @@ The most common hybrid pattern:
 
 For users who prefer hands-on research:
 
-1. Agent calls `vivechak_prepare_generator` and generates the pipeline
-2. Agent calls `vivechak_save_plan` to store it
+1. Agent calls `vivechak_start(scope="project", ...)` and generates the pipeline
+2. Agent calls `vivechak_save(kind="plan", ...)` to store it
 3. User executes each session manually, saving outputs to the
    sessions directory
-4. Agent calls `vivechak_next_session` between sessions to verify
+4. Agent calls `vivechak_next` between sessions to verify
    DAG progress and inject upstream context into the next prompt
-5. Agent runs validation and gate at the end
+5. Agent runs `vivechak_review` and `vivechak_gate` at the end
 
 ### Pattern: Cross-Model Triangulation
 

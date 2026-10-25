@@ -2,6 +2,7 @@ package mcputil
 
 import (
 	"context"
+	"os"
 	"strings"
 	"testing"
 
@@ -201,5 +202,80 @@ func TestSplitBriefIntoParts(t *testing.T) {
 		if len(p) == 0 {
 			t.Errorf("part %d is empty", i+1)
 		}
+	}
+}
+
+func TestStart_FilesystemRootAndHomeGuards(t *testing.T) {
+	cs := testServer(t)
+	ctx := context.Background()
+
+	// 1. Filesystem root / drive root
+	resRoot, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_start",
+		Arguments: map[string]any{
+			"project_root": "/",
+			"scope":        "comparison",
+			"question":     "Pino vs Winston",
+		},
+	})
+	if err != nil {
+		t.Fatalf("call tool failed: %v", err)
+	}
+	envRoot := parseEnvelope(t, resRoot)
+	if envRoot.Success {
+		t.Errorf("expected failure for filesystem root '/', got success")
+	}
+	if !strings.Contains(envRoot.Message, "cannot be a filesystem root") {
+		t.Errorf("expected 'cannot be a filesystem root', got: %s", envRoot.Message)
+	}
+
+	// 2. User home directory
+	if home, err := os.UserHomeDir(); err == nil && home != "" {
+		resHome, err := cs.CallTool(ctx, &mcp.CallToolParams{
+			Name: "vivechak_start",
+			Arguments: map[string]any{
+				"project_root": home,
+				"scope":        "comparison",
+				"question":     "Pino vs Winston",
+			},
+		})
+		if err != nil {
+			t.Fatalf("call tool failed: %v", err)
+		}
+		envHome := parseEnvelope(t, resHome)
+		if envHome.Success {
+			t.Errorf("expected failure for user home dir %q, got success", home)
+		}
+		if !strings.Contains(envHome.Message, "refusing to initialize workspace directly in user home directory") {
+			t.Errorf("expected home directory refusal message, got: %s", envHome.Message)
+		}
+	}
+}
+
+func TestStart_ScopeInference(t *testing.T) {
+	cs := testServer(t)
+	ctx := context.Background()
+	tmpDir := t.TempDir()
+
+	res, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_start",
+		Arguments: map[string]any{
+			"project_root": tmpDir,
+			"question":     "Compare Pino vs Winston for structured logging",
+		},
+	})
+	if err != nil {
+		t.Fatalf("call tool failed: %v", err)
+	}
+	env := parseEnvelope(t, res)
+	if !env.Success {
+		t.Fatalf("expected success, got error: %s", env.Message)
+	}
+	data, ok := env.Data.(map[string]any)
+	if !ok {
+		t.Fatalf("expected env.Data to be map[string]any, got %T", env.Data)
+	}
+	if data["scope"] != "comparison" {
+		t.Errorf("expected inferred scope 'comparison', got: %v", data["scope"])
 	}
 }

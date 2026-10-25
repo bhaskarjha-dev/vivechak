@@ -15,7 +15,7 @@ This guide explains how parallel research execution works, how to detect paralle
 
 ### The `⚡` Parallelism Hint
 
-When calling `vivechak_next_session`, Vivechak evaluates the dependency graph against completed sessions. If more than one unblocked session is ready to execute, the response includes a **parallelism hint**:
+When calling `vivechak_next` (or legacy alias `vivechak_next_session`), Vivechak evaluates the dependency graph against completed sessions. If more than one unblocked session is ready to execute, the response includes a **parallelism hint**:
 
 ```json
 {
@@ -29,7 +29,7 @@ When calling `vivechak_next_session`, Vivechak evaluates the dependency graph ag
 
 ### Visualizing Parallel Tracks
 
-Call `vivechak_visualize` to inspect ready and parallel nodes:
+Call `vivechak_status(format="mermaid")` (or legacy alias `vivechak_visualize`) to inspect ready and parallel nodes:
 - Ready sessions are highlighted in **amber** (`#f59e0b`).
 - Completed sessions are highlighted in **green** (`#22c55e`).
 - Blocked downstream sessions are highlighted in **gray** (`#6b7280`).

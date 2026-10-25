@@ -196,7 +196,9 @@ When a user asks for code implementation or debugging, respond directly with cod
 
 ## Tools Reference
 
-### 1. `vivechak_init`
+Vivechak exposes 9 consolidated MCP tools registered directly on the server (see [`docs/reference/tools.md`](reference/tools.md) for concise machine-facing contracts). To maintain complete backward compatibility with older harnesses and agents, wire-level receiving middleware transparently routes legacy tool calls to their consolidated counterparts. Below is the comprehensive reference for all underlying tool endpoints:
+
+### 1. `vivechak_init` (Alias for `vivechak_start`)
 **Title:** Initialize Vivechak Workspace  
 **Annotations:** Read-Only: `false` | Idempotent: `true` | Destructive: `false` | Open-World: `false`
 
@@ -1118,6 +1120,9 @@ Vivechak organizes all artifact validation into a 4-level validation ladder defi
 | `W-STALE-DOWNSTREAM` | L3 | `amend_session` | Amended session has completed downstream dependents; findings may be based on stale assumptions. |
 | `W-STALE-DECISION-REFERENCE` | L3 | `record_decision` | Superseded decision is referenced by existing completed sessions. |
 | `W-TEMPLATE-MISSING` | L3 | `init` | A template file could not be read from embedded binary assets. |
+| `W-PLACEHOLDER-REMAINS` | L3 | `save`, `record_decision`, `validate` | Proposed ADR draft contains unexpanded placeholders. Informational during drafting; replace before accepting. |
+| `W-LOCK-TIMEOUT` | L3 | `save`, `amend` | Root FAD mirror lock acquisition timed out under high concurrency; primary `research/FAD.md` safely persisted. |
+| `E-PLACEHOLDER-REMAINS` | L2 | `record_decision`, `validate`, `gate` | Accepted ADR or FAD contains unexpanded bracketed template tokens. Replace with empirical findings before locking ADR. |
 | `GATE-STRUCTURAL: <check>` | L4 | `run_gate` | Structural completeness check failed (missing pipeline, FAD, templates, or uncompleted DAG sessions). |
 | `GATE-QUALITY: <check>` | L4 | `run_gate` | Mechanical quality check failed (<3 sessions, un-graded FAD, unfinalized decisions / missing reversal triggers, or One-Way Door B3/B4/B5 defects). |
 | `GATE-ADVISORY: <check>` | L4 | `run_gate` | Non-blocking observations (e.g. human review recommendation, structural ADR shape). |
@@ -1143,7 +1148,7 @@ Vivechak organizes all artifact validation into a 4-level validation ladder defi
 
 ## MCP Protocol Triumvirate: Prompts & Resources
 
-In addition to the 13 model-controlled orchestration tools, Vivechak implements the complete Model Context Protocol specification with first-class **Prompts** (`prompts/list`, `prompts/get`) and **Resources** (`resources/list`, `resources/read`).
+In addition to the 9 consolidated model-controlled orchestration tools (with legacy alias redirects), Vivechak implements the complete Model Context Protocol specification with first-class **Prompts** (`prompts/list`, `prompts/get`) and **Resources** (`resources/list`, `resources/read`).
 
 ### 1. Native MCP Prompts (User-Controlled Workflows)
 

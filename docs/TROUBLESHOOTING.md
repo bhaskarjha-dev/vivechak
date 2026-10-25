@@ -16,7 +16,8 @@ vck doctor
 `vck doctor` checks for:
 - Correct `research/` directory layout and required templates.
 - Unregistered or orphaned session files in `research/sessions/`.
-- Malformed or missing YAML frontmatter headers.
+- Malformed or missing YAML frontmatter headers across `research/`, `sessions/`, `decisions/`, and `comparisons/`.
+- Corrupted non-UTF-8 bytes across all research files.
 - Stale decision references (`D-OLD`) after ADR supersession.
 - In-flight decisions planned in `RESEARCH-PIPELINE.md` that lack locked ADRs.
 
@@ -75,6 +76,13 @@ Vivechak employs a 4-level validation ladder (**L1–L4**). Below are the common
 - **Cause:** When saving or amending a synthesis session (`SYN-01` or `FAD`), Vivechak attempts to acquire an advisory file lock to synchronize the canonical FAD to the project root (`FOUNDING-ARCHITECTURE.md`). If another agent or background process holds the lock for longer than 5 seconds, Vivechak emits `W-LOCK-TIMEOUT` and skips the root copy rather than proceeding with an uncoordinated write or causing a deadlock.
 - **Resolution:** The primary synthesis session file in `research/` has already been safely persisted atomically. Wait for concurrent subagent tasks to complete, then re-save or amend the session, or copy `research/FAD.md` to `FOUNDING-ARCHITECTURE.md`.
 
+### `E-PLACEHOLDER-REMAINS` & `W-PLACEHOLDER-REMAINS` (Template & Auto-Draft Placeholders)
+- **Cause:** An Architectural Decision Record (`research/D-*.md`) or Founding Architecture Document (`research/FAD.md`) contains unexpanded bracketed template tokens or auto-draft prompts (e.g. `[Auto-drafted — review and refine...]`, `[Extract...]`, `[Review session findings...]`, `[Document...]`, `[TODO: ...]`).
+- **Behavior & Calibration:**
+  - When saving an initial ADR skeleton with `status: proposed` (e.g. via `vivechak_record_decision(auto_draft_from="...", auto_save=true)`), Vivechak emits an advisory warning (`W-PLACEHOLDER-REMAINS`), allowing agents to persist draft skeletons without interruption.
+  - When locking an ADR with `status: accepted` or evaluating Phase 0 Gate Rule G9, unexpanded placeholders are strictly blocked with error `E-PLACEHOLDER-REMAINS`.
+- **Resolution:** Replace all bracketed template instructions with actual empirical research findings, specific project context, and canonical citations before locking the ADR. *(Note: Legitimate markdown inline links `[Text](url)` and reference links `[Text][ref]` are permitted and will not trigger placeholder errors).*
+
 ### Session File Size Guard (`MaxSessionReadBytes` Safety Limit)
 - **Cause:** A session file requested during context injection or decision drafting exceeds the 10MB memory safety ceiling (`MaxSessionReadBytes = 10MB`).
 - **Resolution:** Ensure session files contain text-based research deliverables. If large datasets, benchmark outputs, or raw logs were written to `research/sessions/`, move them outside the research folder and cite them by path reference.
@@ -115,6 +123,14 @@ During `vivechak_save(kind="session")` or `vivechak_review`, the engine surfaces
   }
   ```
   Or set the environment variable `"VCK_PROJECT_ROOT": "${workspaceFolder}"` (or `"VIVECHAK_PROJECT_ROOT"`) in your host's MCP server configuration.
+
+### Problem: Workspace initialization rejected for Filesystem Root or Home Directory
+- **Cause:** Calling `vivechak_start` with `project_root: "/"` or pointing to a drive root (`C:\`, `D:\`) or directly to the user's home folder (`$HOME`, `~`).
+- **Fix:** Vivechak actively refuses initialization in roots to prevent filesystem pollution. Pass a dedicated project subdirectory path as `project_root` (e.g., `"project_root": "d:/projects/my-app"`).
+
+### Problem: Corrupt Host Configuration File on `vck setup` or `vck mcp-config`
+- **Cause:** An existing host MCP configuration file (e.g. `.cursor/mcp.json` or `claude_desktop_config.json`) contains corrupted, invalid JSON syntax.
+- **Fix:** `vck setup` and `vck mcp-config --write` employ fail-closed protection: they strictly refuse to overwrite, truncate, or destroy existing user configurations on parse errors and exit with status 1. Correct the JSON syntax in your client settings file, or specify a clean destination file with `--path <file> --write`.
 
 ### Problem: Verifying MCP Connection Interactively
 To test that your Vivechak binary responds to JSON-RPC over `stdio` without an editor:

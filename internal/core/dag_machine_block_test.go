@@ -190,3 +190,67 @@ Final notes and signing instructions.
 		t.Errorf("machine block was not updated with T1-02: %s", resStr)
 	}
 }
+
+func TestReplanInPlace_DollarSignImmunity(t *testing.T) {
+	origPlan := `# Pipeline
+` + "```yaml vivechak-plan\n" +
+		`sessions:
+  - id: T1-01
+    title: Initial Title
+    door: two-way
+    dependencies: []
+    output_file: research/sessions/T1-01.md
+` + "```\n" + `
+
+## Pipeline Topology
+
+| ID | Topic | Dependencies | Output File |
+|---|---|---|---|
+| T1-01 | Initial Title | none | sessions/T1-01.md |
+
+### Session T1-01: Initial Title
+
+| **Field** | **Value** |
+|---|---|
+| **ID** | T1-01 |
+| **Dependencies** | none |
+
+` + "````prompt\n# T1-01: Initial Prompt\nInitial instructions.\n````\n" + `
+`
+
+	// 1. Test update_prompt with dollar signs ($1, $VAR, $50/mo, $0)
+	dollarPrompt := "# T1-01: Cost Analysis\nCost target is $50/mo. Shell command: echo $VAR. Regex group test: $1 and $2."
+	updateParams := ReplanParams{
+		SessionID: "T1-01",
+		Prompt:    dollarPrompt,
+	}
+	res1, err := ReplanInPlace([]byte(origPlan), "update_prompt", updateParams)
+	if err != nil {
+		t.Fatalf("update_prompt failed: %v", err)
+	}
+	res1Str := string(res1)
+	if !strings.Contains(res1Str, "$50/mo") {
+		t.Errorf("expected $50/mo preserved literally, got:\n%s", res1Str)
+	}
+	if !strings.Contains(res1Str, "$VAR") {
+		t.Errorf("expected $VAR preserved literally, got:\n%s", res1Str)
+	}
+	if !strings.Contains(res1Str, "$1 and $2") {
+		t.Errorf("expected '$1 and $2' preserved literally without regex expansion, got:\n%s", res1Str)
+	}
+
+	// 2. Test update_deps with dollar signs in dependency names
+	depParams := ReplanParams{
+		SessionID:    "T1-01",
+		Dependencies: []string{"DEP-$1", "DEP-$VAR"},
+	}
+	res2, err := ReplanInPlace([]byte(origPlan), "update_deps", depParams)
+	if err != nil {
+		t.Fatalf("update_deps failed: %v", err)
+	}
+	res2Str := string(res2)
+	if !strings.Contains(res2Str, "DEP-$1, DEP-$VAR") {
+		t.Errorf("expected dependencies with dollar signs preserved literally, got:\n%s", res2Str)
+	}
+}
+

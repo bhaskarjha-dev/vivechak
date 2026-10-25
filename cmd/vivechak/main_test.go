@@ -194,7 +194,7 @@ func TestRunCLI_MCPConfig(t *testing.T) {
 		t.Errorf("expected exit code 0 for alias merge, got %d (stderr: %s)", code, stderr.String())
 	}
 
-	// 8. Corrupted existing config triggers backup (.bak)
+	// 8. Corrupted existing config fails-safe with exit code 1 without overwriting
 	corruptPath := filepath.Join(t.TempDir(), "corrupt-config.json")
 	if err := os.WriteFile(corruptPath, []byte("NOT_JSON{"), 0644); err != nil {
 		t.Fatal(err)
@@ -202,11 +202,12 @@ func TestRunCLI_MCPConfig(t *testing.T) {
 	stdout.Reset()
 	stderr.Reset()
 	code = runCLI([]string{"vivechak", "mcp-config", "--path", corruptPath, "--write"}, &stdout, &stderr)
-	if code != 0 {
-		t.Errorf("expected exit code 0 on corrupt merge with backup, got %d", code)
+	if code != 1 {
+		t.Errorf("expected exit code 1 on corrupt merge, got %d", code)
 	}
-	if _, err := os.Stat(corruptPath + ".bak"); err != nil {
-		t.Errorf("expected backup file %s.bak to exist", corruptPath)
+	content, _ := os.ReadFile(corruptPath)
+	if string(content) != "NOT_JSON{" {
+		t.Errorf("corrupt config was overwritten! got: %s", string(content))
 	}
 }
 

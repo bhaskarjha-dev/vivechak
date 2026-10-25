@@ -136,33 +136,12 @@ func runMCPConfigWithArgs(args []string, stdout, stderr io.Writer) int {
 
 			merged, mergeErr := mergeConfig(b, exePath, targetKey)
 			if mergeErr != nil {
-				fmt.Fprintf(stderr, "Warning: %v\n", mergeErr)
-				targetPath := configPath
-				if realPath, err := filepath.EvalSymlinks(configPath); err == nil && realPath != "" {
-					targetPath = realPath
-				}
-				perm := os.FileMode(0644)
-				if fi, err := os.Stat(targetPath); err == nil {
-					perm = fi.Mode().Perm()
-				}
-				fmt.Fprintf(stderr, "Creating backup at %s.bak and writing fresh config\n", targetPath)
-				if backupErr := os.WriteFile(targetPath+".bak", b, perm); backupErr != nil {
-					fmt.Fprintf(stderr, "Warning: could not create backup: %v\n", backupErr)
-				}
-				_ = os.Chmod(targetPath+".bak", perm)
-				if configPath != targetPath {
-					_ = os.WriteFile(configPath+".bak", b, perm)
-					_ = os.Chmod(configPath+".bak", perm)
-				}
-				fresh, freshErr := mergeConfig(nil, exePath, targetKey)
-				if freshErr != nil {
-					fmt.Fprintf(stderr, "failed to create fresh config: %v\n", freshErr)
-					return 1
-				}
-				out = fresh
-			} else {
-				out = merged
+				fmt.Fprintf(stderr, "Error: could not merge Vivechak into existing configuration at %s: %v\n", configPath, mergeErr)
+				fmt.Fprintf(stderr, "To protect your existing settings, Vivechak will not overwrite this file.\n")
+				fmt.Fprintf(stderr, "Please verify the configuration file syntax or run without --write to inspect output.\n")
+				return 1
 			}
+			out = merged
 		} else {
 			fresh, freshErr := mergeConfig(nil, exePath, targetKey)
 			if freshErr != nil {
@@ -243,6 +222,11 @@ func resolveLauncher(exePath string) (cmd string, args []string) {
 		strings.Contains(clean, "node_modules/.cache") ||
 		(strings.Contains(clean, "cellar") && strings.Contains(clean, "tmp")) {
 		return "npx", []string{"-y", "vivechak", "serve"}
+	}
+	if (strings.Contains(clean, "/uv/") || strings.Contains(clean, "\\uv\\")) &&
+		(strings.Contains(clean, "cache") || strings.Contains(clean, "archive")) ||
+		strings.Contains(clean, "uv-cache") {
+		return "uvx", []string{"vivechak", "serve"}
 	}
 	return exePath, []string{"serve"}
 }
