@@ -1529,4 +1529,140 @@ func TestDAG_ParsePipeline_MachineBlockAllPriorExpansion(t *testing.T) {
 	}
 }
 
+func TestParsePipeline_BackticksAndFormattingInMetadataTables(t *testing.T) {
+	plan := `# Research Pipeline: Backtick Formatting Test
+
+### Session ` + "`T1-01`" + `: Streaming Message Bus Selection
+| **Field** | **Value** |
+|---|---|
+| **Session ID** | ` + "`T1-01`" + ` |
+| **Topic** | Streaming Message Bus |
+| **Layer** | ` + "`1`" + ` |
+| **Door Type** | ` + "`one-way`" + ` |
+| **Decision** | ` + "`D-001`" + ` |
+| **Dependencies** | None |
+| **Output File** | ` + "`sessions/T1-01.md`" + ` |
+
+` + "```prompt" + `
+Investigate Kafka vs Redpanda.
+` + "```" + `
+
+### Session ` + "`SYN-01`" + `: Architecture Synthesis
+| **Field** | **Value** |
+|---|---|
+| **Session ID** | ` + "`SYN-01`" + ` |
+| **Topic** | Architecture Synthesis |
+| **Layer** | ` + "`2`" + ` |
+| **Door Type** | ` + "`one-way`" + ` |
+| **Dependencies** | ` + "`T1-01`" + ` |
+| **Output File** | ` + "`research/FAD.md`" + ` |
+
+` + "```prompt" + `
+Synthesize all upstream findings.
+` + "```" + `
+`
+	dag, err := ParsePipeline([]byte(plan))
+	if err != nil {
+		t.Fatalf("ParsePipeline failed on markdown backticks in table: %v", err)
+	}
+	if len(dag.Sessions) != 2 {
+		t.Fatalf("expected 2 sessions, got %d", len(dag.Sessions))
+	}
+	s1 := dag.SessionByID("T1-01")
+	if s1 == nil {
+		t.Fatalf("session T1-01 not found (ID was not stripped of backticks)")
+	}
+	if s1.DoorType != "one-way" {
+		t.Errorf("s1.DoorType = %q, want 'one-way'", s1.DoorType)
+	}
+	if s1.DecisionRef != "D-001" {
+		t.Errorf("s1.DecisionRef = %q, want 'D-001'", s1.DecisionRef)
+	}
+	if s1.OutputFile != "sessions/T1-01.md" {
+		t.Errorf("s1.OutputFile = %q, want 'sessions/T1-01.md'", s1.OutputFile)
+	}
+
+	syn := dag.SessionByID("SYN-01")
+	if syn == nil {
+		t.Fatalf("session SYN-01 not found")
+	}
+	if len(syn.Dependencies) != 1 || syn.Dependencies[0] != "T1-01" {
+		t.Errorf("syn.Dependencies = %v, want ['T1-01']", syn.Dependencies)
+	}
+
+	if err := dag.ValidateDAG(); err != nil {
+		t.Fatalf("ValidateDAG failed: %v", err)
+	}
+}
+
+func TestParsePipeline_HorizontalTableWithMarkdownFormatting(t *testing.T) {
+	plan := `# Research Pipeline: Horizontal Table Formatting Test
+
+## Pipeline Topology
+| ID | Topic | Dependencies | Output File |
+|---|---|---|---|
+| ` + "`T0-01`" + ` | **Architecture Foundation** | none | ` + "`sessions/T0-01.md`" + ` |
+| [T1-01] | *Streaming Engine* | ` + "`T0-01`" + ` | "sessions/T1-01.md" |
+| 'SYN-01' | Architecture Synthesis | [T1-01] | ` + "`research/FAD.md`" + ` |
+
+## Session Prompts
+
+### Session ` + "`T0-01`" + `
+` + "```prompt" + `
+Evaluate architectural foundations.
+` + "```" + `
+
+### Session [T1-01]
+` + "```prompt" + `
+Evaluate streaming brokers.
+` + "```" + `
+
+### Session 'SYN-01'
+` + "```prompt" + `
+Synthesize founding architecture.
+` + "```" + `
+`
+	dag, err := ParsePipeline([]byte(plan))
+	if err != nil {
+		t.Fatalf("ParsePipeline failed on formatted horizontal table: %v", err)
+	}
+	if len(dag.Sessions) != 3 {
+		t.Fatalf("expected 3 sessions, got %d", len(dag.Sessions))
+	}
+	s0 := dag.SessionByID("T0-01")
+	if s0 == nil {
+		t.Fatalf("T0-01 not found")
+	}
+	if s0.Title != "Architecture Foundation" {
+		t.Errorf("s0.Title = %q, want 'Architecture Foundation'", s0.Title)
+	}
+
+	s1 := dag.SessionByID("T1-01")
+	if s1 == nil {
+		t.Fatalf("T1-01 not found")
+	}
+	if s1.Title != "Streaming Engine" {
+		t.Errorf("s1.Title = %q, want 'Streaming Engine'", s1.Title)
+	}
+	if len(s1.Dependencies) != 1 || s1.Dependencies[0] != "T0-01" {
+		t.Errorf("s1.Dependencies = %v, want ['T0-01']", s1.Dependencies)
+	}
+
+	syn := dag.SessionByID("SYN-01")
+	if syn == nil {
+		t.Fatalf("SYN-01 not found")
+	}
+	if len(syn.Dependencies) != 1 || syn.Dependencies[0] != "T1-01" {
+		t.Errorf("syn.Dependencies = %v, want ['T1-01']", syn.Dependencies)
+	}
+	if syn.OutputFile != "research/FAD.md" {
+		t.Errorf("syn.OutputFile = %q, want 'research/FAD.md'", syn.OutputFile)
+	}
+
+	if err := dag.ValidateDAG(); err != nil {
+		t.Fatalf("ValidateDAG failed: %v", err)
+	}
+}
+
+
 

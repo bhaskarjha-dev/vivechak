@@ -18,8 +18,10 @@ import (
 type RecordDecisionInput struct {
 	ProjectRoot   string `json:"project_root,omitempty"   jsonschema:"workspace root path"`
 	ArtifactType  string `json:"artifact_type,omitempty"  jsonschema:"type of artifact: decision | conflict-resolution (default: decision)"`
-	DecisionID    string `json:"decision_id"              jsonschema:"decision identifier (e.g. D-015)"`
+	DecisionID    string `json:"decision_id,omitempty"    jsonschema:"decision identifier (e.g. D-015)"`
+	ID            string `json:"id,omitempty"             jsonschema:"alias for decision_id (e.g. D-015)"`
 	Slug          string `json:"slug,omitempty"            jsonschema:"slug for decision filename (optional)"`
+	Status        string `json:"status,omitempty"          jsonschema:"decision lifecycle status: proposed | accepted | rejected | deprecated | superseded (updates frontmatter before saving)"`
 	Content       string `json:"content,omitempty"         jsonschema:"decision record or conflict resolution content (Markdown with YAML frontmatter); omit with auto_draft_from to generate a draft"`
 	AutoDraftFrom string `json:"auto_draft_from,omitempty" jsonschema:"session ID to auto-draft decision from (e.g. R-01); omit content to get a draft for review"`
 	AutoSave      bool   `json:"auto_save,omitempty"       jsonschema:"if true with auto_draft_from, automatically validate and save the drafted decision in one step"`
@@ -35,6 +37,7 @@ func registerRecordDecision(server *sdkmcp.Server) {
 				"Validates against DECISIONS.template.md or CONFLICT-RESOLUTION.template.md schema. " +
 				"Use artifact_type='decision' for ADRs and 'conflict-resolution' for ACH analysis. " +
 				"Classifies decisions as one-way or two-way door per P2. " +
+				"Supports status (e.g. 'accepted') to set or update the lifecycle status before validation and saving. " +
 				"Supports auto_draft_from: provide a session ID (omit content) to auto-generate a " +
 				"draft decision from session findings for review before saving. Pass auto_save=true to draft and save in one step. " +
 				"Supports supersedes: provide a decision ID to mark an existing ADR as superseded, " +
@@ -59,6 +62,10 @@ func handleRecordDecision(ctx context.Context, _ *sdkmcp.CallToolRequest, in Rec
 			"Initialize a workspace first with vivechak_start.")
 	}
 
+	if strings.TrimSpace(in.DecisionID) == "" && strings.TrimSpace(in.ID) != "" {
+		in.DecisionID = strings.TrimSpace(in.ID)
+	}
+
 	if strings.TrimSpace(in.DecisionID) == "" {
 		return ErrorResult(tool, fmt.Errorf("decision_id is required"),
 			"Provide a decision identifier like 'D-015'.")
@@ -78,6 +85,17 @@ func handleRecordDecision(ctx context.Context, _ *sdkmcp.CallToolRequest, in Rec
 	if in.Slug != "" {
 		if err := store.ValidateSlug(in.Slug); err != nil {
 			return ErrorResult(tool, fmt.Errorf("E-INVALID-ARGUMENT: %w", err), "Provide a URL-safe alphanumeric slug without path traversal or reserved names.")
+		}
+	}
+
+	if in.Status != "" {
+		normStatus := strings.ToLower(strings.TrimSpace(in.Status))
+		switch normStatus {
+		case "proposed", "accepted", "rejected", "superseded", "deprecated":
+			// valid
+		default:
+			return ErrorResult(tool, fmt.Errorf("invalid status %q — must be proposed, accepted, rejected, superseded, or deprecated", in.Status),
+				"Use 'proposed', 'accepted', 'rejected', 'superseded', or 'deprecated'.")
 		}
 	}
 
@@ -124,6 +142,11 @@ func handleRecordDecision(ctx context.Context, _ *sdkmcp.CallToolRequest, in Rec
 				"Check session content and try again.")
 		}
 
+		if in.Status != "" {
+			normStatus := strings.ToLower(strings.TrimSpace(in.Status))
+			draft = string(core.SetFrontmatterField([]byte(draft), "status", normStatus))
+		}
+
 		if in.AutoSave {
 			in.Content = draft
 		} else {
@@ -147,6 +170,11 @@ func handleRecordDecision(ctx context.Context, _ *sdkmcp.CallToolRequest, in Rec
 	if strings.TrimSpace(in.Content) == "" {
 		return ErrorResult(tool, fmt.Errorf("content is required (or use auto_draft_from to generate a draft)"),
 			"Provide the decision record content, or use auto_draft_from with a session ID to generate a draft.")
+	}
+
+	if in.Status != "" {
+		normStatus := strings.ToLower(strings.TrimSpace(in.Status))
+		in.Content = string(core.SetFrontmatterField([]byte(in.Content), "status", normStatus))
 	}
 
 	if err := validateContentSize(in.Content); err != nil {
@@ -329,6 +357,9 @@ func handleRecordDecision(ctx context.Context, _ *sdkmcp.CallToolRequest, in Rec
 		"file_path":      filepath.ToSlash(filepath.Join(core.ResearchDir, filename)),
 		"status":         validation.Status,
 		"validation":     validation,
+	}
+	if in.Status != "" {
+		dataMap["decision_status"] = strings.ToLower(strings.TrimSpace(in.Status))
 	}
 	if in.Supersedes != "" {
 		dataMap["supersedes"] = in.Supersedes

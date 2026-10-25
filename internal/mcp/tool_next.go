@@ -16,6 +16,7 @@ import (
 type NextInput struct {
 	ProjectRoot string `json:"project_root,omitempty" jsonschema:"workspace root path (optional)"`
 	SessionID   string `json:"session_id,omitempty"   jsonschema:"specific session ID to retrieve (optional; returns next ready session if omitted)"`
+	ID          string `json:"id,omitempty"           jsonschema:"alias for session_id (e.g. T1-01)"`
 	Verbose     bool   `json:"verbose,omitempty"      jsonschema:"if true, include full upstream findings in response"`
 }
 
@@ -44,6 +45,10 @@ func registerNext(server *sdkmcp.Server) {
 
 func handleNext(_ context.Context, _ *sdkmcp.CallToolRequest, in NextInput) (*sdkmcp.CallToolResult, Envelope, error) {
 	const tool = "vivechak_next"
+
+	if strings.TrimSpace(in.SessionID) == "" && strings.TrimSpace(in.ID) != "" {
+		in.SessionID = strings.TrimSpace(in.ID)
+	}
 
 	root, err := core.ResolveWorkspace(in.ProjectRoot)
 	if err != nil {
@@ -442,7 +447,9 @@ func buildSessionResponse(tool string, session core.Session, prompt string, comp
 			Why:  nextStep,
 		}
 	} else {
+		saveKind := "session"
 		if core.IsSynthesisSession(session.ID) {
+			saveKind = "fad"
 			advisoryPrefix := ""
 			for _, w := range warnings {
 				if strings.HasPrefix(w, "PRE-SYNTHESIS ADVISORY:") {
@@ -456,7 +463,7 @@ func buildSessionResponse(tool string, session core.Session, prompt string, comp
 					"sessions must be surfaced, not silently averaged. "+
 					"The Belief Evolution section below shows how priors were confirmed or "+
 					"contradicted — use this to identify the research's strongest and weakest signals. "+
-					"Save with vivechak_save(kind='session', id='%s', content=...).",
+					"Save with vivechak_save(kind='fad', id='%s', content=...).",
 				advisoryPrefix, len(completedIDs), session.ID, session.ID)
 		} else {
 			nextStep = fmt.Sprintf(
@@ -475,7 +482,7 @@ func buildSessionResponse(tool string, session core.Session, prompt string, comp
 		next = &NextAction{
 			Tool: "vivechak_save",
 			Args: map[string]any{
-				"kind": "session",
+				"kind": saveKind,
 				"id":   session.ID,
 			},
 			Why: nextStep,

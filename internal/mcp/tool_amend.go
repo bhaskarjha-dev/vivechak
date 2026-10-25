@@ -17,9 +17,12 @@ type AmendInput struct {
 	ProjectRoot       string `json:"project_root,omitempty"       jsonschema:"workspace root path"`
 	SessionID         string `json:"session_id,omitempty"        jsonschema:"session ID, decision ID, or comparison ID to amend (e.g. R-01, D-001)"`
 	Target            string `json:"target,omitempty"            jsonschema:"alias for session_id"`
+	ID                string `json:"id,omitempty"                jsonschema:"alias for session_id (e.g. T1-01, D-001)"`
 	AmendingSessionID string `json:"amending_session_id,omitempty" jsonschema:"session ID that discovered the amendment (optional, for traceability)"`
 	Amendment         string `json:"amendment,omitempty"           jsonschema:"amendment content to append"`
 	Content           string `json:"content,omitempty"             jsonschema:"alias for amendment content"`
+	AppendContent     string `json:"append_content,omitempty"      jsonschema:"alias for amendment content"`
+	Append            string `json:"append,omitempty"              jsonschema:"alias for amendment content"`
 	Reason            string `json:"reason,omitempty"              jsonschema:"optional reason or summary for the amendment"`
 }
 
@@ -57,6 +60,9 @@ func handleAmend(ctx context.Context, req *sdkmcp.CallToolRequest, in AmendInput
 	if targetID == "" {
 		targetID = strings.TrimSpace(in.Target)
 	}
+	if targetID == "" {
+		targetID = strings.TrimSpace(in.ID)
+	}
 
 	if targetID == "" {
 		return ErrorResult(tool, fmt.Errorf("session_id (or target) is required"),
@@ -71,6 +77,12 @@ func handleAmend(ctx context.Context, req *sdkmcp.CallToolRequest, in AmendInput
 	amendmentContent := in.Amendment
 	if amendmentContent == "" {
 		amendmentContent = in.Content
+	}
+	if amendmentContent == "" {
+		amendmentContent = in.AppendContent
+	}
+	if amendmentContent == "" {
+		amendmentContent = in.Append
 	}
 	if strings.TrimSpace(amendmentContent) == "" {
 		return ErrorResult(tool, fmt.Errorf("amendment content is required"),

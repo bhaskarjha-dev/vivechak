@@ -478,6 +478,7 @@ Defined in [`NextSessionInput`](../internal/mcp/tool_next_session.go):
 |---|---|---|---|
 | `project_root` | `string` | Optional | Workspace root path. |
 | `session_id` | `string` | Optional | Specific session ID to retrieve (optional; returns next actionable if omitted). |
+| `id` | `string` | Optional | Unified alias for `session_id` (e.g. `T1-01`). |
 | `verbose` | `boolean` | Optional | If `true`, include full upstream findings without truncating prompts over 10K tokens. |
 
 #### Response (`data` field)
@@ -655,8 +656,10 @@ Defined in [`RecordDecisionInput`](../internal/mcp/tool_record_decision.go):
 |---|---|---|---|
 | `project_root` | `string` | Optional | Workspace root path. |
 | `artifact_type` | `string` | Optional | Type of artifact: `decision` (default) \| `conflict-resolution`. |
-| `decision_id` | `string` | **Required** | Decision identifier (e.g., `D-001`, `D-015`). |
+| `decision_id` | `string` | **Required*** | Decision identifier (e.g., `D-001`, `D-015`). *Or pass via `id`. |
+| `id` | `string` | Optional | Unified alias for `decision_id` (e.g., `D-001`). |
 | `slug` | `string` | Optional | Optional slug for filename (e.g. `primary-database` yields `D-001-primary-database-decision.md`). |
+| `status` | `string` | Optional | Lifecycle status: `proposed` \| `accepted` \| `rejected` \| `deprecated` \| `superseded`. Updates frontmatter before saving. |
 | `content` | `string` | Optional* | Decision record or conflict resolution content (Markdown with YAML frontmatter). *Omit when using `auto_draft_from`. |
 | `auto_draft_from` | `string` | Optional | Session ID to auto-draft decision from (e.g. `R-01`). When provided without `content`, generates a pre-populated draft for review. |
 | `auto_save` | `boolean` | Optional | If `true` with `auto_draft_from`, automatically validates and saves the drafted ADR in a single atomic turn without requiring a second call. |

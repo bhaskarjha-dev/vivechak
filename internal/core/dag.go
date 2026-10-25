@@ -287,14 +287,6 @@ func (d *DAG) TransitiveDependents(id string) []string {
 
 // Patterns for parsing the pipeline format
 var (
-	// Matches session headers like:
-	// - #### T1-01: Graph Persistence Landscape
-	// - ### Session T1-01: Spike
-	// - ### Session S1: Spike
-	// - #### S1: Landscape
-	// - #### D-001-S1 — Spike
-	// - ### FAD: Founding Architecture Document
-	sessionHeaderRe = regexp.MustCompile(`^#{2,4}\s+(?:(?:Session\s+([A-Za-z0-9]+(?:[-_][A-Za-z0-9]+)*))|([A-Za-z0-9]+(?:-[A-Za-z0-9]+)+)|([A-Za-z]+\d+|[A-Z]{2,10}))\s*[:—\-]\s*(.*)`)
 
 	// Matches metadata table rows like: | **ID** | T1-01 | or | ID | T1-01 |
 	metaFieldRe = regexp.MustCompile(`\|\s*(?:\*\*)?([^*|\s][^*|]*?)(?:\*\*)?\s*\|\s*([^|]+?)\s*\|`)
@@ -326,14 +318,131 @@ func isSessionIDString(s string) bool {
 	switch lower {
 	case "id", "session", "session-id", "session_id", "step", "criterion", "metric", "feature",
 		"option", "parameter", "dimension", "attribute", "candidate", "requirement", "category",
-		"field", "notes", "description", "action", "status", "type", "door", "track", "layer", "focus":
+		"field", "notes", "description", "action", "status", "type", "door", "track", "layer", "focus",
+		"prompt", "prompts", "brief", "briefs", "topic", "topics", "context", "decision", "decisions":
 		return false
 	}
-	if strings.EqualFold(s, "fad") || strings.EqualFold(s, "syn") {
+	if strings.EqualFold(s, "fad") || strings.EqualFold(s, "syn") || strings.EqualFold(s, "synthesis") {
 		return true
 	}
 	return strings.ContainsAny(s, "0123456789")
 }
+
+// parseSessionHeader attempts to extract session ID and title from a markdown heading (##, ###, ####).
+// Returns (id, title, ok).
+func parseSessionHeader(trimmed string) (string, string, bool) {
+	// Must start with 2 to 4 hashes followed by whitespace
+	if !strings.HasPrefix(trimmed, "## ") &&
+		!strings.HasPrefix(trimmed, "### ") &&
+		!strings.HasPrefix(trimmed, "#### ") {
+		return "", "", false
+	}
+
+	// Strip leading hashes and whitespace
+	content := strings.TrimLeft(trimmed, "#")
+	content = strings.TrimSpace(content)
+
+	// Exclude known non-session document section headers
+	lowerContent := strings.ToLower(content)
+	if strings.HasPrefix(lowerContent, "pipeline topology") ||
+		strings.HasPrefix(lowerContent, "topology") ||
+		strings.HasPrefix(lowerContent, "execution dag") ||
+		strings.HasPrefix(lowerContent, "session prompts") ||
+		strings.HasPrefix(lowerContent, "research prompts") ||
+		strings.HasPrefix(lowerContent, "sessions") ||
+		strings.HasPrefix(lowerContent, "research pipeline") ||
+		strings.HasPrefix(lowerContent, "research brief") ||
+		strings.HasPrefix(lowerContent, "context") ||
+		strings.HasPrefix(lowerContent, "decision") ||
+		strings.HasPrefix(lowerContent, "brief") ||
+		strings.HasPrefix(lowerContent, "scope") ||
+		strings.HasPrefix(lowerContent, "deliverable") ||
+		strings.HasPrefix(lowerContent, "key findings") ||
+		strings.HasPrefix(lowerContent, "discovered concerns") {
+		return "", "", false
+	}
+
+	upperContent := strings.ToUpper(content)
+	if strings.HasSuffix(upperContent, "-PLAN") ||
+		strings.HasSuffix(upperContent, ".MD") ||
+		strings.EqualFold(content, "PLAN") ||
+		strings.Contains(content, "Research Plan") {
+		return "", "", false
+	}
+
+	// Check if prefixed by "Session" (e.g. "### Session T1-01: ...")
+	hasSessionPrefix := false
+	if strings.HasPrefix(lowerContent, "session ") {
+		hasSessionPrefix = true
+		content = strings.TrimSpace(content[len("session "):])
+	}
+
+	// Find separator between ID and Title:
+	// Allowed separators: ":", "—", "–", or " - " (space-hyphen-space)
+	sepIdx := -1
+	sepLen := 0
+
+	for i := 0; i < len(content); i++ {
+		// Colon
+		if content[i] == ':' {
+			sepIdx = i
+			sepLen = 1
+			break
+		}
+		// Em-dash or en-dash (UTF-8 multi-byte)
+		if strings.HasPrefix(content[i:], "—") {
+			sepIdx = i
+			sepLen = len("—")
+			break
+		}
+		if strings.HasPrefix(content[i:], "–") {
+			sepIdx = i
+			sepLen = len("–")
+			break
+		}
+		// Space-hyphen-space or delimiter-hyphen-space
+		if i > 0 && (content[i-1] == ' ' || content[i-1] == '\t' || content[i-1] == '`' || content[i-1] == '*' || content[i-1] == ']' || content[i-1] == '"' || content[i-1] == '\'') &&
+			content[i] == '-' &&
+			(i+1 < len(content) && (content[i+1] == ' ' || content[i+1] == '\t')) {
+			sepIdx = i
+			sepLen = 1
+			break
+		}
+	}
+
+	var rawID, title string
+	if sepIdx >= 0 {
+		rawID = content[:sepIdx]
+		title = strings.TrimSpace(content[sepIdx+sepLen:])
+		title = strings.TrimPrefix(title, "—")
+		title = strings.TrimPrefix(title, "–")
+		title = strings.TrimPrefix(title, "-")
+		title = strings.TrimPrefix(title, ":")
+		title = strings.TrimSpace(title)
+	} else {
+		rawID = content
+		title = ""
+	}
+
+	cleanID := strings.Trim(strings.TrimSpace(rawID), "*_`[]\"'")
+	if cleanID == "" {
+		return "", "", false
+	}
+
+	if !isSessionIDString(cleanID) {
+		return "", "", false
+	}
+
+	_ = hasSessionPrefix
+	return cleanID, title, true
+}
+
+// isSessionHeader reports whether a heading line represents a session header.
+func isSessionHeader(trimmed string) bool {
+	_, _, ok := parseSessionHeader(trimmed)
+	return ok
+}
+
 
 var planMachineBlockRe = regexp.MustCompile("(?s)(?:```|~~~)(?:yaml\\s+vivechak-plan|vivechak-plan)\\s*\\r?\\n(.*?)\\r?\\n(?:```|~~~)")
 
@@ -354,7 +463,7 @@ func parsePipelineFromMachineBlock(data []byte, block *PlanMachineBlock) (*DAG, 
 	dag := &DAG{}
 	sessionMap := make(map[string]*Session)
 	for _, item := range block.Sessions {
-		id := strings.TrimSpace(item.ID)
+		id := strings.Trim(strings.TrimSpace(item.ID), "*_`[]\"'")
 		if id == "" {
 			continue
 		}
@@ -470,7 +579,7 @@ func parsePipelineFromMachineBlock(data []byte, block *PlanMachineBlock) (*DAG, 
 
 		if !seenMainSection {
 			if strings.HasPrefix(trimmed, "```yaml vivechak-plan") || strings.HasPrefix(trimmed, "```vivechak-plan") ||
-				strings.HasPrefix(trimmed, "## Sessions") || sessionHeaderRe.MatchString(trimmed) {
+				strings.HasPrefix(trimmed, "## Sessions") || isSessionHeader(trimmed) {
 				seenMainSection = true
 			} else {
 				preambleLines = append(preambleLines, line)
@@ -488,21 +597,11 @@ func parsePipelineFromMachineBlock(data []byte, block *PlanMachineBlock) (*DAG, 
 			continue
 		}
 
-		if matches := sessionHeaderRe.FindStringSubmatch(trimmed); matches != nil {
-			id := ""
-			for k := 1; k <= 3; k++ {
-				if matches[k] != "" {
-					id = strings.TrimSpace(matches[k])
-					break
-				}
-			}
+		if id, title, ok := parseSessionHeader(trimmed); ok {
 			if s, ok := sessionMap[strings.ToUpper(id)]; ok {
 				currentSess = s
-				if s.Title == "" && matches[4] != "" {
-					t := strings.TrimSpace(strings.TrimPrefix(matches[4], "—"))
-					t = strings.TrimSpace(strings.TrimPrefix(t, "-"))
-					t = strings.TrimSpace(strings.TrimPrefix(t, ":"))
-					s.Title = t
+				if s.Title == "" && title != "" {
+					s.Title = title
 				}
 			}
 		}
@@ -553,7 +652,7 @@ func ParsePipeline(data []byte) (*DAG, error) {
 	var sessionOrder []string
 
 	getOrCreateSession := func(id string) *Session {
-		id = strings.TrimSpace(id)
+		id = strings.Trim(strings.TrimSpace(id), "*_`[]\"'")
 		if s, ok := sessionsByID[id]; ok {
 			return s
 		}
@@ -642,7 +741,7 @@ func ParsePipeline(data []byte) (*DAG, error) {
 				strings.HasPrefix(trimmed, "## Session Prompts") ||
 				strings.HasPrefix(trimmed, "## Research Prompts") ||
 				strings.HasPrefix(trimmed, "## Sessions") ||
-				sessionHeaderRe.MatchString(trimmed) ||
+				isSessionHeader(trimmed) ||
 				promptStartRe.MatchString(trimmed) {
 				seenMainSection = true
 			} else {
@@ -663,22 +762,11 @@ func ParsePipeline(data []byte) (*DAG, error) {
 		}
 
 		// Check for session header
-		if matches := sessionHeaderRe.FindStringSubmatch(trimmed); matches != nil {
-			id := ""
-			for k := 1; k <= 3; k++ {
-				if matches[k] != "" {
-					id = strings.TrimSpace(matches[k])
-					break
-				}
-			}
-			// Skip document titles or filenames mistaken for sessions (e.g. D-001-PLAN, PLAN.md)
+		if id, title, ok := parseSessionHeader(trimmed); ok {
 			upperID := strings.ToUpper(id)
 			if strings.HasSuffix(upperID, "-PLAN") || strings.HasSuffix(upperID, ".MD") || strings.EqualFold(id, "PLAN") || strings.Contains(trimmed, "Research Plan") {
 				continue
 			}
-			title := strings.TrimSpace(strings.TrimPrefix(matches[4], "—"))
-			title = strings.TrimSpace(strings.TrimPrefix(title, "-"))
-			title = strings.TrimSpace(strings.TrimPrefix(title, ":"))
 			if id != "" {
 				currentSession = getOrCreateSession(id)
 				if title != "" {
@@ -706,15 +794,14 @@ func ParsePipeline(data []byte) (*DAG, error) {
 			actualCols := cleanCols[startIdx:endIdx]
 			if len(actualCols) >= 4 {
 				// Strip bold, italic, code formatting from candidate session ID
-				idVal := strings.Trim(actualCols[0], "*_`")
-				idVal = strings.TrimSpace(idVal)
+				idVal := strings.Trim(strings.TrimSpace(actualCols[0]), "*_`[]\"'")
 
 				// Determine if this is a horizontal session table or a topology table:
 				// In horizontal session tables, the last column is OutputFile (contains .md, /, or sessions).
 				// In 5-column topology tables, the last column is Est. Calls (a number) and col 1 is Layer.
-				outputCol := strings.Trim(strings.TrimSpace(actualCols[len(actualCols)-1]), "`*_")
+				outputCol := strings.Trim(strings.TrimSpace(actualCols[len(actualCols)-1]), "*_`[]\"'")
 				if len(actualCols) == 4 {
-					outputCol = strings.Trim(strings.TrimSpace(actualCols[3]), "`*_")
+					outputCol = strings.Trim(strings.TrimSpace(actualCols[3]), "*_`[]\"'")
 				}
 				isFilename := strings.HasSuffix(strings.ToLower(outputCol), ".md") ||
 					strings.Contains(outputCol, "/") ||
@@ -723,8 +810,7 @@ func ParsePipeline(data []byte) (*DAG, error) {
 
 				if (len(actualCols) == 4 || isFilename) && isSessionIDString(idVal) {
 					currentSession = getOrCreateSession(idVal)
-					topicVal := strings.Trim(actualCols[1], "*_`")
-					topicVal = strings.TrimSpace(topicVal)
+					topicVal := strings.Trim(strings.TrimSpace(actualCols[1]), "*_`[]\"'")
 					if currentSession.Title == "" && topicVal != "" {
 						currentSession.Title = topicVal
 					}
@@ -738,7 +824,7 @@ func ParsePipeline(data []byte) (*DAG, error) {
 						currentSession.Dependencies = parseDependencies(actualCols[depsIdx])
 					}
 					if currentSession.OutputFile == "" {
-						currentSession.OutputFile = strings.Trim(strings.TrimSpace(actualCols[outIdx]), "`*_")
+						currentSession.OutputFile = strings.Trim(strings.TrimSpace(actualCols[outIdx]), "*_`[]\"'")
 					}
 					continue
 				}
@@ -757,24 +843,25 @@ func ParsePipeline(data []byte) (*DAG, error) {
 					continue
 				}
 
+				cleanVal := strings.Trim(strings.TrimSpace(value), "*_`[]\"'")
 				switch strings.ToLower(field) {
 				case "id", "session id":
-					if !strings.EqualFold(value, "id") && !strings.EqualFold(value, "session-id") && value != "" {
-						currentSession = getOrCreateSession(value)
+					if !strings.EqualFold(cleanVal, "id") && !strings.EqualFold(cleanVal, "session-id") && cleanVal != "" {
+						currentSession = getOrCreateSession(cleanVal)
 					}
 				case "layer":
 					if currentSession != nil {
-						if l, err := strconv.Atoi(strings.TrimSpace(value)); err == nil {
+						if l, err := strconv.Atoi(cleanVal); err == nil {
 							currentSession.Layer = l
 						}
 					}
 				case "door type":
 					if currentSession != nil && currentSession.DoorType == "" {
-						currentSession.DoorType = value
+						currentSession.DoorType = cleanVal
 					}
 				case "decision":
 					if currentSession != nil && currentSession.DecisionRef == "" {
-						currentSession.DecisionRef = value
+						currentSession.DecisionRef = cleanVal
 					}
 				case "dependencies", "depends":
 					if currentSession != nil {
@@ -785,7 +872,7 @@ func ParsePipeline(data []byte) (*DAG, error) {
 					}
 				case "output file":
 					if currentSession != nil && currentSession.OutputFile == "" {
-						currentSession.OutputFile = strings.Trim(value, "`")
+						currentSession.OutputFile = strings.Trim(cleanVal, "`")
 					}
 				}
 				continue
@@ -1013,7 +1100,7 @@ func parseDependencies(value string) []string {
 // AddSession appends a new research session to the DAG after verifying that
 // dependencies exist and no cycles are created.
 func (d *DAG) AddSession(s Session) error {
-	s.ID = strings.TrimSpace(s.ID)
+	s.ID = strings.Trim(strings.TrimSpace(s.ID), "*_`[]\"'")
 	if s.ID == "" {
 		return fmt.Errorf("session ID cannot be empty")
 	}

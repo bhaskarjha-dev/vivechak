@@ -18,6 +18,9 @@ type ReviewInput struct {
 	ProjectRoot  string `json:"project_root,omitempty"  jsonschema:"workspace root path (optional)"`
 	Mode         string `json:"mode,omitempty"          jsonschema:"review mode: 'validate' (dry-run quality validation) | 'challenge' (adversarial red-team stress test)"`
 	Target       string `json:"target,omitempty"        jsonschema:"target session ID (e.g. T1-01) or decision ID (e.g. D-001) or artifact path"`
+	ID           string `json:"id,omitempty"            jsonschema:"alias for target (e.g. T1-01, D-001)"`
+	SessionID    string `json:"session_id,omitempty"    jsonschema:"alias for target"`
+	DecisionID   string `json:"decision_id,omitempty"   jsonschema:"alias for target"`
 	ArtifactType string `json:"artifact_type,omitempty" jsonschema:"what to validate when mode='validate': 'session' | 'decision' | 'plan' | 'comparison' | 'fad' (omit with empty content for workspace validation)"`
 	Content      string `json:"content,omitempty"       jsonschema:"content to validate (dry run); omit for workspace-wide validation or saved session validation"`
 }
@@ -78,6 +81,15 @@ func handleReviewChallenge(_ context.Context, in ReviewInput) (*sdkmcp.CallToolR
 	}
 
 	target := strings.TrimSpace(in.Target)
+	if target == "" && in.ID != "" {
+		target = strings.TrimSpace(in.ID)
+	}
+	if target == "" && in.SessionID != "" {
+		target = strings.TrimSpace(in.SessionID)
+	}
+	if target == "" && in.DecisionID != "" {
+		target = strings.TrimSpace(in.DecisionID)
+	}
 	if target == "" {
 		return ErrorResult(tool, fmt.Errorf("target (session_id or decision_id) is required for challenge mode"),
 			"Provide the target ID to challenge (e.g. 'T1-01' or 'D-001').")

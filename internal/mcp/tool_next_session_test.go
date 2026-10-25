@@ -307,4 +307,12 @@ We recommend Option A based on recalled knowledge [Grade D | recalled].
 	if !strings.Contains(env.NextStep, "PRE-SYNTHESIS ADVISORY") {
 		t.Errorf("expected PRE-SYNTHESIS ADVISORY in nextStep, got: %s", env.NextStep)
 	}
+	if env.Next != nil && env.Next.Args != nil {
+		if env.Next.Args["kind"] != "fad" {
+			t.Errorf("expected Next.Args['kind'] to be 'fad', got %v", env.Next.Args["kind"])
+		}
+	}
+	if !strings.Contains(env.NextStep, "kind='fad'") {
+		t.Errorf("expected nextStep to suggest kind='fad', got: %s", env.NextStep)
+	}
 }

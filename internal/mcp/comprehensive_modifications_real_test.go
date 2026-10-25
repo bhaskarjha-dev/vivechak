@@ -3796,6 +3796,446 @@ This architecture establishes the primary event-driven backbone connecting high-
 	}
 }
 
+// TestComprehensive_DogfoodingRefinements_LiveMCPLifecycle validates all dogfooding wave modifications:
+// DF-01: Markdown table formatting sanitization (backticks, brackets, asterisks, quotes).
+// DF-02: Synthesis node next_step and NextAction recommending kind='fad'.
+// DF-03: Atomic decision status promotion (status: "accepted") in vivechak_record_decision.
+// Universal 'id' parameter aliasing across record_decision, next, review, and amend tools.
+func TestComprehensive_DogfoodingRefinements_LiveMCPLifecycle(t *testing.T) {
+	cs := testServer(t)
+	ctx := context.Background()
+	wsDir := t.TempDir()
+
+	// 1. vivechak_start
+	resStart, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_start",
+		Arguments: map[string]any{
+			"project_root": wsDir,
+			"scope":        "project",
+			"question":     "Vision: High-performance low-latency event broker",
+		},
+	})
+	if err != nil {
+		t.Fatalf("vivechak_start failed: %v", err)
+	}
+	envStart := parseEnvelope(t, resStart)
+	if !envStart.Success {
+		t.Fatalf("expected vivechak_start to succeed, got: %s", envStart.Message)
+	}
+
+	// 2. vivechak_save(kind='plan') with backticks, brackets, asterisks, quotes in tables
+	planContent := `# Research Pipeline: Event Broker System
+
+## Pipeline Topology
+| ID | Topic | Dependencies | Output File |
+|---|---|---|---|
+| ` + "`T0-01`" + ` | **Storage Engine** | none | ` + "`sessions/T0-01.md`" + ` |
+| [T1-01] | *Networking Protocol* | ` + "`T0-01`" + ` | "sessions/T1-01.md" |
+| 'SYN-01' | Architecture Synthesis | ` + "`T0-01`, [T1-01]" + ` | ` + "`research/FAD.md`" + ` |
+
+## Session Prompts
+
+### Session ` + "`T0-01`" + `: Storage Engine
+| **Field** | **Value** |
+|---|---|
+| **ID** | ` + "`T0-01`" + ` |
+| **Door Type** | ` + "`one-way`" + ` |
+| **Decision** | ` + "`D-001`" + ` |
+| **Dependencies** | None |
+| **Output File** | ` + "`sessions/T0-01.md`" + ` |
+
+` + "```prompt\n# T0-01: Storage Engine\nEvaluate storage engines for append-only log.\n```\n\n" +
+		`### Session [T1-01]: Networking Protocol
+| **Field** | **Value** |
+|---|---|
+| **ID** | [T1-01] |
+| **Door Type** | *one-way* |
+| **Decision** | "D-002" |
+| **Dependencies** | ` + "`T0-01`" + ` |
+| **Output File** | "sessions/T1-01.md" |
+
+` + "```prompt\n# T1-01: Networking Protocol\nEvaluate TCP vs QUIC transport.\n```\n\n" +
+		`### Session 'SYN-01': Architecture Synthesis
+| **Field** | **Value** |
+|---|---|
+| **ID** | 'SYN-01' |
+| **Door Type** | 'one-way' |
+| **Dependencies** | ` + "`T0-01`, [T1-01]" + ` |
+| **Output File** | ` + "`research/FAD.md`" + ` |
+
+` + "```prompt\n# SYN-01: Synthesis\nSynthesize architecture.\n```\n"
+
+	resSavePlan, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_save",
+		Arguments: map[string]any{
+			"project_root": wsDir,
+			"kind":         "plan",
+			"content":      planContent,
+		},
+	})
+	if err != nil {
+		t.Fatalf("save plan failed: %v", err)
+	}
+	envSavePlan := parseEnvelope(t, resSavePlan)
+	if !envSavePlan.Success {
+		t.Fatalf("expected plan save to succeed, got: %s", envSavePlan.Message)
+	}
+
+	// 3. vivechak_next using universal 'id' alias for session_id
+	resNextT0, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_next",
+		Arguments: map[string]any{
+			"project_root": wsDir,
+			"id":           "T0-01",
+		},
+	})
+	if err != nil {
+		t.Fatalf("vivechak_next call failed: %v", err)
+	}
+	envNextT0 := parseEnvelope(t, resNextT0)
+	if !envNextT0.Success {
+		t.Fatalf("expected vivechak_next to succeed with id alias: %s", envNextT0.Message)
+	}
+	dataNextT0, _ := envNextT0.Data.(map[string]any)
+	if dataNextT0["session_id"] != "T0-01" {
+		t.Errorf("expected session_id T0-01, got: %v", dataNextT0["session_id"])
+	}
+
+	// 4. Save session T0-01
+	s0Content := `---
+session_id: T0-01
+title: Storage Engine
+date: 2026-10-25
+status: complete
+door_type: one-way
+informed_decisions: ["D-001"]
+---
+# Research Session T0-01: Storage Engine
+## Key Findings
+- Finding 1: LSM-tree provides optimal write throughput for sequential log append. Grade A (https://rocksdb.org)
+- Finding 2: Direct I/O bypasses OS page cache to eliminate double-caching latency spikes. Grade A (https://pebble.rocks)
+## Discovered Concerns
+Background compaction stalls can induce tail latency spikes unless compaction concurrency is capped to 4 threads.
+`
+	resSaveS0, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_save",
+		Arguments: map[string]any{
+			"project_root": wsDir,
+			"kind":         "session",
+			"id":           "T0-01",
+			"content":      s0Content,
+		},
+	})
+	if err != nil {
+		t.Fatalf("save session T0-01 failed: %v", err)
+	}
+	envSaveS0 := parseEnvelope(t, resSaveS0)
+	if !envSaveS0.Success {
+		t.Fatalf("expected session T0-01 save to succeed, got: %s", envSaveS0.Message)
+	}
+
+	// 5. vivechak_review using universal 'id' alias
+	resReview, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_review",
+		Arguments: map[string]any{
+			"project_root": wsDir,
+			"id":           "T0-01",
+			"mode":         "challenge",
+		},
+	})
+	if err != nil {
+		t.Fatalf("vivechak_review failed: %v", err)
+	}
+	envReview := parseEnvelope(t, resReview)
+	if !envReview.Success {
+		t.Fatalf("expected vivechak_review to succeed with id alias, got: %s", envReview.Message)
+	}
+
+	// 6. vivechak_amend using universal 'id' alias
+	resAmend, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_amend",
+		Arguments: map[string]any{
+			"project_root":   wsDir,
+			"id":             "T0-01",
+			"append_content": "\n### Additional Evaluation\nCompaction concurrency verified with benchmark tests. Grade A (https://rocksdb.org/benchmark)\n",
+		},
+	})
+	if err != nil {
+		t.Fatalf("vivechak_amend failed: %v", err)
+	}
+	envAmend := parseEnvelope(t, resAmend)
+	if !envAmend.Success {
+		t.Fatalf("expected vivechak_amend to succeed with id alias, got: %s", envAmend.Message)
+	}
+
+	// 7. Auto-draft decision D-001 with universal 'id' alias, then promote to 'accepted' via status field
+	resDraftD1, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_record_decision",
+		Arguments: map[string]any{
+			"project_root":    wsDir,
+			"id":              "D-001",
+			"auto_draft_from": "T0-01",
+			"auto_save":       true,
+		},
+	})
+	if err != nil {
+		t.Fatalf("vivechak_record_decision auto-draft failed: %v", err)
+	}
+	envDraftD1 := parseEnvelope(t, resDraftD1)
+	if !envDraftD1.Success {
+		t.Fatalf("expected auto-draft record_decision to succeed, got: %s", envDraftD1.Message)
+	}
+
+	// Promote D-001 to accepted using status: "accepted" with refined content (DF-03)
+	refinedD1 := `---
+id: D-001
+title: LSM-Tree Storage Engine
+status: proposed
+door_type: one-way
+date: 2026-10-25
+confidence: high
+informed_by_sessions: ["T0-01"]
+review_trigger: "Write throughput exceeds 100k msgs/sec"
+---
+# Architectural Decision Record: D-001
+## Context
+We require an append-only sequential log datastore.
+## Decision
+Adopt Pebble LSM-Tree with Direct I/O. Grade A (https://pebble.rocks)
+## Rejected Alternatives
+- RocksDB: rejected due to cgo overhead and compaction stall risks. Grade A (https://rocksdb.org)
+## Consequences & Reversibility
+One-way door requiring data migration if changed. Direct I/O eliminates double-caching.
+`
+	resPromoteD1, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_record_decision",
+		Arguments: map[string]any{
+			"project_root": wsDir,
+			"id":           "D-001",
+			"content":      refinedD1,
+			"status":       "accepted",
+		},
+	})
+	if err != nil {
+		t.Fatalf("promoting D-001 failed: %v", err)
+	}
+	envPromoteD1 := parseEnvelope(t, resPromoteD1)
+	if !envPromoteD1.Success {
+		t.Fatalf("expected D-001 promotion to succeed, got: %s", envPromoteD1.Message)
+	}
+
+	// Verify ADR was written with status: accepted
+	d1Map := envPromoteD1.Data.(map[string]any)
+	d1RelPath := d1Map["file_path"].(string)
+	d1Bytes, err := os.ReadFile(filepath.Join(wsDir, d1RelPath))
+	if err != nil {
+		t.Fatalf("failed to read %s: %v", d1RelPath, err)
+	}
+	if !strings.Contains(string(d1Bytes), "status: accepted") {
+		t.Errorf("expected %s to contain 'status: accepted', got:\n%s", d1RelPath, string(d1Bytes))
+	}
+
+	// Verify compiled DECISIONS.md also contains accepted status for D-001
+	decBytes, err := os.ReadFile(filepath.Join(wsDir, core.DecisionsFile))
+	if err != nil {
+		t.Fatalf("failed to read %s: %v", core.DecisionsFile, err)
+	}
+	if !strings.Contains(string(decBytes), "accepted") {
+		t.Errorf("expected %s to contain 'accepted', got:\n%s", core.DecisionsFile, string(decBytes))
+	}
+
+	// 8. Save session T1-01 and record D-002
+	s1Content := `---
+session_id: T1-01
+title: Networking Protocol
+date: 2026-10-25
+status: complete
+door_type: one-way
+informed_decisions: ["D-002"]
+---
+# Research Session T1-01: Networking Protocol
+## Key Findings
+- Finding 1: QUIC protocol eliminates head-of-line blocking for multi-stream pipelines. Grade A (https://quicwg.org)
+- Finding 2: Kernel bypass DPDK provides sub-microsecond packet ingestion. Grade A (https://dpdk.org)
+## Discovered Concerns
+Kernel bypass requires dedicated NICs and non-root Linux capabilities which complicate container orchestration.
+`
+	resSaveS1, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_save",
+		Arguments: map[string]any{
+			"project_root": wsDir,
+			"kind":         "session",
+			"id":           "T1-01",
+			"content":      s1Content,
+		},
+	})
+	if err != nil {
+		t.Fatalf("save session T1-01 failed: %v", err)
+	}
+	envSaveS1 := parseEnvelope(t, resSaveS1)
+	if !envSaveS1.Success {
+		t.Fatalf("expected session T1-01 save to succeed, got: %s", envSaveS1.Message)
+	}
+
+	refinedD2 := `---
+id: D-002
+title: QUIC Transport Protocol
+status: proposed
+door_type: one-way
+date: 2026-10-25
+confidence: high
+informed_by_sessions: ["T1-01"]
+review_trigger: "Kernel bypass driver stability issues in production"
+---
+# Architectural Decision Record: D-002
+## Context
+We need ultra-low-latency streaming transport with independent multiplexed streams.
+## Decision
+Adopt QUIC protocol with user-space DPDK packet engine. Grade A (https://quicwg.org)
+## Rejected Alternatives
+- TCP / gRPC: rejected due to head-of-line blocking across interleaved partition streams.
+## Consequences & Reversibility
+One-way door with hardware binding to high-performance NICs.
+`
+	resPromoteD2, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_record_decision",
+		Arguments: map[string]any{
+			"project_root": wsDir,
+			"id":           "D-002",
+			"content":      refinedD2,
+			"status":       "accepted",
+		},
+	})
+	if err != nil {
+		t.Fatalf("record D-002 failed: %v", err)
+	}
+	envPromoteD2 := parseEnvelope(t, resPromoteD2)
+	if !envPromoteD2.Success {
+		t.Fatalf("expected record D-002 to succeed, got: %s", envPromoteD2.Message)
+	}
+
+	// 9. vivechak_next for SYN-01: verify recommendation is kind='fad'
+	resNextSyn, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_next",
+		Arguments: map[string]any{
+			"project_root": wsDir,
+			"id":           "SYN-01",
+		},
+	})
+	if err != nil {
+		t.Fatalf("vivechak_next for SYN-01 failed: %v", err)
+	}
+	envNextSyn := parseEnvelope(t, resNextSyn)
+	if !envNextSyn.Success {
+		t.Fatalf("expected vivechak_next for SYN-01 to succeed, got: %s", envNextSyn.Message)
+	}
+
+	// Verify next_step specifies kind='fad'
+	if !strings.Contains(envNextSyn.NextStep, "kind='fad'") {
+		t.Errorf("expected next_step to recommend kind='fad', got: %s", envNextSyn.NextStep)
+	}
+	if strings.Contains(envNextSyn.NextStep, "kind='session'") {
+		t.Errorf("expected next_step NOT to recommend kind='session' for synthesis node, got: %s", envNextSyn.NextStep)
+	}
+
+	// Verify Next.Args["kind"] is "fad"
+	if envNextSyn.Next == nil {
+		t.Fatalf("expected Next guidance on synthesis next response")
+	}
+	if envNextSyn.Next.Args["kind"] != "fad" {
+		t.Errorf("expected Next.Args['kind'] == 'fad', got: %v", envNextSyn.Next.Args["kind"])
+	}
+
+	// 10. vivechak_save(kind='fad')
+	fadContent := `---
+id: SYN-01
+title: Founding Architecture Document
+date: 2026-10-25
+status: complete
+---
+# Founding Architecture Document: High Performance Event Broker
+Synthesizes decisions D-001 and D-002 based on empirical evidence.
+- Storage Engine: LSM-tree with Direct I/O. Grade A (https://rocksdb.org)
+- Networking Protocol: QUIC with DPDK ingestion. Grade A (https://quicwg.org)
+- Reversal risk and failure modes: Compaction throttling mitigates tail latency spikes.
+This architecture forms the core high-throughput backbone satisfying strict SLA latency and throughput requirements.
+`
+	resSaveFad, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_save",
+		Arguments: map[string]any{
+			"project_root": wsDir,
+			"kind":         "fad",
+			"id":           "SYN-01",
+			"content":      fadContent,
+		},
+	})
+	if err != nil {
+		t.Fatalf("save FAD failed: %v", err)
+	}
+	envSaveFad := parseEnvelope(t, resSaveFad)
+	if !envSaveFad.Success {
+		t.Fatalf("expected save FAD to succeed, got: %s", envSaveFad.Message)
+	}
+
+	// Verify research/FAD.md was written
+	if _, err := os.Stat(filepath.Join(wsDir, core.FADFile)); err != nil {
+		t.Errorf("expected research/FAD.md to exist: %v", err)
+	}
+
+	// 11. Challenge D-002 via vivechak_review
+	resRevD2, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_review",
+		Arguments: map[string]any{
+			"project_root": wsDir,
+			"id":           "D-002",
+			"mode":         "challenge",
+		},
+	})
+	if err != nil {
+		t.Fatalf("vivechak_review challenge D-002 failed: %v", err)
+	}
+	envRevD2 := parseEnvelope(t, resRevD2)
+	if !envRevD2.Success {
+		t.Fatalf("expected review challenge to succeed: %s", envRevD2.Message)
+	}
+
+	// 12. Human signoff for One-Way Door decisions D-001 and D-002 (G11 gate rule)
+	ws, err := store.OpenWorkspace(wsDir)
+	if err != nil {
+		t.Fatalf("open workspace: %v", err)
+	}
+	if _, err := core.SignoffDecision(ws, "D-001", "Principal Architect"); err != nil {
+		ws.Close()
+		t.Fatalf("signoff D-001 failed: %v", err)
+	}
+	if _, err := core.SignoffDecision(ws, "D-002", "Principal Architect"); err != nil {
+		ws.Close()
+		t.Fatalf("signoff D-002 failed: %v", err)
+	}
+	ws.Close()
+
+	// 13. Run Phase 0 Exit Gate: must PASS
+	resGate, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_gate",
+		Arguments: map[string]any{
+			"project_root": wsDir,
+			"track":        "track_b",
+		},
+	})
+	if err != nil {
+		t.Fatalf("vivechak_gate failed: %v", err)
+	}
+	envGate := parseEnvelope(t, resGate)
+	gateData, ok := envGate.Data.(map[string]any)
+	if !ok {
+		t.Fatalf("expected gate Data map, got %T", envGate.Data)
+	}
+	if gateData["gate_passed"] != true {
+		t.Errorf("expected Track B gate to PASS, got gate_passed=%v, warnings=%v", gateData["gate_passed"], envGate.Warnings)
+	}
+}
+
+
 
 
 

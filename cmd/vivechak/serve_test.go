@@ -23,6 +23,7 @@ type testEnvelope struct {
 	Data     map[string]any `json:"data,omitempty"`
 	Warnings []string       `json:"warnings,omitempty"`
 	NextStep string         `json:"next_step,omitempty"`
+	Next     map[string]any `json:"next,omitempty"`
 	Meta     map[string]any `json:"meta,omitempty"`
 }
 

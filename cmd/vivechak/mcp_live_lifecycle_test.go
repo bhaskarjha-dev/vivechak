@@ -1095,4 +1095,255 @@ TLS handshake CPU overhead on connection churn.
 			t.Errorf("expected no .bak file on parse error, but found one")
 		}
 	})
+
+	// =========================================================================
+	// 7. DOGFOODING REFINEMENTS: TABLE FORMATTING, KIND='FAD', ATOMIC STATUS
+	// =========================================================================
+	t.Run("07_DogfoodingRefinements_LiveSubprocess", func(t *testing.T) {
+		projectDir := t.TempDir()
+
+		cs, cleanup := startLiveMCPServer(t, ctx, binPath, projectDir)
+		t.Cleanup(cleanup)
+
+		callTool := func(toolName string, args map[string]any) testEnvelope {
+			t.Helper()
+			res, err := cs.CallTool(ctx, &mcp.CallToolParams{
+				Name:      toolName,
+				Arguments: args,
+			})
+			if err != nil {
+				t.Fatalf("call to %s failed: %v", toolName, err)
+			}
+			return parseTestEnvelope(t, res)
+		}
+
+		// 7.1 Start project scope
+		startEnv := callTool("vivechak_start", map[string]any{
+			"project_root": projectDir,
+			"scope":        "project",
+			"question":     "Vision: Live Multi-Agent Microservice Orchestrator",
+		})
+		if !startEnv.Success {
+			t.Fatalf("live start failed: %s", startEnv.Message)
+		}
+
+		// 7.2 Save plan with backtick formatting in topology and metadata tables (DF-01)
+		planContent := `# Research Pipeline: Orchestrator Architecture
+
+## Pipeline Topology
+| ID | Topic | Dependencies | Output File |
+|---|---|---|---|
+| ` + "`T0-01`" + ` | **State Engine** | none | ` + "`sessions/T0-01.md`" + ` |
+| [SYN-01] | Architecture Synthesis | ` + "`T0-01`" + ` | ` + "`research/FAD.md`" + ` |
+
+## Session Prompts
+
+### Session ` + "`T0-01`" + `: State Engine
+| **Field** | **Value** |
+|---|---|
+| **ID** | ` + "`T0-01`" + ` |
+| **Door Type** | ` + "`two-way`" + ` |
+| **Decision** | ` + "`D-001`" + ` |
+| **Dependencies** | None |
+| **Output File** | ` + "`sessions/T0-01.md`" + ` |
+
+` + "```prompt\n# T0-01: State Engine\nEvaluate SQLite vs Redis for local state caching.\n```\n\n" +
+			`### Session [SYN-01]: Architecture Synthesis
+| **Field** | **Value** |
+|---|---|
+| **ID** | [SYN-01] |
+| **Door Type** | *two-way* |
+| **Dependencies** | ` + "`T0-01`" + ` |
+| **Output File** | ` + "`research/FAD.md`" + ` |
+
+` + "```prompt\n# SYN-01: Synthesis\nSynthesize architecture.\n```\n"
+
+		savePlanEnv := callTool("vivechak_save", map[string]any{
+			"project_root": projectDir,
+			"kind":         "plan",
+			"content":      planContent,
+		})
+		if !savePlanEnv.Success {
+			t.Fatalf("live save plan failed: %s", savePlanEnv.Message)
+		}
+
+		// 7.3 vivechak_next using universal 'id' alias
+		nextEnv := callTool("vivechak_next", map[string]any{
+			"project_root": projectDir,
+			"id":           "T0-01",
+		})
+		if !nextEnv.Success {
+			t.Fatalf("live next failed with id alias: %s", nextEnv.Message)
+		}
+		if nextEnv.Data["session_id"] != "T0-01" {
+			t.Errorf("expected session_id T0-01, got: %v", nextEnv.Data["session_id"])
+		}
+
+		// 7.4 Save session T0-01
+		sessContent := `---
+session_id: T0-01
+title: State Engine
+date: 2026-10-25
+status: complete
+door_type: two-way
+informed_decisions: ["D-001"]
+---
+# State Engine Research
+## Key Findings
+- Finding 1: SQLite in WAL mode delivers sub-millisecond point lookups. Grade A (https://sqlite.org)
+## Discovered Concerns
+Concurrency bottleneck if multiple writer threads execute concurrent transactions.
+`
+		saveSessEnv := callTool("vivechak_save", map[string]any{
+			"project_root": projectDir,
+			"kind":         "session",
+			"id":           "T0-01",
+			"content":      sessContent,
+		})
+		if !saveSessEnv.Success {
+			t.Fatalf("live save session failed: %s", saveSessEnv.Message)
+		}
+
+		// 7.5 Review session using universal 'id' alias
+		revEnv := callTool("vivechak_review", map[string]any{
+			"project_root": projectDir,
+			"id":           "T0-01",
+			"mode":         "coaching",
+		})
+		if !revEnv.Success {
+			t.Fatalf("live review failed with id alias: %s", revEnv.Message)
+		}
+
+		// 7.6 Amend session using universal 'id' and 'append_content' aliases
+		amendEnv := callTool("vivechak_amend", map[string]any{
+			"project_root":   projectDir,
+			"id":             "T0-01",
+			"append_content": "\n### Additional Empirical Test\nVerified WAL mode performance under 100 concurrent readers. Grade A (https://sqlite.org/wal)\n",
+		})
+		if !amendEnv.Success {
+			t.Fatalf("live amend failed with id and append_content aliases: %s", amendEnv.Message)
+		}
+
+		// 7.7 Auto-draft decision D-001
+		draftEnv := callTool("vivechak_record_decision", map[string]any{
+			"project_root":    projectDir,
+			"id":              "D-001",
+			"auto_draft_from": "T0-01",
+			"auto_save":       true,
+		})
+		if !draftEnv.Success {
+			t.Fatalf("live auto-draft failed: %s", draftEnv.Message)
+		}
+
+		// 7.8 Promote decision D-001 to accepted status atomically (DF-03)
+		refinedD1 := `---
+id: D-001
+title: Local State Cache Engine
+status: proposed
+door_type: two-way
+date: 2026-10-25
+confidence: high
+informed_by_sessions: ["T0-01"]
+review_trigger: "Cache entries exceed 100k items"
+---
+# Architectural Decision: D-001
+## Context
+We require embedded state storage with ACID guarantees.
+## Decision
+Adopt SQLite in WAL mode. Grade A (https://sqlite.org)
+## Rejected Alternatives
+- Redis: rejected due to out-of-process IPC overhead for local single-node caching.
+## Consequences & Reversibility
+Two-way door: migration to external cache easily accommodated via cache interface.
+`
+		promoteEnv := callTool("vivechak_record_decision", map[string]any{
+			"project_root": projectDir,
+			"id":           "D-001",
+			"content":      refinedD1,
+			"status":       "accepted",
+		})
+		if !promoteEnv.Success {
+			t.Fatalf("live decision promotion failed: %s", promoteEnv.Message)
+		}
+
+		// Verify standalone ADR was written with status: accepted
+		d1RelPath := promoteEnv.Data["file_path"].(string)
+		d1Bytes, err := os.ReadFile(filepath.Join(projectDir, d1RelPath))
+		if err != nil {
+			t.Fatalf("reading promoted ADR %s: %v", d1RelPath, err)
+		}
+		if !strings.Contains(string(d1Bytes), "status: accepted") {
+			t.Errorf("expected promoted ADR to contain 'status: accepted', got:\n%s", string(d1Bytes))
+		}
+
+		// Verify compiled DECISIONS.md contains status: accepted
+		decBytes, err := os.ReadFile(filepath.Join(projectDir, core.DecisionsFile))
+		if err != nil {
+			t.Fatalf("reading DECISIONS.md: %v", err)
+		}
+		if !strings.Contains(string(decBytes), "accepted") {
+			t.Errorf("expected DECISIONS.md to contain 'accepted', got:\n%s", string(decBytes))
+		}
+
+		// 7.9 vivechak_next for SYN-01: verify recommendation is kind='fad' (DF-02)
+		nextSynEnv := callTool("vivechak_next", map[string]any{
+			"project_root": projectDir,
+			"id":           "SYN-01",
+		})
+		if !nextSynEnv.Success {
+			t.Fatalf("live next for SYN-01 failed: %s", nextSynEnv.Message)
+		}
+		if !strings.Contains(nextSynEnv.NextStep, "kind='fad'") {
+			t.Errorf("expected live next_step to recommend kind='fad', got: %s", nextSynEnv.NextStep)
+		}
+		if nextSynEnv.Next == nil {
+			t.Fatalf("expected Next struct in live next response")
+		}
+		if nextArgs, ok := nextSynEnv.Next["args"].(map[string]any); !ok || nextArgs["kind"] != "fad" {
+			t.Errorf("expected next.args.kind == 'fad', got: %v", nextSynEnv.Next["args"])
+		}
+
+		// 7.10 Save FAD via vivechak_save(kind='fad')
+		fadContent := `---
+id: SYN-01
+title: Founding Architecture Document
+date: 2026-10-25
+status: complete
+---
+# Founding Architecture Document: Microservice Orchestrator
+Synthesizes decision D-001 based on empirical benchmarks.
+- Local State: SQLite in WAL mode. Grade A (https://sqlite.org)
+- Failure modes & concurrency: Reader pools isolate read latency from background checkpointing.
+`
+		saveFadEnv := callTool("vivechak_save", map[string]any{
+			"project_root": projectDir,
+			"kind":         "fad",
+			"id":           "SYN-01",
+			"content":      fadContent,
+		})
+		if !saveFadEnv.Success {
+			t.Fatalf("live save FAD failed: %s", saveFadEnv.Message)
+		}
+
+		// 7.11 Live CLI 'vck doctor' check: workspace must be healthy
+		docCmd := exec.CommandContext(ctx, binPath, "doctor", projectDir)
+		docOut, err := docCmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("live vck doctor failed: %v\noutput: %s", err, string(docOut))
+		}
+		if !strings.Contains(string(docOut), "Workspace is healthy") {
+			t.Errorf("expected healthy workspace, got:\n%s", string(docOut))
+		}
+
+		// 7.12 Live CLI 'vck gate' check: Phase 0 exit gate passes on Track A
+		gateCmd := exec.CommandContext(ctx, binPath, "gate", "--track", "track_a", projectDir)
+		gateOut, err := gateCmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("live vck gate failed: %v\noutput: %s", err, string(gateOut))
+		}
+		if !strings.Contains(string(gateOut), "Phase 0 Gate: PASS") {
+			t.Errorf("expected 'Phase 0 Gate: PASS', got:\n%s", string(gateOut))
+		}
+	})
 }
+

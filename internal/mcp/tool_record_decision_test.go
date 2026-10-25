@@ -933,5 +933,155 @@ date: 2026-10-15
 	}
 }
 
+func TestRecordDecision_StatusFieldPromotion(t *testing.T) {
+	ctx := context.Background()
+	tmpDir := t.TempDir()
+
+	_ = os.MkdirAll(filepath.Join(tmpDir, core.ResearchDir), 0o755)
+	_ = os.WriteFile(filepath.Join(tmpDir, core.MetadataFile), []byte(`{"scope":"project","created_at":"2026-10-25T00:00:00Z"}`), 0o644)
+
+	contentWithProposed := `---
+id: D-001
+title: "Hot Timeseries Store"
+status: proposed
+door_type: two-way
+date: 2026-10-25
+confidence: high
+informed_by_sessions: ["T1-02"]
+review_trigger: "Ingestion exceeds 500k events/sec"
+---
+
+# D-001: Hot Timeseries Store
+
+## Context & Problem Statement
+We need a high throughput timeseries store for telemetry metrics.
+
+## Decision Outcome
+We choose ClickHouse for vectorized query performance and columnar compression.
+`
+
+	// 1. Record with Status: "accepted" to promote from proposed to accepted
+	_, env, err := handleRecordDecision(ctx, nil, RecordDecisionInput{
+		ProjectRoot: tmpDir,
+		DecisionID:  "D-001",
+		Status:      "accepted",
+		Content:     contentWithProposed,
+	})
+	if err != nil || !env.Success {
+		t.Fatalf("handleRecordDecision failed: err=%v, env=%+v", err, env)
+	}
+
+	// 2. Verify standalone ADR was saved with status: accepted
+	adrPath := filepath.Join(tmpDir, core.ResearchDir, "D-001-decision.md")
+	adrBytes, err := os.ReadFile(adrPath)
+	if err != nil {
+		t.Fatalf("reading saved ADR: %v", err)
+	}
+	if !strings.Contains(string(adrBytes), "status: accepted") {
+		t.Errorf("expected ADR to have 'status: accepted', got:\n%s", string(adrBytes))
+	}
+
+	// 3. Verify compiled DECISIONS.md contains status: accepted
+	decPath := filepath.Join(tmpDir, core.DecisionsFile)
+	decBytes, err := os.ReadFile(decPath)
+	if err != nil {
+		t.Fatalf("reading compiled DECISIONS.md: %v", err)
+	}
+	if !strings.Contains(string(decBytes), "accepted") {
+		t.Errorf("expected compiled DECISIONS.md to have status accepted, got:\n%s", string(decBytes))
+	}
+
+	// 4. Test invalid status returns error
+	_, envInv, _ := handleRecordDecision(ctx, nil, RecordDecisionInput{
+		ProjectRoot: tmpDir,
+		DecisionID:  "D-001",
+		Status:      "bogus-status",
+		Content:     contentWithProposed,
+	})
+	if envInv.Success {
+		t.Errorf("expected bogus status to fail, but got success")
+	}
+}
+
+func TestUniversalIDParameterAliasing(t *testing.T) {
+	ctx := context.Background()
+	tmpDir := t.TempDir()
+
+	_ = os.MkdirAll(filepath.Join(tmpDir, core.ResearchDir), 0o755)
+	_ = os.MkdirAll(filepath.Join(tmpDir, core.SessionsDir), 0o755)
+	_ = os.WriteFile(filepath.Join(tmpDir, core.MetadataFile), []byte(`{"scope":"project","created_at":"2026-10-25T00:00:00Z"}`), 0o644)
+
+	plan := `# Research Pipeline
+### Session T1-01: Message Bus
+| **ID** | T1-01 |
+| **Topic** | Message Bus |
+| **Layer** | 1 |
+| **Door Type** | two-way |
+| **Dependencies** | None |
+| **Output File** | sessions/T1-01.md |
+
+` + "```prompt\nEvaluate options.\n```\n"
+
+	_ = os.WriteFile(filepath.Join(tmpDir, core.PipelineFile), []byte(plan), 0o644)
+	sessionContent := "---\nsession_id: T1-01\ntitle: Message Bus\ndate: 2026-10-25\nstatus: complete\n---\n\n## Findings\nFinding 1 [E-A: https://nats.io].\n"
+	_ = os.WriteFile(filepath.Join(tmpDir, core.SessionsDir, "T1-01.md"), []byte(sessionContent), 0o644)
+
+	// 1. Test handleNext using ID alias instead of SessionID
+	_, envNext, err := handleNext(ctx, nil, NextInput{
+		ProjectRoot: tmpDir,
+		ID:          "T1-01",
+	})
+	if err != nil || !envNext.Success {
+		t.Fatalf("handleNext with ID alias failed: err=%v, env=%+v", err, envNext)
+	}
+
+	// 2. Test handleRecordDecision using ID alias instead of DecisionID
+	adrContent := `---
+id: D-001
+title: Message Bus
+status: accepted
+door_type: two-way
+date: 2026-10-25
+confidence: high
+informed_by_sessions: ["T1-01"]
+review_trigger: Re-evaluate at 1M msgs/sec
+---
+
+# D-001: Message Bus
+## Context
+We need a message bus.
+## Decision
+We select NATS.
+`
+	_, envRec, err := handleRecordDecision(ctx, nil, RecordDecisionInput{
+		ProjectRoot: tmpDir,
+		ID:          "D-001",
+		Content:     adrContent,
+	})
+	if err != nil || !envRec.Success {
+		t.Fatalf("handleRecordDecision with ID alias failed: err=%v, env=%+v", err, envRec)
+	}
+
+	// 3. Test handleReviewChallenge using ID alias instead of Target
+	_, envRev, err := handleReview(ctx, nil, ReviewInput{
+		ProjectRoot: tmpDir,
+		Mode:        "challenge",
+		ID:          "T1-01",
+	})
+	if err != nil || !envRev.Success {
+		t.Fatalf("handleReview with ID alias failed: err=%v, env=%+v", err, envRev)
+	}
+
+	// 4. Test handleAmend using ID alias instead of SessionID
+	_, envAmend, err := handleAmend(ctx, nil, AmendInput{
+		ProjectRoot: tmpDir,
+		ID:          "T1-01",
+		Amendment:   "Post-hoc note on throughput limits.",
+	})
+	if err != nil || !envAmend.Success {
+		t.Fatalf("handleAmend with ID alias failed: err=%v, env=%+v", err, envAmend)
+	}
+}
+
 
 
