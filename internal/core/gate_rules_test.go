@@ -3,6 +3,7 @@ package core
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"unicode/utf8"
 )
@@ -433,6 +434,44 @@ Postgres [Grade A: https://postgresql.org].
 		res := EvaluateGate(ws, info, dir)
 		if res.Passed || res.TrackBChecks.Passed {
 			t.Error("expected G9 failure when One-Way Door lacks review trigger")
+		}
+	})
+
+	// 11. Negative G11: One-Way Door lacks human_reviewed: true
+	t.Run("Fail_G11_MissingHumanReview", func(t *testing.T) {
+		dir, ws := setupPassingBase(t)
+		d1 := `---
+id: D-001
+title: Datastore
+door_type: one-way
+status: accepted
+review_trigger: "Latency > 50ms"
+human_reviewed: false
+informed_by_sessions: ["T0-01"]
+---
+# Context
+Datastore
+# Decision
+Postgres [Grade A: https://postgresql.org].
+# Alternatives Considered
+- MySQL: lacked JSONB support required for fast document query.
+- MongoDB: lacks relational joins.
+`
+		_ = os.WriteFile(filepath.Join(dir, DecisionsDir, "D-001.md"), []byte(d1), 0o644)
+		info := InspectWorkspace(dir)
+		res := EvaluateGate(ws, info, dir)
+		if res.Passed || res.TrackBChecks.Passed {
+			t.Error("expected G11 failure when One-Way Door lacks human review (human_reviewed: false)")
+		}
+		foundG11 := false
+		for _, issue := range res.QualityChecks.Issues {
+			if strings.Contains(issue, "G11 Violation") {
+				foundG11 = true
+				break
+			}
+		}
+		if !foundG11 {
+			t.Errorf("expected G11 Violation in issues, got: %v", res.QualityChecks.Issues)
 		}
 	})
 }

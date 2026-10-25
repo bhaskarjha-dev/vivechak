@@ -23,7 +23,7 @@ Throughout this quickstart, we use a concrete scenario:
 
 ## Path A: MCP Server (Recommended)
 
-Give your AI coding agent (Cursor, VS Code, Claude Desktop, Antigravity, etc.) direct access to Vivechak's 13 orchestration tools.
+Give your AI coding agent (Cursor, VS Code, Claude Desktop, Antigravity, etc.) direct access to Vivechak's 9 consolidated orchestration tools.
 
 ### 1. Install & Run
 
@@ -116,8 +116,8 @@ Open your agent chat in your project repository and choose your scope (or invoke
 
 ### 4. How the Agent Executes Each Scope
 
-- **Comparison Scope:** Agent calls `vivechak_start(scope="comparison", question="...")` → executes prompt with search → calls `vivechak_save(kind="comparison")` to persist WEP matrix in `research/comparisons/C-NNN.md`. Done in 5 minutes! Zero DAG, zero gate.
-- **Decision Scope:** Agent calls `vivechak_start(scope="decision", question="...")` → saves plan via `vivechak_save(kind="plan")` → runs 1–3 sessions → calls `vivechak_record_decision` to lock canonical ADR `research/decisions/D-NNN.md`. Zero project DAG, zero FAD.
+- **Comparison Scope:** Agent calls `vivechak_start(scope="comparison", question="...")` → executes prompt with search → calls `vivechak_save(kind="comparison")` to persist WEP matrix in `research/C-NNN-comparison.md`. Done in 5 minutes! Zero DAG, zero gate.
+- **Decision Scope:** Agent calls `vivechak_start(scope="decision", question="...")` → saves plan via `vivechak_save(kind="plan")` → runs 1–3 sessions → calls `vivechak_record_decision` to lock canonical ADR `research/D-NNN.md` and compiled registry `research/DECISIONS.md`. Zero project DAG, zero FAD.
 - **Project Scope:** Autonomous orchestration across 9 consolidated tools:
 ```
 [Agent: vivechak_start (scope: 'project', question: '<vision>')]

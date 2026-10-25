@@ -134,6 +134,8 @@ export function evaluateScenarioPass(scenarioId, content, turn1Content) {
         const hasComparisonArtifact =
           /c-[a-z0-9_-]+|comparison\.md/i.test(content) ||
           normContent.includes("wep matrix") ||
+          content.includes("vivechak_start") ||
+          content.includes("vivechak_save") ||
           content.includes("vivechak_prepare_generator") ||
           content.includes("vivechak_save_plan");
         const mentionsOptions =
@@ -151,6 +153,7 @@ export function evaluateScenarioPass(scenarioId, content, turn1Content) {
         const hasProjectArtifact =
           content.includes("RESEARCH-PIPELINE.md") ||
           /t\d+-[a-z0-9_-]+/i.test(content) ||
+          content.includes("vivechak_start") ||
           content.includes("vivechak_prepare_generator") ||
           content.includes("vivechak_init");
         if (hasProjectArtifact) {
@@ -165,6 +168,7 @@ export function evaluateScenarioPass(scenarioId, content, turn1Content) {
         const hasAdrOrPlan =
           /d-[a-z0-9_-]+/i.test(content) ||
           content.includes("DECISIONS.md") ||
+          content.includes("vivechak_start") ||
           content.includes("vivechak_prepare_generator") ||
           content.includes("scope=\"decision\"") ||
           normContent.includes("decision plan");
@@ -191,6 +195,7 @@ export function evaluateScenarioPass(scenarioId, content, turn1Content) {
     case "08": // Adversarial Red-Team Challenge
       {
         const usedChallenge =
+          content.includes("vivechak_review") ||
           content.includes("vivechak_challenge") ||
           normContent.includes("red_team") ||
           normContent.includes("challenge") ||
@@ -199,12 +204,13 @@ export function evaluateScenarioPass(scenarioId, content, turn1Content) {
         if (usedChallenge) {
           return { passed: true, reason: "" };
         }
-        return { passed: false, reason: "vivechak_challenge was not invoked or evaluated" };
+        return { passed: false, reason: "vivechak_review or vivechak_challenge was not invoked or evaluated" };
       }
 
     case "09": // Incremental Session / ADR Amendment
       {
         const usedAmend =
+          content.includes("vivechak_amend") ||
           content.includes("vivechak_amend_session") ||
           normContent.includes("amend") ||
           normContent.includes("updated session") ||
@@ -212,7 +218,7 @@ export function evaluateScenarioPass(scenarioId, content, turn1Content) {
         if (usedAmend) {
           return { passed: true, reason: "" };
         }
-        return { passed: false, reason: "vivechak_amend_session was not invoked or executed" };
+        return { passed: false, reason: "vivechak_amend or vivechak_amend_session was not invoked or executed" };
       }
 
     case "10": // Formal ADR Recording (Canonical ADR Compilation)
@@ -244,6 +250,7 @@ export function evaluateScenarioPass(scenarioId, content, turn1Content) {
     case "17": // Dual-Source Decision Resolution
       {
         const ranGate =
+          content.includes("vivechak_gate") ||
           content.includes("vivechak_run_gate") ||
           normContent.includes("phase-0-gate") ||
           normContent.includes("track a") ||
@@ -272,19 +279,21 @@ export function evaluateScenarioPass(scenarioId, content, turn1Content) {
     case "14": // Multi-Tier Workspace Audit (Automated Discovery)
       {
         const ranValidate =
+          content.includes("vivechak_review") ||
           content.includes("vivechak_validate") ||
           normContent.includes("workspace validation") ||
           normContent.includes("all artifacts valid");
         if (ranValidate) {
           return { passed: true, reason: "" };
         }
-        return { passed: false, reason: "vivechak_validate was not invoked" };
+        return { passed: false, reason: "vivechak_review or vivechak_validate was not invoked" };
       }
 
     case "15": // AST Code Fence Truncation Immunity
     case "18": // Evidence Ledger URL Cross-Referencing
       {
         const savedSession =
+          content.includes("vivechak_save") ||
           content.includes("vivechak_save_session") ||
           normContent.includes("session saved") ||
           normContent.includes("claim-01") ||

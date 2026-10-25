@@ -660,7 +660,7 @@ For any session that evaluates 2+ competing options:
 8. **Human Review** — Named Principal Architect signature on all One-Way Door ADRs (`human_reviewed: true`)
 9. **FAD Sealed** — Founding Architecture Document compiled, committed, ready for scaffolding
 10. **Substantive ADR Content** — Decision record contains substantive causal rationale, evaluated options, and failure modes (no placeholder stubs)
-11. **Adversarial Red-Team Challenge** — One-Way Door sessions subjected to adversarial stress testing (`vivechak_challenge` red-team probe or disconfirming evidence search) before commitment
+11. **Adversarial Red-Team Challenge** — One-Way Door sessions subjected to adversarial stress testing (`vivechak_review` challenge mode or disconfirming evidence search) before commitment
 
 ---
 

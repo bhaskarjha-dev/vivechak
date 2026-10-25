@@ -1317,6 +1317,29 @@ func ReplanInPlace(pipelineData []byte, op string, p ReplanParams) ([]byte, erro
 			content = content + newSection
 		}
 
+		// Also append a row to ## Pipeline Topology table if present
+		topoRow := fmt.Sprintf("| %s | %s | %s | sessions/%s.md |\n", targetID, topic, strings.Join(deps, ", "), targetID)
+		if len(deps) == 0 {
+			topoRow = fmt.Sprintf("| %s | %s | none | sessions/%s.md |\n", targetID, topic, targetID)
+		}
+		topoHeaderRe := regexp.MustCompile(`(?m)^##\s+Pipeline Topology\b`)
+		if loc := topoHeaderRe.FindStringIndex(content); len(loc) > 0 {
+			afterHeader := content[loc[1]:]
+			nextHeaderIdx := len(afterHeader)
+			if mNext := regexp.MustCompile(`(?m)^##\s+`).FindStringIndex(afterHeader); len(mNext) > 0 {
+				nextHeaderIdx = mNext[0]
+			}
+			tableSection := afterHeader[:nextHeaderIdx]
+			rowMatches := regexp.MustCompile(`(?m)^\|.*\|$`).FindAllStringIndex(tableSection, -1)
+			if len(rowMatches) > 0 {
+				lastRowEnd := loc[1] + rowMatches[len(rowMatches)-1][1]
+				if lastRowEnd < len(content) && content[lastRowEnd] == '\n' {
+					lastRowEnd++
+				}
+				content = content[:lastRowEnd] + topoRow + content[lastRowEnd:]
+			}
+		}
+
 	case "remove_session":
 		var updatedSessions []PlanSessionItem
 		for _, s := range block.Sessions {
@@ -1326,8 +1349,19 @@ func ReplanInPlace(pipelineData []byte, op string, p ReplanParams) ([]byte, erro
 		}
 		block.Sessions = updatedSessions
 
-		sessRegex := regexp.MustCompile(`(?ms)^#{3,4}\s+(?:Session\s+)?` + regexp.QuoteMeta(targetID) + `\b.*?(?=^#{2,4}\s+|\z)`)
-		content = sessRegex.ReplaceAllString(content, "")
+		sessStartRe := regexp.MustCompile(`(?m)^#{3,4}\s+(?:Session\s+)?` + regexp.QuoteMeta(targetID) + `\b`)
+		if loc := sessStartRe.FindStringIndex(content); len(loc) > 0 {
+			nextHeaderRe := regexp.MustCompile(`(?m)^#{2,4}\s+`)
+			endIdx := len(content)
+			if nextLoc := nextHeaderRe.FindStringIndex(content[loc[1]:]); len(nextLoc) > 0 {
+				endIdx = loc[1] + nextLoc[0]
+			}
+			content = content[:loc[0]] + content[endIdx:]
+		}
+
+		// Remove row from ## Pipeline Topology table if present
+		topoRowDelRe := regexp.MustCompile(fmt.Sprintf(`(?m)^\|[\s]*%s[\s]*\|.*?\n`, regexp.QuoteMeta(targetID)))
+		content = topoRowDelRe.ReplaceAllString(content, "")
 
 	case "update_deps":
 		for i, s := range block.Sessions {
@@ -1336,6 +1370,21 @@ func ReplanInPlace(pipelineData []byte, op string, p ReplanParams) ([]byte, erro
 				block.Sessions[i].Dependencies = p.Dependencies
 				break
 			}
+		}
+
+		depsStr := strings.Join(p.Dependencies, ", ")
+		if len(p.Dependencies) == 0 {
+			depsStr = "none"
+		}
+
+		// Update session detail table: | **Dependencies** | ... |
+		sessDepRe := regexp.MustCompile(fmt.Sprintf(`(?ms)(^#{3,4}\s+(?:Session\s+)?%s\b.*?\|\s*\*\*Dependencies\*\*\s*\|\s*)([^|\n]+)(\s*\|)`, regexp.QuoteMeta(targetID)))
+		content = sessDepRe.ReplaceAllString(content, fmt.Sprintf("${1}%s${3}", depsStr))
+
+		// Update Pipeline Topology summary table row: | ID | Topic | Dependencies | Output File |
+		topoRowRe := regexp.MustCompile(fmt.Sprintf(`(?m)^(\|[\s]*%s[\s]*\|[^|\n]*\|[\s]*)([^|\n]+?)([\s]*\|[^|\n]*\|[\s]*)$`, regexp.QuoteMeta(targetID)))
+		if topoRowRe.MatchString(content) {
+			content = topoRowRe.ReplaceAllString(content, fmt.Sprintf("${1}%s${3}", depsStr))
 		}
 
 	case "update_prompt":

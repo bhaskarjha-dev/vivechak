@@ -288,3 +288,60 @@ func TestHandleReplan_WithReasonAndImpact(t *testing.T) {
 	}
 }
 
+func TestHandleReplan_SynchronizesTopologyTable(t *testing.T) {
+	tmpDir := setupTestPipelineWorkspace(t)
+	ctx := context.Background()
+
+	// 1. Update deps for T1-01 to "none"
+	res, env, err := handleReplan(ctx, nil, ReplanInput{
+		ProjectRoot:  tmpDir,
+		Operation:    "update_deps",
+		SessionID:    "T1-01",
+		Dependencies: "none",
+	})
+	if err != nil || res.IsError {
+		t.Fatalf("update_deps failed: %v (%s)", err, env.Message)
+	}
+
+	data, _ := os.ReadFile(filepath.Join(tmpDir, core.PipelineFile))
+	pStr := string(data)
+	if !strings.Contains(pStr, "| T1-01 | Database | none | sessions/T1-01.md |") {
+		t.Errorf("expected topology table row to be updated with 'none', got:\n%s", pStr)
+	}
+
+	// 2. Add session T2-01
+	resAdd, envAdd, errAdd := handleReplan(ctx, nil, ReplanInput{
+		ProjectRoot:  tmpDir,
+		Operation:    "add_session",
+		SessionID:    "T2-01",
+		Topic:        "Observability Tier",
+		Layer:        "2",
+		Dependencies: "T1-01",
+	})
+	if errAdd != nil || resAdd.IsError {
+		t.Fatalf("add_session failed: %v (%s)", errAdd, envAdd.Message)
+	}
+
+	dataAdd, _ := os.ReadFile(filepath.Join(tmpDir, core.PipelineFile))
+	pAddStr := string(dataAdd)
+	if !strings.Contains(pAddStr, "| T2-01 | Observability Tier | T1-01 | sessions/T2-01.md |") {
+		t.Errorf("expected topology table to contain new row for T2-01, got:\n%s", pAddStr)
+	}
+
+	// 3. Remove session T2-01
+	resDel, envDel, errDel := handleReplan(ctx, nil, ReplanInput{
+		ProjectRoot: tmpDir,
+		Operation:   "remove_session",
+		SessionID:   "T2-01",
+	})
+	if errDel != nil || resDel.IsError {
+		t.Fatalf("remove_session failed: %v (%s)", errDel, envDel.Message)
+	}
+
+	dataDel, _ := os.ReadFile(filepath.Join(tmpDir, core.PipelineFile))
+	pDelStr := string(dataDel)
+	if strings.Contains(pDelStr, "| T2-01 |") {
+		t.Errorf("expected topology table row for T2-01 to be removed, got:\n%s", pDelStr)
+	}
+}
+

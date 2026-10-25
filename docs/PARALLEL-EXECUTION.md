@@ -42,20 +42,20 @@ In an agent harness with subagent capabilities (such as Antigravity or Claude Co
 
 ```mermaid
 graph TD
-    Parent["Parent Coordinator Agent\n(Calls vivechak_next_session)"]
+    Parent["Parent Coordinator Agent\n(Calls vivechak_next)"]
     Parent -->|Spawn Task 1| Sub1["Subagent 1\nResearches T1-01 (Database)"]
     Parent -->|Spawn Task 2| Sub2["Subagent 2\nResearches T1-02 (Cache)"]
     Parent -->|Spawn Task 3| Sub3["Subagent 3\nResearches T1-03 (Auth)"]
-    Sub1 -->|Calls vivechak_save_session| Store["research/sessions/T1-01.md"]
-    Sub2 -->|Calls vivechak_save_session| Store2["research/sessions/T1-02.md"]
-    Sub3 -->|Calls vivechak_save_session| Store3["research/sessions/T1-03.md"]
+    Sub1 -->|Calls vivechak_save| Store["research/sessions/T1-01.md"]
+    Sub2 -->|Calls vivechak_save| Store2["research/sessions/T1-02.md"]
+    Sub3 -->|Calls vivechak_save| Store3["research/sessions/T1-03.md"]
 ```
 
 ### Recommended Coordinator Prompt
 When dispatching a session to a subagent:
-1. Provide the exact prompt returned by `vivechak_next_session`.
-2. Instruct the subagent to perform its research and save the result directly using `vivechak_save_session`.
-3. The parent agent waits for completion and queries `vivechak_next_session` for the next layer.
+1. Provide the exact prompt returned by `vivechak_next`.
+2. Instruct the subagent to perform its research and save the result directly using `vivechak_save(kind="session", id=..., content=...)`.
+3. The parent agent waits for completion and queries `vivechak_next` for the next layer.
 
 ---
 
@@ -65,9 +65,9 @@ Vivechak enforces file-level concurrency safety through advisory locks and atomi
 
 | Operation | Lock Target | Lock Timeout | Behavior Under Contention |
 |---|---|---|---|
-| `vivechak_save_session` | `research/sessions/[ID].md` (+ root `FOUNDING-ARCHITECTURE.md` on synthesis) | 5 seconds | Exponential backoff. Overwrites safe via atomic rename. |
+| `vivechak_save` | `research/sessions/[ID].md` or `research/FAD.md` | 5 seconds | Exponential backoff. Overwrites safe via atomic rename. |
 | `vivechak_record_decision` | Target `D-*.md` + `research/DECISIONS.md` | 10 seconds | Registry compilation is serialized. Decisions sort naturally. |
-| `vivechak_amend_session` | Target session file (+ root `FOUNDING-ARCHITECTURE.md` on synthesis) | 5 seconds | Stale downstream notifications computed from DAG. |
+| `vivechak_amend` | Target session file or `research/FAD.md` | 5 seconds | Stale downstream notifications computed from DAG. |
 | `vivechak_replan` | `research/RESEARCH-PIPELINE.md` | 5 seconds | Eager mutex acquired before DAG read; graph mutation verified before serialization. |
 
 ### Windows Handle Collision Avoidance

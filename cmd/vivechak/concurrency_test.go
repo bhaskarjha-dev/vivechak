@@ -516,6 +516,17 @@ Replay performance monitored with snapshotting. Grade B (operational runbook)
 		t.Errorf("expected W-STALE-DOWNSTREAM warning on amending upstream S-01, got: %v", envAmend.Warnings)
 	}
 
+	// Sign off One-Way Door D-001 so Track B Gate can pass
+	ws, err := store.OpenWorkspace(projectDir)
+	if err != nil {
+		t.Fatalf("open workspace: %v", err)
+	}
+	if _, err := core.SignoffDecision(ws, "D-001", "Lead Architect"); err != nil {
+		ws.Close()
+		t.Fatalf("signoff D-001: %v", err)
+	}
+	ws.Close()
+
 	// 12. Run Phase 0 Gate: Must pass and auto-persist research/PHASE-0-GATE.md
 	envGate := callAndParse("vivechak_run_gate", map[string]any{
 		"project_root": projectDir,

@@ -22,8 +22,8 @@ Whenever the user asks for a technical comparison, technology choice, architectu
 
 | Scope | Trigger | Artifact | Overhead | Key Tools / Slash Command |
 |---|---|---|---|---|
-| **1. Comparison** | Evaluate 2–5 named options (*"Pino vs Winston"*) | `research/comparisons/C-NNN.md` (WEP) | 1 session (~5m), 0 DAG, 0 Gate | `/compare` (Claude Code) or `vivechak_start(scope="comparison")` |
-| **2. Decision** | Architectural fork in active codebase (*"Migrate to ClickHouse?"*) | `research/decisions/D-NNN.md` (ADR) | 1–3 sessions (~30m), 0 Project DAG | `/decision` (Claude Code) or `vivechak_start(scope="decision")` |
+| **1. Comparison** | Evaluate 2–5 named options (*"Pino vs Winston"*) | `research/C-NNN-comparison.md` (WEP) | 1 session (~5m), 0 DAG, 0 Gate | `/compare` (Claude Code) or `vivechak_start(scope="comparison")` |
+| **2. Decision** | Architectural fork in active codebase (*"Migrate to ClickHouse?"*) | `research/D-NNN.md` (ADR) | 1–3 sessions (~30m), 0 Project DAG | `/decision` (Claude Code) or `vivechak_start(scope="decision")` |
 | **3. Project** | Greenfield architecture or major rewrite | `research/FAD.md` (Founding Architecture) | Full DAG (4–30 sessions), Gate | `/project` (Claude Code) or `vivechak_start(scope="project")` |
 
 ---
@@ -34,7 +34,7 @@ Whenever the user asks for a technical comparison, technology choice, architectu
 Use when asked to compare, benchmark, or choose between 2–5 named technologies, libraries, or datastores:
 1. **Trigger Start:** Call MCP tool `vivechak_start(scope="comparison", question="<user prompt>")` (or run `/compare` in Claude Code).
 2. **Execute Research:** Perform web search for authoritative documentation, reproducible benchmarks, and postmortems. Apply evidence grades (A–E) to all claims.
-3. **Persist Output:** Call MCP tool `vivechak_save(kind="comparison", id="C-01", content="<matrix>")`. Vivechak automatically auto-initializes the workspace and saves `research/comparisons/C-01.md`. Done!
+3. **Persist Output:** Call MCP tool `vivechak_save(kind="comparison", id="C-01", content="<matrix>")`. Vivechak automatically auto-initializes the workspace and saves `research/C-01-comparison.md`. Done!
 
 ### Scope 2: Decision Scope (`ScopeDecision`)
 Use when resolving an architectural fork, migration, or dilemma in an active codebase:

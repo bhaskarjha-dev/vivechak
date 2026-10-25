@@ -12,6 +12,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/bhaskarjha-dev/vivechak/internal/core"
+	"github.com/bhaskarjha-dev/vivechak/internal/store"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -446,6 +448,17 @@ Storage and consensus accepted. A (formal proof)
 	if err != nil {
 		t.Fatalf("save SYN-01 failed: %v", err)
 	}
+
+	// Sign off One-Way Door D-001 so Track B Gate can pass
+	ws, err := store.OpenWorkspace(workDir)
+	if err != nil {
+		t.Fatalf("open workspace: %v", err)
+	}
+	if _, err := core.SignoffDecision(ws, "D-001", "Lead Architect"); err != nil {
+		ws.Close()
+		t.Fatalf("signoff D-001: %v", err)
+	}
+	ws.Close()
 
 	// 17. Tool: vivechak_run_gate
 	res, err = cs.CallTool(ctx, &mcp.CallToolParams{

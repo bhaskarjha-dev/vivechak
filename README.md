@@ -75,8 +75,8 @@ Vivechak scales research depth to decision reversibility:
 
 | Scope | Deliverable | Typical Prompt | Overhead |
 |---|---|---|---|
-| **Comparison** | `research/comparisons/C-NNN.md` | *"Compare Pino vs Winston"* | 1 session (~5 min), 0 DAG, 0 gate |
-| **Decision** | `research/decisions/D-NNN.md` | *"PostgreSQL vs ClickHouse for events"* | 1–3 sessions (~30 min), 0 project DAG |
+| **Comparison** | `research/C-NNN-comparison.md` (WEP) | *"Compare Pino vs Winston"* | 1 session (~5 min), 0 DAG, 0 gate |
+| **Decision** | `research/D-NNN.md` (ADR) | *"PostgreSQL vs ClickHouse for events"* | 1–3 sessions (~30 min), 0 project DAG |
 | **Project** | `research/FAD.md` | *"Architect real-time streaming pipeline"* | Full DAG (4–30 sessions), Phase 0 Gate |
 
 ## 9 Consolidated MCP Tools

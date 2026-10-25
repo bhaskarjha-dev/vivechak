@@ -48,8 +48,8 @@ Vivechak employs a 4-level validation ladder (**L1–L4**). Below are the common
 - **Resolution:** Supply paths that are local to the workspace root or pass an explicit valid project root directory via `project_root`.
 
 ### `W-STALE-DOWNSTREAM` (Level 3 Advisory Warning)
-- **Cause:** You ran `vivechak_amend_session` on an upstream session (e.g. `T1-01`), but downstream sessions (e.g. `T2-01`) were completed prior to the amendment and may rely on superseded findings.
-- **Resolution:** Review the downstream session listed in the warning. If necessary, execute a targeted critique or amend the downstream session with `vivechak_amend_session`.
+- **Cause:** You ran `vivechak_amend` on an upstream session (e.g. `T1-01`), but downstream sessions (e.g. `T2-01`) were completed prior to the amendment and may rely on superseded findings.
+- **Resolution:** Review the downstream session listed in the warning. If necessary, execute a targeted critique or amend the downstream session with `vivechak_amend`.
 
 ### `W-STALE-DECISION-REFERENCE` (Level 3 Advisory Warning)
 - **Cause:** An ADR was marked as superseded via `vivechak_record_decision(supersedes="D-001")`, but an existing session references the old `D-001` decision.
@@ -61,7 +61,7 @@ Vivechak employs a 4-level validation ladder (**L1–L4**). Below are the common
 
 ### `W-OWD-NO-CHALLENGE` (Level 3 Advisory Warning)
 - **Cause:** Track B Check B11 detected that an irreversible One-Way Door decision was not subjected to adversarial red-team stress testing prior to commitment.
-- **Resolution:** Execute `vivechak_challenge(session_id="...", mode="red_team")` on the informing session, search for disconfirming evidence, and record findings in the decision record under `## Challenge Findings & Red-Team Stress Test`.
+- **Resolution:** Execute `vivechak_review(target="...", mode="challenge")` (or legacy alias `vivechak_challenge`) on the informing session, search for disconfirming evidence, and record findings in the decision record under `## Challenge Findings & Red-Team Stress Test`.
 
 ### `W-NO-EVIDENCE-GRADES` (Level 3 Advisory Warning)
 - **Cause:** A completed research session or locked ADR does not contain inline evidence citations (e.g. `[Grade: A]`, `[Grade: B (source)]`). Under Principle P3 (Evidentiary Grounding), every substantive factual claim must carry an inline evidence grade.
@@ -83,7 +83,7 @@ Vivechak employs a 4-level validation ladder (**L1–L4**). Below are the common
 
 ## 3. Cognitive Quality Coaching Advisories (`Q-*`)
 
-During `vivechak_save_session`, the engine surfaces non-blocking `[Q-*]` advisory observations in `next_step` to help agents avoid common research biases:
+During `vivechak_save(kind="session")` or `vivechak_review`, the engine surfaces non-blocking `[Q-*]` advisory observations in `next_step` to help agents avoid common research biases:
 
 | Code | Meaning | Recommended Action |
 |---|---|---|
@@ -127,7 +127,7 @@ This launches the official web-based MCP Inspector at `http://localhost:5173`, a
 
 ## 5. Phase 0 Exit Gate Troubleshooting
 
-If `vivechak_run_gate` fails with status `FAIL`:
+If `vivechak_gate` (or legacy alias `vivechak_run_gate`) fails with status `FAIL`:
 
 ```
 Track A (Reversibility & Bounds): PASS
@@ -144,7 +144,8 @@ Issues:
 2. **Verification Method (Check B4):** Ensure factual claims are marked as `fetched` or `cached`. Model parametric memory (`recalled`) is capped at Grade D and cannot anchor irreversible decisions.
 3. **Rejected Alternatives (Check B5 & B10):** Ensure the ADR includes a `## Rejected Alternatives & Tradeoffs` section explaining why candidates were dismissed, with at least 200 characters of substantive rationale.
 4. **Reversal Triggers (Check B6):** Ensure frontmatter defines a measurable `review_trigger` (e.g. `"Throughput exceeds 50k req/sec or p99 latency > 200ms"`) and scheduled `review_date`.
-5. **Adversarial Red-Team Challenge (Check B11):** Run `vivechak_challenge(session_id="...", mode="red_team")` on the informing session to stress-test your conclusions. Document the disconfirming search results, edge case probes, and mitigations in a dedicated `## Challenge Findings & Red-Team Stress Test` section in the ADR.
+5. **Adversarial Red-Team Challenge (Check B11):** Run `vivechak_review(target="...", mode="challenge")` (or legacy alias `vivechak_challenge`) on the informing session to stress-test your conclusions. Document the disconfirming search results, edge case probes, and mitigations in a dedicated `## Challenge Findings & Red-Team Stress Test` section in the ADR.
+6. **Human-in-the-Loop Sign-off (Check B8 / Rule G11):** One-Way Doors require verified human sign-off (`human_reviewed: true`). Run `vck signoff <decision-id>` in an interactive terminal (or provide `VCK_APPROVER_SECRET` in automated CI pipelines) to record human approval. Autonomous agents cannot self-sign One-Way Doors.
 
 ### Direct Terminal Evaluation via `vck gate`:
 You can also run gate evaluations directly from your terminal or CI pipeline without an active MCP agent:
@@ -165,7 +166,7 @@ vck gate --format json
 ## 6. Concurrency & Advisory Lock Files (`*.lock`)
 
 ### Why do 0-byte `.lock` files remain in `research/`?
-During mutating operations (such as `vivechak_save_plan`, `vivechak_replan`, and `vivechak_save_session`), Vivechak acquires OS-level advisory file locks (`RESEARCH-PIPELINE.md.lock`, `fad_root.lock`) to prevent concurrent subagents or parallel swarm workers from clobbering research artifacts simultaneously.
+During mutating operations (such as `vivechak_save` and `vivechak_replan`), Vivechak acquires OS-level advisory file locks (`RESEARCH-PIPELINE.md.lock`, `fad_root.lock`) to prevent concurrent subagents or parallel swarm workers from clobbering research artifacts simultaneously.
 
 - **Advisory Lock Lifecycle:** When a tool call finishes, the process automatically releases the lock. However, the empty 0-byte `.lock` file remains on disk. This is **intentional by design** in standard operating system locking patterns (`flock` on POSIX and `LockFileEx` on Windows) to prevent Time-of-Check to Time-of-Use (TOCTOU) file deletion race conditions across concurrent processes.
 - **Git Tracking:** Vivechak automatically writes `research/.gitignore` containing `*.lock` upon workspace initialization, ensuring lock files are never committed to git history.

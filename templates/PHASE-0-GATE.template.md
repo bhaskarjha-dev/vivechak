@@ -93,7 +93,7 @@ For each One-Way Door decision:
 - [ ] Decision record contains substantive causal rationale, evaluated options, and failure modes (no placeholder stubs)
 
 ### B11. Adversarial Red-Team Challenge
-- [ ] One-Way Door decisions subjected to adversarial challenge (`vivechak_challenge` red-team probe or disconfirming evidence search)
+- [ ] One-Way Door decisions subjected to adversarial challenge (`vivechak_review` challenge mode or disconfirming evidence search)
 
 **Track B Result:** `[PASS / FAIL]`
 

@@ -196,13 +196,13 @@ export class DirectMcpAdapter extends BaseHarnessAdapter {
     } else if (p.includes("compare") || p.includes("winston vs pino")) {
       // Comparison scope (S-01, S-16)
       toolCalls.push({
-        name: "vivechak_prepare_generator",
-        args: { scope: "comparison", context: prompt }
+        name: "vivechak_start",
+        args: { scope: "comparison", question: prompt }
       });
       toolCalls.push({
-        name: "vivechak_save_plan",
+        name: "vivechak_save",
         args: {
-          scope: "comparison",
+          kind: "comparison",
           id: "C-01",
           slug: "pino-vs-winston",
           content: `# Comparison Plan: C-01\n| Decision | C-01 |\n| Status | complete |\n\n## Summary\nCompare Pino and Winston for high-throughput JSON logging.\n\n## WEP Matrix\n| Criterion | Weight | Pino | Winston |\n|---|---|---|---|\n| Throughput | 0.50 | 5 [Grade A, https://github.com/pinojs/pino] | 3 [Grade B, docs] |\n| Ecosystem | 0.50 | 4 [Grade A] | 5 [Grade A] |\n\n## Recommendation\nPino is recommended for high throughput.`
@@ -211,7 +211,7 @@ export class DirectMcpAdapter extends BaseHarnessAdapter {
     } else if (p.includes("roast") || p.includes("challenge")) {
       // Adversarial challenge (S-08)
       toolCalls.push({
-        name: "vivechak_init",
+        name: "vivechak_start",
         args: { scope: "decision" }
       });
       toolCalls.push({
@@ -225,21 +225,22 @@ export class DirectMcpAdapter extends BaseHarnessAdapter {
         }
       });
       toolCalls.push({
-        name: "vivechak_challenge",
-        args: { decision_id: "D-001", mode: "red_team" }
+        name: "vivechak_review",
+        args: { target: "D-001", mode: "challenge" }
       });
     } else if (p.includes("update session") || p.includes("amend")) {
       // Incremental amendment (S-09)
-      toolCalls.push({ name: "vivechak_init", args: { scope: "project" } });
+      toolCalls.push({ name: "vivechak_start", args: { scope: "project" } });
       toolCalls.push({
-        name: "vivechak_save_session",
+        name: "vivechak_save",
         args: {
-          session_id: "T0-01",
+          kind: "session",
+          id: "T0-01",
           content: `# T0-01: Framework Evaluation\nInitial benchmarks.`
         }
       });
       toolCalls.push({
-        name: "vivechak_amend_session",
+        name: "vivechak_amend",
         args: {
           session_id: "T0-01",
           content: "pino latency is 12ms under load",
@@ -248,7 +249,7 @@ export class DirectMcpAdapter extends BaseHarnessAdapter {
       });
     } else if (p.includes("lock decision") || p.includes("record decision")) {
       // Formal ADR recording (S-10)
-      toolCalls.push({ name: "vivechak_init", args: { scope: "decision" } });
+      toolCalls.push({ name: "vivechak_start", args: { scope: "decision" } });
       toolCalls.push({
         name: "vivechak_record_decision",
         args: {
@@ -262,11 +263,11 @@ export class DirectMcpAdapter extends BaseHarnessAdapter {
       });
     } else if (p.includes("oracle only") || p.includes("replan")) {
       // Dynamic replanning (S-11)
-      toolCalls.push({ name: "vivechak_init", args: { scope: "project" } });
+      toolCalls.push({ name: "vivechak_start", args: { scope: "project" } });
       toolCalls.push({
-        name: "vivechak_save_plan",
+        name: "vivechak_save",
         args: {
-          scope: "project",
+          kind: "plan",
           content: `# Project Pipeline\n| ID | Layer | Door Type | Dependencies |\n|---|---|---|---|\n| T0-01 | 0 | two-way | none |\n`
         }
       });
@@ -282,7 +283,7 @@ export class DirectMcpAdapter extends BaseHarnessAdapter {
       });
     } else if (p.includes("standalone d-01.md and registry decisions.md")) {
       // Dual-source decision resolution (S-17)
-      toolCalls.push({ name: "vivechak_init", args: { scope: "decision" } });
+      toolCalls.push({ name: "vivechak_start", args: { scope: "decision" } });
       toolCalls.push({
         name: "vivechak_record_decision",
         args: {
@@ -294,45 +295,46 @@ export class DirectMcpAdapter extends BaseHarnessAdapter {
         }
       });
       toolCalls.push({
-        name: "vivechak_run_gate",
+        name: "vivechak_gate",
         args: { track: "all" }
       });
     } else if (p.includes("gate") || p.includes("coding the backend")) {
       // Mechanical Gate (S-12)
       toolCalls.push({
-        name: "vivechak_run_gate",
+        name: "vivechak_gate",
         args: { track: "all" }
       });
     } else if (p.includes("save this session")) {
       // Session save & quality coaching (S-07, S-15, S-18)
       toolCalls.push({
-        name: "vivechak_init",
+        name: "vivechak_start",
         args: { scope: "project" }
       });
       toolCalls.push({
-        name: "vivechak_save_session",
+        name: "vivechak_save",
         args: {
-          session_id: "T0-01",
+          kind: "session",
+          id: "T0-01",
           content: prompt
         }
       });
     } else if (p.includes("vivechak status") || p.includes("visual graph") || p.startsWith("status")) {
       // Status & Visualize (S-13)
       toolCalls.push({ name: "vivechak_status", args: {} });
-      toolCalls.push({ name: "vivechak_visualize", args: {} });
+      toolCalls.push({ name: "vivechak_status", args: { format: "mermaid" } });
     } else if (p.includes("validate")) {
       // Workspace audit (S-14)
-      toolCalls.push({ name: "vivechak_validate", args: {} });
+      toolCalls.push({ name: "vivechak_review", args: { mode: "validate" } });
     } else if (p.includes("decide:") || p.includes("mongo vs postgres") || p.includes("server actions")) {
       // Decision scope (S-04, S-05)
       toolCalls.push({
-        name: "vivechak_prepare_generator",
-        args: { scope: "decision", context: prompt }
+        name: "vivechak_start",
+        args: { scope: "decision", question: prompt }
       });
       toolCalls.push({
-        name: "vivechak_save_plan",
+        name: "vivechak_save",
         args: {
-          scope: "decision",
+          kind: "plan",
           id: "D-01",
           slug: "tech-choice",
           content: `# D-01 Plan: Tech Choice\n1 session fast spike.`
@@ -341,12 +343,8 @@ export class DirectMcpAdapter extends BaseHarnessAdapter {
     } else {
       // Project scope fallback (S-03, S-06)
       toolCalls.push({
-        name: "vivechak_init",
-        args: { scope: "project" }
-      });
-      toolCalls.push({
-        name: "vivechak_prepare_generator",
-        args: { scope: "project", context: prompt }
+        name: "vivechak_start",
+        args: { scope: "project", question: prompt }
       });
     }
 

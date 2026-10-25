@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/bhaskarjha-dev/vivechak/internal/core"
+	"github.com/bhaskarjha-dev/vivechak/internal/store"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -382,6 +383,17 @@ Continuous WAL archiving to S3 object storage. Grade A (https://aws.amazon.com/s
 			t.Errorf("expected research/FAD.md to exist: %v", err)
 		}
 
+		// Sign off One-Way Door D-001 so Track B Gate can pass
+		ws, err := store.OpenWorkspace(projectDir)
+		if err != nil {
+			t.Fatalf("open workspace: %v", err)
+		}
+		if _, err := core.SignoffDecision(ws, "D-001", "Lead Architect"); err != nil {
+			ws.Close()
+			t.Fatalf("signoff D-001: %v", err)
+		}
+		ws.Close()
+
 		// 1.13 vivechak_run_gate
 		gateEnv := callTool("vivechak_run_gate", map[string]any{
 			"project_root": projectDir,
@@ -564,6 +576,17 @@ Partition tolerance tested across asymmetric network partitions.
 		if int(decStats["valid"].(float64)) != 1 {
 			t.Errorf("expected exactly 1 deduplicated valid decision, got: %v", decStats["valid"])
 		}
+
+		// Sign off One-Way Door D-001 so Track B Gate can pass
+		wsDec, err := store.OpenWorkspace(decDir)
+		if err != nil {
+			t.Fatalf("open workspace: %v", err)
+		}
+		if _, err := core.SignoffDecision(wsDec, "D-001", "Lead Architect"); err != nil {
+			wsDec.Close()
+			t.Fatalf("signoff D-001: %v", err)
+		}
+		wsDec.Close()
 
 		// 2.7 Run Gate (Track B)
 		gateEnv := callTool("vivechak_run_gate", map[string]any{

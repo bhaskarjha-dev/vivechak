@@ -350,7 +350,7 @@ func handleStart(_ context.Context, _ *sdkmcp.CallToolRequest, in StartInput) (*
 				"id":      cid,
 				"content": "<matrix markdown>",
 			},
-			Why: fmt.Sprintf("Run web search to evaluate %s, then save the WEP comparison matrix using vivechak_save (or vivechak_save_plan(kind='comparison', id='%s', content=...)). Do NOT write to local artifact/brain files or external paths first.", optsStr, cid),
+			Why: fmt.Sprintf("Run web search to evaluate %s, then save the WEP comparison matrix using vivechak_save (kind='comparison', id='%s', content=...). Do NOT write to local artifact/brain files or external paths first.", optsStr, cid),
 		}
 
 	case core.ScopeDecision:
@@ -372,7 +372,7 @@ func handleStart(_ context.Context, _ *sdkmcp.CallToolRequest, in StartInput) (*
 				"decision_id": did,
 				"content":     "<ADR markdown>",
 			},
-			Why: fmt.Sprintf("Execute the brief with web search, then create the decision plan and ADR skeleton using vivechak_record_decision (or vivechak_save_plan(decision_id='%s', ...)). Do NOT write to local artifact/brain files or external paths first.", did),
+			Why: fmt.Sprintf("Execute the brief with web search, then create the decision plan and ADR skeleton using vivechak_record_decision (decision_id='%s', content=...). Do NOT write to local artifact/brain files or external paths first.", did),
 		}
 
 	case core.ScopeProject:
@@ -400,7 +400,7 @@ func handleStart(_ context.Context, _ *sdkmcp.CallToolRequest, in StartInput) (*
 					"kind":    "plan",
 					"content": "<RESEARCH-PIPELINE.md content>",
 				},
-				Why: "Decompose the project vision to generate your research pipeline DAG, then save via vivechak_save (or vivechak_save_plan(kind='plan', content=...)). Do NOT write to local artifact/brain files or workspace files outside research/. (For large Tier 2/3 pipelines where output exceeds single-turn token limits, you may assemble sections in internal scratch before passing to vivechak_save_plan).",
+				Why: "Decompose the project vision to generate your research pipeline DAG, then save via vivechak_save (kind='plan', content=...). Do NOT write to local artifact/brain files or workspace files outside research/. (For large Tier 2/3 pipelines where output exceeds single-turn token limits, you may assemble sections in internal scratch before passing to vivechak_save).",
 			}
 		}
 	}

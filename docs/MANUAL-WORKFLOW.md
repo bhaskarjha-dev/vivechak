@@ -7,7 +7,7 @@
 
 ## Overview
 
-Vivechak is an evidence-grounded research meta-framework. While it ships with a 13-tool Model Context Protocol (MCP) server for automated agent integration, **the methodology itself is entirely interface-agnostic**. You can execute the full research pipeline by hand using web browser AI chats, your favorite text editor, and standard Markdown files.
+Vivechak is an evidence-grounded research meta-framework. While it ships with a Model Context Protocol (MCP) server for automated agent integration, **the methodology itself is entirely interface-agnostic**. You can execute the full research pipeline by hand using web browser AI chats, your favorite text editor, and standard Markdown files.
 
 Whether executed through an automated agent or manually through copy-paste:
 - Every factual claim requires an **Evidence Grade (A–E)** with verification metadata.
@@ -19,12 +19,12 @@ Whether executed through an automated agent or manually through copy-paste:
 
 | Step | Manual Workflow (This Guide) | MCP Server (`vivechak serve`) |
 |---|---|---|
-| **Pipeline Generation** | Copy generator prompt into AI web chat; paste vision | Agent calls `prepare_generator` or reads generator directly |
-| **Workspace Setup** | Manually create folders and copy templates from repo | Agent calls `init` to auto-scaffold workspace and templates |
-| **Prompt Delivery** | Copy fenced ```` ```prompt ```` blocks into fresh AI chats | Agent calls `next_session` to retrieve next unblocked prompt |
-| **Session Saving** | Copy AI chat response, save to `research/sessions/*.md` | Agent calls `save_session` to validate and persist artifact |
-| **Decision Registry** | Update `research/DECISIONS.md` using template format | Agent calls `record_decision` to validate schema and append |
-| **Gate Verification** | Audit checklist in `research/templates/PHASE-0-GATE.template.md` | Agent calls `run_gate` or `validate` to verify DAG & evidence |
+| **Pipeline Generation** | Copy generator prompt into AI web chat; paste vision | Agent calls `vivechak_start` or reads generator directly |
+| **Workspace Setup** | Manually create folders and copy templates from repo | Agent calls `vivechak_start` to auto-scaffold workspace and templates |
+| **Prompt Delivery** | Copy fenced ```` ```prompt ```` blocks into fresh AI chats | Agent calls `vivechak_next` to retrieve next unblocked prompt |
+| **Session Saving** | Copy AI chat response, save to `research/sessions/*.md` | Agent calls `vivechak_save` to validate and persist artifact |
+| **Decision Registry** | Update `research/DECISIONS.md` using template format | Agent calls `vivechak_record_decision` to validate schema and append |
+| **Gate Verification** | Audit checklist in `research/templates/PHASE-0-GATE.template.md` | Agent calls `vivechak_gate` or CLI `vck gate` to verify DAG & evidence |
 
 ---
 

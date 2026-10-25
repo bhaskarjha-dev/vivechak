@@ -1,7 +1,10 @@
 .PHONY: build test test-race bench lint vet embed-sync doctor gate clean release-check harness-probe harness-test harness-test-all harness-triage harness-clean harness-clean-sandboxes
 
 VERSION ?= 0.1.0
-LDFLAGS ?= -s -w -X main.version=$(VERSION)
+COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo "dev")
+DATE ?= $(shell date -u +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || echo "unknown")
+PKG := github.com/bhaskarjha-dev/vivechak/internal/version
+LDFLAGS ?= -s -w -X $(PKG).Version=$(VERSION) -X $(PKG).Commit=$(COMMIT) -X $(PKG).Date=$(DATE) -X main.version=$(VERSION)
 export CGO_ENABLED ?= 0
 
 ifeq ($(OS),Windows_NT)

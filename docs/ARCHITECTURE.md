@@ -134,7 +134,7 @@ Defined in [`internal/core/validate.go`](../internal/core/validate.go#L11-L22), 
 | **L4** | `L4Gate` | Exit gate evaluation across project | Pipeline structural completeness and mechanical quality verification. |
 
 ### Quality Coaching Engine (`core.ObserveSessionQuality`)
-Defined in [`internal/core/validate.go`](../internal/core/validate.go), `ObserveSessionQuality` performs real-time advisory analysis on session outputs during `vivechak_save_session` (and dry-run `vivechak_validate`). It coaches the agent on epistemic rigor without blocking workflow:
+Defined in [`internal/core/validate.go`](../internal/core/validate.go), `ObserveSessionQuality` performs real-time advisory analysis on session outputs during `vivechak_save` (and dry-run `vivechak_review(mode="validate")`). It coaches the agent on epistemic rigor without blocking workflow:
 - **Grade A Qualified Provenance:** Enforces canonical URLs, domain anchors, RFCs, or DOI anchors for Grade A claims, prompting primary source verification or downgrade to Grade B; ensures computing memory (RAM/caching) is never penalized as model recall.
 - **Citation Diversity (`Q-DENSITY`):** Advises when substantive research sessions (>1000 characters) cite fewer than 2 distinct external sources to strengthen independent evidentiary grounding.
 - **Key Findings Depth (`Q-DEPTH`):** Alerts when fewer than 3 key findings are provided.
@@ -143,10 +143,10 @@ Defined in [`internal/core/validate.go`](../internal/core/validate.go), `Observe
 - **Rejected Alternatives:** Verifies recommendations cite rejected alternatives.
 - **Date Freshness:** Checks for potentially stale dates while filtering out ports, latencies, throughput metrics, and versions.
 
-### Phase 0 Gate Engine & Auto-Persistence (`mcputil.handleRunGate`)
-Defined in [`internal/mcp/tool_run_gate.go`](../internal/mcp/tool_run_gate.go), `vivechak_run_gate` evaluates decoupled Track A and Track B criteria and automatically renders and persists `research/PHASE-0-GATE.md`:
+### Phase 0 Gate Engine & Auto-Persistence (`mcputil.handleGate`)
+Defined in [`internal/mcp/tool_gate.go`](../internal/mcp/tool_gate.go), `vivechak_gate` evaluates decoupled Track A and Track B criteria and automatically renders and persists `research/PHASE-0-GATE.md`:
 - **Track A (Two-Way Doors):** Fast-track reversibility validation (A1–A3). Reversible decisions pass without blocking deep checks. Workspaces with zero two-way doors are marked as `PASS (0 two-way doors)`, eliminating false-pass anomalies.
-- **Track B (One-Way Doors):** Comprehensive mechanical verification across 11 rigorous checks (B1–B11): DAG closure (B1), contradiction resolution (B2), evidentiary threshold requiring ≥60% Grade A/B evidence (B3), verification integrity with qualified provenance (B4), documented rejected alternatives (B5), concrete decay/reversal triggers (B6), premortem protocol (B7), human architect review sign-off (B8), sealed FAD (B9), substantive decision content detecting ADR stubs/placeholders (B10), and adversarial red-team challenge verification (`vivechak_challenge` red-team probe or disconfirming evidence search) before commitment (B11). Strict promotion enforces blocking failures for B3, B4, and B5 on One-Way Doors.
+- **Track B (One-Way Doors):** Comprehensive mechanical verification across 11 rigorous checks (B1–B11): DAG closure (B1), contradiction resolution (B2), evidentiary threshold requiring ≥60% Grade A/B evidence (B3), verification integrity with qualified provenance (B4), documented rejected alternatives (B5), concrete decay/reversal triggers (B6), premortem protocol (B7), human architect review sign-off (B8), sealed FAD (B9), substantive decision content detecting ADR stubs/placeholders (B10), and adversarial red-team challenge verification (`vivechak_review` challenge mode, `vivechak_challenge`, or disconfirming evidence search) before commitment (B11). Strict promotion enforces blocking failures for B3, B4, and B5 on One-Way Doors.
 - **Decoupled Decision Scope Evaluation:** In `ScopeDecision`, purely Two-Way Door decisions pass on Track A reversibility confirmation alone, and Track B checks remain non-blocking advisories. If an irreversible One-Way Door is present, full Track B checks are strictly enforced.
 
 ### Response Envelope (`mcputil.Envelope`)
@@ -157,10 +157,10 @@ Defined in [`internal/mcp/envelope.go`](../internal/mcp/envelope.go#L24-L44), ev
   "message": "Session T1-01 saved as valid (0 warnings, 0 errors)",
   "data": { ... },
   "warnings": [],
-  "next_step": "Run vivechak_next_session for the next actionable session.",
+  "next_step": "Run vivechak_next for the next actionable session.",
   "meta": {
     "api": 1,
-    "tool": "vivechak_save_session",
+    "tool": "vivechak_save",
     "truncated": false
   }
 }
@@ -174,26 +174,26 @@ Defined in [`internal/mcp/envelope.go`](../internal/mcp/envelope.go#L24-L44), ev
 ### Guided Worker Pattern & Context Injection
 Vivechak is built around the **Guided Worker** philosophy:
 1. **Deterministic Guidance**: Every single tool response populates `next_step` with the exact next action the agent should take, eliminating disorientation and drift.
-2. **Context Injection** ([`internal/core/inject.go`](../internal/core/inject.go#L38-L68)): When an agent invokes [`vivechak_next_session`](../internal/mcp/tool_next_session.go#L42), the server inspects the session's upstream dependencies, extracts key findings and evidence-graded claims from completed session files, and automatically populates `[UPSTREAM_FINDINGS]` (or `[ALL_SESSION_FINDINGS]` for synthesis `SYN-01`). This eliminates error-prone manual copy-pasting between research sessions.
+2. **Context Injection** ([`internal/core/inject.go`](../internal/core/inject.go#L38-L68)): When an agent invokes [`vivechak_next`](../internal/mcp/tool_next.go), the server inspects the session's upstream dependencies, extracts key findings and evidence-graded claims from completed session files, and automatically populates `[UPSTREAM_FINDINGS]` (or `[ALL_SESSION_FINDINGS]` for synthesis `SYN-01`). This eliminates error-prone manual copy-pasting between research sessions.
 
 ---
 
 ## 3. Data Flow
 
-Here is the end-to-end lifecycle of a mutating tool call (such as [`vivechak_save_session`](../internal/mcp/tool_save_session.go#L42)):
+Here is the end-to-end lifecycle of a mutating tool call (such as [`vivechak_save`](../internal/mcp/tool_save.go)):
 
 ```mermaid
 sequenceDiagram
     autonumber
     actor Host as AI Client (Cursor / Claude / Gemini)
     participant Stdio as Transport (stdin/stdout)
-    participant Handler as mcputil.handleSaveSession
+    participant Handler as mcputil.handleSave
     participant Core as internal/core (Validation)
     participant Store as internal/store (os.Root & flock)
     participant FS as Local Filesystem
 
-    Host->>Stdio: JSON-RPC CallToolRequest ("vivechak_save_session", args)
-    Stdio->>Handler: Deserialized SaveSessionInput
+    Host->>Stdio: JSON-RPC CallToolRequest ("vivechak_save", args)
+    Stdio->>Handler: Deserialized SaveInput
     Handler->>Core: ResolveWorkspace(in.ProjectRoot)
     Core-->>Handler: Absolute workspace path
     Handler->>Core: ValidateSession(in.Content)
@@ -216,13 +216,13 @@ sequenceDiagram
 
 ### Trace Comparison: Read vs Write Tools
 
-- **Read-Only Inspection** ([`vivechak_status`](../internal/mcp/tool_status.go#L36)):
-  1. Resolves workspace path. If not found, gracefully returns `initialized: false` with guidance to call `vivechak_init`.
+- **Read-Only Inspection** ([`vivechak_status`](../internal/mcp/tool_status.go)):
+  1. Resolves workspace path. If not found, gracefully returns `initialized: false` with guidance to call `vivechak_start`.
   2. Scans `research/` directories and counts sessions and templates via [`InspectWorkspace`](../internal/core/workspace.go#L122).
   3. Formulates status message and computes contextual `next_step` based on pipeline presence and session count.
   4. Acquires no locks and performs no filesystem writes.
 
-- **DAG Progression** ([`vivechak_next_session`](../internal/mcp/tool_next_session.go#L42)):
+- **DAG Progression** ([`vivechak_next`](../internal/mcp/tool_next.go)):
   1. Parses `RESEARCH-PIPELINE.md` into [`core.DAG`](../internal/core/dag.go#L37).
   2. Scans `research/sessions/` to collect all completed session IDs.
   3. Calls [`dag.NextSessions(completedIDs)`](../internal/core/dag.go#L63) to discover actionable nodes.
@@ -242,7 +242,7 @@ The server is designed to run safely within agentic desktop environments where m
   │   [Subagent A]                [Subagent B]             │
   │        │                           │                   │
   │        ▼                           ▼                   │
-  │   vivechak_save_session       vivechak_save_session    │
+  │   vivechak_save               vivechak_save            │
   │        │                           │                   │
   │        ├─────────► flock ◄─────────┤  Advisory Lock    │
   │        │     (path.md.lock)        │                   │
@@ -452,7 +452,7 @@ func handleMyTool(ctx context.Context, req *sdkmcp.CallToolRequest, in MyToolInp
 
     root, err := core.ResolveWorkspace(in.ProjectRoot)
     if err != nil {
-        return ErrorResult(tool, err, "Initialize a workspace first with vivechak_init.")
+        return ErrorResult(tool, err, "Initialize a workspace first with vivechak_start.")
     }
 
     // Call domain logic from internal/core
@@ -462,7 +462,7 @@ func handleMyTool(ctx context.Context, req *sdkmcp.CallToolRequest, in MyToolInp
         Success:  true,
         Message:  "Operation completed successfully",
         Data:     map[string]any{"result": "example"},
-        NextStep: "Run vivechak_next_session to proceed with the next task.",
+        NextStep: "Run vivechak_next to proceed with the next task.",
         Meta:     NewMeta(tool),
     }
     return env.ToResult()
@@ -552,6 +552,6 @@ npx @modelcontextprotocol/inspector ./bin/vivechak
 npx @modelcontextprotocol/inspector go run ./cmd/vivechak
 ```
 Once open in your browser, you can:
-- Inspect all 13 registered tool definitions and schemas.
-- Trigger `vivechak_init`, `vivechak_prepare_generator`, or `vivechak_status`.
+- Inspect the 9 consolidated tool definitions, schemas, resources, and prompts.
+- Trigger `vivechak_start` or `vivechak_status`.
 - Verify the dual-channel `Envelope` JSON structure and `next_step` instructions.

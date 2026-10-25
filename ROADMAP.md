@@ -253,7 +253,7 @@ Vivechak is intentionally harness-agnostic. By speaking standard MCP over `stdio
 | **CLI Agent Harnesses** | Claude Code, `agy` CLI, OpenHands, Aider | MCP stdio or headless CLI | ✅ Production |
 | **Cloud Agent Platforms** | Devin, Factory Droid, GitHub Workspaces | Pre-installed binary via `install.sh` / `vck mcp-config` | ✅ Production |
 | **Parallel Agent Swarms** | Subagent spawning (Antigravity, CrewAI, LangGraph) | Multi-process concurrent access with advisory file locking | ✅ Production |
-| **CI/CD Pipelines** | GitHub Actions, GitLab CI | Headless `vck doctor` and `vivechak_run_gate` | ✅ Production |
+| **CI/CD Pipelines** | GitHub Actions, GitLab CI | Headless `vck doctor` and `vck gate` (`vivechak_gate`) | ✅ Production |
 
 ---
 
@@ -277,7 +277,7 @@ Vivechak is governed by three architectural pillars:
 ```
 2024–2025          8 independent project pipelines → pre-development patterns discovered
 Mid 2026           Methodology Genesis: 11 meta-research sessions tested legacy axioms
-Late 2026 (v0.1.0) Initial Unified Release: Go MCP Server (13 tools), Multi-Scope Generators, Package Distribution
+Late 2026 (v0.1.0) Initial Unified Release: Go MCP Server (9 consolidated tools), Multi-Scope Generators, Package Distribution
 Next (v0.1.x)      Host feedback, client auto-discovery, telemetry & cost tracking
 Future (v1.0.0)    First LTS release — frozen MCP tool schemas, locked template contracts, knowledge graph
 ```
@@ -312,7 +312,7 @@ Future (v1.0.0)    First LTS release — frozen MCP tool schemas, locked templat
 
 - **Phase 4 (Framework Polish):** Pipeline failure modes documented, calibration loops added to P8, change propagation map instituted.
 - **Phase 4.5 (Multi-Scope Expansion):** Decision-scope generator (`GENERATOR-DECISION.md`) and comparison generator (`GENERATOR-COMPARISON.md`) created; Admiralty-Code evidence grading formalized; `CORE:BEGIN/END` markers aligned across all generators.
-- **Phase 5 (MCP Server Automation):** Single-binary Go MCP server with 13 tools, atomic I/O, advisory locking, and automated Phase 0 gate evaluation.
+- **Phase 5 (MCP Server Automation):** Single-binary Go MCP server with 9 consolidated tools (and transparent legacy alias redirects), atomic I/O, advisory locking, and automated Phase 0 gate evaluation.
 
 ### Source Material Extraction Status
 

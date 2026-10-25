@@ -44,6 +44,9 @@ func SignoffDecision(ws *store.Workspace, decisionID string, reviewer string) (s
 					if e.IsDir() || !strings.HasSuffix(strings.ToLower(e.Name()), ".md") {
 						continue
 					}
+					if IsSpecialResearchFile(e.Name()) {
+						continue
+					}
 					name := strings.TrimSuffix(e.Name(), ".md")
 					nameUpper := strings.ToUpper(name)
 					if nameUpper == idUpper || strings.HasPrefix(nameUpper, idUpper+"-") || strings.HasPrefix(nameUpper, idUpper+"_") {
@@ -94,14 +97,56 @@ func SignoffDecision(ws *store.Workspace, decisionID string, reviewer string) (s
 	}
 
 	// 4. Update DECISIONS.md registry if it exists
-	decisionsPath := filepath.Join(ResearchDir, DecisionsFile)
+	decisionsPath := DecisionsFile
 	if ws.FileExists(decisionsPath) {
 		if curDec, err := ws.ReadFile(decisionsPath); err == nil {
-			// Update the row for decisionID in the table
-			reRow := regexp.MustCompile(fmt.Sprintf(`(?m)^(\|[\s]*%s[\s]*\|[^|\n]*\|[^|\n]*\|[^|\n]*\|[\s]*)(false|true|no|yes)([\s]*\|.*)$`, regexp.QuoteMeta(decisionID)))
-			if reRow.Match(curDec) {
-				updatedRegistry := reRow.ReplaceAll(curDec, []byte("${1}true${3}"))
-				_ = ws.WriteArtifact(decisionsPath, updatedRegistry, 0o644, false)
+			content := string(curDec)
+			modified := false
+
+			// 1. Update Markdown table row if present (case-insensitive for decision ID)
+			reRow := regexp.MustCompile(fmt.Sprintf(`(?mi)^(\|[\s]*%s[\s]*\|[^|\n]*\|[^|\n]*\|[^|\n]*\|[\s]*)(false|true|no|yes)([\s]*\|.*)$`, regexp.QuoteMeta(decisionID)))
+			if reRow.MatchString(content) {
+				content = reRow.ReplaceAllString(content, "${1}true${3}")
+				modified = true
+			}
+
+			// 2. Update anchored details block if present (<!-- DECISION: ID --> ... <!-- /DECISION: ID -->) (case-insensitive)
+			reBlock := regexp.MustCompile(fmt.Sprintf(`(?si)(<!-- DECISION:\s*%s\s*-->)(.*?)(<!-- /DECISION:\s*%s\s*-->)`, regexp.QuoteMeta(decisionID), regexp.QuoteMeta(decisionID)))
+			if m := reBlock.FindStringSubmatch(content); len(m) > 0 {
+				blockContent := m[2]
+				yamlFenceRe := regexp.MustCompile(`(?s)(` + "```" + `yaml\n)(.*?)(` + "```" + `)`)
+				if ym := yamlFenceRe.FindStringSubmatch(blockContent); len(ym) > 0 {
+					yamlInner := ym[2]
+					reHR := regexp.MustCompile(`(?m)^(human_reviewed:\s*)(?:false|true|no|yes|'false'|"false"|'true'|"true")(\s*)$`)
+					if reHR.MatchString(yamlInner) {
+						yamlInner = reHR.ReplaceAllLiteralString(yamlInner, "human_reviewed: true")
+					} else {
+						yamlInner = yamlInner + "human_reviewed: true\n"
+					}
+					if reviewer != "" {
+						reRev := regexp.MustCompile(`(?m)^reviewed_by:\s*.*$`)
+						if reRev.MatchString(yamlInner) {
+							yamlInner = reRev.ReplaceAllLiteralString(yamlInner, fmt.Sprintf("reviewed_by: %s", reviewer))
+						} else {
+							yamlInner = yamlInner + fmt.Sprintf("reviewed_by: %s\n", reviewer)
+						}
+					}
+					reAt := regexp.MustCompile(`(?m)^reviewed_at:\s*.*$`)
+					if reAt.MatchString(yamlInner) {
+						yamlInner = reAt.ReplaceAllLiteralString(yamlInner, fmt.Sprintf("reviewed_at: %s", now))
+					} else {
+						yamlInner = yamlInner + fmt.Sprintf("reviewed_at: %s\n", now)
+					}
+					newYamlBlock := ym[1] + yamlInner + ym[3]
+					blockContent = strings.Replace(blockContent, ym[0], newYamlBlock, 1)
+				}
+				newBlock := m[1] + blockContent + m[3]
+				content = strings.Replace(content, m[0], newBlock, 1)
+				modified = true
+			}
+
+			if modified {
+				_ = ws.WriteArtifact(decisionsPath, []byte(content), 0o644, false)
 			}
 		}
 	}

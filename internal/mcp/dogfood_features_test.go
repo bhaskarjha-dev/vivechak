@@ -1646,6 +1646,8 @@ status: accepted
 door_type: one-way
 review_trigger: Passkey adoption drops below 80%
 informing_sessions: [D-AUTH-S01]
+human_reviewed: true
+reviewed_by: "Security Lead"
 ---
 # D-001: WebAuthn Adoption
 

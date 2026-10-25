@@ -74,13 +74,15 @@ This prevents AI agents from getting stuck, drifting into unapproved tasks, or l
 
 ### Workspace Resolution Chain
 
-Every tool that interacts with the filesystem resolves the workspace root directory using a 5-step hierarchy via [`ResolveWorkspace()`](../internal/core/workspace.go):
+Every tool that interacts with the filesystem resolves the workspace root directory using a 7-step resolution ladder via [`ResolveWorkspace()`](../internal/workspace/resolve.go):
 
 1. **Explicit argument**: `project_root` parameter passed directly to the tool call.
-2. **Environment variables**: `VIVECHAK_PROJECT_ROOT`, `VCK_PROJECT_ROOT`, `VIVECHAK_DEFAULT_ROOT`, `VCK_DEFAULT_ROOT`, `WORKSPACE`, or `PROJECT_ROOT` if set (ignoring unexpanded `${workspaceFolder}` macros).
-3. **Directory discovery**: Traversing upward from the current working directory (`CWD`) searching for an existing `research/` directory (skipping host IDE application installation folders like `AppData\Local\Programs` or `Program Files`).
-4. **In-process session memory**: Fallback to the last successfully resolved workspace with existing `research/` within the current server process, eliminating repetitive parameter passing across consecutive tool calls.
-5. **Resolution Error**: If none succeed, the tool returns a descriptive diagnostic error instructing the caller to start a research session in their AI editor (e.g., `/compare` or `/project`) or pass `project_root` explicitly.
+2. **MCP client roots**: Workspace roots provided by the MCP client via `roots/list`.
+3. **Environment variables**: Namespaced variables (`VIVECHAK_PROJECT_ROOT` -> `VCK_PROJECT_ROOT` -> `VIVECHAK_DEFAULT_ROOT` -> `VCK_DEFAULT_ROOT`), safely ignoring unexpanded `${workspaceFolder}` macros and generic unnamespaced variables like `WORKSPACE` or `PROJECT_ROOT` to protect container isolation per Principle P1.1.
+4. **In-process session memory**: Retains the last successfully resolved workspace within the current server process, anchoring subsequent tool calls to the active project session.
+5. **Marker walk-up from CWD**: Traversing upward from the current working directory (`CWD`) searching for `research/.vivechak.json` or an existing `research/` directory (skipping host IDE application folders).
+6. **Guarded CWD**: Root project manifest anchor detection in the CWD (e.g. `package.json`, `go.mod`, `Cargo.toml`, `.git`).
+7. **Fail-Closed Diagnostic**: If none succeed, returns `E-ROOT-UNRESOLVED` instructing the caller to start a research session (e.g. `/compare`, `/decision`, `/project`) or pass `project_root` explicitly.
 
 ---
 
@@ -616,7 +618,7 @@ Defined in [`SaveSessionInput`](../internal/mcp/tool_save_session.go):
 ```
 
 > [!NOTE]
-> **Dynamic Guided Routing:** When saving a session that informs an irreversible **One-Way Door**, `next_step` imperatively directs the agent to run `vivechak_challenge(session_id="...", mode="red_team")` before recording the decision. For synthesis sessions (`SYN-01`, `FAD`), `next_step` directs the agent to run `vivechak_run_gate` to verify exit criteria. If quality observations (`Q-*`) are detected, they are surfaced directly within `next_step` to prevent autonomous agents from bypassing quality coaching.
+> **Dynamic Guided Routing:** When saving a session that informs an irreversible **One-Way Door**, `next_step` imperatively directs the agent to run `vivechak_review(target="...", mode="challenge")` (or legacy alias `vivechak_challenge`) before recording the decision. For synthesis sessions (`SYN-01`, `FAD`), `next_step` directs the agent to run `vivechak_run_gate` to verify exit criteria. If quality observations (`Q-*`) are detected, they are surfaced directly within `next_step` to prevent autonomous agents from bypassing quality coaching.
 
 #### Common Warnings & Quality Observations
 - `[L3-WARN] W-NO-EVIDENCE-GRADES: No inline evidence grades found (expected A-E grades per P3)`

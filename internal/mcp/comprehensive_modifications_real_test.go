@@ -1254,6 +1254,8 @@ date: 2026-10-18
 informed_by_sessions:
   - D-001-S1
 review_trigger: "Breach event occurs"
+human_reviewed: true
+reviewed_by: "Security Architect"
 ---
 # Context
 Authentication.
@@ -1567,6 +1569,9 @@ Adopt SQLite. Grade A (https://sqlite.org)
 - Data > 100 GB.
 `
 	_, _, _ = handleRecordDecision(ctx, nil, RecordDecisionInput{ProjectRoot: tmpDir2, DecisionID: "D-001", Content: adrGood})
+	if _, err := core.SignoffDecision(ws2, "D-001", "Principal Architect"); err != nil {
+		t.Fatalf("signoff failed: %v", err)
+	}
 	res3 := core.EvaluateGate(ws2, info2, tmpDir2)
 	if !res3.Passed {
 		t.Errorf("State 3: expected core GateResult.Passed to be true, got false. Issues: %v", res3.QualityChecks.Issues)
@@ -2128,8 +2133,8 @@ func TestComprehensive_PrepareGenerator_AntiLocalSpillGuidance_AllScopes(t *test
 				t.Fatalf("prepare generator (%s) failed: %v, env: %+v", sc, err, envPrep)
 			}
 
-			if !strings.Contains(envPrep.NextStep, "vivechak_save_plan") {
-				t.Errorf("scope %s next_step missing vivechak_save_plan: %s", sc, envPrep.NextStep)
+			if !strings.Contains(envPrep.NextStep, "vivechak_save") && !strings.Contains(envPrep.NextStep, "vivechak_record_decision") {
+				t.Errorf("scope %s next_step missing vivechak_save / vivechak_record_decision: %s", sc, envPrep.NextStep)
 			}
 			if !strings.Contains(envPrep.NextStep, "Do NOT write to local artifact/brain files") {
 				t.Errorf("scope %s next_step missing anti-local spill directive: %s", sc, envPrep.NextStep)
@@ -2670,7 +2675,7 @@ func TestComprehensive_PromptActionVerbsAndMiddlewareEquivalence(t *testing.T) {
 				"OPTIONS: NATS vs Kafka vs RabbitMQ",
 				"CRITERIA: Throughput, Multi-Tenancy",
 				"CONTEXT: High-throughput messaging fabric",
-				"vivechak_save_plan",
+				"vivechak_save",
 				"C-NNN-comparison.md",
 			},
 		},
@@ -2686,7 +2691,7 @@ func TestComprehensive_PromptActionVerbsAndMiddlewareEquivalence(t *testing.T) {
 			mustSubstr: []string{
 				"DECISION: Migrate from REST to gRPC for inter-service communication",
 				"CONTEXT: Low-latency microservices cluster",
-				"vivechak_save_plan",
+				"vivechak_save",
 				"vivechak_record_decision",
 			},
 		},
@@ -2703,7 +2708,7 @@ func TestComprehensive_PromptActionVerbsAndMiddlewareEquivalence(t *testing.T) {
 				"Build next-generation distributed vector search engine",
 				"Rust, SIMD optimizations",
 				"RESEARCH-PIPELINE.md",
-				"pipeline_content",
+				"vivechak_save",
 			},
 		},
 		{
@@ -3014,6 +3019,286 @@ Easy to switch to Redis if memory limits approached.
 		gateData := gateEnv.Data.(map[string]any)
 		if gateData["gate_status"] != "PASS" || gateData["gate_passed"] != true {
 			t.Errorf("two-way door decision should PASS gate, got: %s (passed=%v)", gateData["gate_status"], gateData["gate_passed"])
+		}
+	})
+
+	// -------------------------------------------------------------------------
+	// Part 4: Multi-Decision Signoff with Table & Details Sync under Concurrency & Isolation
+	// -------------------------------------------------------------------------
+	t.Run("MultiDecisionSignoff_Isolation_And_SequentialTrackBPassage", func(t *testing.T) {
+		tmpDir := t.TempDir()
+
+		// 4.1 Init decision scope
+		_, err := cs.CallTool(ctx, &mcp.CallToolParams{
+			Name: "vivechak_init",
+			Arguments: map[string]any{
+				"project_root": tmpDir,
+				"scope":        "decision",
+			},
+		})
+		if err != nil {
+			t.Fatalf("init failed: %v", err)
+		}
+
+		// 4.1b Save research session S1-01 so structural gate requirements pass
+		s1 := `---
+session_id: S1-01
+title: Core Storage and Consensus Dilemma
+date: 2026-10-25
+status: complete
+---
+# Research Session: Core Storage and Consensus
+## Key Findings
+- Finding 1: PostgreSQL provides robust JSONB querying. Grade A (https://postgresql.org)
+- Finding 2: Raft consensus provides leader election. Grade A (https://raft.github.io)
+`
+		_, err = cs.CallTool(ctx, &mcp.CallToolParams{
+			Name: "vivechak_save_session",
+			Arguments: map[string]any{
+				"project_root": tmpDir,
+				"session_id":   "S1-01",
+				"content":      s1,
+			},
+		})
+		if err != nil {
+			t.Fatalf("save_session failed: %v", err)
+		}
+
+		// 4.2 Record D-001 (Two-Way), D-002 (One-Way unreviewed), D-003 (One-Way unreviewed)
+		d1 := `---
+decision_id: D-001
+title: Transport Layer
+status: accepted
+door_type: two-way
+informed_by_sessions: ["S1-01"]
+date: 2026-10-25
+---
+# Context
+We need transport protocol for microservices.
+# Decision
+HTTP/2. Grade A (https://tools.ietf.org/html/rfc7540)
+# Consequences
+Easily swappable with gRPC.
+`
+		d2 := `---
+decision_id: D-002
+title: Core Datastore
+status: accepted
+door_type: one-way
+review_trigger: "Latency > 100ms for p99 queries"
+human_reviewed: false
+informed_by_sessions: ["S1-01"]
+date: 2026-10-25
+---
+# Context
+Primary datastore selection for entity records.
+# Decision
+PostgreSQL. Grade A (https://postgresql.org)
+## Rejected Alternatives
+- MySQL: lacked required JSONB indexing performance.
+- MongoDB: lacks relational consistency model required.
+`
+		d3 := `---
+decision_id: D-003
+title: Consensus Algorithm
+status: accepted
+door_type: one-way
+review_trigger: "Split-brain event observed in cluster"
+human_reviewed: false
+informed_by_sessions: ["S1-01"]
+date: 2026-10-25
+---
+# Context
+Distributed consensus protocol selection.
+# Decision
+Raft. Grade A (https://raft.github.io)
+## Rejected Alternatives
+- Paxos: rejected due to implementation complexity and edge cases.
+- Gossip: insufficient linearizable consistency guarantees.
+`
+		for _, dec := range []struct {
+			id      string
+			content string
+		}{
+			{"D-001", d1},
+			{"D-002", d2},
+			{"D-003", d3},
+		} {
+			_, err := cs.CallTool(ctx, &mcp.CallToolParams{
+				Name: "vivechak_record_decision",
+				Arguments: map[string]any{
+					"project_root": tmpDir,
+					"decision_id":  dec.id,
+					"content":      dec.content,
+				},
+			})
+			if err != nil {
+				t.Fatalf("record %s failed: %v", dec.id, err)
+			}
+		}
+
+		// 4.3 Gate must FAIL Track B because D-002 and D-003 lack human review
+		gateRes1, err := cs.CallTool(ctx, &mcp.CallToolParams{
+			Name: "vivechak_run_gate",
+			Arguments: map[string]any{
+				"project_root": tmpDir,
+			},
+		})
+		if err != nil {
+			t.Fatalf("run_gate failed: %v", err)
+		}
+		gateEnv1 := parseEnvelope(t, gateRes1)
+		gateData1 := gateEnv1.Data.(map[string]any)
+		if gateData1["gate_passed"] == true {
+			t.Fatalf("expected gate failure on unreviewed One-Way Doors D-002 & D-003, but passed")
+		}
+
+		// Verify warning message mentions both unreviewed decisions
+		foundG11 := false
+		for _, w := range gateEnv1.Warnings {
+			if strings.Contains(w, "G11 Violation") && strings.Contains(w, "D-002") && strings.Contains(w, "D-003") {
+				foundG11 = true
+				break
+			}
+		}
+		if !foundG11 {
+			t.Errorf("expected G11 Violation warning mentioning D-002 and D-003, got: %v", gateEnv1.Warnings)
+		}
+
+		// 4.4 Sign off D-002 ONLY
+		ws, err := store.OpenWorkspace(tmpDir)
+		if err != nil {
+			t.Fatalf("open workspace: %v", err)
+		}
+		if _, err := core.SignoffDecision(ws, "D-002", "Database Lead"); err != nil {
+			ws.Close()
+			t.Fatalf("signoff D-002 failed: %v", err)
+		}
+		ws.Close()
+
+		// 4.5 Inspect DECISIONS.md: D-002 must be signed off, D-003 must remain unsigned
+		decFile, _ := os.ReadFile(filepath.Join(tmpDir, core.DecisionsFile))
+		decStr := string(decFile)
+		if !strings.Contains(decStr, "<!-- DECISION: D-002 -->") || !strings.Contains(decStr, "<!-- DECISION: D-003 -->") {
+			t.Fatalf("DECISIONS.md missing decision anchors:\n%s", decStr)
+		}
+		// D-002 should have human_reviewed: true and reviewed_by: Database Lead
+		if !strings.Contains(decStr, "reviewed_by: Database Lead") {
+			t.Errorf("expected D-002 in DECISIONS.md to have reviewed_by: Database Lead")
+		}
+
+		// 4.6 Gate must STILL FAIL because D-003 remains unreviewed
+		gateRes2, _ := cs.CallTool(ctx, &mcp.CallToolParams{
+			Name: "vivechak_run_gate",
+			Arguments: map[string]any{
+				"project_root": tmpDir,
+			},
+		})
+		gateEnv2 := parseEnvelope(t, gateRes2)
+		gateData2 := gateEnv2.Data.(map[string]any)
+		if gateData2["gate_passed"] == true {
+			t.Fatalf("expected gate failure because D-003 is still unreviewed, but passed")
+		}
+
+		// 4.7 Sign off D-003
+		ws2, _ := store.OpenWorkspace(tmpDir)
+		if _, err := core.SignoffDecision(ws2, "D-003", "Distributed Systems Lead"); err != nil {
+			ws2.Close()
+			t.Fatalf("signoff D-003 failed: %v", err)
+		}
+		ws2.Close()
+
+		// 4.8 Gate must now PASS with all One-Way Doors human-reviewed!
+		gateRes3, _ := cs.CallTool(ctx, &mcp.CallToolParams{
+			Name: "vivechak_run_gate",
+			Arguments: map[string]any{
+				"project_root": tmpDir,
+			},
+		})
+		gateEnv3 := parseEnvelope(t, gateRes3)
+		gateData3 := gateEnv3.Data.(map[string]any)
+		if gateData3["gate_status"] != "PASS" || gateData3["gate_passed"] != true {
+			t.Fatalf("expected gate PASS after all signoffs, got: %s (passed=%v, warnings=%v, message=%s)", gateData3["gate_status"], gateData3["gate_passed"], gateEnv3.Warnings, gateEnv3.Message)
+		}
+	})
+
+	// -------------------------------------------------------------------------
+	// Part 5: ReplanInPlace Markdown Topology Table Full Roundtrip
+	// -------------------------------------------------------------------------
+	t.Run("ReplanInPlace_MarkdownTopologyTable_SequentialOperations", func(t *testing.T) {
+		initialPipeline := `# Research Pipeline
+
+## Pipeline Topology
+
+| ID | Topic | Dependencies | Output File |
+|---|---|---|---|
+| T0-01 | Architecture Landscape | none | sessions/T0-01.md |
+| T1-01 | Data Tier | T0-01 | sessions/T1-01.md |
+
+## Session Prompts
+
+### Session T0-01: Architecture Landscape
+| **Field** | **Value** |
+|---|---|
+| **ID** | T0-01 |
+| **Dependencies** | none |
+
+` + "```prompt\nLandscape\n```" + `
+
+### Session T1-01: Data Tier
+| **Field** | **Value** |
+|---|---|
+| **ID** | T1-01 |
+| **Dependencies** | T0-01 |
+
+` + "```prompt\nData Tier\n```" + `
+
+` + "```yaml vivechak-plan\nsessions:\n  - id: T0-01\n    dependencies: []\n  - id: T1-01\n    dependencies: [T0-01]\n```"
+
+		// Operation 1: add_session T1-02
+		updated1, err := core.ReplanInPlace([]byte(initialPipeline), "add_session", core.ReplanParams{
+			SessionID:    "T1-02",
+			Topic:        "Cache Tier",
+			Dependencies: []string{"T0-01"},
+			Prompt:       "Cache Tier prompt",
+		})
+		if err != nil {
+			t.Fatalf("add_session failed: %v", err)
+		}
+		str1 := string(updated1)
+		if !strings.Contains(str1, "| T1-02 | Cache Tier | T0-01 | sessions/T1-02.md |") {
+			t.Errorf("expected added row in Pipeline Topology table, got:\n%s", str1)
+		}
+
+		// Operation 2: update_deps on T1-02 to depend on T1-01
+		updated2, err := core.ReplanInPlace(updated1, "update_deps", core.ReplanParams{
+			SessionID:    "T1-02",
+			Dependencies: []string{"T1-01"},
+		})
+		if err != nil {
+			t.Fatalf("update_deps failed: %v", err)
+		}
+		str2 := string(updated2)
+		if !strings.Contains(str2, "| T1-02 | Cache Tier | T1-01 | sessions/T1-02.md |") {
+			t.Errorf("expected updated row in Pipeline Topology table with T1-01, got:\n%s", str2)
+		}
+
+		// Operation 3: remove_session T1-01
+		updated3, err := core.ReplanInPlace(updated2, "remove_session", core.ReplanParams{
+			SessionID: "T1-01",
+		})
+		if err != nil {
+			t.Fatalf("remove_session failed: %v", err)
+		}
+		str3 := string(updated3)
+		if strings.Contains(str3, "| T1-01 | Data Tier |") {
+			t.Errorf("expected T1-01 row to be removed from Pipeline Topology table, got:\n%s", str3)
+		}
+		if strings.Contains(str3, "Session T1-01: Data Tier") {
+			t.Errorf("expected T1-01 session prompt section to be removed, got:\n%s", str3)
+		}
+		if !strings.Contains(str3, "| T1-02 | Cache Tier |") {
+			t.Errorf("expected T1-02 row to still exist in Pipeline Topology table, got:\n%s", str3)
 		}
 	})
 }

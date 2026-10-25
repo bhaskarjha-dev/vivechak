@@ -96,7 +96,7 @@ npx -y vck mcp-config
 
 ## Documentation & Repository
 
-For complete documentation, methodology, 13 MCP tools reference, and templates, visit the [Vivechak GitHub Repository](https://github.com/bhaskarjha-dev/vivechak).
+For complete documentation, methodology, MCP tools reference, and templates, visit the [Vivechak GitHub Repository](https://github.com/bhaskarjha-dev/vivechak).
 
 ## License
 

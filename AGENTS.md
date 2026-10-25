@@ -187,7 +187,7 @@ vivechak/
 │
 ├── internal/                       ← Server implementation (Go)
 │   ├── core/                       ← Pure logic (workspace, DAG, validation, injection)
-│   ├── mcp/                        ← 13 MCP tool handlers + envelope
+│   ├── mcp/                        ← 9 consolidated MCP tools (with legacy alias redirects) + envelope
 │   ├── store/                      ← Atomic I/O, locking, os.Root confinement
 │   └── embed/                      ← go:embed generators + templates
 │
@@ -209,7 +209,7 @@ vivechak/
 │   ├── MANUAL-WORKFLOW.md          ← Complete manual copy-paste guide
 │   ├── HOST-SETUP.md               ← Universal MCP setup & desktop shortcuts
 │   ├── TROUBLESHOOTING.md          ← Diagnostic guides & error code catalog
-│   ├── MCP-TOOLS.md                ← 13-tool reference with examples
+│   ├── MCP-TOOLS.md                ← MCP tools reference with examples
 │   ├── ARCHITECTURE.md             ← Server internals for contributors
 │   ├── BRAND.md                    ← Brand identity, geometry & design tokens
 │   ├── HARNESS-COMPATIBILITY.md    ← Compatibility matrix across 8 harness categories
@@ -304,7 +304,7 @@ Vivechak includes an empirical multi-harness autonomous testing engine in `tests
    *Runs tests only on harnesses with active tokens/credits.*
 3. **Run Zero-Token Headless MCP Conformance Test (CI / Offline):**
    `node scripts/run_harness.mjs --harness direct_mcp --scenario 01`
-   *Tests all 13 tools deterministically over JSON-RPC stdio with zero external token expenditure.*
+   *Tests all tools (canonical + legacy aliases) deterministically over JSON-RPC stdio with zero external token expenditure.*
 4. **Ingest Dynamic Triage & Extract Polish:**
    `make harness-triage` or `node scripts/run_harness.mjs --triage`
    *Dynamically parses runs, evaluates pass/fail status, and clusters Turn 4 feedback.*

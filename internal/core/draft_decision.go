@@ -271,7 +271,7 @@ func DraftDecisionFromSessionWithExisting(existingADR []byte, sessionContent []b
 	if isSubstantiveSection(existChallenge) {
 		b.WriteString(existChallenge + "\n\n")
 	} else {
-		b.WriteString("> Required for One-Way Doors: run `vivechak_challenge(session_id=\"...\", mode=\"red_team\")` before commitment.\n")
+		b.WriteString("> Required for One-Way Doors: run `vivechak_review(target=\"...\", mode=\"challenge\")` before commitment.\n")
 		b.WriteString("[Document disconfirming search results, premortem failure modes, and adversarial stress-test findings.]\n\n")
 	}
 

@@ -10,6 +10,7 @@ Vivechak uses structured, deterministic codes across its MCP server envelope, va
 | `E-INVALID-SCOPE` | Unknown research scope provided | Specify `"comparison"`, `"decision"`, or `"project"` |
 | `E-INVALID-ARGUMENT` | Missing or malformed required argument | Check tool schema requirements |
 | `E-SESSION-NOT-FOUND` | Target session ID does not exist in DAG or workspace | Verify session ID with `vivechak_status` |
+| `E-TTY-REQUIRED` | Interactive TTY required for decision signoff | Run in an interactive terminal or provide `VCK_APPROVER_SECRET` (min 16 chars) in CI |
 | `E-INTERNAL` | Internal handler panic caught cleanly without crashing stdio | Inspect stderr logs and report defect |
 | `E-CONFLICT` | Conflicting session IDs or concurrent edit detected | Review revision history in `research/.history/` |
 | `E-LOCKED` | Target workspace file is locked by a concurrent subagent | Wait for lock release or inspect `research/.locks/` |
@@ -26,6 +27,8 @@ Surfaced non-blockingly during `vivechak_save(kind="session")` and `vivechak_rev
 | `Q-GRADE-INFLATION` | Session contains >60% Grade A claims without URL verification | Prevents rubber-stamping AI recall as authoritative documentation |
 | `Q-CONCERNS-MISSING` | Discovered Concerns section is empty or <50 characters | Prevents hyper-literalism; ensures adjacent risks are documented |
 | `Q-DELTA-BIAS` | 100% of prior assumptions were marked as 'Confirmed' | Guards against confirmation bias; real research surfaces surprises |
+| `Q-BIAS` | All Delta updates started from 'Unknown' priors | Anti-Goodhart guard: ensures substantive prior beliefs are evaluated |
+| `Q-DENSITY` | Substantive session cites fewer than 2 distinct external sources | Improves citation diversity across independent benchmarks and docs |
 | `Q-LOW-FINDINGS` | Fewer than 2 key findings documented in session | Session lacks sufficient depth to inform architectural commitments |
 
 ---

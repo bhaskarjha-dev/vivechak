@@ -658,7 +658,7 @@ func verifyDecisionsMechanical(ws WorkspaceFS, info WorkspaceInfo) (bool, []stri
 				missingReviewTrigger++
 				missingReviewDetails = append(missingReviewDetails, fmt.Sprintf("'%s' (id: %s)", sourceFile, id))
 			}
-			// Check human_reviewed for one-way doors (advisory, not blocking)
+			// Check human_reviewed for one-way doors (hard blocking for Track B)
 			reviewed := strings.ToLower(strings.TrimSpace(fm.GetString("human_reviewed")))
 			if reviewed != "true" {
 				unreviewedOneWay++
@@ -705,7 +705,12 @@ func verifyDecisionsMechanical(ws WorkspaceFS, info WorkspaceInfo) (bool, []stri
 		}
 
 		// Check for unexpanded placeholders in decision chunk
-		if phs := ScanPlaceholders(chunk); len(phs) > 0 {
+		scanChunk := chunk
+		if file == DecisionsFile {
+			reTmpl := regexp.MustCompile(`(?s)<!-- DECISION:\s*(?:D-NNN|D-000|C-NNN)\s*-->.*?<!-- /DECISION:\s*(?:D-NNN|D-000|C-NNN)\s*-->`)
+			scanChunk = reTmpl.ReplaceAll(scanChunk, nil)
+		}
+		if phs := ScanPlaceholders(scanChunk); len(phs) > 0 {
 			issues = append(issues, fmt.Sprintf("E-PLACEHOLDER-REMAINS: Decision file %s contains unexpanded placeholder %q", file, phs[0]))
 		}
 	}
@@ -732,14 +737,15 @@ func verifyDecisionsMechanical(ws WorkspaceFS, info WorkspaceInfo) (bool, []stri
 		issues = append(issues, msg)
 	}
 
-	// Advisory: warn about unreviewed one-way doors (not blocking)
+	// Check human_reviewed for one-way doors (hard blocking for Track B)
 	var advisories []string
 	if unreviewedOneWay > 0 {
 		idList := strings.Join(unreviewedIDs, ", ")
-		advisories = append(advisories, fmt.Sprintf("⚠ %d one-way door decision(s) lack human review: %s. Consider reviewing before implementation.", unreviewedOneWay, idList))
+		msg := fmt.Sprintf("G11 Violation: %d One-Way Door decision(s) lack human review: %s.\n  help: run `vck signoff <decision-id>` in an interactive terminal to record human approval before passing Phase 0 Gate.", unreviewedOneWay, idList)
+		issues = append(issues, msg)
 	}
 
-	return allAccepted && missingReviewTrigger == 0, issues, advisories
+	return allAccepted && missingReviewTrigger == 0 && unreviewedOneWay == 0, issues, advisories
 }
 
 // recalledCitationRe matches explicit recalled verification methods, avoiding false positives on general memory topics (RAM, heap).

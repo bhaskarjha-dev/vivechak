@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/bhaskarjha-dev/vivechak/internal/core"
+	"github.com/bhaskarjha-dev/vivechak/internal/store"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -1005,6 +1006,8 @@ title: Primary Datastore
 status: accepted
 door_type: one-way
 review_trigger: "Throughput exceeds 50k ops"
+human_reviewed: true
+reviewed_by: "Lead Architect"
 date: 2026-09-27
 ---
 # Decision: Primary Datastore
@@ -2021,6 +2024,17 @@ We evaluated DuckDB and PostgreSQL; rejected due to client-side embedded deploym
 		},
 	})
 
+	// Perform human signoff on D-001
+	wsSign, err := store.OpenWorkspace(tmpDir)
+	if err != nil {
+		t.Fatalf("open workspace for signoff: %v", err)
+	}
+	if _, err := core.SignoffDecision(wsSign, "D-001", "Principal Architect"); err != nil {
+		wsSign.Close()
+		t.Fatalf("signoff D-001: %v", err)
+	}
+	wsSign.Close()
+
 	// 10. Run gate -> MUST PASS!
 	resGate3, err := cs.CallTool(ctx, &mcp.CallToolParams{
 		Name:      "vivechak_run_gate",
@@ -2164,6 +2178,17 @@ We evaluated basic auth and API tokens; rejected due to security considerations.
 			"content":       validOneWay,
 		},
 	})
+
+	// Perform human signoff on D-001
+	wsSign, err := store.OpenWorkspace(tmpDir)
+	if err != nil {
+		t.Fatalf("open workspace for signoff: %v", err)
+	}
+	if _, err := core.SignoffDecision(wsSign, "D-001", "Security Architect"); err != nil {
+		wsSign.Close()
+		t.Fatalf("signoff D-001: %v", err)
+	}
+	wsSign.Close()
 
 	// 9. Gate MUST PASS
 	res3, _ := cs.CallTool(ctx, &mcp.CallToolParams{

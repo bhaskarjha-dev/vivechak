@@ -66,9 +66,9 @@ func HasProjectAnchor(dir string) bool {
 //  1. Explicit project_root argument
 //  2. (Skipped in headless mode; see ResolveWorkspaceWithRoots)
 //  3. Environment variables (VIVECHAK_PROJECT_ROOT -> VCK_PROJECT_ROOT -> VIVECHAK_DEFAULT_ROOT -> VCK_DEFAULT_ROOT)
-//  4. Marker walk-up from CWD (checking research/.vivechak.json and research/)
-//  5. Guarded CWD (project manifest anchor detection)
-//  6. In-process session memory
+//  4. In-process session memory (anchors subsequent calls in the active session)
+//  5. Marker walk-up from CWD (checking research/.vivechak.json and research/)
+//  6. Guarded CWD (project manifest anchor detection)
 //  7. Fail-closed with E-ROOT-UNRESOLVED
 func ResolveWorkspace(explicit string) (string, error) {
 	return ResolveWorkspaceWithRoots(context.Background(), explicit, nil)
@@ -149,7 +149,7 @@ func ResolveWorkspaceWithRoots(ctx context.Context, explicit string, roots []str
 		}
 	}
 
-	// Step 4: Fall back to in-process session memory (anchored in this session)
+	// Step 4: In-process session memory (anchors subsequent calls in the active session)
 	if cached := GetLastResolvedWorkspace(); cached != "" {
 		if fi, err := os.Stat(cached); err == nil && fi.IsDir() {
 			if err := SafeRoot(cached); err == nil {
