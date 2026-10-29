@@ -6,8 +6,8 @@ The Phase 0 Gate is Vivechak's mechanical pre-codebase exit audit. It verifies t
 
 | Track | Target Decisions | Governing Rules | Philosophy |
 |---|---|---|---|
-| **Track A** | **Two-Way Doors** (Type 2 Decisions) | Checks A1–A4 (Rule G12 + common rules) | **Velocity-Calibrated:** Fast spike or convention decision (~70% information). Reversibility confirmation and review triggers. |
-| **Track B** | **One-Way Doors** (Type 1 Decisions) | Checks B1–B11 (Rules G1–G11) | **Rigor-Calibrated:** High evidentiary threshold (Grade A/B), verified provenance, substantive alternatives, human sign-off, and red-team challenge. |
+| **Track A** | **Two-Way Doors** (Type 2 Decisions) | Checks A1–A4 (Rules G11–G12) | **Velocity-Calibrated:** Fast spike or convention decision (~70% information). Reversibility confirmation and review triggers. |
+| **Track B** | **One-Way Doors** (Type 1 Decisions) | Checks B1–B11 (Rules G1–G10) | **Rigor-Calibrated:** High evidentiary threshold (Grade A/B), verified provenance, substantive alternatives, and red-team challenge. |
 
 ---
 

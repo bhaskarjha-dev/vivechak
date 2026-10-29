@@ -61,53 +61,37 @@ Resolves the next unblocked research session in a project dependency DAG using K
 Provides workspace health, detected scope, completed sessions count, and current DAG topology state.
 - **Parameters:**
   - `project_root` (string, optional): Absolute path to project workspace directory.
-  - `format` (string, optional): Output format: `"text"` (default) or `"mermaid"` (Mermaid DAG flowchart diagram).
 
 ---
 
 ## 6. `vivechak_review`
-Inspects research deliverables for quality validation or adversarial stress testing.
+Executes non-blocking evidentiary quality coaching across session contents, detecting grade inflation, missing concerns, and delta confirmation bias.
 - **Parameters:**
-  - `mode` (string, optional): Review mode: `"validate"` (dry-run 4-level quality checks on content or workspace) or `"challenge"` (generates adversarial red-team critique prompts for One-Way Doors).
-  - `target` (string, optional): Target session ID (e.g. `T1-01`), decision ID (e.g. `D-001`), or artifact path.
-  - `artifact_type` (string, optional): What to validate when `mode="validate"`: `"session"`, `"decision"`, `"plan"`, `"comparison"`, or `"fad"`. Omit to validate entire workspace.
-  - `content` (string, optional): Markdown content to validate in memory (dry run); omit to inspect saved files.
-  - `project_root` (string, optional): Absolute path to project workspace directory.
+  - `session_id` (string, required): Session ID under review.
+  - `content` (string, required): Session Markdown content to evaluate.
 
 ---
 
 ## 7. `vivechak_amend`
-Amends an existing completed research session or decision while archiving prior revisions in `research/.history/`.
+Amends an existing completed research session while archiving prior versions in `research/.history/`.
 - **Parameters:**
-  - `session_id` (string, required): Session ID (`T1-01`), decision ID (`D-001`), or comparison ID (`C-01`) to amend (alias: `target`).
-  - `amendment` (string, required): Amendment Markdown content to append (alias: `content`).
-  - `reason` (string, optional): Rationale or summary for the amendment.
-  - `amending_session_id` (string, optional): Session ID that discovered the amendment (for traceability).
-  - `project_root` (string, optional): Absolute path to project workspace directory.
+  - `session_id` (string, required): Session ID to amend.
+  - `content` (string, required): Updated Markdown content.
+  - `reason` (string, optional): Justification for amendment.
 
 ---
 
 ## 8. `vivechak_replan`
-Dynamically modifies the project dependency DAG, adding, removing, or updating sessions based on discovered architectural forks. Call with empty arguments for a guided overview.
+Dynamically modifies the project dependency DAG, adding or pruning sessions based on discovered architectural forks.
 - **Parameters:**
-  - `operation` (string, optional): Replan operation: `"add_session"`, `"remove_session"`, `"update_deps"`, or `"update_prompt"`.
-  - `session_id` (string, optional): Target session identifier (e.g. `T1-02`).
-  - `reason` (string, optional): Architectural finding or requirement prompting the replan.
-  - `impact` (string, optional): Intended effect on DAG topology or affected downstream sessions.
-  - `layer` (string, optional): Layer number when adding a session (e.g. `"1"`).
-  - `topic` (string, optional): Session title/topic when adding a session.
-  - `prompt` (string, optional): Research prompt text when adding a session.
-  - `dependencies` (string, optional): Comma-separated dependency session IDs when adding a session.
-  - `door_type` (string, optional): Decision reversibility for the session: `"one-way"` or `"two-way"`.
-  - `decision_ref` (string, optional): Associated decision ID (e.g. `"D-001"`).
-  - `new_prompt` (string, optional): Replacement prompt markdown when `operation="update_prompt"`.
-  - `new_dependencies` (string, optional): Replacement comma-separated dependencies when `operation="update_deps"`.
-  - `project_root` (string, optional): Absolute path to project workspace directory.
+  - `action` (string, required): `"add_session"` or `"remove_session"`.
+  - `session_id` (string, required): Target session identifier.
+  - `session_def` (string, optional): Session definition table line when adding.
 
 ---
 
 ## 9. `vivechak_gate`
 Mechanically evaluates Phase 0 Exit Gate criteria prior to writing code.
 - **Parameters:**
-  - `track` (string, optional): Gate evaluation track: `"all"` (default), `"track_a"` (Two-Way Doors), or `"track_b"` (One-Way Doors).
+  - `track` (string, optional): `"all"`, `"track_a"` (Two-Way Doors), or `"track_b"` (One-Way Doors).
   - `project_root` (string, optional): Absolute path to project workspace directory.

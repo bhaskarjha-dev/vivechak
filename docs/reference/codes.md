@@ -10,12 +10,10 @@ Vivechak uses structured, deterministic codes across its MCP server envelope, va
 | `E-INVALID-SCOPE` | Unknown research scope provided | Specify `"comparison"`, `"decision"`, or `"project"` |
 | `E-INVALID-ARGUMENT` | Missing or malformed required argument | Check tool schema requirements |
 | `E-SESSION-NOT-FOUND` | Target session ID does not exist in DAG or workspace | Verify session ID with `vivechak_status` |
-| `E-TTY-REQUIRED` | Interactive TTY required for decision signoff | Run in an interactive terminal or provide `VCK_APPROVER_SECRET` (min 16 chars) in CI |
 | `E-INTERNAL` | Internal handler panic caught cleanly without crashing stdio | Inspect stderr logs and report defect |
 | `E-CONFLICT` | Conflicting session IDs or concurrent edit detected | Review revision history in `research/.history/` |
 | `E-LOCKED` | Target workspace file is locked by a concurrent subagent | Wait for lock release or inspect `research/.locks/` |
 | `E-FILE-EXISTS` | File already exists and overwrite flag was false | Use amend tool or confirm overwrite |
-| `E-PLACEHOLDER-REMAINS` | Accepted ADR or FAD contains unexpanded bracketed placeholders | Replace all template or auto-draft placeholders with empirical findings before locking ADR |
 
 ---
 
@@ -28,8 +26,6 @@ Surfaced non-blockingly during `vivechak_save(kind="session")` and `vivechak_rev
 | `Q-GRADE-INFLATION` | Session contains >60% Grade A claims without URL verification | Prevents rubber-stamping AI recall as authoritative documentation |
 | `Q-CONCERNS-MISSING` | Discovered Concerns section is empty or <50 characters | Prevents hyper-literalism; ensures adjacent risks are documented |
 | `Q-DELTA-BIAS` | 100% of prior assumptions were marked as 'Confirmed' | Guards against confirmation bias; real research surfaces surprises |
-| `Q-BIAS` | All Delta updates started from 'Unknown' priors | Anti-Goodhart guard: ensures substantive prior beliefs are evaluated |
-| `Q-DENSITY` | Substantive session cites fewer than 2 distinct external sources | Improves citation diversity across independent benchmarks and docs |
 | `Q-LOW-FINDINGS` | Fewer than 2 key findings documented in session | Session lacks sufficient depth to inform architectural commitments |
 
 ---
@@ -45,19 +41,3 @@ Evaluated during deliverable persistence:
 | `V-REC-UNSUPPORTED` | Recommendation not grounded in findings | The chosen option must cite findings documented in the session |
 | `V-GRADE-INVALID` | Evidence grade not in A–E range | All claims must carry recognized grade `[A-E]` |
 | `V-PROVENANCE-INVALID` | Unrecognized provenance tag | Verification must be `fetched`, `cached`, `recalled`, or `human` |
-
----
-
-## 4. Advisory Warning Codes (`W-*`)
-
-Non-blocking diagnostic warnings surfaced in envelope `warnings` arrays:
-
-| Warning Code | Meaning | Remediation |
-|---|---|---|
-| `W-PLACEHOLDER-REMAINS` | Proposed ADR draft contains unexpanded placeholders | Informational during drafting; replace with empirical research findings before promotion to `accepted` |
-| `W-STALE-DOWNSTREAM` | Upstream session was amended after downstream sessions completed | Review downstream deliverables and update with `vivechak_amend` if dependencies changed |
-| `W-STALE-DECISION-REFERENCE` | Session references an ADR that has been superseded | Update citations to the new superseding decision ID (`D-NEW`) |
-| `W-OWD-NO-CHALLENGE` | One-Way Door decision lacks recorded adversarial red-team stress test | Execute `vivechak_review(mode="challenge")` on informing session and record findings in ADR |
-| `W-NO-EVIDENCE-GRADES` | Completed research deliverable lacks inline evidence citations | Add inline evidence grades (`[Grade A]`, `[Grade B]`) to factual claims |
-| `W-RECALLED-GRADE-CAP` | Model parametric memory claim assigned Grade A/B/C | Verify claim against canonical primary sources with web search, or downgrade to Grade D |
-| `W-LOCK-TIMEOUT` | Root FAD mirror lock acquisition timed out under high concurrency | Primary `research/FAD.md` was safely written; copy to root when concurrent agents finish |

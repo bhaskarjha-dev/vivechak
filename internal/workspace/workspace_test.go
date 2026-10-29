@@ -61,12 +61,24 @@ func TestSafeRoot(t *testing.T) {
 	}
 }
 
+func samePath(a, b string) bool {
+	if filepath.Clean(a) == filepath.Clean(b) {
+		return true
+	}
+	ra, errA := filepath.EvalSymlinks(a)
+	rb, errB := filepath.EvalSymlinks(b)
+	return errA == nil && errB == nil && filepath.Clean(ra) == filepath.Clean(rb)
+}
+
 func TestResolveWorkspace_Ladder(t *testing.T) {
 	// Clean slate
 	ResetLastResolvedWorkspace()
 
 	// 1. Explicit path
 	tmpDir := t.TempDir()
+	if realTmp, err := filepath.EvalSymlinks(tmpDir); err == nil {
+		tmpDir = realTmp
+	}
 	explicitDir := filepath.Join(tmpDir, "explicit-proj")
 	_ = os.MkdirAll(explicitDir, 0o755)
 
@@ -74,7 +86,7 @@ func TestResolveWorkspace_Ladder(t *testing.T) {
 	if err != nil {
 		t.Fatalf("explicit resolution failed: %v", err)
 	}
-	if filepath.Clean(res) != filepath.Clean(explicitDir) {
+	if !samePath(res, explicitDir) {
 		t.Errorf("got %q, want %q", res, explicitDir)
 	}
 
@@ -88,7 +100,7 @@ func TestResolveWorkspace_Ladder(t *testing.T) {
 	if err != nil {
 		t.Fatalf("MCP roots resolution failed: %v", err)
 	}
-	if filepath.Clean(res) != filepath.Clean(mcpDir) {
+	if !samePath(res, mcpDir) {
 		t.Errorf("got %q, want %q", res, mcpDir)
 	}
 
@@ -102,7 +114,7 @@ func TestResolveWorkspace_Ladder(t *testing.T) {
 	if err != nil {
 		t.Fatalf("env resolution failed: %v", err)
 	}
-	if filepath.Clean(res) != filepath.Clean(envDir) {
+	if !samePath(res, envDir) {
 		t.Errorf("got %q, want %q", res, envDir)
 	}
 
@@ -127,7 +139,7 @@ func TestResolveWorkspace_Ladder(t *testing.T) {
 	if err != nil {
 		t.Fatalf("walk-up resolution failed: %v", err)
 	}
-	if filepath.Clean(res) != filepath.Clean(walkDir) {
+	if !samePath(res, walkDir) {
 		t.Errorf("got %q, want %q", res, walkDir)
 	}
 
@@ -142,7 +154,7 @@ func TestResolveWorkspace_Ladder(t *testing.T) {
 	if err != nil {
 		t.Fatalf("anchor resolution failed: %v", err)
 	}
-	if filepath.Clean(res) != filepath.Clean(anchorDir) {
+	if !samePath(res, anchorDir) {
 		t.Errorf("got %q, want %q", res, anchorDir)
 	}
 
