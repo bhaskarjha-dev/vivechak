@@ -133,7 +133,7 @@ jobs:
             echo "::notice::PYPI_API_TOKEN is not set; skipping PyPI package publish."
           fi
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         if: steps.check_token.outputs.has_token == 'true'
         with:
           python-version: "3.11"
