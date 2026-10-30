@@ -17,17 +17,17 @@ This test suite is designed to verify how **small models** (e.g. Claude 3.5 Haik
 | **05** | **High-Stakes One-Way Door**<br>*(Multi-Session Deep Research)* | `vivechak decide: mongo vs postgres for our clinic app... storing patient medical records and lab reports`<br>*(or strategic: `strategic decision: direct enterprise sales vs partner reseller`)* | `vivechak_start(scope="decision")`<br>Regulatory/HIPAA $X=3$ or $R=3$, priority of decision markers over project words, routes to Deep Research |
 | **06** | **Full Venture / Project Pipeline**<br>*(Multi-Tier Research DAG → FAD)* | `hey vivechak plan my new startup idea. its basically uber but for dog walkers. need gps and stripe`<br>*(or venture: `new venture: decentralized renewable energy peer-to-peer microgrid trading marketplace`)* | `vivechak_start(scope="project")`<br>Disentangles 2-col metadata tables from 4-col session tables, outputs `RESEARCH-PIPELINE.md` + initial `DECISIONS.md` |
 | **07** | **Quality Coaching & 50-Char Gate**<br>*(Non-blocking `Q-*` Observations)* | `save this session output for T0-01: Gin is fastest framework [Grade A], zero memory, no downsides...` | `vivechak_save(kind="session")`<br>Surfaces `Q-GRADE-INFLATION`, `Q-MISSING-CONCERNS`, `Q-LOW-FINDINGS` in `next_step`, enforces $\ge 50$ char threshold |
-| **08** | **Adversarial Red-Team Challenge**<br>*(Two-Tier Lookup & Resilient Aliases)* | `bro can u roast my decision? we chose microservices with kafka for 3-person team. use vivechak challenge` | `vivechak_review` / `vivechak_challenge`<br>Accepts `decision_id` and `challenge_type="premortem"` aliases, resolves `research/sessions/` and standalone `research/D-*.md` / `research/C-*.md` |
+| **08** | **Adversarial Red-Team Challenge**<br>*(Two-Tier Lookup & Resilient Aliases)* | `bro can u roast my decision? we chose microservices with kafka for 3-person team. use vivechak challenge` | `vivechak_review(mode="challenge")`<br>Accepts `decision_id` and `challenge_type="premortem"` aliases, resolves `research/sessions/` and standalone `research/D-*.md` / `research/C-*.md` |
 | **09** | **Incremental Session / ADR Amendment**<br>*(Two-Tier Lookup & Auto-Registry Sync)* | `update session T0-01 with this benchmark finding: pino latency is 12ms under load`<br>*(or: amend standalone ADR `D-01` or comparison `C-01`)* | `vivechak_amend`<br>Accepts `content` and `reason` aliases, two-tier lookup patches files in `research/sessions/` or `research/`, auto-recompiles `DECISIONS.md` on ADR amendment (E-41) |
 | **10** | **Formal ADR Recording**<br>*(Canonical ADR Compilation)* | `lock decision D-01 as accepted with postgres. reversal trigger is >50k concurrent writes. rejected was mongo` | `vivechak_record_decision`<br>Compiles canonical `research/D-01-*.md` into consolidated `research/DECISIONS.md` registry |
 | **11** | **Dynamic DAG Re-planning**<br>*(Requirement Pivot / Invalidation)* | `wait stop! boss said no postgres allowed, oracle only! can vivechak update our plan?` | `vivechak_replan`<br>Guided overview mode or direct mutation with `reason` and `impact` metadata |
 | **12** | **Mechanical Phase 0 Exit Gate**<br>*(Active Track Filtering & Decoupling)* | `yo can i start coding the backend now?? run the gate thing in vivechak`<br>*(or: `vck gate --track all`)* | `vivechak_gate` / `vck gate`<br>Active track filtering (`track="track_a"`, `"track_b"`, `"all"`), headless CI CLI, isolated blocking issues, decoupled Two-Way Door pass (E-40, E-42) |
 | **13** | **Status & Graph Visualization**<br>*(Scope-Aware Diagnostics & Visuals)* | `vivechak status? show me visual graph if u can` | `vivechak_status`<br>Scope-aware status: counts standalone `C-*.md` files, terminal `next_step` for comparisons (E-38, E-42), Mermaid/ASCII graph |
 | **14** | **Multi-Tier Workspace Audit**<br>*(Automated Dry-Run Discovery)* | `check all our research files for any formatting or evidentiary errors` | `vivechak_review(mode="validate")` / `vck doctor`<br>Auto-discovers and validates sessions, decision plans (`*-plan.md`), standalone ADRs (`D-*.md`), comparisons (`C-*.md`), and FAD |
-| **15** | **AST Code Fence Truncation Immunity**<br>*(CommonMark Fence Tracking E-28)* | `save this session with code block containing bash comments # in discovered concerns` | `vivechak_save_session`<br>`FenceTracker` prevents code `#` comments from truncating sections or triggering `V-OWD-NO-CONCERNS` |
+| **15** | **AST Code Fence Truncation Immunity**<br>*(CommonMark Fence Tracking E-28)* | `save this session with code block containing bash comments # in discovered concerns` | `vivechak_save`<br>`FenceTracker` prevents code `#` comments from truncating sections or triggering `V-OWD-NO-CONCERNS` |
 | **16** | **CLI Shorthand Scope Recognition**<br>*(Command Prefix Detection E-34)* | `vck compare winston vs pino` or `vck decide: mongo vs postgres` or `vck plan new b2b saas` | `InferScope` via `vck setup` / `prepare_generator`<br>Instantly routes to comparison, decision, or project without regex ambiguity |
-| **17** | **Dual-Source Decision Resolution**<br>*(Zero Split-Brain E-29)* | `run gate on workspace with standalone D-01.md and registry DECISIONS.md` | `vivechak_run_gate` & `vivechak_validate`<br>Scans both standalone files and consolidated registry concurrently with ID deduplication |
-| **18** | **Evidence Ledger URL Cross-Referencing**<br>*(Quality Engine Provenance E-32)* | `save session citing CLAIM-01 with Grade A where URL is in Sources Ledger table` | `vivechak_save_session`<br>Cross-references ledger table anchors, excludes table rows from claim counts, 0 false alarms |
+| **17** | **Dual-Source Decision Resolution**<br>*(Zero Split-Brain E-29)* | `run gate on workspace with standalone D-01.md and registry DECISIONS.md` | `vivechak_gate` & `vivechak_review(mode="validate")`<br>Scans both standalone files and consolidated registry concurrently with ID deduplication |
+| **18** | **Evidence Ledger URL Cross-Referencing**<br>*(Quality Engine Provenance E-32)* | `save session citing CLAIM-01 with Grade A where URL is in Sources Ledger table` | `vivechak_save`<br>Cross-references ledger table anchors, excludes table rows from claim counts, 0 false alarms |
 | **19** | **Universal Host Auto-Configuration**<br>*(21 Desktop & CLI Harnesses)* | `vck setup cursor`, `vck setup claude-code`, `vck setup continue`, or `vck mcp-config` | `vck setup` / `vck mcp-config`<br>Zero-loss JSON merging, number preservation, and instant host configuration |
 | **20** | **Pre-Coding Workspace Integrity Check**<br>*(Automated CLI Doctor)* | `vck doctor` or `vivechak doctor /path/to/project` | `vck doctor`<br>Workspace layout audit, frontmatter checks, orphan detection, and active scope diagnostics |
 | **21** | **Out-of-Scope Anti-Pattern Guardrail**<br>*(Direct Code Authoring & Bug Fixing)* | `Write a python function to compute HMAC-SHA256` or `Fix this typescript type error` | **Zero Tool Calls (Skip Vivechak)**<br>Agent directly answers/writes code without calling research tools |
@@ -67,10 +67,10 @@ Run a compliance check on our research: did you use qualified provenance [Grade 
 ## Scenario 01: Universal Option Comparison (Scope Inference & Bounded Isolation)
 
 ### Intent & Engineering Context
-The user wants to compare two or more options. The model should call `vivechak_prepare_generator` with `scope: "comparison"`.
+The user wants to compare two or more options. The model should call `vivechak_start` with `scope: "comparison"`.
 Even if the small model omits `scope`, Vivechak's `core.InferScope` automatically detects comparison triggers (`" vs "`, `"compare "`, `"which is faster"`, `"which model"`, `"which algorithm"`, `"which library"`).
-`vivechak_prepare_generator` is 100% read-only and will NOT modify the filesystem.
-When the comparison matrix is saved via `vivechak_save_plan`, Vivechak bypasses DAG cycle checks because comparisons are standalone Weighted Evaluation Protocol (WEP) matrices.
+`vivechak_start` is 100% read-only and will NOT modify the filesystem.
+When the comparison matrix is saved via `vivechak_save`, Vivechak bypasses DAG cycle checks because comparisons are standalone Weighted Evaluation Protocol (WEP) matrices.
 
 ### 🧪 Test Prompt 1A: Software Library Shootout (Typo & Slang)
 ```text
@@ -93,7 +93,7 @@ which algorithm is faster between b-tree vs lsm-tree for write heavy storage eng
 ```
 
 ### Expected Agent Behavior
-1. **Tool Invocation:** Calls `vivechak_prepare_generator`.
+1. **Tool Invocation:** Calls `vivechak_start`.
    - `scope`: `"comparison"` (Explicitly passed or automatically inferred).
    - `context`: The user's query and options.
 2. **Read-Only Invariant:** Tool returns the generator prompt with injected context. No files or folders are created.
@@ -102,7 +102,7 @@ which algorithm is faster between b-tree vs lsm-tree for write heavy storage eng
    - WEP Scoring Matrix (1–5 weighted criteria).
    - Failure modes for each candidate.
    - Evidence grades with verified sources (`[Grade A, URL/RFC]`).
-4. **Persist (Optional / Minimal):** Calls `vivechak_save_plan` with `scope: "comparison"` and `decision_id: "C-01"` (or auto-recovered).
+4. **Persist (Optional / Minimal):** Calls `vivechak_save` with `scope: "comparison"` and `decision_id: "C-01"` (or auto-recovered).
    - **Zero-Bloat Guarantee:** The server creates only `research/C-01-comparison.md` and copies ONLY `COMPARISON-SESSION.template.md`. It does NOT scaffold the 6-template project pipeline or empty DAG folders.
 
 ### 🔍 Forensic Evaluation Checklist
@@ -116,11 +116,11 @@ which algorithm is faster between b-tree vs lsm-tree for write heavy storage eng
 ## Scenario 02: Skipped Init Auto-Creation (Resilient Auto-Init & ID Recovery)
 
 ### Intent & Engineering Context
-Small models frequently skip calling `vivechak_init` and jump straight from generating a plan or comparison matrix to calling `vivechak_save_plan`.
+Small models frequently skip calling `vivechak_start` and jump straight from generating a plan or comparison matrix to calling `vivechak_save`.
 Vivechak automatically initializes the workspace on-the-fly, auto-detects or recovers the decision identifier (`C-01`, `D-01`) from table headers or section titles, copies only scope-appropriate templates, and bypasses DAG cycle constraints for standalone comparison files.
 
 ### 🧪 Test Prompt
-*(Run this in a brand new empty folder where `vivechak_init` was NOT called yet)*
+*(Run this in a brand new empty folder where `vivechak_start` was NOT called yet)*
 ```text
 use vivechak save plan for this comparison between pino and winston:
 # Comparison Plan: C-01
@@ -141,7 +141,7 @@ Pino is recommended for high throughput.
 ```
 
 ### Expected Agent Behavior
-1. Model calls `vivechak_save_plan` directly with `content: "..."` and `scope: "comparison"` (or omitting `decision_id`).
+1. Model calls `vivechak_save` directly with `content: "..."` and `scope: "comparison"` (or omitting `decision_id`).
 2. **On-the-Fly Initialization:**
    - Detects missing `.vivechak.json`.
    - Creates `research/`, `research/sessions/`, `research/templates/`.
@@ -150,7 +150,7 @@ Pino is recommended for high throughput.
    - Auto-extracts `decision_id: "C-01"` from `| Decision | C-01 |`.
    - Writes `research/C-01-comparison.md`.
    - Skips DAG cycle checks for comparison scope.
-3. Returns `success: true` with terminal completion guidance in `next_step` ("Single-session comparison complete (no DAG or gate required)") instead of suggesting `vivechak_next_session`.
+3. Returns `success: true` with terminal completion guidance in `next_step` ("Single-session comparison complete (no DAG or gate required)") instead of suggesting `vivechak_next`.
 
 ### 🔍 Forensic Evaluation Checklist
 - [ ] Did the tool succeed without returning "workspace not initialized" error?
@@ -171,7 +171,7 @@ Tests that `ScanCompletedSessions` respects `status: draft` (preventing prematur
 ```text
 vivechak plan: minimal url shortener in golang with redis and postgres
 ```
-*(Wait for model to save the plan with `vivechak_save_plan`)*
+*(Wait for model to save the plan with `vivechak_save`)*
 
 ### 🧪 Test Prompt 3B (Follow-up Vague Prompt)
 ```text
@@ -183,14 +183,14 @@ continue
 ```
 
 ### Expected Agent Behavior
-1. Model inspects previous tool's `next_step`: `"Run vivechak_next_session to get the first research session prompt."`
-2. Model calls `vivechak_next_session()`.
+1. Model inspects previous tool's `next_step`: `"Run vivechak_next to get the first research session prompt."`
+2. Model calls `vivechak_next()`.
 3. Vivechak resolves the DAG, selects the next unblocked node (e.g. `T0-01`), injects upstream context, and returns the prompt brief.
-4. Model executes the brief with web search and calls `vivechak_save_session(session_id="T0-01", content=...)`.
+4. Model executes the brief with web search and calls `vivechak_save(kind="session", session_id="T0-01", content=...)`.
 5. When valid, `tool_save_session` marks `status: complete` and returns the next unblocked session in `next_step`.
 
 ### 🔍 Forensic Evaluation Checklist
-- [ ] Did the model call `vivechak_next_session` without needing manual explanation?
+- [ ] Did the model call `vivechak_next` without needing manual explanation?
 - [ ] Did it preserve the exact session ID (`T0-01`)?
 - [ ] Did it avoid asking the user "What should I do next?"
 
@@ -200,7 +200,7 @@ continue
 
 ### Intent & Engineering Context
 The user asks an architectural question that is easily reversible (can be swapped later without database migration or enterprise contracts).
-The model should invoke `vivechak_prepare_generator(scope="decision")`. The decision generator profiles door type: Reversal Cost $R=1$, Blast Radius $B=1$, Team Familiarity $N=1$, routing to **Fast Spike (1 session)** or **Confirm & Commit** rather than an unnecessary multi-session enterprise pipeline.
+The model should invoke `vivechak_start(scope="decision")`. The decision generator profiles door type: Reversal Cost $R=1$, Blast Radius $B=1$, Team Familiarity $N=1$, routing to **Fast Spike (1 session)** or **Confirm & Commit** rather than an unnecessary multi-session enterprise pipeline.
 
 ### 🧪 Test Prompt 4A: Frontend Framework Dilemma (Slang & Misspelling)
 ```text
@@ -213,14 +213,14 @@ use vivechak decide in-memory caching vs redis for dev spike... team is 2 junior
 ```
 
 ### Expected Agent Behavior
-1. **Tool Invocation:** Calls `vivechak_prepare_generator` with `scope: "decision"`.
+1. **Tool Invocation:** Calls `vivechak_start` with `scope: "decision"`.
    - `scope`: `"decision"`
    - `context`: Injects user question, constraints ("2 junior devs", "small saas"), and options.
 2. **Execution:** Produces `[ID]-PLAN.md` with:
    - Door Profile: **Two-Way Door**.
    - Lane: **Fast Spike** (1 session) or **Confirm & Commit**.
    - Pre-allocated proposed ADR `D-01-data-fetching.md`.
-3. **Persist:** Saves plan via `vivechak_save_plan(scope="decision")`.
+3. **Persist:** Saves plan via `vivechak_save(scope="decision")`.
 4. Returns concise next step for the single spike session.
 
 ### 🔍 Forensic Evaluation Checklist
@@ -247,13 +247,13 @@ strategic decision: direct enterprise sales vs partner reseller for our European
 ```
 
 ### Expected Agent Behavior
-1. **Tool Invocation:** Calls `vivechak_prepare_generator` with `scope: "decision"`.
+1. **Tool Invocation:** Calls `vivechak_start` with `scope: "decision"`.
 2. **Door Profiling:**
    - Detects `patient medical records` (Regulatory $X=3$, HIPAA/PHI) OR 7-figure enterprise contracts / GDPR ($R=3$).
    - Categorizes as **One-Way Door**.
    - Routes to **Deep Research Lane** (2–3 sessions: Landscape `L`, Comparison `C`, Falsification `F`).
    - Targets **Gate Track B** (rigorous checks, red-team challenge required).
-3. **Persist:** Calls `vivechak_save_plan` saving `research/D-01-plan.md` and draft ADR in `research/DECISIONS.md`.
+3. **Persist:** Calls `vivechak_save` saving `research/D-01-plan.md` and draft ADR in `research/DECISIONS.md`.
 4. Auto-recovers decision ID `D-01` from plan routing tables.
 
 ### 🔍 Forensic Evaluation Checklist
@@ -267,7 +267,7 @@ strategic decision: direct enterprise sales vs partner reseller for our European
 
 ### Intent & Engineering Context
 User presents a broad product idea or comprehensive new system.
-Calls `vivechak_prepare_generator(scope="project")`.
+Calls `vivechak_start(scope="project")`.
 Tests that Vivechak's DAG parser safely disentangles 2-column key-value metadata tables (`| Field | Value |`) from 4-column horizontal session tables (`| ID | Layer | Door Type | Dependencies |`) and guards against rubric tables, successfully producing `RESEARCH-PIPELINE.md` and initial `DECISIONS.md`.
 
 ### 🧪 Test Prompt 6A: Startup Product Pitch ("Uber for Dogs")
@@ -281,18 +281,18 @@ new venture: decentralized renewable energy peer-to-peer microgrid trading marke
 ```
 
 ### Expected Agent Behavior
-1. **Tool Invocation:** Calls `vivechak_prepare_generator` with `scope: "project"`.
+1. **Tool Invocation:** Calls `vivechak_start` with `scope: "project"`.
 2. **Pipeline Generation:** Produces `RESEARCH-PIPELINE.md` containing:
    - Layer 0: Foundational choices (Protocols / Tech stack).
    - Layer 1: Core engines (Matching / Real-time dispatch).
    - Layer 2: Supporting services (Payments, Auth, Notifications).
    - Terminal Synthesis: `SYN-01` (`research/FAD.md`).
-3. **Persist:** Calls `vivechak_save_plan` writing `research/RESEARCH-PIPELINE.md` and `research/DECISIONS.md`.
+3. **Persist:** Calls `vivechak_save` writing `research/RESEARCH-PIPELINE.md` and `research/DECISIONS.md`.
 4. Returns total session count and points to `T0-01` via `next_step`.
 
 ### 🔍 Forensic Evaluation Checklist
 - [ ] Did the model output clean session IDs (`T0-01`, `T1-01`) without illegal prefixes?
-- [ ] Did `vivechak_save_plan` pass validation with 0 blocking L2 errors?
+- [ ] Did `vivechak_save` pass validation with 0 blocking L2 errors?
 - [ ] Does the plan include the terminal synthesis session (`SYN-01` → `FAD.md`)?
 
 ---
@@ -301,7 +301,7 @@ new venture: decentralized renewable energy peer-to-peer microgrid trading marke
 
 ### Intent & Engineering Context
 Small models frequently generate ungrounded, hyper-optimistic claims without URLs or citations, and forget to document failure modes.
-When saving a session with `vivechak_save_session`, Vivechak runs `core.ObserveSessionQuality` and injects non-blocking `Q-*` coaching observations directly into `next_step`:
+When saving a session with `vivechak_save`, Vivechak runs `core.ObserveSessionQuality` and injects non-blocking `Q-*` coaching observations directly into `next_step`:
 - `Q-GRADE-INFLATION`: Grade A claims lacking qualified provenance (canonical URL, RFC, or domain anchor).
 - `Q-MISSING-CONCERNS`: Missing Discovered Concerns section or content under 50 characters (`V-OWD-NO-CONCERNS`). 49 characters is blocked in `status: draft`; $\ge 50$ characters is promoted to `status: complete`.
 - `Q-DELTA-CONFIRMATION-BIAS`: Discovered concerns identical to or confirming preferred option.
@@ -322,7 +322,7 @@ Everyone uses Gin. No downsides found.
 ```
 
 ### Expected Agent Behavior
-1. Model calls `vivechak_save_session(session_id="T0-01", content=...)`.
+1. Model calls `vivechak_save(kind="session", session_id="T0-01", content=...)`.
 2. Vivechak evaluates the content:
    - Flags unqualified `[Grade A]` without URL/RFC (`Q-GRADE-INFLATION`).
    - Flags missing Discovered Concerns (`Q-MISSING-CONCERNS`).
@@ -341,7 +341,7 @@ Everyone uses Gin. No downsides found.
 ## Scenario 08: Adversarial Red-Team Challenge (Two-Tier Lookup & Resilient Aliases)
 
 ### Intent & Engineering Context
-Test `vivechak_challenge` to run an adversarial red-team probe.
+Test `vivechak_review(mode="challenge")` to run an adversarial red-team probe.
 Verifies parameter aliasing: accepts `decision_id` (alias for `session_id`) and `challenge_type="premortem"` (alias for `mode="red_team"`).
 **Key Hardening Feature:** Two-Tier Lookup! The tool searches `research/sessions/` first, and if not found, searches `research/` directly for standalone ADR files (`research/D-01.md`, `research/D-01-database.md`) and comparison matrices (`research/C-01.md`, `research/C-01-comparison.md`).
 
@@ -361,7 +361,7 @@ challenge comparison C-01: probe edge cases and vendor lock-in risks
 ```
 
 ### Expected Agent Behavior
-1. Model calls `vivechak_challenge`:
+1. Model calls `vivechak_review(mode="challenge")`:
    - `decision_id`: `"D-01"` (or `session_id: "D-01"`)
    - `challenge_type`: `"premortem"` (or `mode: "red_team"`)
 2. Two-tier resolution finds the target file in `research/` or `research/sessions/`.
@@ -372,13 +372,13 @@ challenge comparison C-01: probe edge cases and vendor lock-in risks
 4. The model executes the challenge prompt and reports the falsification critique.
 
 ### 🔍 Forensic Evaluation Checklist
-- [ ] Did `vivechak_challenge` accept `decision_id` and `challenge_type` aliases without error?
+- [ ] Did `vivechak_review(mode="challenge")` accept `decision_id` and `challenge_type` aliases without error?
 - [ ] Did it successfully resolve standalone files directly in `research/`?
 - [ ] Did the model avoid sycophantically agreeing with the user ("Yes, Kafka is great!")?
 
 ---
 
-## Scenario 09: Incremental Session & ADR Amendment (`vivechak_amend_session`)
+## Scenario 09: Incremental Session & ADR Amendment (`vivechak_amend`)
 
 ### Intent & Engineering Context
 Test appending post-hoc findings or challenge results without overwriting existing files.
@@ -401,7 +401,7 @@ update comparison C-01 with updated pricing tier quotas and token rate limits
 ```
 
 ### Expected Agent Behavior
-1. Model calls `vivechak_amend_session`:
+1. Model calls `vivechak_amend`:
    - `session_id`: `"T0-01"` (or `"D-01"`, `"C-01"`)
    - `content` or `amendment`: The finding text.
    - `reason`: (Optional) rationale summary.
@@ -480,10 +480,10 @@ wait wait stop everything! boss said no postgres allowed, company has strict con
 
 ---
 
-## Scenario 12: Mechanical Phase 0 Exit Gate (`vivechak_run_gate` & Track Filtering)
+## Scenario 12: Mechanical Phase 0 Exit Gate (`vivechak_gate` & Track Filtering)
 
 ### Intent & Engineering Context
-Test `vivechak_run_gate` when the user asks to start writing code.
+Test `vivechak_gate` when the user asks to start writing code.
 The gate decouples validation into two distinct tracks:
 - **Track A (Two-Way Doors):** Fast verification of reversibility and review triggers.
 - **Track B (One-Way Doors):** Rigorous mechanical evaluation of 11 checks (B1–B11):
@@ -527,7 +527,7 @@ vck gate --track track_b --format json
 ```
 
 ### Expected Agent Behavior
-1. Model calls `vivechak_run_gate(track="all")` (or `track="track_a"` / `"track_b"`), or user runs `vck gate` from terminal or CI.
+1. Model calls `vivechak_gate(track="all")` (or `track="track_a"` / `"track_b"`), or user runs `vck gate` from terminal or CI.
 2. Vivechak mechanically inspects all ADRs, sessions, and FAD against decoupled Track A and Track B criteria.
 3. For `track="track_a"`, if all Two-Way Doors pass, it returns `track_a_result: "PASS"` and issues no blocking failures from Track B, giving clearance for prototyping.
 4. If evaluated checks fail, returns binary punch list of blockers scoped to the active track (e.g. `[FAIL] B11: D-01 has no red-team challenge`).
@@ -542,14 +542,14 @@ vck gate --track track_b --format json
 
 ---
 
-## Scenario 13: Quick Status & Visual Graph (`vivechak_status` & `vivechak_visualize`)
+## Scenario 13: Quick Status & Visual Graph (`vivechak_status` & `vivechak_status(format="mermaid")`)
 
 ### Intent & Engineering Context
 User wants a quick pulse check on where the research stands.
 Calls `vivechak_status` to get completed/pending session counts and gate readiness.
 - **Scope-Aware Accounting (E-42):** `InspectWorkspace` discovers and counts standalone comparison matrices (`research/C-*.md`) as completed sessions even when `research/sessions/` is empty.
-- **Terminal Completion Guidance (E-38):** When all sessions are finished (or for Comparison Scope), `vivechak_status` emits a terminal completion `next_step` instead of prompting for `vivechak_next_session`.
-Calls `vivechak_visualize` to generate an ASCII tree or Mermaid diagram representing the research DAG.
+- **Terminal Completion Guidance (E-38):** When all sessions are finished (or for Comparison Scope), `vivechak_status` emits a terminal completion `next_step` instead of prompting for `vivechak_next`.
+Calls `vivechak_status(format="mermaid")` to generate an ASCII tree or Mermaid diagram representing the research DAG.
 
 ### 🧪 Test Prompt
 ```text
@@ -561,7 +561,7 @@ vivechak status? show me visual graph if u can
    - Returns detected scope (`"project"`, `"decision"`, or `"comparison"`).
    - Accurately counts completed sessions (including `research/C-*.md` in comparison scope).
    - If pending sessions exist, identifies next session; if all complete, provides synthesis/gate/terminal completion `next_step`.
-2. Model calls `vivechak_visualize(format="mermaid")` (or `format="table"`).
+2. Model calls `vivechak_status(format="mermaid")` (or `format="table"`).
 3. Model displays the status summary and renders the diagram directly in chat.
 
 ### 🔍 Forensic Evaluation Checklist
@@ -573,11 +573,11 @@ vivechak status? show me visual graph if u can
 
 ---
 
-## Scenario 14: Multi-Tier Workspace Audit (`vivechak_validate`)
+## Scenario 14: Multi-Tier Workspace Audit (`vivechak_review(mode="validate")`)
 
 ### Intent & Engineering Context
 Test running a full dry-run validation across the entire workspace.
-When `vivechak_validate` is called with no content (workspace mode), it automatically discovers and validates all artifacts across all scope tiers:
+When `vivechak_review(mode="validate")` is called with no content (workspace mode), it automatically discovers and validates all artifacts across all scope tiers:
 - Research sessions in `research/sessions/*.md`
 - Decision plans (`research/*-plan.md`) and project pipelines (`research/RESEARCH-PIPELINE.md`)
 - Standalone ADRs (`research/D-*.md`)
@@ -592,7 +592,7 @@ run vivechak validate on the whole workspace to make sure all our research files
 ```
 
 ### Expected Agent Behavior
-1. Model calls `vivechak_validate()`.
+1. Model calls `vivechak_review(mode="validate")`.
 2. Vivechak scans the workspace, discovering:
    - `pipeline`: Validates DAG structure, cycles, dangling references.
    - `sessions`: Validates frontmatter, evidence grades, discovered concerns.
@@ -602,7 +602,7 @@ run vivechak validate on the whole workspace to make sure all our research files
 3. Returns structured summary with remediation hints if any warnings or blocking defects exist.
 
 ### 🔍 Forensic Evaluation Checklist
-- [ ] Did `vivechak_validate` run across the workspace without requiring manual file paths?
+- [ ] Did `vivechak_review(mode="validate")` run across the workspace without requiring manual file paths?
 - [ ] Did it discover standalone ADRs, comparison matrices, and decision plans?
 - [ ] Did it avoid double-counting decisions present in both `D-*.md` and `DECISIONS.md`?
 
@@ -646,7 +646,7 @@ Adopt FoundationDB with Redwood engine [Grade A: https://apple.github.io/foundat
 ```
 
 ### Expected Agent Behavior
-1. Model calls `vivechak_save_session(session_id="T0-01", content=...)`.
+1. Model calls `vivechak_save(kind="session", session_id="T0-01", content=...)`.
 2. `ExtractSection` uses `FenceTracker` to safely retain the code block and trailing text.
 3. Because the extracted text exceeds 50 characters, `V-OWD-NO-CONCERNS` is **not triggered**.
 4. Frontmatter is promoted from `status: draft` to `status: complete`.
@@ -680,9 +680,9 @@ vck plan new b2b payment platform with stripe and plaid
 ```
 
 ### Expected Agent Behavior
-1. For Prompt 16A: Infers `ScopeComparison` (`comparison`) and calls `vivechak_prepare_generator(scope="comparison")`.
-2. For Prompt 16B: Infers `ScopeDecision` (`decision`) and calls `vivechak_prepare_generator(scope="decision")`.
-3. For Prompt 16C: Infers `ScopeProject` (`project`) and calls `vivechak_prepare_generator(scope="project")`.
+1. For Prompt 16A: Infers `ScopeComparison` (`comparison`) and calls `vivechak_start(scope="comparison")`.
+2. For Prompt 16B: Infers `ScopeDecision` (`decision`) and calls `vivechak_start(scope="decision")`.
+3. For Prompt 16C: Infers `ScopeProject` (`project`) and calls `vivechak_start(scope="project")`.
 
 ### 🔍 Forensic Evaluation Checklist
 - [ ] Did `vck compare` trigger `comparison` scope immediately?
@@ -704,7 +704,7 @@ run vivechak gate on our project where decision D-01 is in research/D-01.md and 
 ```
 
 ### Expected Agent Behavior
-1. Model calls `vivechak_run_gate()`.
+1. Model calls `vivechak_gate()`.
 2. Vivechak scans both `research/D-01.md` and `research/DECISIONS.md`.
 3. Discovers both decisions (`D-01` and `D-02`), evaluating Track A for Two-Way Doors and Track B for One-Way Doors.
 4. Returns evaluation results for both decisions without omitting either source.
@@ -752,7 +752,7 @@ Adopt PostgreSQL 16 [Grade A: https://www.postgresql.org/docs/16/release-16.html
 ```
 
 ### Expected Agent Behavior
-1. Model calls `vivechak_save_session(session_id="T0-01", content=...)`.
+1. Model calls `vivechak_save(kind="session", session_id="T0-01", content=...)`.
 2. Vivechak parses the findings and ledger table:
    - Accurately recognizes `[Grade: A]` and `[Grade: B]` via colon-aware evidence grade extraction (`E-37`).
    - Finds URL `https://www.postgresql.org/docs/16/release-16.html` in the ledger.
@@ -864,11 +864,11 @@ Rename variable user_id to account_id in src/auth.ts and update references.
 ```
 
 ### Expected Agent Behavior
-1. **Tool Invocation:** **Zero tool calls.** The agent must NOT call `vivechak_init`, `vivechak_prepare_generator`, or any other Vivechak tool.
+1. **Tool Invocation:** **Zero tool calls.** The agent must NOT call `vivechak_start`, `vivechak_start`, or any other Vivechak tool.
 2. **Direct Execution:** The agent immediately writes the requested Python function, diagnoses/fixes the TypeScript error, or performs the refactoring directly.
 
 ### 🔍 Forensic Evaluation Checklist
-- [ ] Did the model skip calling `vivechak_prepare_generator` or other research tools?
+- [ ] Did the model skip calling `vivechak_start` or other research tools?
 - [ ] Did it directly answer the user's code, syntax, or bug-fix request?
 - [ ] Was the answer delivered without creating any `research/` directories or templates?
 
@@ -878,24 +878,24 @@ Rename variable user_id to account_id in src/auth.ts and update references.
 
 | Test | User Prompt Snippet | Expected First Tool Call | Success Indicator |
 |---|---|---|---|
-| **#1** | `vivechek compare winston vs pino...` | `vivechak_prepare_generator(scope="comparison")` | Scope auto-inferred, read-only brief, generates WEP matrix |
-| **#2** | `save plan for comparison c-01...` | `vivechak_save_plan(scope="comparison")` | Auto-initializes on-the-fly, auto-recovers ID, writes `research/.gitignore` (`*.lock`), terminal completion `next_step` |
-| **#3** | `ok do next step pls` | `vivechak_next_session()` | Seamless sequential execution via `next_step`, respects draft status |
-| **#4** | `use vivechak decide react 19 vs react query...` | `vivechak_prepare_generator(scope="decision")` | Profiles Two-Way Door, produces 1-session Fast Spike ADR |
-| **#5** | `vivechak decide: mongo vs postgres clinic app...` | `vivechak_prepare_generator(scope="decision")` | Profiles One-Way Door ($X=3$), routes Deep Research (L, C, F) |
-| **#6** | `hey vivechak plan my startup... uber for dogs` | `vivechak_prepare_generator(scope="project")` | Disentangles tables, outputs multi-tier DAG in `RESEARCH-PIPELINE.md` |
-| **#7** | `save this session: Gin is fastest [Grade A]...` | `vivechak_save_session()` | Triggers `Q-*` coaching on ungrounded claims, sets `status: draft` |
-| **#8** | `bro roast my decision... use vivechak challenge` | `vivechak_challenge(decision_id="D-01")` | Accepts `decision_id` & `premortem` aliases, two-tier lookup resolves ADR |
-| **#9** | `update session T0-01 with benchmark finding...` | `vivechak_amend_session(session_id="T0-01")` | Accepts `content` & `reason` aliases, two-tier lookup patches file, auto-recompiles `DECISIONS.md` on ADR amendments |
+| **#1** | `vivechek compare winston vs pino...` | `vivechak_start(scope="comparison")` | Scope auto-inferred, read-only brief, generates WEP matrix |
+| **#2** | `save plan for comparison c-01...` | `vivechak_save(scope="comparison")` | Auto-initializes on-the-fly, auto-recovers ID, writes `research/.gitignore` (`*.lock`), terminal completion `next_step` |
+| **#3** | `ok do next step pls` | `vivechak_next()` | Seamless sequential execution via `next_step`, respects draft status |
+| **#4** | `use vivechak decide react 19 vs react query...` | `vivechak_start(scope="decision")` | Profiles Two-Way Door, produces 1-session Fast Spike ADR |
+| **#5** | `vivechak decide: mongo vs postgres clinic app...` | `vivechak_start(scope="decision")` | Profiles One-Way Door ($X=3$), routes Deep Research (L, C, F) |
+| **#6** | `hey vivechak plan my startup... uber for dogs` | `vivechak_start(scope="project")` | Disentangles tables, outputs multi-tier DAG in `RESEARCH-PIPELINE.md` |
+| **#7** | `save this session: Gin is fastest [Grade A]...` | `vivechak_save(kind="session", )` | Triggers `Q-*` coaching on ungrounded claims, sets `status: draft` |
+| **#8** | `bro roast my decision... use vivechak challenge` | `vivechak_review(mode="challenge", decision_id="D-01")` | Accepts `decision_id` & `premortem` aliases, two-tier lookup resolves ADR |
+| **#9** | `update session T0-01 with benchmark finding...` | `vivechak_amend(session_id="T0-01")` | Accepts `content` & `reason` aliases, two-tier lookup patches file, auto-recompiles `DECISIONS.md` on ADR amendments |
 | **#10**| `record decision D-01: Title is Primary DB...` | `vivechak_record_decision(decision_id="D-01")` | Compiles canonical ADR to `research/D-01-*.md` and updates `DECISIONS.md` |
 | **#11**| `wait stop! boss said no postgres... update plan` | `vivechak_replan(reason="...")` | Guided overview mode or modifies affected nodes with `reason` and `impact` metadata |
-| **#12**| `yo can i start coding now?? run gate track a` | `vivechak_run_gate(track="track_a")` or `vck gate` | Evaluates mechanical criteria, headless CLI (`vck gate`), returns structured `track_filter`, decouples Two-Way Door pass |
-| **#13**| `vivechak status? show me visual graph if u can` | `vivechak_status()` + `vivechak_visualize()` | Returns structured status counts (counts standalone `C-*.md`), terminal completion `next_step`, renders Mermaid/ASCII graph |
-| **#14**| `run vivechak validate on the whole workspace` | `vivechak_validate()` | Multi-tier auto-discovery validates sessions, plans, ADRs, comparisons |
-| **#15**| `save session with bash comments # in code block` | `vivechak_save_session()` | `FenceTracker` prevents `#` comment from truncating section |
+| **#12**| `yo can i start coding now?? run gate track a` | `vivechak_gate(track="track_a")` or `vck gate` | Evaluates mechanical criteria, headless CLI (`vck gate`), returns structured `track_filter`, decouples Two-Way Door pass |
+| **#13**| `vivechak status? show me visual graph if u can` | `vivechak_status()` + `vivechak_status(format="mermaid")` | Returns structured status counts (counts standalone `C-*.md`), terminal completion `next_step`, renders Mermaid/ASCII graph |
+| **#14**| `run vivechak validate on the whole workspace` | `vivechak_review(mode="validate")` | Multi-tier auto-discovery validates sessions, plans, ADRs, comparisons |
+| **#15**| `save session with bash comments # in code block` | `vivechak_save(kind="session", )` | `FenceTracker` prevents `#` comment from truncating section |
 | **#16**| `vck compare winston vs pino` | `InferScope` via `prepare_generator` | Command shorthand triggers comparison scope immediately |
-| **#17**| `run gate with standalone D-01 and DECISIONS.md` | `vivechak_run_gate()` | Evaluates dual sources without omission, deduplicates IDs |
-| **#18**| `save session citing Grade A with URL in table` | `vivechak_save_session()` | Cross-references ledger table anchors, parses `[Grade: A]` colon syntax, 0 false alarms |
+| **#17**| `run gate with standalone D-01 and DECISIONS.md` | `vivechak_gate()` | Evaluates dual sources without omission, deduplicates IDs |
+| **#18**| `save session citing Grade A with URL in table` | `vivechak_save(kind="session", )` | Cross-references ledger table anchors, parses `[Grade: A]` colon syntax, 0 false alarms |
 | **#19**| `vck setup cursor` or `vck mcp-config` | CLI setup command | Number-preserving merge across 21 presets, valid JSON |
 | **#20**| `vck doctor` | CLI doctor command | Reports active scope, template layout, and frontmatter health |
 | **#21**| `Write a python function to compute HMAC...` | None (Direct Execution) | Agent directly writes code/fixes bug, 0 Vivechak tool calls |
@@ -906,11 +906,11 @@ Rename variable user_id to account_id in src/auth.ts and update references.
 
 | Observed Model Failure Mode | Why It Happens in Small Models | Vivechak Built-in Defense & Remediation |
 |---|---|---|
-| **Memory Hallucination**<br>*(Answering comparison from training weights without calling tool)* | Small models have high bias to immediately generate answer text. | Front-loaded `ServerInstructions`: `"MANDATORY TRIGGER RULES: ALWAYS invoke vivechak_prepare_generator for comparisons..."` |
-| **Skipping `vivechak_init`**<br>*(Calling `save_plan` on an uninitialized directory)* | Small models forget multi-step setup sequences. | `tool_save_plan` detects missing `.vivechak.json` and auto-initializes workspace on-the-fly, generating `research/.gitignore` (`*.lock`). |
+| **Memory Hallucination**<br>*(Answering comparison from training weights without calling tool)* | Small models have high bias to immediately generate answer text. | Front-loaded `ServerInstructions`: `"MANDATORY TRIGGER RULES: ALWAYS invoke vivechak_start for comparisons..."` |
+| **Skipping `vivechak_start`**<br>*(Calling `save_plan` on an uninitialized directory)* | Small models forget multi-step setup sequences. | `tool_save_plan` detects missing `.vivechak.json` and auto-initializes workspace on-the-fly, generating `research/.gitignore` (`*.lock`). |
 | **Argument Misnaming**<br>*(Passing `decision_id` instead of `session_id`, or `content` instead of `amendment`)* | Small models confuse argument names across similar tools. | `tool_challenge` and `tool_amend_session` accept aliases (`decision_id`, `challenge_type`, `content`, `reason`). |
 | **Skipping Decision Recording**<br>*(Leaving decisions as generator stubs in `DECISIONS.md`)* | Models assume generated plan stubs are finalized decisions. | `tool_save_session` generates `auto_draft_from` one-liners in `next_step` to guide immediate ADR recording. |
-| **Skipping the Exit Gate**<br>*(Finishing synthesis and telling user "Done! Ready to code")* | Models don't realize the Phase 0 Gate is mandatory before coding. | `tool_save_session` upon `SYN-01` save explicitly directs the agent to call `vivechak_run_gate` in `next_step`. |
+| **Skipping the Exit Gate**<br>*(Finishing synthesis and telling user "Done! Ready to code")* | Models don't realize the Phase 0 Gate is mandatory before coding. | `tool_save_session` upon `SYN-01` save explicitly directs the agent to call `vivechak_gate` in `next_step`. |
 | **Track Contamination at Exit Gate**<br>*(Blocked from coding fast Two-Way Door spikes due to unrelated One-Way Door checks)* | Gate monolithic evaluation blocks all coding regardless of reversibility. | Active track filtering (`track="track_a"`, `E-40`) and decoupled clearance (`E-42`) allow reversible tasks to pass independently. |
 | **Registry Drift on Amendment**<br>*(Amending standalone `D-*.md` without updating `research/DECISIONS.md`)* | Models don't remember to patch both the ADR file and consolidated registry table. | `tool_amend_session` automatically recompiles `research/DECISIONS.md` whenever an ADR file is amended (`E-41`). |
 | **Grade Inflation**<br>*(Assigning `[Grade A]` to unverified claims from memory)* | Models use Grade A as a rhetorical emphasis tool. | `core.ObserveSessionQuality` flags `Q-GRADE-INFLATION` in `next_step`, keeping session in `status: draft`. |

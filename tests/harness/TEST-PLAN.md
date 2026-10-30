@@ -74,21 +74,21 @@ Based on your execution experience in this session, suggest all potential improv
 
 | Scenario | Scope | Target MCP Tool & Key Feature | Primary Invariant to Verify |
 |---|---|---|---|
-| **01** | Comparison | `vivechak_prepare_generator(scope="comparison")` | Auto-inferred comparison scope, 0 DAG, 0 gate, WEP matrix generated |
-| **02** | Comparison | `vivechak_save_plan` (skipped init) | On-the-fly auto-init, auto-recovers ID, writes `research/.gitignore` (`*.lock`) |
-| **03** | Project | `vivechak_next_session` | DAG traversal, upstream context injection, respects draft status |
-| **04** | Decision | `vivechak_prepare_generator(scope="decision")` | Profiles Two-Way Door ($R=1$), routes to 1-session Fast Spike ADR |
-| **05** | Decision | `vivechak_prepare_generator(scope="decision")` | Profiles One-Way Door ($R=3, X=3$), routes to Deep Research (L, C, F) |
-| **06** | Project | `vivechak_prepare_generator(scope="project")` | Multi-tier DAG in `RESEARCH-PIPELINE.md`, disentangles metadata tables |
-| **07** | Project | `vivechak_save_session` | Non-blocking `Q-*` coaching in `next_step`, 50-char concern gate |
-| **08** | Decision | `vivechak_challenge` | Aliases (`decision_id`, `premortem`), two-tier lookup in `research/` |
-| **09** | Decision | `vivechak_amend_session` | Aliases (`content`, `reason`), two-tier lookup, auto-recompiles `DECISIONS.md` |
+| **01** | Comparison | `vivechak_start(scope="comparison")` | Auto-inferred comparison scope, 0 DAG, 0 gate, WEP matrix generated |
+| **02** | Comparison | `vivechak_save(kind="comparison")` | On-the-fly auto-init, auto-recovers ID, writes `research/.gitignore` (`*.lock`) |
+| **03** | Project | `vivechak_next` | DAG traversal, upstream context injection, respects draft status |
+| **04** | Decision | `vivechak_start(scope="decision")` | Profiles Two-Way Door ($R=1$), routes to 1-session Fast Spike ADR |
+| **05** | Decision | `vivechak_start(scope="decision")` | Profiles One-Way Door ($R=3, X=3$), routes to Deep Research (L, C, F) |
+| **06** | Project | `vivechak_start(scope="project")` | Multi-tier DAG in `RESEARCH-PIPELINE.md`, disentangles metadata tables |
+| **07** | Project | `vivechak_save(kind="session")` | Non-blocking `Q-*` coaching in `next_step`, 50-char concern gate |
+| **08** | Decision | `vivechak_review(mode="challenge")` | Aliases (`decision_id`, `premortem`), two-tier lookup in `research/` |
+| **09** | Decision | `vivechak_amend` | Aliases (`content`, `reason`), two-tier lookup, auto-recompiles `DECISIONS.md` |
 | **10** | Decision | `vivechak_record_decision` | Canonical ADR `D-*.md` compiled into consolidated `DECISIONS.md` |
 | **11** | Project | `vivechak_replan` | Guided overview mode or updates DAG dependencies with `reason` and `impact` |
-| **12** | Project | `vivechak_run_gate` & `vck gate` | Active track filtering (`track_a` vs `track_b`), decoupled Two-Way Door pass |
-| **13** | All | `vivechak_status` & `vivechak_visualize` | Scope-aware session accounting, terminal completion `next_step`, Mermaid |
-| **14** | All | `vivechak_validate` | Workspace mode auto-discovers sessions, plans, ADRs, comparisons, FAD |
-| **15** | Project | `vivechak_save_session` (AST Code Fence) | CommonMark `FenceTracker` ignores `#` inside code blocks |
+| **12** | Project | `vivechak_gate` & `vck gate` | Active track filtering (`track_a` vs `track_b`), decoupled Two-Way Door pass |
+| **13** | All | `vivechak_status(format="mermaid")` | Scope-aware session accounting, terminal completion `next_step`, Mermaid |
+| **14** | All | `vivechak_review(mode="validate")` | Workspace mode auto-discovers sessions, plans, ADRs, comparisons, FAD |
+| **15** | Project | `vivechak_save(kind="session")` (AST Code Fence) | CommonMark `FenceTracker` ignores `#` inside code blocks |
 | **16** | All | `InferScope` via `vck` prefixes | CLI command prefixes (`vck compare`, `vck decide`, `vck plan`) route scope |
 | **17** | All | Dual-Source Decision Scanner | Scans both `D-*.md` and `DECISIONS.md` concurrently with ID deduplication |
 | **18** | Project | `core.ObserveSessionQuality` | Cross-references URLs in ledger tables, parses `[Grade: A]` colon syntax |
