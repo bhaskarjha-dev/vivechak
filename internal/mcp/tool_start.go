@@ -21,6 +21,7 @@ type StartInput struct {
 	ProjectRoot string   `json:"project_root,omitempty" jsonschema:"workspace root path (optional; auto-discovered if omitted)"`
 	Scope       string   `json:"scope,omitempty"        jsonschema:"research scope: 'comparison' (comparing 2-5 options) | 'decision' (single architectural decision/ADR) | 'project' (full system architecture pipeline)"`
 	Question    string   `json:"question,omitempty"     jsonschema:"the technical dilemma, comparison options, or project vision"`
+	Context     string   `json:"context,omitempty"      jsonschema:"additional project context, constraints, or architecture brief (alias for question)"`
 	Options     []string `json:"options,omitempty"      jsonschema:"optional list of named options to compare (e.g. ['Pino', 'Winston'])"`
 	Criteria    string   `json:"criteria,omitempty"     jsonschema:"optional key evaluation criteria or constraints"`
 	Part        int      `json:"part,omitempty"         jsonschema:"optional 1-based part index for multi-part delivery of large project briefs"`
@@ -125,10 +126,15 @@ func handleStart(_ context.Context, _ *sdkmcp.CallToolRequest, in StartInput) (*
 
 	root = absRoot
 
+	question := strings.TrimSpace(in.Question)
+	if question == "" && strings.TrimSpace(in.Context) != "" {
+		question = strings.TrimSpace(in.Context)
+	}
+
 	rawScope := strings.ToLower(strings.TrimSpace(in.Scope))
 	if rawScope == "" {
-		if strings.TrimSpace(in.Question) != "" {
-			rawScope = string(core.InferScope(in.Question))
+		if question != "" {
+			rawScope = string(core.InferScope(question))
 		} else {
 			rawScope = "project"
 		}
@@ -187,11 +193,22 @@ func handleStart(_ context.Context, _ *sdkmcp.CallToolRequest, in StartInput) (*
 		Scope:     scope,
 		CreatedAt: time.Now().UTC().Format(time.RFC3339),
 	}
+	if ws.FileExists(core.MetadataFile) {
+		if existingData, err := ws.ReadFile(core.MetadataFile); err == nil {
+			var existingMeta core.WorkspaceMeta
+			if err := json.Unmarshal(existingData, &existingMeta); err == nil {
+				if existingMeta.CreatedAt != "" {
+					meta.CreatedAt = existingMeta.CreatedAt
+				}
+				meta.Schema = existingMeta.Schema
+				meta.Counters = existingMeta.Counters
+			}
+		}
+	}
 	if metaBytes, err := json.Marshal(meta); err == nil {
 		_ = store.WriteFileAtomic(ws.Root(), core.MetadataFile, metaBytes, 0o644)
 	}
 
-	question := strings.TrimSpace(in.Question)
 	data := map[string]any{
 		"workspace_root":   root,
 		"scope":            scope,
@@ -442,48 +459,36 @@ func handlePrepareGenerator(ctx context.Context, req *sdkmcp.CallToolRequest, in
 	})
 }
 
+var (
+	comparisonDelimRe  = regexp.MustCompile(`(?i)\s+(?:vs\.?|versus)\s+`)
+	comparisonPrefixRe = regexp.MustCompile(`(?i)^(?:compare|evaluate|benchmark|choose between|decide between|which one is better:|which is better,|which is better:)\s+`)
+	comparisonSuffixRe = regexp.MustCompile(`(?i)\s+(?:for|in|with|when|under|on|as|to|across|over|within)\s+.*$`)
+	comparisonMidRe    = regexp.MustCompile(`(?i)\s+(?:vs\.?|versus|or)\s+`)
+)
+
 func extractComparisonOptions(ctx string) string {
-	lower := strings.ToLower(ctx)
-	delims := []string{" vs. ", " vs ", " versus "}
-	for _, delim := range delims {
-		if idx := strings.Index(lower, delim); idx != -1 {
-			left := strings.TrimSpace(ctx[:idx])
-			right := strings.TrimSpace(ctx[idx+len(delim):])
-			prefixes := []string{
-				"compare ", "evaluate ", "benchmark ", "choose between ", "decide between ",
-				"which one is better: ", "which is better, ", "which is better: ",
-			}
-			for _, p := range prefixes {
-				if strings.HasPrefix(strings.ToLower(left), p) {
-					left = strings.TrimSpace(left[len(p):])
-					break
-				}
-			}
-			suffixes := []string{" for ", " in ", " with ", " when ", " under ", " on ", " as ", " to ", " across ", " over ", " within "}
-			for _, s := range suffixes {
-				if sIdx := strings.Index(strings.ToLower(right), s); sIdx != -1 {
-					right = strings.TrimSpace(right[:sIdx])
-					break
-				}
-			}
+	loc := comparisonDelimRe.FindStringIndex(ctx)
+	if loc == nil {
+		return ""
+	}
+	left := strings.TrimSpace(ctx[:loc[0]])
+	right := strings.TrimSpace(ctx[loc[1]:])
 
-			// Normalize any additional intermediate comparison delimiters in right (e.g. A vs B vs C)
-			for _, mid := range []string{" vs. ", " vs ", " versus ", " or "} {
-				for {
-					mIdx := strings.Index(strings.ToLower(right), mid)
-					if mIdx == -1 {
-						break
-					}
-					right = strings.TrimSpace(right[:mIdx]) + ", " + strings.TrimSpace(right[mIdx+len(mid):])
-				}
-			}
+	// Strip leading comparison verbs
+	left = comparisonPrefixRe.ReplaceAllString(left, "")
+	left = strings.TrimSpace(left)
 
-			left = strings.Trim(left, "?!.,:;")
-			right = strings.Trim(right, "?!.,:;")
-			if left != "" && right != "" {
-				return left + ", " + right
-			}
-		}
+	// Strip trailing prepositional context
+	right = comparisonSuffixRe.ReplaceAllString(right, "")
+	right = strings.TrimSpace(right)
+
+	// Normalize additional intermediate delimiters (e.g., A vs B vs C)
+	right = comparisonMidRe.ReplaceAllString(right, ", ")
+
+	left = strings.Trim(left, "?!.,:;")
+	right = strings.Trim(right, "?!.,:;")
+	if left != "" && right != "" {
+		return left + ", " + right
 	}
 	return ""
 }

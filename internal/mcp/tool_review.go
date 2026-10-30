@@ -15,14 +15,15 @@ import (
 
 // ReviewInput holds the arguments for vivechak_review.
 type ReviewInput struct {
-	ProjectRoot  string `json:"project_root,omitempty"  jsonschema:"workspace root path (optional)"`
-	Mode         string `json:"mode,omitempty"          jsonschema:"review mode: 'validate' (dry-run quality validation) | 'challenge' (adversarial red-team stress test)"`
-	Target       string `json:"target,omitempty"        jsonschema:"target session ID (e.g. T1-01) or decision ID (e.g. D-001) or artifact path"`
-	ID           string `json:"id,omitempty"            jsonschema:"alias for target (e.g. T1-01, D-001)"`
-	SessionID    string `json:"session_id,omitempty"    jsonschema:"alias for target"`
-	DecisionID   string `json:"decision_id,omitempty"   jsonschema:"alias for target"`
-	ArtifactType string `json:"artifact_type,omitempty" jsonschema:"what to validate when mode='validate': 'session' | 'decision' | 'plan' | 'comparison' | 'fad' (omit with empty content for workspace validation)"`
-	Content      string `json:"content,omitempty"       jsonschema:"content to validate (dry run); omit for workspace-wide validation or saved session validation"`
+	ProjectRoot   string `json:"project_root,omitempty"   jsonschema:"workspace root path (optional)"`
+	Mode          string `json:"mode,omitempty"           jsonschema:"review mode: 'validate' (dry-run quality validation) | 'challenge' (adversarial red-team stress test)"`
+	ChallengeType string `json:"challenge_type,omitempty"  jsonschema:"optional specific challenge angle: 'premortem' | 'falsification' | 'red_team'"`
+	Target        string `json:"target,omitempty"         jsonschema:"target session ID (e.g. T1-01) or decision ID (e.g. D-001) or artifact path"`
+	ID            string `json:"id,omitempty"             jsonschema:"alias for target (e.g. T1-01, D-001)"`
+	SessionID     string `json:"session_id,omitempty"     jsonschema:"alias for target"`
+	DecisionID    string `json:"decision_id,omitempty"    jsonschema:"alias for target"`
+	ArtifactType  string `json:"artifact_type,omitempty"  jsonschema:"what to validate when mode='validate': 'session' | 'decision' | 'plan' | 'comparison' | 'fad' (omit with empty content for workspace validation)"`
+	Content       string `json:"content,omitempty"        jsonschema:"content to validate (dry run); omit for workspace-wide validation or saved session validation"`
 }
 
 // ValidateInput provides backward compatibility for unit tests calling handleValidate.
@@ -64,6 +65,9 @@ func handleReview(ctx context.Context, req *sdkmcp.CallToolRequest, in ReviewInp
 	const tool = "vivechak_review"
 
 	mode := strings.ToLower(strings.TrimSpace(in.Mode))
+	if in.ChallengeType != "" && mode == "" {
+		mode = "challenge"
+	}
 	if mode == "challenge" || mode == "red_team" || mode == "audit" || mode == "premortem" {
 		return handleReviewChallenge(ctx, in)
 	}

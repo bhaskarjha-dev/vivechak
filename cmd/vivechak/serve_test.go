@@ -150,29 +150,9 @@ func TestLiveMCPServer_EndToEnd(t *testing.T) {
 		t.Fatalf("expected 9 tools, got %d: %v", len(toolNames), toolNames)
 	}
 
-	// 5. Tool: vivechak_init
+	// 5. Tool: vivechak_start
 	res, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_init",
-		Arguments: map[string]any{
-			"project_root": workDir,
-			"scope":        "project",
-		},
-	})
-	if err != nil {
-		t.Fatalf("vivechak_init call: %v", err)
-	}
-	env := parseTestEnvelope(t, res)
-	if !env.Success {
-		t.Fatalf("vivechak_init failed: %s", env.Message)
-	}
-	metaFile := filepath.Join(workDir, "research", ".vivechak.json")
-	if _, err := os.Stat(metaFile); err != nil {
-		t.Fatalf(".vivechak.json was not created on disk: %v", err)
-	}
-
-	// 6. Tool: vivechak_prepare_generator
-	res, err = cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_prepare_generator",
+		Name: "vivechak_start",
 		Arguments: map[string]any{
 			"project_root": workDir,
 			"scope":        "project",
@@ -180,18 +160,22 @@ func TestLiveMCPServer_EndToEnd(t *testing.T) {
 		},
 	})
 	if err != nil {
-		t.Fatalf("vivechak_prepare_generator call: %v", err)
+		t.Fatalf("vivechak_start call: %v", err)
 	}
-	env = parseTestEnvelope(t, res)
+	env := parseTestEnvelope(t, res)
 	if !env.Success {
-		t.Fatalf("vivechak_prepare_generator failed: %s", env.Message)
+		t.Fatalf("vivechak_start failed: %s", env.Message)
+	}
+	metaFile := filepath.Join(workDir, "research", ".vivechak.json")
+	if _, err := os.Stat(metaFile); err != nil {
+		t.Fatalf(".vivechak.json was not created on disk: %v", err)
 	}
 	prompt, _ := env.Data["prompt"].(string)
 	if !strings.Contains(prompt, "high-throughput ledger system") {
 		t.Error("prompt should contain injected context")
 	}
 
-	// 7. Tool: vivechak_save_plan
+	// 6. Tool: vivechak_save (kind="plan")
 	pipeline := `# Research Pipeline
 
 **Complexity Score**: 12/25 → Medium (Tier 2)
@@ -239,22 +223,22 @@ Synthesize findings:
 ` + "```" + `
 `
 	res, err = cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_save_plan",
+		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": workDir,
-			"scope":        "project",
+			"kind":         "plan",
 			"content":      pipeline,
 		},
 	})
 	if err != nil {
-		t.Fatalf("vivechak_save_plan call: %v", err)
+		t.Fatalf("vivechak_save plan call: %v", err)
 	}
 	env = parseTestEnvelope(t, res)
 	if !env.Success {
-		t.Fatalf("vivechak_save_plan failed: %s", env.Message)
+		t.Fatalf("vivechak_save plan failed: %s", env.Message)
 	}
 
-	// 8. Tool: vivechak_status
+	// 7. Tool: vivechak_status
 	res, err = cs.CallTool(ctx, &mcp.CallToolParams{
 		Name:      "vivechak_status",
 		Arguments: map[string]any{"project_root": workDir},
@@ -267,25 +251,26 @@ Synthesize findings:
 		t.Fatalf("vivechak_status failed: %s", env.Message)
 	}
 
-	// 9. Tool: vivechak_next_session -> T1-01
+	// 8. Tool: vivechak_next -> T1-01
 	res, err = cs.CallTool(ctx, &mcp.CallToolParams{
-		Name:      "vivechak_next_session",
+		Name:      "vivechak_next",
 		Arguments: map[string]any{"project_root": workDir},
 	})
 	if err != nil {
-		t.Fatalf("vivechak_next_session call: %v", err)
+		t.Fatalf("vivechak_next call: %v", err)
 	}
 	env = parseTestEnvelope(t, res)
 	if env.Data["session_id"] != "T1-01" {
 		t.Fatalf("expected next session T1-01, got %v", env.Data["session_id"])
 	}
 
-	// 10. Tool: vivechak_save_session (T1-01)
+	// 9. Tool: vivechak_save (T1-01)
 	res, err = cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_save_session",
+		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": workDir,
-			"session_id":   "T1-01",
+			"kind":         "session",
+			"id":           "T1-01",
 			"content": `---
 session_id: T1-01
 title: Database Selection
@@ -304,32 +289,33 @@ Write stalls and compaction spikes observed during concurrent bulk ingest operat
 		},
 	})
 	if err != nil {
-		t.Fatalf("vivechak_save_session call: %v", err)
+		t.Fatalf("vivechak_save T1-01 call: %v", err)
 	}
 	env = parseTestEnvelope(t, res)
 	if !env.Success {
 		t.Fatalf("save_session failed: %s", env.Message)
 	}
 
-	// 11. Tool: vivechak_next_session -> T1-02
+	// 10. Tool: vivechak_next -> T1-02
 	res, err = cs.CallTool(ctx, &mcp.CallToolParams{
-		Name:      "vivechak_next_session",
+		Name:      "vivechak_next",
 		Arguments: map[string]any{"project_root": workDir},
 	})
 	if err != nil {
-		t.Fatalf("vivechak_next_session call: %v", err)
+		t.Fatalf("vivechak_next call: %v", err)
 	}
 	env = parseTestEnvelope(t, res)
 	if env.Data["session_id"] != "T1-02" {
 		t.Fatalf("expected next session T1-02, got %v", env.Data["session_id"])
 	}
 
-	// 12. Save T1-02
+	// 11. Save T1-02
 	res, err = cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_save_session",
+		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": workDir,
-			"session_id":   "T1-02",
+			"kind":         "session",
+			"id":           "T1-02",
 			"content": `---
 session_id: T1-02
 title: Consensus
@@ -348,23 +334,23 @@ Leader election delays occur during network partitions under high message volume
 		},
 	})
 	if err != nil {
-		t.Fatalf("vivechak_save_session call: %v", err)
+		t.Fatalf("vivechak_save T1-02 call: %v", err)
 	}
 	env = parseTestEnvelope(t, res)
 	if !env.Success {
 		t.Fatalf("save_session failed: %s", env.Message)
 	}
 
-	// 13. Verify upstream context injection in SYN-01
+	// 12. Verify upstream context injection in SYN-01
 	res, err = cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_next_session",
+		Name: "vivechak_next",
 		Arguments: map[string]any{
 			"project_root": workDir,
 			"session_id":   "SYN-01",
 		},
 	})
 	if err != nil {
-		t.Fatalf("next_session SYN-01 call: %v", err)
+		t.Fatalf("vivechak_next SYN-01 call: %v", err)
 	}
 	env = parseTestEnvelope(t, res)
 	synPrompt, _ := env.Data["prompt"].(string)
@@ -372,7 +358,7 @@ Leader election delays occur during network partitions under high message volume
 		t.Errorf("expected synthesized findings from both upstream sessions, got %q", synPrompt)
 	}
 
-	// 14. Tool: vivechak_record_decision (D-001)
+	// 13. Tool: vivechak_record_decision (D-001)
 	res, err = cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_record_decision",
 		Arguments: map[string]any{
@@ -406,10 +392,11 @@ Fast writes.
 		t.Fatalf("record_decision failed: %s", env.Message)
 	}
 
-	// 15. Tool: vivechak_validate (dry-run)
+	// 14. Tool: vivechak_review (dry-run validation)
 	res, err = cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_validate",
+		Name: "vivechak_review",
 		Arguments: map[string]any{
+			"project_root":  workDir,
 			"artifact_type": "decision",
 			"content": `---
 decision_id: D-001
@@ -422,14 +409,14 @@ Dry run test.
 		},
 	})
 	if err != nil {
-		t.Fatalf("vivechak_validate call: %v", err)
+		t.Fatalf("vivechak_review call: %v", err)
 	}
 	env = parseTestEnvelope(t, res)
 	if !env.Success {
 		t.Fatalf("validate failed: %s", env.Message)
 	}
 
-	// 16. Save SYN-01 (writes to research/FAD.md and mirrors to FOUNDING-ARCHITECTURE.md)
+	// 15. Save SYN-01 (writes to research/FAD.md and mirrors to FOUNDING-ARCHITECTURE.md)
 	fadContent := `---
 session_id: SYN-01
 title: Founding Architecture Document
@@ -443,8 +430,13 @@ Ledger architecture. A (pipeline)
 Storage and consensus accepted. A (formal proof)
 `
 	_, err = cs.CallTool(ctx, &mcp.CallToolParams{
-		Name:      "vivechak_save_session",
-		Arguments: map[string]any{"project_root": workDir, "session_id": "SYN-01", "content": fadContent},
+		Name: "vivechak_save",
+		Arguments: map[string]any{
+			"project_root": workDir,
+			"kind":         "fad",
+			"id":           "SYN-01",
+			"content":      fadContent,
+		},
 	})
 	if err != nil {
 		t.Fatalf("save SYN-01 failed: %v", err)
@@ -461,16 +453,16 @@ Storage and consensus accepted. A (formal proof)
 	}
 	ws.Close()
 
-	// 17. Tool: vivechak_run_gate
+	// 16. Tool: vivechak_gate
 	res, err = cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_run_gate",
+		Name: "vivechak_gate",
 		Arguments: map[string]any{
 			"project_root": workDir,
 			"verbose":      true,
 		},
 	})
 	if err != nil {
-		t.Fatalf("vivechak_run_gate call: %v", err)
+		t.Fatalf("vivechak_gate call: %v", err)
 	}
 	env = parseTestEnvelope(t, res)
 	if env.Data["gate_status"] != "PASS" || env.Data["gate_passed"] != true {

@@ -17,7 +17,7 @@ func TestSavePlanComparisonTerminalNextStep(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	res, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_save_plan",
+		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"scope":        "comparison",
@@ -35,18 +35,18 @@ func TestSavePlanComparisonTerminalNextStep(t *testing.T) {
 	if !strings.Contains(env.NextStep, "Comparison scope is complete") {
 		t.Errorf("expected terminal next_step for comparison scope, got: %s", env.NextStep)
 	}
-	if strings.Contains(env.NextStep, "vivechak_next_session") {
-		t.Errorf("comparison scope next_step must not mandate vivechak_next_session")
+	if strings.Contains(env.NextStep, "vivechak_next") {
+		t.Errorf("comparison scope next_step must not mandate vivechak_next")
 	}
 }
 
 func TestSavePlanAutoInitGitignore(t *testing.T) {
 	cs := testServer(t)
 	ctx := context.Background()
-	tmpDir := t.TempDir() // Fresh directory without vivechak_init
+	tmpDir := t.TempDir() // Fresh directory without vivechak_start
 
 	_, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_save_plan",
+		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"scope":        "decision",
@@ -74,7 +74,7 @@ func TestRunGateTrackFiltering(t *testing.T) {
 
 	// Initialize project workspace
 	_, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_init",
+		Name: "vivechak_start",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"scope":        "project",
@@ -86,7 +86,7 @@ func TestRunGateTrackFiltering(t *testing.T) {
 
 	// 1. Test invalid track parameter returns error
 	resErr, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_run_gate",
+		Name: "vivechak_gate",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"track":        "invalid_track",
@@ -102,7 +102,7 @@ func TestRunGateTrackFiltering(t *testing.T) {
 
 	// 2. Test track_a filter on empty project
 	resA, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_run_gate",
+		Name: "vivechak_gate",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"track":        "track_a",
@@ -122,7 +122,7 @@ func TestRunGateTrackFiltering(t *testing.T) {
 
 	// 3. Test track_b filter on empty project
 	resB, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_run_gate",
+		Name: "vivechak_gate",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"track":        "track_b",
@@ -147,7 +147,7 @@ func TestAmendADRRecompilesRegistry(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	_, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_init",
+		Name: "vivechak_start",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"scope":        "decision",
@@ -185,10 +185,10 @@ func TestAmendADRRecompilesRegistry(t *testing.T) {
 		t.Fatalf("expected initial rationale in DECISIONS.md")
 	}
 
-	// Amend D-01 via vivechak_amend_session
+	// Amend D-01 via vivechak_amend
 	amendment := "Benchmark update: ClickHouse evaluated for analytical workloads."
 	resAmend, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_amend_session",
+		Name: "vivechak_amend",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"session_id":   "D-01",
@@ -224,7 +224,7 @@ func TestStatusMultiScopeNextStep(t *testing.T) {
 	// 1. Test Comparison Scope status after WEP save
 	cmpDir := t.TempDir()
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_save_plan",
+		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": cmpDir,
 			"scope":        "comparison",
@@ -245,14 +245,14 @@ func TestStatusMultiScopeNextStep(t *testing.T) {
 	if !strings.Contains(envCmpStatus.NextStep, "Comparison scope is finished") {
 		t.Errorf("expected finished nextStep for comparison scope status, got: %s", envCmpStatus.NextStep)
 	}
-	if strings.Contains(envCmpStatus.NextStep, "vivechak_run_gate") {
-		t.Errorf("comparison scope status must never mandate vivechak_run_gate")
+	if strings.Contains(envCmpStatus.NextStep, "vivechak_gate") {
+		t.Errorf("comparison scope status must never mandate vivechak_gate")
 	}
 
 	// 2. Test Decision Scope status after ADR record
 	decDir := t.TempDir()
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_init",
+		Name: "vivechak_start",
 		Arguments: map[string]any{
 			"project_root": decDir,
 			"scope":        "decision",
@@ -288,7 +288,7 @@ func TestComparisonScopeSessionCountingAndGate(t *testing.T) {
 
 	// Save comparison WEP matrix directly in research/C-01-comparison.md
 	_, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_save_plan",
+		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": cmpDir,
 			"scope":        "comparison",
@@ -311,7 +311,7 @@ func TestComparisonScopeSessionCountingAndGate(t *testing.T) {
 
 	// If gate is run on comparison scope with evidence grades, it should evaluate Check B2 cleanly
 	resGate, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_run_gate",
+		Name: "vivechak_gate",
 		Arguments: map[string]any{
 			"project_root": cmpDir,
 			"verbose":      true,
@@ -338,7 +338,7 @@ func TestRunGateTrackPassingIsolation(t *testing.T) {
 
 	// Initialize project workspace
 	_, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_init",
+		Name: "vivechak_start",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"scope":        "project",
@@ -364,7 +364,7 @@ func TestRunGateTrackPassingIsolation(t *testing.T) {
 
 	// 1. Evaluate with track_a
 	resA, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_run_gate",
+		Name: "vivechak_gate",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"track":        "track_a",
@@ -384,7 +384,7 @@ func TestRunGateTrackPassingIsolation(t *testing.T) {
 
 	// 2. Evaluate with track_b
 	resB, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_run_gate",
+		Name: "vivechak_gate",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"track":        "track_b",
@@ -420,7 +420,7 @@ func TestSavePlanGitignorePreservesExisting(t *testing.T) {
 	}
 
 	_, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_save_plan",
+		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"scope":        "comparison",
@@ -447,7 +447,7 @@ func TestAmendNonADRDoesNotRecompileRegistry(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_init",
+		Name: "vivechak_start",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"scope":        "project",
@@ -457,7 +457,7 @@ func TestAmendNonADRDoesNotRecompileRegistry(t *testing.T) {
 	// Save session T1-01
 	sessContent := "---\nsession_id: T1-01\ntitle: Test Session\nstatus: complete\n---\nOriginal text.\n"
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_save_session",
+		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"session_id":   "T1-01",
@@ -467,7 +467,7 @@ func TestAmendNonADRDoesNotRecompileRegistry(t *testing.T) {
 
 	// Amend session T1-01
 	resAmend, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_amend_session",
+		Name: "vivechak_amend",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"session_id":   "T1-01",

@@ -26,7 +26,7 @@ func TestMassive_ComparisonLifecycle_RealE2E(t *testing.T) {
 
 	// 1. Prepare generator with NO scope parameter — should auto-infer "comparison"
 	prepRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_prepare_generator",
+		Name: "vivechak_start",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"context":      "Winston vs Pino for high throughput JSON logging in Express API",
@@ -44,7 +44,7 @@ func TestMassive_ComparisonLifecycle_RealE2E(t *testing.T) {
 		t.Errorf("expected scope 'comparison', got: %v", prepData["scope"])
 	}
 
-	// 2. Save plan directly without running vivechak_init first — should auto-initialize workspace
+	// 2. Save plan directly without running vivechak_start first — should auto-initialize workspace
 	compPlanContent := `# RESEARCH BRIEF: Winston vs Pino Logging Comparison
 
 ## DECISION
@@ -54,7 +54,7 @@ Which logging library to use for high-throughput Node.js API; informs D-001. Doo
 Compare Winston vs Pino for high throughput JSON logging.
 `
 	savePlanRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_save_plan",
+		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"scope":        "comparison",
@@ -81,7 +81,7 @@ Compare Winston vs Pino for high throughput JSON logging.
 
 	// 3. Next session — should retrieve C-01 prompt
 	nextRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_next_session",
+		Name: "vivechak_next",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 		},
@@ -160,7 +160,7 @@ Reversal trigger: If enterprise compliance mandates proprietary on-prem transpor
 2. Winston Transport Docs (https://github.com/winstonjs/winston) [Grade A, official docs, fetched]
 `
 	saveSessRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_save_session",
+		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"session_id":   "C-01",
@@ -177,7 +177,7 @@ Reversal trigger: If enterprise compliance mandates proprietary on-prem transpor
 
 	// 5. Run Phase 0 Exit Gate — should evaluate comparison criteria and pass
 	gateRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_run_gate",
+		Name: "vivechak_gate",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 		},
@@ -213,7 +213,7 @@ func TestMassive_DecisionLifecycle_RealE2E(t *testing.T) {
 
 	// 1. Prepare generator with decision framing
 	prepRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_prepare_generator",
+		Name: "vivechak_start",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"context":      "decision: PostgreSQL vs MongoDB for SaaS clinic medical billing records",
@@ -251,7 +251,7 @@ date: 2026-10-15
 # Primary Datastore Selection
 `
 	savePlanRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_save_plan",
+		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root":      tmpDir,
 			"scope":             "decision",
@@ -298,7 +298,7 @@ Substantive concern: HIPAA compliance requires encrypted tablespaces with pg_cry
 1. PostgreSQL Documentation [Grade A, official docs, fetched]
 `
 	_, err = cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_save_session",
+		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"session_id":   "D-001-S1",
@@ -311,7 +311,7 @@ Substantive concern: HIPAA compliance requires encrypted tablespaces with pg_cry
 
 	// 4. Run adversarial red-team challenge on D-001
 	chalRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_challenge",
+		Name: "vivechak_review",
 		Arguments: map[string]any{
 			"project_root":   tmpDir,
 			"decision_id":    "D-001",
@@ -385,7 +385,7 @@ If write volume exceeds 100k tx/sec requiring horizontal write sharding, re-eval
 
 	// 6. Run Phase 0 Exit Gate — should pass Track B checks
 	gateRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_run_gate",
+		Name: "vivechak_gate",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 		},
@@ -480,18 +480,18 @@ func TestMassive_ProjectLifecycle_RealE2E(t *testing.T) {
 
 	// 1. Initialize project workspace
 	initRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_init",
+		Name: "vivechak_start",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"scope":        "project",
 		},
 	})
 	if err != nil {
-		t.Fatalf("vivechak_init failed: %v", err)
+		t.Fatalf("vivechak_start failed: %v", err)
 	}
 	initEnv := parseEnvelope(t, initRes)
 	if !initEnv.Success {
-		t.Fatalf("vivechak_init error: %s", initEnv.Message)
+		t.Fatalf("vivechak_start error: %s", initEnv.Message)
 	}
 
 	// 2. Save project pipeline with DAG dependencies:
@@ -550,7 +550,7 @@ Synthesize all sessions into FAD.
 `
 
 	savePlanRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_save_plan",
+		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root":      tmpDir,
 			"scope":             "project",
@@ -568,7 +568,7 @@ Synthesize all sessions into FAD.
 
 	// 3. Query next session — T1-01 and T1-02 should be ready, but NOT T2-01 or FAD
 	nextRes1, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_next_session",
+		Name: "vivechak_next",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 		},
@@ -618,7 +618,7 @@ Audio retention compliance requires strict transient in-memory ring buffers with
 1. RFC 7845 Opus Codec [Grade A, canonical, fetched]
 `
 	saveS1Res, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_save_session",
+		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"session_id":   "T1-01",
@@ -635,7 +635,7 @@ Audio retention compliance requires strict transient in-memory ring buffers with
 
 	// 5. Query next session again — T2-01 should NOW be ready (its dependency T1-01 is complete)
 	nextRes2, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_next_session",
+		Name: "vivechak_next",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 		},
@@ -689,7 +689,7 @@ Worker backpressure during peak traffic requires dynamic scaling.
 1. Redis Streams Documentation [Grade B, official docs, fetched]
 `
 	_, err = cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_save_session",
+		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"session_id":   "T1-02",
@@ -728,7 +728,7 @@ Cold starts on serverless nodes can increase p99 latency to 250ms.
 1. Qdrant Documentation [Grade A, official docs, fetched]
 `
 	_, err = cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_save_session",
+		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"session_id":   "T2-01",
@@ -741,7 +741,7 @@ Cold starts on serverless nodes can increase p99 latency to 250ms.
 
 	// 8. Next session — FAD should now be ready
 	nextRes3, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_next_session",
+		Name: "vivechak_next",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 		},
@@ -891,7 +891,7 @@ Katha ingests streaming audio via WebRTC [Grade A, RFC 7845], dispatches transcr
 3. Qdrant Documentation [Grade A, official docs, fetched]
 `
 	saveFadRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_save_session",
+		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"session_id":   "FAD",
@@ -905,13 +905,13 @@ Katha ingests streaming audio via WebRTC [Grade A, RFC 7845], dispatches transcr
 	if !saveFadEnv.Success {
 		t.Fatalf("save_session FAD error: %s", saveFadEnv.Message)
 	}
-	if !strings.Contains(saveFadEnv.NextStep, "vivechak_gate") && !strings.Contains(saveFadEnv.NextStep, "vivechak_run_gate") {
+	if !strings.Contains(saveFadEnv.NextStep, "vivechak_gate") {
 		t.Errorf("expected next_step to suggest vivechak_gate, got: %s", saveFadEnv.NextStep)
 	}
 
 	// 11. Run Phase 0 Gate
 	gateRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_run_gate",
+		Name: "vivechak_gate",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 		},
@@ -972,17 +972,17 @@ func TestMassive_Doctor_RealCLI(t *testing.T) {
 		t.Errorf("expected failure/uninitialized report for empty dir, got: %s", outEmptyStr)
 	}
 
-	// 2. Doctor on initialized comparison workspace via vivechak_init
+	// 2. Doctor on initialized comparison workspace via vivechak_start
 	compDir := t.TempDir()
 	initCompRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_init",
+		Name: "vivechak_start",
 		Arguments: map[string]any{
 			"project_root": compDir,
 			"scope":        "comparison",
 		},
 	})
 	if err != nil {
-		t.Fatalf("vivechak_init comp: %v", err)
+		t.Fatalf("vivechak_start comp: %v", err)
 	}
 	initCompEnv := parseEnvelope(t, initCompRes)
 	if !initCompEnv.Success {
@@ -1032,7 +1032,7 @@ func TestMassive_QualityCoaching_RealWorkflow(t *testing.T) {
 Test quality coaching observations on one-way door session.
 `
 	savePlanRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_save_plan",
+		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"scope":        "decision",
@@ -1074,7 +1074,7 @@ Substantive architectural concern: Garbage collection pauses during high heap al
 1. Official Engine Benchmark Report [Grade A, official docs, fetched]
 `
 	saveRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_save_session",
+		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"session_id":   "D-001-S1",
@@ -1114,7 +1114,7 @@ func TestMassive_ConcurrentSubagent_Locking(t *testing.T) {
 
 	// Initialize workspace
 	initRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_init",
+		Name: "vivechak_start",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"scope":        "project",
@@ -1162,7 +1162,7 @@ Concern from agent %d.
 `, sid, agentID, agentID, agentID, agentID, agentID, agentID, agentID)
 
 			res, cErr := cs.CallTool(ctx, &mcp.CallToolParams{
-				Name: "vivechak_save_session",
+				Name: "vivechak_save",
 				Arguments: map[string]any{
 					"project_root": tmpDir,
 					"session_id":   sid,
@@ -1227,7 +1227,7 @@ func TestMassive_HybridManual_AutoSync(t *testing.T) {
 
 	// Initialize workspace
 	initRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_init",
+		Name: "vivechak_start",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"scope":        "project",
@@ -1310,7 +1310,7 @@ door_type: two-way
 
 	// 4. Query next session via MCP — T1-01 should be detected as completed, and T2-01 returned!
 	nextRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_next_session",
+		Name: "vivechak_next",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 		},
@@ -1340,7 +1340,7 @@ date: 2026-10-15
 
 	// 6. Run gate via MCP — should pick up manual ADR in decisions list
 	gateRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_run_gate",
+		Name: "vivechak_gate",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 		},

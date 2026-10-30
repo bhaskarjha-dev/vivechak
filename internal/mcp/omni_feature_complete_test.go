@@ -15,7 +15,7 @@ import (
 
 // TestCompleteSolution_OmniFeature_EndToEnd performs exhaustive, zero-trust verification
 // of every single feature across the Vivechak system:
-// 1. MCP Protocol Triumvirate: 13 Tools, 4 Prompts (+ Aliases), 8 Resources
+// 1. MCP Protocol Triumvirate: 9 Tools, 4 Prompts (+ Aliases), 8 Resources
 // 2. Workspace Resolution & Environmental Safety Ladder
 // 3. Comparison Scope Full Lifecycle (Auto-Inference, Auto-Init, WEP Matrix, Validate, Visualize)
 // 4. Decision Scope Full Lifecycle (Plan, Adversarial Challenge, Auto-Draft ADR, Registry Recompilation, Amend)
@@ -29,7 +29,7 @@ func TestCompleteSolution_OmniFeature_EndToEnd(t *testing.T) {
 	// SUBTEST 1: MCP Protocol Triumvirate (Tools, Prompts, Resources)
 	// =========================================================================
 	t.Run("1_MCPProtocolTriumvirate", func(t *testing.T) {
-		// 1.1 Verify all 13 tools are registered with annotations
+		// 1.1 Verify all 9 tools are registered with annotations
 		toolsRes, err := cs.ListTools(ctx, nil)
 		if err != nil {
 			t.Fatalf("ListTools failed: %v", err)
@@ -180,7 +180,7 @@ func TestCompleteSolution_OmniFeature_EndToEnd(t *testing.T) {
 					Arguments: map[string]any{},
 				})
 				if err != nil {
-					t.Fatalf("vivechak_init with %s failed: %v", envVar, err)
+					t.Fatalf("vivechak_start with %s failed: %v", envVar, err)
 				}
 				env := parseEnvelope(t, res)
 				if !env.Success {
@@ -215,7 +215,7 @@ func TestCompleteSolution_OmniFeature_EndToEnd(t *testing.T) {
 				rootPath = "C:\\"
 			}
 			res, err := cs.CallTool(ctx, &mcp.CallToolParams{
-				Name:      "vivechak_init",
+				Name:      "vivechak_start",
 				Arguments: map[string]any{"project_root": rootPath},
 			})
 			if err != nil {
@@ -232,7 +232,7 @@ func TestCompleteSolution_OmniFeature_EndToEnd(t *testing.T) {
 			homeDir, err := os.UserHomeDir()
 			if err == nil && homeDir != "" {
 				res, err := cs.CallTool(ctx, &mcp.CallToolParams{
-					Name:      "vivechak_init",
+					Name:      "vivechak_start",
 					Arguments: map[string]any{"project_root": homeDir},
 				})
 				if err != nil {
@@ -254,7 +254,7 @@ func TestCompleteSolution_OmniFeature_EndToEnd(t *testing.T) {
 
 		// 3.1 Prepare generator: auto-infers comparison from "Pino vs Winston"
 		prepRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
-			Name: "vivechak_prepare_generator",
+			Name: "vivechak_start",
 			Arguments: map[string]any{
 				"project_root": compDir,
 				"context":      "Compare Pino vs Winston for high-throughput JSON logging in Express",
@@ -295,7 +295,7 @@ Compare Pino and Winston for high-throughput JSON logging.
 Pino is recommended for high throughput.
 `
 		saveRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
-			Name: "vivechak_save_plan",
+			Name: "vivechak_save",
 			Arguments: map[string]any{
 				"project_root": compDir,
 				"scope":        "comparison",
@@ -341,7 +341,7 @@ Pino is recommended for high throughput.
 
 		// 3.4 Visualize: generates comparison WEP summary table
 		visRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
-			Name:      "vivechak_visualize",
+			Name:      "vivechak_status",
 			Arguments: map[string]any{"project_root": compDir},
 		})
 		if err != nil {
@@ -354,7 +354,7 @@ Pino is recommended for high throughput.
 
 		// 3.5 Validate: validates comparison artifact
 		valRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
-			Name: "vivechak_validate",
+			Name: "vivechak_review",
 			Arguments: map[string]any{
 				"project_root":  compDir,
 				"content":       wepContent,
@@ -378,7 +378,7 @@ Pino is recommended for high throughput.
 
 		// 4.1 Init decision scope: copies 2 templates (DECISIONS, CONFLICT-RESOLUTION)
 		initRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
-			Name: "vivechak_init",
+			Name: "vivechak_start",
 			Arguments: map[string]any{
 				"project_root": decDir,
 				"scope":        "decision",
@@ -403,7 +403,7 @@ Pino is recommended for high throughput.
 Migrate primary datastore from PostgreSQL to ClickHouse for analytics event store.
 `
 		savePlanRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
-			Name: "vivechak_save_plan",
+			Name: "vivechak_save",
 			Arguments: map[string]any{
 				"project_root": decDir,
 				"scope":        "decision",
@@ -451,7 +451,7 @@ ClickHouse cluster management requires ZooKeeper/Keeper coordination overhead, i
 Reversal trigger: If event volume drops below 500k events/day, revert to PostgreSQL to reduce cluster maintenance cost.
 `
 		saveSessRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
-			Name: "vivechak_save_session",
+			Name: "vivechak_save",
 			Arguments: map[string]any{
 				"project_root": decDir,
 				"session_id":   "S-01",
@@ -468,7 +468,7 @@ Reversal trigger: If event volume drops below 500k events/day, revert to Postgre
 
 		// 4.4 Adversarial challenge: run red team challenge on S-01
 		chalRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
-			Name: "vivechak_challenge",
+			Name: "vivechak_review",
 			Arguments: map[string]any{
 				"project_root": decDir,
 				"decision_id":  "S-01",
@@ -513,7 +513,7 @@ Reversal trigger: If event volume drops below 500k events/day, revert to Postgre
 
 		// 4.6 Amend session/ADR: verifies auto-recompilation of DECISIONS.md
 		amendRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
-			Name: "vivechak_amend_session",
+			Name: "vivechak_amend",
 			Arguments: map[string]any{
 				"project_root": decDir,
 				"session_id":   "D-01",
@@ -535,7 +535,7 @@ Reversal trigger: If event volume drops below 500k events/day, revert to Postgre
 			t.Fatalf("reading compiled DECISIONS.md: %v", err)
 		}
 		valRegRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
-			Name: "vivechak_validate",
+			Name: "vivechak_review",
 			Arguments: map[string]any{
 				"project_root":  decDir,
 				"content":       string(regData),
@@ -559,7 +559,7 @@ Reversal trigger: If event volume drops below 500k events/day, revert to Postgre
 
 		// 5.1 Init project scope: all 6 templates verified
 		initRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
-			Name: "vivechak_init",
+			Name: "vivechak_start",
 			Arguments: map[string]any{
 				"project_root": projDir,
 				"scope":        "project",
@@ -620,7 +620,7 @@ Investigate sharding topology.
 ` + "```" + `
 `
 		savePipeRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
-			Name: "vivechak_save_plan",
+			Name: "vivechak_save",
 			Arguments: map[string]any{
 				"project_root":     projDir,
 				"scope":            "project",
@@ -637,8 +637,8 @@ Investigate sharding topology.
 
 		// 5.3 Visualize DAG: returns Mermaid flowchart and table
 		visRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
-			Name:      "vivechak_visualize",
-			Arguments: map[string]any{"project_root": projDir},
+			Name:      "vivechak_status",
+			Arguments: map[string]any{"project_root": projDir, "format": "mermaid"},
 		})
 		if err != nil {
 			t.Fatalf("visualize failed: %v", err)
@@ -654,7 +654,7 @@ Investigate sharding topology.
 
 		// 5.4 Retrieve next session: topologically first is S-01
 		nextRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
-			Name:      "vivechak_next_session",
+			Name:      "vivechak_next",
 			Arguments: map[string]any{"project_root": projDir},
 		})
 		if err != nil {
@@ -701,7 +701,7 @@ Ring buffer overflows drop messages if backpressure is not propagated upstream i
 Monitor downstream TCP backpressure limits in session S-02.
 `
 		saveS01Res, err := cs.CallTool(ctx, &mcp.CallToolParams{
-			Name: "vivechak_save_session",
+			Name: "vivechak_save",
 			Arguments: map[string]any{
 				"project_root": projDir,
 				"session_id":   "S-01",
@@ -778,7 +778,7 @@ Cross-shard multi-entity transactions require 2-phase commit, adding significant
 Reversal trigger: If cluster size never exceeds 3 nodes after 6 months, collapse to single leader-follower replication.
 `
 		saveS02Res, err := cs.CallTool(ctx, &mcp.CallToolParams{
-			Name: "vivechak_save_session",
+			Name: "vivechak_save",
 			Arguments: map[string]any{
 				"project_root": projDir,
 				"session_id":   "S-02",
@@ -795,7 +795,7 @@ Reversal trigger: If cluster size never exceeds 3 nodes after 6 months, collapse
 
 		// Run adversarial challenge on S-02 (mandatory for One-Way Door gate clearance B11)
 		chalS02Res, err := cs.CallTool(ctx, &mcp.CallToolParams{
-			Name: "vivechak_challenge",
+			Name: "vivechak_review",
 			Arguments: map[string]any{
 				"project_root": projDir,
 				"decision_id":  "S-02",
@@ -830,7 +830,7 @@ Reversal trigger: If cluster size never exceeds 3 nodes after 6 months, collapse
 
 		// 5.8 Run Phase 0 Exit Gate (Two-Track clearance)
 		gateRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
-			Name: "vivechak_run_gate",
+			Name: "vivechak_gate",
 			Arguments: map[string]any{
 				"project_root": projDir,
 				"track":        "all",
@@ -863,7 +863,7 @@ Reversal trigger: If cluster size never exceeds 3 nodes after 6 months, collapse
 
 		// Initialize workspace
 		initRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
-			Name: "vivechak_init",
+			Name: "vivechak_start",
 			Arguments: map[string]any{
 				"project_root": concDir,
 				"scope":        "project",
@@ -897,7 +897,7 @@ Sufficient concurrency resilience verified under worker %d.
 `, sessID, workerID, workerID, workerID*1000, workerID)
 
 				res, err := cs.CallTool(ctx, &mcp.CallToolParams{
-					Name: "vivechak_save_session",
+					Name: "vivechak_save",
 					Arguments: map[string]any{
 						"project_root": concDir,
 						"session_id":   sessID,

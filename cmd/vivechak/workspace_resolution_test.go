@@ -18,9 +18,9 @@ import (
 // TestMassive_LiveIDEInheritance_RejectionAndGuidance compiles the real Vivechak binary,
 // spawns it with CWD set to a simulated IDE program folder (mimicking Antigravity / Cursor / VS Code),
 // and verifies that:
-// 1. Un-targeted vivechak_init calls are safely blocked and return guided worker errors.
+// 1. Un-targeted vivechak_start calls are safely blocked and return guided worker errors.
 // 2. No artifacts or templates are written to the IDE installation directory.
-// 3. Explicitly targeted vivechak_init calls successfully create and orchestrate workspaces.
+// 3. Explicitly targeted vivechak_start calls successfully create and orchestrate workspaces.
 func TestMassive_LiveIDEInheritance_RejectionAndGuidance(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping in short mode")
@@ -104,11 +104,11 @@ func TestMassive_LiveIDEInheritance_RejectionAndGuidance(t *testing.T) {
 		},
 	})
 	if err != nil {
-		t.Fatalf("callTool vivechak_init (explicit) error: %v", err)
+		t.Fatalf("callTool vivechak_start (explicit) error: %v", err)
 	}
 	envExplicit := parseTestEnvelope(t, resExplicit)
 	if !envExplicit.Success {
-		t.Fatalf("expected explicit vivechak_init to succeed, got: %s", envExplicit.Message)
+		t.Fatalf("expected explicit vivechak_start to succeed, got: %s", envExplicit.Message)
 	}
 
 	// Verify workspace structure in realProjectDir
@@ -142,9 +142,9 @@ func TestMassive_LiveIDEInheritance_RejectionAndGuidance(t *testing.T) {
 		t.Fatalf("status failed: %s", envStatus.Message)
 	}
 
-	// 7.2 prepare_generator
+	// 7.2 vivechak_start
 	resPrep, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_prepare_generator",
+		Name: "vivechak_start",
 		Arguments: map[string]any{
 			"project_root": realProjectDir,
 			"scope":        "project",
@@ -152,11 +152,11 @@ func TestMassive_LiveIDEInheritance_RejectionAndGuidance(t *testing.T) {
 		},
 	})
 	if err != nil {
-		t.Fatalf("prepare_generator call: %v", err)
+		t.Fatalf("vivechak_start call: %v", err)
 	}
 	envPrep := parseTestEnvelope(t, resPrep)
 	if !envPrep.Success {
-		t.Fatalf("prepare_generator failed: %s", envPrep.Message)
+		t.Fatalf("vivechak_start failed: %s", envPrep.Message)
 	}
 
 	// 7.3 save_plan with 3 sessions (T0-01, T1-01, SYN-01)
@@ -200,35 +200,36 @@ Which embedded database satisfies privacy and encryption requirements?
 Synthesize all findings into Founding Architecture Document.
 `
 	resPlan, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_save_plan",
+		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": realProjectDir,
+			"kind":         "plan",
 			"content":      pipelineDAG,
 			"scope":        "project",
 		},
 	})
 	if err != nil {
-		t.Fatalf("save_plan call: %v", err)
+		t.Fatalf("save plan call: %v", err)
 	}
 	envPlan := parseTestEnvelope(t, resPlan)
 	if !envPlan.Success {
-		t.Fatalf("save_plan failed: %s", envPlan.Message)
+		t.Fatalf("save plan failed: %s", envPlan.Message)
 	}
 
-	// 7.4 next_session (returns T0-01)
+	// 7.4 next (returns T0-01)
 	resNext0, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name:      "vivechak_next_session",
+		Name:      "vivechak_next",
 		Arguments: map[string]any{"project_root": realProjectDir},
 	})
 	if err != nil {
-		t.Fatalf("next_session call: %v", err)
+		t.Fatalf("next call: %v", err)
 	}
 	envNext0 := parseTestEnvelope(t, resNext0)
 	if !envNext0.Success || envNext0.Data["session_id"] != "T0-01" {
 		t.Fatalf("expected next session T0-01, got: %v", envNext0.Data)
 	}
 
-	// 7.4b save_session (T0-01)
+	// 7.4b save (T0-01)
 	sess0Content := `---
 session_id: T0-01
 title: "Aggregation Landscape"
@@ -269,28 +270,29 @@ Select SimpleFIN.
 | BYOK sync | A | https://simplefin.org |
 `
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_save_session",
+		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": realProjectDir,
-			"session_id":   "T0-01",
+			"kind":         "session",
+			"id":           "T0-01",
 			"content":      sess0Content,
 		},
 	})
 
-	// 7.4c next_session (should now return T1-01)
+	// 7.4c next (should now return T1-01)
 	resNext, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name:      "vivechak_next_session",
+		Name:      "vivechak_next",
 		Arguments: map[string]any{"project_root": realProjectDir},
 	})
 	if err != nil {
-		t.Fatalf("next_session call: %v", err)
+		t.Fatalf("next call: %v", err)
 	}
 	envNext := parseTestEnvelope(t, resNext)
 	if !envNext.Success || envNext.Data["session_id"] != "T1-01" {
 		t.Fatalf("expected next session T1-01, got: %v", envNext.Data)
 	}
 
-	// 7.5 save_session (T1-01)
+	// 7.5 save (T1-01)
 	sessionContent := `---
 session_id: T1-01
 title: "Embedded Database Selection"
@@ -335,19 +337,20 @@ Select libsql with native encryption.
 | Native AEAD encryption | A | https://github.com/tursodatabase/libsql |
 `
 	resSaveSess, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_save_session",
+		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": realProjectDir,
-			"session_id":   "T1-01",
+			"kind":         "session",
+			"id":           "T1-01",
 			"content":      sessionContent,
 		},
 	})
 	if err != nil {
-		t.Fatalf("save_session call: %v", err)
+		t.Fatalf("save session call: %v", err)
 	}
 	envSaveSess := parseTestEnvelope(t, resSaveSess)
 	if !envSaveSess.Success {
-		t.Fatalf("save_session failed: %s", envSaveSess.Message)
+		t.Fatalf("save session failed: %s", envSaveSess.Message)
 	}
 
 	// 7.6 record_decision (D-001)
@@ -458,24 +461,25 @@ Proceed to implementation.
 | Viability | A | specs |
 `
 	resFAD, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_save_session",
+		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": realProjectDir,
-			"session_id":   "SYN-01",
+			"kind":         "fad",
+			"id":           "SYN-01",
 			"content":      fadContent,
 		},
 	})
 	if err != nil {
-		t.Fatalf("save_session (FAD) call: %v", err)
+		t.Fatalf("save (FAD) call: %v", err)
 	}
 	envFAD := parseTestEnvelope(t, resFAD)
 	if !envFAD.Success {
-		t.Fatalf("save_session FAD failed: %s", envFAD.Message)
+		t.Fatalf("save FAD failed: %s", envFAD.Message)
 	}
 
 	// 7.8 run Phase 0 exit gate
 	resGate, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_run_gate",
+		Name: "vivechak_gate",
 		Arguments: map[string]any{
 			"project_root": realProjectDir,
 		},
@@ -558,11 +562,11 @@ func TestMassive_SandboxesAndEnterprisePaths_LiveMCPMatrix(t *testing.T) {
 				},
 			})
 			if err != nil {
-				t.Fatalf("[%s] vivechak_init call error: %v", tc.name, err)
+				t.Fatalf("[%s] vivechak_start call error: %v", tc.name, err)
 			}
 			envInit := parseTestEnvelope(t, resInit)
 			if !envInit.Success {
-				t.Fatalf("[%s] vivechak_init failed: %s", tc.name, envInit.Message)
+				t.Fatalf("[%s] vivechak_start failed: %s", tc.name, envInit.Message)
 			}
 
 			// Verify templates exist

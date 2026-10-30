@@ -538,7 +538,7 @@ func TestLiveHarness_EndToEnd_All21Hosts_Simulation(t *testing.T) {
 				}
 				defer session.Close()
 
-				// Call tools/list and verify all 13 tools
+				// Call tools/list and verify all 9 tools
 				toolsRes, err := session.ListTools(srvCtx, nil)
 				if err != nil {
 					t.Fatalf("ListTools failed: %v", err)

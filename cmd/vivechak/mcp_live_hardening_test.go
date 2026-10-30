@@ -42,7 +42,7 @@ func TestMCPLive_Hardening(t *testing.T) {
 		}
 
 		// Init comparison workspace
-		callTool("vivechak_init", map[string]any{"project_root": wsDir, "scope": "comparison"})
+		callTool("vivechak_start", map[string]any{"project_root": wsDir, "scope": "comparison"})
 
 		// Save session containing nested ~~~~markdown and ````go blocks
 		sessionMD := `---
@@ -83,9 +83,10 @@ BadgerDB value log garbage collection creates noticeable I/O spikes under sustai
 | 1 | https://github.com/dgraph-io/badger | Grade A | fresh | fetched | BadgerDB |
 | 2 | https://github.com/cockroachdb/pebble | Grade A | fresh | fetched | Pebble |
 `
-		saveEnv := callTool("vivechak_save_session", map[string]any{
+		saveEnv := callTool("vivechak_save", map[string]any{
 			"project_root": wsDir,
-			"session_id":   "C-001",
+			"kind":         "session",
+			"id":           "C-001",
 			"content":      sessionMD,
 		})
 		if !saveEnv.Success {
@@ -93,7 +94,7 @@ BadgerDB value log garbage collection creates noticeable I/O spikes under sustai
 		}
 
 		// Verify session parsed completely
-		valEnv := callTool("vivechak_validate", map[string]any{"project_root": wsDir})
+		valEnv := callTool("vivechak_review", map[string]any{"project_root": wsDir, "mode": "validate"})
 		if !valEnv.Success {
 			t.Fatalf("validate failed: %s", valEnv.Message)
 		}
@@ -116,7 +117,7 @@ BadgerDB value log garbage collection creates noticeable I/O spikes under sustai
 			return parseTestEnvelope(t, res)
 		}
 
-		callTool("vivechak_init", map[string]any{"project_root": wsDir, "scope": "project"})
+		callTool("vivechak_start", map[string]any{"project_root": wsDir, "scope": "project"})
 
 		// 49 characters under ## Discovered Concerns (must remain draft for One-Way Door)
 		shortSess := `---
@@ -132,9 +133,10 @@ status: complete
 ## Discovered Concerns
 1234567890123456789012345678901234567890123456789
 `
-		shortEnv := callTool("vivechak_save_session", map[string]any{
+		shortEnv := callTool("vivechak_save", map[string]any{
 			"project_root": wsDir,
-			"session_id":   "T1-01",
+			"kind":         "session",
+			"id":           "T1-01",
 			"content":      shortSess,
 		})
 		if shortEnv.Data["status"] != "draft" {
@@ -145,9 +147,10 @@ status: complete
 		validSess := strings.Replace(shortSess,
 			"1234567890123456789012345678901234567890123456789",
 			"12345678901234567890123456789012345678901234567890", 1)
-		validEnv := callTool("vivechak_save_session", map[string]any{
+		validEnv := callTool("vivechak_save", map[string]any{
 			"project_root": wsDir,
-			"session_id":   "T1-01",
+			"kind":         "session",
+			"id":           "T1-01",
 			"content":      validSess,
 		})
 		if validEnv.Data["status"] != "valid" && validEnv.Data["status"] != "valid-with-warnings" {
@@ -176,7 +179,7 @@ status: complete
 		}
 
 		// Initialize workspace with explicit path
-		initEnv := callTool("vivechak_init", map[string]any{
+		initEnv := callTool("vivechak_start", map[string]any{
 			"project_root": wsDir,
 			"scope":        "project",
 		})
@@ -212,7 +215,7 @@ status: complete
 			return parseTestEnvelope(t, res)
 		}
 
-		callTool("vivechak_init", map[string]any{"project_root": wsDir, "scope": "project"})
+		callTool("vivechak_start", map[string]any{"project_root": wsDir, "scope": "project"})
 
 		// Plan declares T1-01 and T1-02 in Mermaid DAG, but only provides prompt for T1-01
 		partialPlan := `# Research Pipeline: Partial Test
@@ -227,8 +230,9 @@ status: complete
 
 ` + "```prompt\n# Brief for T1-01\n```\n"
 
-		savePartial := callTool("vivechak_save_plan", map[string]any{
+		savePartial := callTool("vivechak_save", map[string]any{
 			"project_root": wsDir,
+			"kind":         "plan",
 			"content":      partialPlan,
 		})
 		if !savePartial.Success {
@@ -274,8 +278,9 @@ status: complete
 
 ` + "```prompt\n# Brief SYN-01\n```\n"
 
-		saveSink := callTool("vivechak_save_plan", map[string]any{
+		saveSink := callTool("vivechak_save", map[string]any{
 			"project_root": wsDir,
+			"kind":         "plan",
 			"content":      sinkPlan,
 		})
 		if !saveSink.Success {
@@ -293,15 +298,16 @@ door_type: two-way
 ## Key Findings
 - Storage finding Grade A (https://example.com)
 `
-		callTool("vivechak_save_session", map[string]any{
+		callTool("vivechak_save", map[string]any{
 			"project_root": wsDir,
-			"session_id":   "T1-01",
+			"kind":         "session",
+			"id":           "T1-01",
 			"content":      s1Content,
 		})
 
 		// Call next_session: Even though T1-01 (upstream of SYN-01) is complete,
 		// SYN-01 MUST NOT be actionable because T1-02 (non-synthesis session) is still pending!
-		nextEnv := callTool("vivechak_next_session", map[string]any{"project_root": wsDir})
+		nextEnv := callTool("vivechak_next", map[string]any{"project_root": wsDir})
 		if !nextEnv.Success {
 			t.Fatalf("next_session failed: %s", nextEnv.Message)
 		}
@@ -331,7 +337,7 @@ door_type: two-way
 			return parseTestEnvelope(t, res)
 		}
 
-		callTool("vivechak_init", map[string]any{"project_root": wsDir, "scope": "project"})
+		callTool("vivechak_start", map[string]any{"project_root": wsDir, "scope": "project"})
 
 		// Save D-10, D-1, D-2 out of order
 		for _, id := range []string{"D-10", "D-1", "D-2"} {
@@ -390,7 +396,7 @@ Chose option for ` + id + `. Grade A (docs)
 			return parseTestEnvelope(t, res)
 		}
 
-		callTool("vivechak_init", map[string]any{"project_root": wsDir, "scope": "project"})
+		callTool("vivechak_start", map[string]any{"project_root": wsDir, "scope": "project"})
 
 		// Diamond DAG: T0-01 -> t0-02 & T0-03 -> SYN-01
 		diamondPlan := `# Diamond Pipeline
@@ -423,8 +429,9 @@ Chose option for ` + id + `. Grade A (docs)
 | **Dependencies** | T0-02, t0-03 |
 ` + "```prompt\nSynthesis brief\n```\n"
 
-		saveEnv := callTool("vivechak_save_plan", map[string]any{
+		saveEnv := callTool("vivechak_save", map[string]any{
 			"project_root": wsDir,
+			"kind":         "plan",
 			"content":      diamondPlan,
 		})
 		if !saveEnv.Success {
@@ -432,7 +439,7 @@ Chose option for ` + id + `. Grade A (docs)
 		}
 
 		// Next session must resolve T0-01 as the ready root
-		nextEnv := callTool("vivechak_next_session", map[string]any{"project_root": wsDir})
+		nextEnv := callTool("vivechak_next", map[string]any{"project_root": wsDir})
 		if !nextEnv.Success || !strings.EqualFold(nextEnv.Data["session_id"].(string), "T0-01") {
 			t.Fatalf("expected next session T0-01, got: %+v", nextEnv)
 		}
@@ -455,7 +462,7 @@ Chose option for ` + id + `. Grade A (docs)
 			return parseTestEnvelope(t, res)
 		}
 
-		callTool("vivechak_init", map[string]any{"project_root": wsDir, "scope": "decision"})
+		callTool("vivechak_start", map[string]any{"project_root": wsDir, "scope": "decision"})
 
 		// Save One-Way Door ADR missing review trigger, alternatives, and premortem with TODO
 		badADR := `---
@@ -479,7 +486,7 @@ TODO: add premortem analysis before production release.
 		})
 
 		// Run gate on bad ADR: must fail Track B
-		gateEnv := callTool("vivechak_run_gate", map[string]any{
+		gateEnv := callTool("vivechak_gate", map[string]any{
 			"project_root": wsDir,
 			"track":        "track_b",
 		})
@@ -508,12 +515,13 @@ TODO: add premortem analysis before production release.
 			return parseTestEnvelope(t, res)
 		}
 
-		callTool("vivechak_init", map[string]any{"project_root": wsDir, "scope": "project"})
+		callTool("vivechak_start", map[string]any{"project_root": wsDir, "scope": "project"})
 
 		// Traversal in session_id
-		env1 := callTool("vivechak_save_session", map[string]any{
+		env1 := callTool("vivechak_save", map[string]any{
 			"project_root": wsDir,
-			"session_id":   "../../evil_session",
+			"kind":         "session",
+			"id":           "../../evil_session",
 			"content":      "# Malicious session",
 		})
 		if env1.Success {

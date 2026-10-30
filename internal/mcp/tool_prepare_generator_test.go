@@ -21,6 +21,8 @@ func TestExtractComparisonOptions_Prepositions(t *testing.T) {
 		{"Pino vs Winston for Node.js logging", "Pino, Winston"},
 		{"Postgres vs Mongo in production", "Postgres, Mongo"},
 		{"compare Redis vs Memcached under high throughput", "Redis, Memcached"},
+		{"compare Kafka vs Pulsar in distributed pipelines", "Kafka, Pulsar"},
+		{"evaluate Groß vs Klein under load", "Groß, Klein"},
 	}
 
 	for _, tc := range cases {
@@ -33,21 +35,21 @@ func TestExtractComparisonOptions_Prepositions(t *testing.T) {
 	}
 }
 
-func TestPrepareGenerator_AnchorsProjectRootWithScope(t *testing.T) {
+func TestStart_AnchorsProjectRootWithScope(t *testing.T) {
 	cs := testServer(t)
 	ctx := context.Background()
 	tmpDir := t.TempDir()
 
 	res, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_prepare_generator",
+		Name: "vivechak_start",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"scope":        "comparison",
-			"context":      "Pino vs Winston on Node 22",
+			"question":     "Pino vs Winston on Node 22",
 		},
 	})
 	if err != nil {
-		t.Fatalf("prepare_generator: %v", err)
+		t.Fatalf("vivechak_start: %v", err)
 	}
 	env := parseEnvelope(t, res)
 	if !env.Success {

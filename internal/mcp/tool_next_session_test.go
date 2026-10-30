@@ -100,7 +100,7 @@ func TestNextSession_CalibrationBlockInjection(t *testing.T) {
 	}
 
 	// 1. Regular research session gets calibration rules injected
-	_, envT1, err := buildSessionResponse("vivechak_next_session", dag.Sessions[0], "Base prompt for T1-01", map[string]bool{}, dag, false, nil, nil)
+	_, envT1, err := buildSessionResponse("vivechak_next", dag.Sessions[0], "Base prompt for T1-01", map[string]bool{}, dag, false, nil, nil)
 	if err != nil {
 		t.Fatalf("buildSessionResponse for T1-01 failed: %v", err)
 	}
@@ -120,7 +120,7 @@ func TestNextSession_CalibrationBlockInjection(t *testing.T) {
 	}
 
 	// 2. Synthesis session SYN-01 is exempted
-	_, envSyn, err := buildSessionResponse("vivechak_next_session", dag.Sessions[1], "Base synthesis prompt", map[string]bool{}, dag, false, nil, nil)
+	_, envSyn, err := buildSessionResponse("vivechak_next", dag.Sessions[1], "Base synthesis prompt", map[string]bool{}, dag, false, nil, nil)
 	if err != nil {
 		t.Fatalf("buildSessionResponse for SYN-01 failed: %v", err)
 	}
@@ -131,7 +131,7 @@ func TestNextSession_CalibrationBlockInjection(t *testing.T) {
 	}
 
 	// 3. Synthesis session FAD is exempted
-	_, envFAD, err := buildSessionResponse("vivechak_next_session", dag.Sessions[2], "Base FAD prompt", map[string]bool{}, dag, false, nil, nil)
+	_, envFAD, err := buildSessionResponse("vivechak_next", dag.Sessions[2], "Base FAD prompt", map[string]bool{}, dag, false, nil, nil)
 	if err != nil {
 		t.Fatalf("buildSessionResponse for FAD failed: %v", err)
 	}
@@ -142,7 +142,7 @@ func TestNextSession_CalibrationBlockInjection(t *testing.T) {
 	}
 
 	// 4. Empty prompt does not inject calibration block
-	_, envEmpty, err := buildSessionResponse("vivechak_next_session", dag.Sessions[0], "", map[string]bool{}, dag, false, nil, nil)
+	_, envEmpty, err := buildSessionResponse("vivechak_next", dag.Sessions[0], "", map[string]bool{}, dag, false, nil, nil)
 	if err != nil {
 		t.Fatalf("buildSessionResponse for empty prompt failed: %v", err)
 	}

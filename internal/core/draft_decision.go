@@ -204,7 +204,26 @@ func DraftDecisionFromSessionWithExisting(existingADR []byte, sessionContent []b
 	}
 	b.WriteString("review_date: null\n")
 	b.WriteString("prediction: null\n")
-	b.WriteString("tags: []\n")
+
+	// Tags: preserve existing tags if present
+	var existingTags []string
+	if existFM != nil {
+		for _, tag := range existFM.GetStringSlice("tags") {
+			tag = strings.TrimSpace(tag)
+			if tag != "" {
+				existingTags = append(existingTags, tag)
+			}
+		}
+	}
+	if len(existingTags) > 0 {
+		var quoted []string
+		for _, tag := range existingTags {
+			quoted = append(quoted, fmt.Sprintf("%q", tag))
+		}
+		fmt.Fprintf(&b, "tags: [%s]\n", strings.Join(quoted, ", "))
+	} else {
+		b.WriteString("tags: []\n")
+	}
 	b.WriteString("authored_by: \"auto-drafted from session\"\n")
 	fmt.Fprintf(&b, "human_reviewed: %s\n", humanReviewed)
 	b.WriteString("schema_version: \"0.1.0\"\n")
@@ -300,7 +319,7 @@ func DraftDecisionFromSessionWithExisting(existingADR []byte, sessionContent []b
 
 
 func extractEvidenceGrades(body string) []string {
-	matches := EvidenceGradePattern.FindAllString(body, 20)
+	matches := EvidenceGradePattern.FindAllString(body, -1)
 	if len(matches) == 0 {
 		return nil
 	}

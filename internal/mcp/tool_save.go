@@ -19,10 +19,13 @@ import (
 // SaveInput holds the arguments for vivechak_save.
 type SaveInput struct {
 	ProjectRoot      string `json:"project_root,omitempty"       jsonschema:"workspace root path (optional)"`
-	Kind             string `json:"kind"                         jsonschema:"artifact kind (REQUIRED): 'plan' (RESEARCH-PIPELINE.md) | 'session' (research session) | 'comparison' (WEP matrix) | 'fad' (FAD.md)"`
+	Kind             string `json:"kind,omitempty"               jsonschema:"artifact kind (optional; auto-inferred if omitted): 'plan' (RESEARCH-PIPELINE.md) | 'session' (research session) | 'comparison' (WEP matrix) | 'fad' (FAD.md)"`
 	Scope            string `json:"scope,omitempty"              jsonschema:"optional scope hint ('comparison' | 'decision' | 'project')"`
 	ID               string `json:"id,omitempty"                 jsonschema:"identifier: session_id (e.g. T1-01, SYN-01) or comparison_id (e.g. C-001)"`
-	Content          string `json:"content"                      jsonschema:"markdown artifact content to save"`
+	SessionID        string `json:"session_id,omitempty"         jsonschema:"alias for id"`
+	DecisionID       string `json:"decision_id,omitempty"        jsonschema:"alias for id in decision scope"`
+	Content          string `json:"content,omitempty"           jsonschema:"markdown artifact content to save"`
+	PipelineContent  string `json:"pipeline_content,omitempty"   jsonschema:"alias for content when saving a research pipeline"`
 	DecisionsContent string `json:"decisions_content,omitempty" jsonschema:"initial decision registry content when saving plan (optional)"`
 	Slug             string `json:"slug,omitempty"               jsonschema:"URL-safe slug for the artifact (optional)"`
 }
@@ -138,16 +141,38 @@ func handleSave(ctx context.Context, req *sdkmcp.CallToolRequest, in SaveInput) 
 	}
 	defer ws.Close()
 
+	hadSessionID := in.SessionID != ""
+	if in.ID == "" {
+		if in.SessionID != "" {
+			in.ID = in.SessionID
+		} else if in.DecisionID != "" {
+			in.ID = in.DecisionID
+		}
+	}
+
+	if in.Content == "" && in.PipelineContent != "" {
+		in.Content = in.PipelineContent
+	}
+	if in.Content == "" {
+		return ErrorResult(tool, fmt.Errorf("content is required"), "Provide content to save.")
+	}
+
 	kind := strings.ToLower(strings.TrimSpace(in.Kind))
 	if kind == "" {
 		// Infer kind if possible
-		if in.ID != "" && (strings.HasPrefix(in.ID, "C-") || strings.HasPrefix(in.ID, "c-")) {
+		if hadSessionID {
+			kind = "session"
+		} else if in.ID != "" && (strings.HasPrefix(in.ID, "C-") || strings.HasPrefix(in.ID, "c-")) {
 			kind = "comparison"
 		} else if in.ID != "" {
 			kind = "session"
 		} else {
 			kind = "plan"
 		}
+	}
+
+	if kind == "plan" && (strings.EqualFold(in.Scope, "comparison") || (in.Scope == "" && core.InspectWorkspace(root).Scope == core.ScopeComparison)) {
+		kind = "comparison"
 	}
 
 	switch kind {
@@ -220,6 +245,12 @@ func handleSavePlanKind(_ context.Context, ws *store.Workspace, root string, in 
 
 	pipelinePath := core.PipelineFile
 	if strings.EqualFold(scope, "decision") {
+		if in.ID != "" && !isValidID(in.ID) {
+			return ErrorResult(tool, fmt.Errorf("invalid plan ID %q: must match [A-Za-z0-9_-]+ and not exceed 128 characters", in.ID), "Provide a valid alphanumeric decision or session ID.")
+		}
+		if in.Slug != "" && !isValidID(in.Slug) {
+			return ErrorResult(tool, fmt.Errorf("invalid plan slug %q: must match [A-Za-z0-9_-]+ and not exceed 128 characters", in.Slug), "Provide a valid alphanumeric slug.")
+		}
 		decID := in.ID
 		if decID == "" {
 			reTableRow := regexp.MustCompile(`(?m)^\|\s*(?:\*\*)?(?:ID|Decision|Decision ID|Comparison ID)(?:\*\*)?\s*\|\s*([A-Za-z0-9_-]+)\s*\|`)
@@ -248,6 +279,11 @@ func handleSavePlanKind(_ context.Context, ws *store.Workspace, root string, in 
 			filename = fmt.Sprintf("%s-%s-plan.md", decID, in.Slug)
 		}
 		pipelinePath = filepath.Join(core.ResearchDir, filename)
+	}
+
+	rel, err := filepath.Rel(core.ResearchDir, pipelinePath)
+	if err != nil || strings.HasPrefix(rel, "..") || filepath.IsAbs(rel) {
+		return ErrorResult(tool, fmt.Errorf("security violation: path %q escapes research directory", pipelinePath), "Plans must reside under research/.")
 	}
 
 	if err := store.WriteFileAtomic(ws.Root(), pipelinePath, []byte(in.Content), 0o644); err != nil {

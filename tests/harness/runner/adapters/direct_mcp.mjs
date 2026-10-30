@@ -185,7 +185,7 @@ export class DirectMcpAdapter extends BaseHarnessAdapter {
     if (p.includes("save plan") && p.includes("comparison plan: c-01")) {
       // Scenario 02: Skipped init auto-creation
       toolCalls.push({
-        name: "vivechak_save_plan",
+        name: "vivechak_save",
         args: {
           scope: "comparison",
           id: "C-01",

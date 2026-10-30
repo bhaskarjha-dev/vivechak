@@ -21,7 +21,7 @@ func TestInit_GitignoreCreation(t *testing.T) {
 
 	// 1. Fresh init creates research/.gitignore
 	res, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name:      "vivechak_init",
+		Name:      "vivechak_start",
 		Arguments: map[string]any{"project_root": tmpDir, "scope": "project"},
 	})
 	if err != nil {
@@ -48,7 +48,7 @@ func TestInit_GitignoreCreation(t *testing.T) {
 	}
 
 	res2, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name:      "vivechak_init",
+		Name:      "vivechak_start",
 		Arguments: map[string]any{"project_root": tmpDir, "scope": "project"},
 	})
 	if err != nil {
@@ -115,7 +115,7 @@ func TestRecordDecision_AutoDraft(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
-		Name:      "vivechak_init",
+		Name:      "vivechak_start",
 		Arguments: map[string]any{"project_root": tmpDir, "scope": "project"},
 	})
 
@@ -139,7 +139,7 @@ We recommend RocksDB for production write-heavy workload. Grade A (benchmark)
 - Compaction latency spikes under heavy concurrent writes.
 `
 	_, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_save_session",
+		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"session_id":   "R-01",
@@ -213,14 +213,14 @@ We recommend RocksDB for production write-heavy workload. Grade A (benchmark)
 	}
 }
 
-// TestAmendSession verifies vivechak_amend_session functionality
+// TestAmendSession verifies vivechak_amend functionality
 func TestAmendSession(t *testing.T) {
 	cs := testServer(t)
 	ctx := context.Background()
 	tmpDir := t.TempDir()
 
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
-		Name:      "vivechak_init",
+		Name:      "vivechak_start",
 		Arguments: map[string]any{"project_root": tmpDir, "scope": "project"},
 	})
 
@@ -235,7 +235,7 @@ status: complete
 Initial conclusion was X. Grade A (direct analysis)
 `
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_save_session",
+		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"session_id":   "R-01",
@@ -245,7 +245,7 @@ Initial conclusion was X. Grade A (direct analysis)
 
 	// 1. Amend existing session
 	resAmend, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_amend_session",
+		Name: "vivechak_amend",
 		Arguments: map[string]any{
 			"project_root":        tmpDir,
 			"session_id":          "R-01",
@@ -283,7 +283,7 @@ Initial conclusion was X. Grade A (direct analysis)
 
 	// 2. Amend non-existent session fails
 	resBad, _ := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_amend_session",
+		Name: "vivechak_amend",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"session_id":   "R-99",
@@ -297,7 +297,7 @@ Initial conclusion was X. Grade A (direct analysis)
 
 	// 3. Amend with empty amendment fails
 	resEmpty, _ := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_amend_session",
+		Name: "vivechak_amend",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"session_id":   "R-01",
@@ -320,7 +320,7 @@ status: complete
 Core architecture findings here. Grade A (empirical benchmark)
 `
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_save_session",
+		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"session_id":   "SYN-01",
@@ -329,7 +329,7 @@ Core architecture findings here. Grade A (empirical benchmark)
 	})
 
 	resAmendFAD, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_amend_session",
+		Name: "vivechak_amend",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"session_id":   "FAD",
@@ -394,7 +394,7 @@ status: complete
 `), 0o644)
 
 	resStale, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_amend_session",
+		Name: "vivechak_amend",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"session_id":   "T0-01",
@@ -430,7 +430,7 @@ status: complete
 	// 6. Test amending upstream session when downstream session is NOT completed (no warning)
 	_ = os.Remove(filepath.Join(tmpDir, core.SessionsDir, "T1-01.md"))
 	resNotStale, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_amend_session",
+		Name: "vivechak_amend",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"session_id":   "T0-01",
@@ -459,7 +459,7 @@ func TestNextSession_LayerTransitionReplan(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
-		Name:      "vivechak_init",
+		Name:      "vivechak_start",
 		Arguments: map[string]any{"project_root": tmpDir, "scope": "project"},
 	})
 
@@ -490,7 +490,7 @@ App layer research prompt for L1-01.
 ` + "```" + `
 `
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_save_plan",
+		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"content":      multiLayerPlan,
@@ -499,7 +499,7 @@ App layer research prompt for L1-01.
 
 	// Before L0-01 completed
 	res1, _ := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name:      "vivechak_next_session",
+		Name:      "vivechak_next",
 		Arguments: map[string]any{"project_root": tmpDir},
 	})
 	env1 := parseEnvelope(t, res1)
@@ -509,7 +509,7 @@ App layer research prompt for L1-01.
 
 	// Complete L0-01
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_save_session",
+		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"session_id":   "L0-01",
@@ -527,7 +527,7 @@ Done. Grade A (direct docs)
 
 	// Next session should be L1-01 and warnings should contain the layer transition replan prompt
 	res2, _ := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name:      "vivechak_next_session",
+		Name:      "vivechak_next",
 		Arguments: map[string]any{"project_root": tmpDir},
 	})
 	env2 := parseEnvelope(t, res2)
@@ -554,13 +554,13 @@ func TestWorkspaceValidate(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
-		Name:      "vivechak_init",
+		Name:      "vivechak_start",
 		Arguments: map[string]any{"project_root": tmpDir, "scope": "project"},
 	})
 
 	// Save valid session
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_save_session",
+		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"session_id":   "R-01",
@@ -603,7 +603,7 @@ Consequences are minimal and manageable across all deployment targets and runtim
 
 	// Workspace-wide validate (empty content, project_root provided)
 	resVal, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_validate",
+		Name: "vivechak_review",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 		},
@@ -642,13 +642,13 @@ func TestRunGate_OneWayHumanReviewedAdvisory(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
-		Name:      "vivechak_init",
+		Name:      "vivechak_start",
 		Arguments: map[string]any{"project_root": tmpDir, "scope": "decision"},
 	})
 
 	// Save required decision session
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_save_session",
+		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"session_id":   "S1-01",
@@ -689,7 +689,7 @@ High write throughput achieved across regions.
 	})
 
 	resGate1, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name:      "vivechak_run_gate",
+		Name:      "vivechak_gate",
 		Arguments: map[string]any{"project_root": tmpDir},
 	})
 	if err != nil {
@@ -749,7 +749,7 @@ High write throughput achieved across regions.
 	ws.Close()
 
 	resGate2, _ := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name:      "vivechak_run_gate",
+		Name:      "vivechak_gate",
 		Arguments: map[string]any{"project_root": tmpDir},
 	})
 	envGate2 := parseEnvelope(t, resGate2)
@@ -768,7 +768,7 @@ func TestNextSession_SynthesisExemptionAndMessaging(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
-		Name:      "vivechak_init",
+		Name:      "vivechak_start",
 		Arguments: map[string]any{"project_root": tmpDir, "scope": "project"},
 	})
 
@@ -795,7 +795,7 @@ func TestNextSession_SynthesisExemptionAndMessaging(t *testing.T) {
 ` + "```prompt\n" + largeBody + "\n```" + `
 `
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_save_plan",
+		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"content":      pipeline,
@@ -804,7 +804,7 @@ func TestNextSession_SynthesisExemptionAndMessaging(t *testing.T) {
 
 	// 1. Regular session R-01 with verbose=false: prompt should be truncated
 	resR1, _ := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name:      "vivechak_next_session",
+		Name:      "vivechak_next",
 		Arguments: map[string]any{"project_root": tmpDir, "verbose": false},
 	})
 	envR1 := parseEnvelope(t, resR1)
@@ -815,7 +815,7 @@ func TestNextSession_SynthesisExemptionAndMessaging(t *testing.T) {
 
 	// Complete R-01 with Delta section
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_save_session",
+		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"session_id":   "R-01",
@@ -838,7 +838,7 @@ PostgreSQL recommended. Grade A (direct docs)
 
 	// 2. Synthesis session SYN-01 with verbose=false: prompt MUST NOT be truncated (Task 1)
 	resSyn, _ := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name:      "vivechak_next_session",
+		Name:      "vivechak_next",
 		Arguments: map[string]any{"project_root": tmpDir, "verbose": false},
 	})
 	envSyn := parseEnvelope(t, resSyn)
@@ -868,13 +868,13 @@ func TestGate_WhitelistScanning(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
-		Name:      "vivechak_init",
+		Name:      "vivechak_start",
 		Arguments: map[string]any{"project_root": tmpDir, "scope": "decision"},
 	})
 
 	// Save decision plan
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_save_plan",
+		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"scope":        "decision",
@@ -891,7 +891,7 @@ func TestGate_WhitelistScanning(t *testing.T) {
 
 	// Save session S1-storage
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_save_session",
+		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"session_id":   "S1-storage",
@@ -942,7 +942,7 @@ This is just notes, not an ADR.
 `), 0o644)
 
 	resGate, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name:      "vivechak_run_gate",
+		Name:      "vivechak_gate",
 		Arguments: map[string]any{"project_root": tmpDir, "verbose": true},
 	})
 	if err != nil {
@@ -965,13 +965,13 @@ func TestGate_DiagnosticErrors(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
-		Name:      "vivechak_init",
+		Name:      "vivechak_start",
 		Arguments: map[string]any{"project_root": tmpDir, "scope": "decision"},
 	})
 
 	// Save decision plan
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_save_plan",
+		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"scope":        "decision",
@@ -1010,7 +1010,7 @@ Pending final review.
 	})
 
 	resGate, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name:      "vivechak_run_gate",
+		Name:      "vivechak_gate",
 		Arguments: map[string]any{"project_root": tmpDir, "verbose": true},
 	})
 	if err != nil {
@@ -1039,7 +1039,7 @@ func TestWorkspaceValidate_DecisionSingleSource(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
-		Name:      "vivechak_init",
+		Name:      "vivechak_start",
 		Arguments: map[string]any{"project_root": tmpDir, "scope": "project"},
 	})
 
@@ -1078,7 +1078,7 @@ Manageable consequences for %s.
 	_ = os.WriteFile(filepath.Join(tmpDir, core.ResearchDir, "D-001-plan.md"), []byte("# Plan\nNot an ADR"), 0o644)
 
 	resVal, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name:      "vivechak_validate",
+		Name:      "vivechak_review",
 		Arguments: map[string]any{"project_root": tmpDir},
 	})
 	if err != nil {
@@ -1108,13 +1108,13 @@ func TestRunGate_AutoPersistGateArtifact(t *testing.T) {
 
 	// 1. Initialize decision scope workspace
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
-		Name:      "vivechak_init",
+		Name:      "vivechak_start",
 		Arguments: map[string]any{"project_root": tmpDir, "scope": "decision"},
 	})
 
 	// 2. Run gate on fresh workspace (gate fails due to missing sessions/decisions)
 	resFail, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name:      "vivechak_run_gate",
+		Name:      "vivechak_gate",
 		Arguments: map[string]any{"project_root": tmpDir},
 	})
 	if err != nil {
@@ -1141,7 +1141,7 @@ func TestRunGate_AutoPersistGateArtifact(t *testing.T) {
 
 	// 3. Save completed decision session
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_save_session",
+		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"session_id":   "S1-01",
@@ -1201,7 +1201,7 @@ Provides robust security with zero client secret exposure.
 
 	// 5. Run gate again — should PASS
 	resPass, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name:      "vivechak_run_gate",
+		Name:      "vivechak_gate",
 		Arguments: map[string]any{"project_root": tmpDir, "verbose": true},
 	})
 	if err != nil {
@@ -1242,7 +1242,7 @@ func TestSaveSession_FADNoRootCopy(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
-		Name:      "vivechak_init",
+		Name:      "vivechak_start",
 		Arguments: map[string]any{"project_root": tmpDir, "scope": "project"},
 	})
 
@@ -1257,7 +1257,7 @@ Adopt Solution X. Grade A (official docs)
 `
 
 	res, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_save_session",
+		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"session_id":   "SYN-01",
@@ -1298,7 +1298,7 @@ func TestAmendSession_FADNoRootCopy(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
-		Name:      "vivechak_init",
+		Name:      "vivechak_start",
 		Arguments: map[string]any{"project_root": tmpDir, "scope": "project"},
 	})
 
@@ -1313,7 +1313,7 @@ Adopt Solution X. Grade A (https://solutionx.org/docs | fetched)
 `
 
 	_, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_save_session",
+		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"session_id":   "SYN-01",
@@ -1326,7 +1326,7 @@ Adopt Solution X. Grade A (https://solutionx.org/docs | fetched)
 
 	// Now amend SYN-01
 	amendRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_amend_session",
+		Name: "vivechak_amend",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"session_id":   "SYN-01",
@@ -1365,7 +1365,7 @@ func TestNextSession_SingleReadySession_NoParallelHint(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
-		Name:      "vivechak_init",
+		Name:      "vivechak_start",
 		Arguments: map[string]any{"project_root": tmpDir, "scope": "project"},
 	})
 
@@ -1396,7 +1396,7 @@ Investigate blocked session.
 	_ = os.WriteFile(filepath.Join(tmpDir, core.PipelineFile), []byte(singlePipeline), 0o644)
 
 	res, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name:      "vivechak_next_session",
+		Name:      "vivechak_next",
 		Arguments: map[string]any{"project_root": tmpDir},
 	})
 	if err != nil {
@@ -1422,7 +1422,7 @@ func TestWorkspaceValidate_DAGContext(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
-		Name:      "vivechak_init",
+		Name:      "vivechak_start",
 		Arguments: map[string]any{"project_root": tmpDir, "scope": "project"},
 	})
 
@@ -1465,7 +1465,7 @@ None.
 
 	// Run workspace validate: should detect blocking error because DAG marks T1-01 as one-way
 	res, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name:      "vivechak_validate",
+		Name:      "vivechak_review",
 		Arguments: map[string]any{"project_root": tmpDir},
 	})
 	if err != nil {
@@ -1484,7 +1484,7 @@ None.
 	_ = os.WriteFile(filepath.Join(tmpDir, core.SessionsDir, "T1-01.md"), []byte(fixedSession), 0o644)
 
 	res2, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name:      "vivechak_validate",
+		Name:      "vivechak_review",
 		Arguments: map[string]any{"project_root": tmpDir},
 	})
 	if err != nil {
@@ -1505,7 +1505,7 @@ func TestWorkspaceValidate_FallbackToDecisionsRegistry(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
-		Name:      "vivechak_init",
+		Name:      "vivechak_start",
 		Arguments: map[string]any{"project_root": tmpDir, "scope": "project"},
 	})
 
@@ -1525,7 +1525,7 @@ We choose Raft consensus for deterministic state replication. Grade A (https://r
 	_ = os.WriteFile(filepath.Join(tmpDir, core.DecisionsFile), []byte(decisionsMD), 0o644)
 
 	res, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name:      "vivechak_validate",
+		Name:      "vivechak_review",
 		Arguments: map[string]any{"project_root": tmpDir},
 	})
 	if err != nil {
@@ -1547,7 +1547,7 @@ func TestWorkspaceValidate_DeduplicatesStandaloneAndRegistry(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
-		Name:      "vivechak_init",
+		Name:      "vivechak_start",
 		Arguments: map[string]any{"project_root": tmpDir, "scope": "project"},
 	})
 
@@ -1580,7 +1580,7 @@ We choose Raft consensus for deterministic state replication across distributed 
 	_ = os.WriteFile(filepath.Join(tmpDir, core.DecisionsFile), []byte(decisionsMD), 0o644)
 
 	res, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name:      "vivechak_validate",
+		Name:      "vivechak_review",
 		Arguments: map[string]any{"project_root": tmpDir},
 	})
 	if err != nil {
@@ -1601,7 +1601,7 @@ func TestRunGate_ZeroTwoWayDoors_TrackAPasses(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
-		Name:      "vivechak_init",
+		Name:      "vivechak_start",
 		Arguments: map[string]any{"project_root": tmpDir, "scope": "decision"},
 	})
 
@@ -1664,7 +1664,7 @@ This is a critical architectural commitment verified across standards documents 
 	_ = os.WriteFile(filepath.Join(tmpDir, core.DecisionsFile), []byte(adrContent), 0o644)
 
 	res, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name:      "vivechak_run_gate",
+		Name:      "vivechak_gate",
 		Arguments: map[string]any{"project_root": tmpDir, "verbose": true},
 	})
 	if err != nil {
@@ -1693,7 +1693,7 @@ func TestRunGate_ADRStub_AdvisoryWarning(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
-		Name:      "vivechak_init",
+		Name:      "vivechak_start",
 		Arguments: map[string]any{"project_root": tmpDir, "scope": "decision"},
 	})
 
@@ -1741,7 +1741,7 @@ None.
 	_ = os.WriteFile(filepath.Join(tmpDir, core.DecisionsFile), []byte(shortADR), 0o644)
 
 	res, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name:      "vivechak_run_gate",
+		Name:      "vivechak_gate",
 		Arguments: map[string]any{"project_root": tmpDir, "verbose": true},
 	})
 	if err != nil {

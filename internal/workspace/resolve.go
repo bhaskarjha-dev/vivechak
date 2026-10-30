@@ -158,7 +158,7 @@ func ResolveWorkspaceWithRoots(ctx context.Context, explicit string, roots []str
 		}
 	}
 
-	// Step 5: Walk up from CWD looking for research/.vivechak.json or research/ directory
+	// Step 5: Walk up from CWD looking strictly for verified research/.vivechak.json markers
 	cwd, err := os.Getwd()
 	if err != nil {
 		return "", fmt.Errorf("getting working directory: %w", err)
@@ -174,13 +174,6 @@ func ResolveWorkspaceWithRoots(ctx context.Context, explicit string, roots []str
 					return dir, nil
 				}
 			}
-			researchPath := filepath.Join(dir, ResearchDir)
-			if info, err := os.Stat(researchPath); err == nil && info.IsDir() {
-				if err := SafeRoot(dir); err == nil {
-					SetLastResolvedWorkspace(dir)
-					return dir, nil
-				}
-			}
 		}
 
 		parent := filepath.Dir(dir)
@@ -190,11 +183,36 @@ func ResolveWorkspaceWithRoots(ctx context.Context, explicit string, roots []str
 		dir = parent
 	}
 
-	// Step 6: Guarded CWD (project manifest anchor detection)
-	if !IsSystemOrAppDir(cwd) && HasProjectAnchor(cwd) {
-		if err := SafeRoot(cwd); err == nil {
-			SetLastResolvedWorkspace(cwd)
-			return cwd, nil
+	// Step 6: Guarded CWD & Project Manifest Anchor detection
+	if !IsSystemOrAppDir(cwd) {
+		rPath := filepath.Join(cwd, ResearchDir)
+		if fi, err := os.Stat(rPath); err == nil && fi.IsDir() {
+			if err := SafeRoot(cwd); err == nil {
+				SetLastResolvedWorkspace(cwd)
+				return cwd, nil
+			}
+		}
+		if HasProjectAnchor(cwd) {
+			if err := SafeRoot(cwd); err == nil {
+				SetLastResolvedWorkspace(cwd)
+				return cwd, nil
+			}
+		}
+	}
+
+	// If CWD is a subdirectory inside a project with an anchor, walk up to find project root
+	dir = cwd
+	for {
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break
+		}
+		dir = parent
+		if !IsSystemOrAppDir(dir) && HasProjectAnchor(dir) {
+			if err := SafeRoot(dir); err == nil {
+				SetLastResolvedWorkspace(dir)
+				return dir, nil
+			}
 		}
 	}
 

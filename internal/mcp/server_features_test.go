@@ -16,7 +16,7 @@ import (
 // T1-01: Scope-Aware Template Copying
 // ============================================================================
 
-// TestInit_DecisionScopeCopiesOnly2Templates verifies vivechak_init with
+// TestInit_DecisionScopeCopiesOnly2Templates verifies vivechak_start with
 // decision scope copies only DECISIONS + CONFLICT-RESOLUTION templates.
 func TestInit_DecisionScopeCopiesOnly2Templates(t *testing.T) {
 	cs := testServer(t)
@@ -24,7 +24,7 @@ func TestInit_DecisionScopeCopiesOnly2Templates(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	_, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name:      "vivechak_init",
+		Name:      "vivechak_start",
 		Arguments: map[string]any{"project_root": tmpDir, "scope": "decision"},
 	})
 	if err != nil {
@@ -56,7 +56,7 @@ func TestInit_DecisionScopeCopiesOnly2Templates(t *testing.T) {
 	}
 }
 
-// TestInit_ComparisonScopeCopiesOnly1Template verifies vivechak_init with
+// TestInit_ComparisonScopeCopiesOnly1Template verifies vivechak_start with
 // comparison scope copies only COMPARISON-SESSION template.
 func TestInit_ComparisonScopeCopiesOnly1Template(t *testing.T) {
 	cs := testServer(t)
@@ -64,7 +64,7 @@ func TestInit_ComparisonScopeCopiesOnly1Template(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	_, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name:      "vivechak_init",
+		Name:      "vivechak_start",
 		Arguments: map[string]any{"project_root": tmpDir, "scope": "comparison"},
 	})
 	if err != nil {
@@ -94,7 +94,7 @@ func TestInit_ComparisonScopeCopiesOnly1Template(t *testing.T) {
 	}
 }
 
-// TestInit_ProjectScopeCopiesAll6Templates verifies vivechak_init with
+// TestInit_ProjectScopeCopiesAll6Templates verifies vivechak_start with
 // project scope copies all 6 templates.
 func TestInit_ProjectScopeCopiesAll6Templates(t *testing.T) {
 	cs := testServer(t)
@@ -102,7 +102,7 @@ func TestInit_ProjectScopeCopiesAll6Templates(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	_, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name:      "vivechak_init",
+		Name:      "vivechak_start",
 		Arguments: map[string]any{"project_root": tmpDir, "scope": "project"},
 	})
 	if err != nil {
@@ -127,7 +127,7 @@ func TestInit_RepairRestoresOnlyScopeTemplates(t *testing.T) {
 
 	// Init with decision scope
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
-		Name:      "vivechak_init",
+		Name:      "vivechak_start",
 		Arguments: map[string]any{"project_root": tmpDir, "scope": "decision"},
 	})
 
@@ -136,7 +136,7 @@ func TestInit_RepairRestoresOnlyScopeTemplates(t *testing.T) {
 
 	// Re-init should repair only decision-scope templates
 	result, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name:      "vivechak_init",
+		Name:      "vivechak_start",
 		Arguments: map[string]any{"project_root": tmpDir, "scope": "decision"},
 	})
 	if err != nil {
@@ -177,7 +177,7 @@ func TestNextSession_QualityBarLanguage(t *testing.T) {
 
 	// Init + save pipeline with 2 sessions
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
-		Name:      "vivechak_init",
+		Name:      "vivechak_start",
 		Arguments: map[string]any{"project_root": tmpDir, "scope": "project"},
 	})
 
@@ -193,13 +193,13 @@ func TestNextSession_QualityBarLanguage(t *testing.T) {
 ` + "```prompt\nSynthesize findings.\n[ALL_SESSION_FINDINGS]\n```"
 
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
-		Name:      "vivechak_save_plan",
+		Name:      "vivechak_save",
 		Arguments: map[string]any{"project_root": tmpDir, "content": pipeline},
 	})
 
 	// Get next session (T1-01 - research session)
 	result, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name:      "vivechak_next_session",
+		Name:      "vivechak_next",
 		Arguments: map[string]any{"project_root": tmpDir},
 	})
 	if err != nil {
@@ -225,7 +225,7 @@ func TestNextSession_SynthesisLanguage(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
-		Name:      "vivechak_init",
+		Name:      "vivechak_start",
 		Arguments: map[string]any{"project_root": tmpDir, "scope": "project"},
 	})
 
@@ -241,13 +241,13 @@ func TestNextSession_SynthesisLanguage(t *testing.T) {
 ` + "```prompt\nSynthesize.\n[ALL_SESSION_FINDINGS]\n```"
 
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
-		Name:      "vivechak_save_plan",
+		Name:      "vivechak_save",
 		Arguments: map[string]any{"project_root": tmpDir, "content": pipeline},
 	})
 
 	// Complete T1-01
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_save_session",
+		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"session_id":   "T1-01",
@@ -265,7 +265,7 @@ PostgreSQL recommended. Grade A (docs)
 
 	// Get SYN-01 next_step
 	result, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name:      "vivechak_next_session",
+		Name:      "vivechak_next",
 		Arguments: map[string]any{"project_root": tmpDir},
 	})
 	if err != nil {
@@ -289,7 +289,7 @@ func TestNextSession_BlockedSessionsData(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
-		Name:      "vivechak_init",
+		Name:      "vivechak_start",
 		Arguments: map[string]any{"project_root": tmpDir, "scope": "project"},
 	})
 
@@ -311,13 +311,13 @@ func TestNextSession_BlockedSessionsData(t *testing.T) {
 ` + "```prompt\nSynthesize.\n[ALL_SESSION_FINDINGS]\n```"
 
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
-		Name:      "vivechak_save_plan",
+		Name:      "vivechak_save",
 		Arguments: map[string]any{"project_root": tmpDir, "content": pipeline},
 	})
 
 	// Get T1-01 — T2-01 and SYN-01 should be blocked
 	result, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name:      "vivechak_next_session",
+		Name:      "vivechak_next",
 		Arguments: map[string]any{"project_root": tmpDir},
 	})
 	if err != nil {
@@ -365,7 +365,7 @@ func TestNextSession_ParallelSessionCount(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
-		Name:      "vivechak_init",
+		Name:      "vivechak_start",
 		Arguments: map[string]any{"project_root": tmpDir, "scope": "project"},
 	})
 
@@ -387,12 +387,12 @@ func TestNextSession_ParallelSessionCount(t *testing.T) {
 ` + "```prompt\nC.\n```"
 
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
-		Name:      "vivechak_save_plan",
+		Name:      "vivechak_save",
 		Arguments: map[string]any{"project_root": tmpDir, "content": pipeline},
 	})
 
 	result, _ := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name:      "vivechak_next_session",
+		Name:      "vivechak_next",
 		Arguments: map[string]any{"project_root": tmpDir},
 	})
 	env := parseEnvelope(t, result)
@@ -423,7 +423,7 @@ func TestValidate_AdvisoryLanguage(t *testing.T) {
 	content := `Short body without frontmatter.`
 
 	result, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_validate",
+		Name: "vivechak_review",
 		Arguments: map[string]any{
 			"content":       content,
 			"artifact_type": "session",
@@ -464,7 +464,7 @@ Use PostgreSQL. Grade A (official docs)
 `
 
 	result, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_validate",
+		Name: "vivechak_review",
 		Arguments: map[string]any{
 			"content":       content,
 			"artifact_type": "session",
@@ -543,7 +543,7 @@ Should we use PostgreSQL or MySQL?
 `
 
 	result, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_validate",
+		Name: "vivechak_review",
 		Arguments: map[string]any{
 			"content":       content,
 			"artifact_type": "session",
@@ -587,7 +587,7 @@ This session has no evidence grades but is otherwise valid with enough body cont
 ` + strings.Repeat("Additional substantive content. ", 20)
 
 	result, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_validate",
+		Name: "vivechak_review",
 		Arguments: map[string]any{
 			"content":       content,
 			"artifact_type": "session",
@@ -615,17 +615,17 @@ func TestNoWebSearchEnabledInAnyNextStep(t *testing.T) {
 
 	// Init
 	res, _ := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name:      "vivechak_init",
+		Name:      "vivechak_start",
 		Arguments: map[string]any{"project_root": tmpDir, "scope": "project"},
 	})
 	env := parseEnvelope(t, res)
 	if strings.Contains(env.NextStep, "web search enabled") {
-		t.Error("vivechak_init next_step contains 'web search enabled'")
+		t.Error("vivechak_start next_step contains 'web search enabled'")
 	}
 
 	// Prepare generator
 	res, _ = cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_prepare_generator",
+		Name: "vivechak_start",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"scope":        "project",
@@ -634,7 +634,7 @@ func TestNoWebSearchEnabledInAnyNextStep(t *testing.T) {
 	})
 	env = parseEnvelope(t, res)
 	if strings.Contains(env.NextStep, "web search enabled") {
-		t.Error("vivechak_prepare_generator next_step contains 'web search enabled'")
+		t.Error("vivechak_start (generator) next_step contains 'web search enabled'")
 	}
 
 	// Save plan
@@ -645,32 +645,32 @@ func TestNoWebSearchEnabledInAnyNextStep(t *testing.T) {
 ` + "```prompt\nResearch.\n```"
 
 	res, _ = cs.CallTool(ctx, &mcp.CallToolParams{
-		Name:      "vivechak_save_plan",
+		Name:      "vivechak_save",
 		Arguments: map[string]any{"project_root": tmpDir, "content": pipeline},
 	})
 	env = parseEnvelope(t, res)
 	if strings.Contains(env.NextStep, "web search enabled") {
-		t.Error("vivechak_save_plan next_step contains 'web search enabled'")
+		t.Error("vivechak_save (plan) next_step contains 'web search enabled'")
 	}
 
 	// Next session
 	res, _ = cs.CallTool(ctx, &mcp.CallToolParams{
-		Name:      "vivechak_next_session",
+		Name:      "vivechak_next",
 		Arguments: map[string]any{"project_root": tmpDir},
 	})
 	env = parseEnvelope(t, res)
 	if strings.Contains(env.NextStep, "web search enabled") {
-		t.Error("vivechak_next_session next_step contains 'web search enabled'")
+		t.Error("vivechak_next next_step contains 'web search enabled'")
 	}
 
 	// Validate
 	res, _ = cs.CallTool(ctx, &mcp.CallToolParams{
-		Name:      "vivechak_validate",
+		Name:      "vivechak_review",
 		Arguments: map[string]any{"content": "test", "artifact_type": "session"},
 	})
 	env = parseEnvelope(t, res)
 	if strings.Contains(env.NextStep, "web search enabled") {
-		t.Error("vivechak_validate next_step contains 'web search enabled'")
+		t.Error("vivechak_review next_step contains 'web search enabled'")
 	}
 
 	// Status
@@ -700,7 +700,7 @@ func TestGenerator_8BlockStructure(t *testing.T) {
 		t.Run(scope, func(t *testing.T) {
 			tmpDir := t.TempDir()
 			result, err := cs.CallTool(ctx, &mcp.CallToolParams{
-				Name: "vivechak_prepare_generator",
+				Name: "vivechak_start",
 				Arguments: map[string]any{
 					"project_root": tmpDir,
 					"scope":        scope,
@@ -755,7 +755,7 @@ func TestGenerator_NoCoverageChecklist(t *testing.T) {
 		t.Run(scope, func(t *testing.T) {
 			tmpDir := t.TempDir()
 			result, err := cs.CallTool(ctx, &mcp.CallToolParams{
-				Name: "vivechak_prepare_generator",
+				Name: "vivechak_start",
 				Arguments: map[string]any{
 					"project_root": tmpDir,
 					"scope":        scope,
@@ -790,7 +790,7 @@ func TestGenerator_PriorDeltaInFormat(t *testing.T) {
 		t.Run(scope, func(t *testing.T) {
 			tmpDir := t.TempDir()
 			result, err := cs.CallTool(ctx, &mcp.CallToolParams{
-				Name: "vivechak_prepare_generator",
+				Name: "vivechak_start",
 				Arguments: map[string]any{
 					"project_root": tmpDir,
 					"scope":        scope,
@@ -828,7 +828,7 @@ func TestGenerator_IterativeGuidance(t *testing.T) {
 		t.Run(scope, func(t *testing.T) {
 			tmpDir := t.TempDir()
 			result, err := cs.CallTool(ctx, &mcp.CallToolParams{
-				Name: "vivechak_prepare_generator",
+				Name: "vivechak_start",
 				Arguments: map[string]any{
 					"project_root": tmpDir,
 					"scope":        scope,
@@ -872,7 +872,7 @@ func TestGenerator_CalibrationBlock(t *testing.T) {
 		t.Run(scope, func(t *testing.T) {
 			tmpDir := t.TempDir()
 			result, err := cs.CallTool(ctx, &mcp.CallToolParams{
-				Name: "vivechak_prepare_generator",
+				Name: "vivechak_start",
 				Arguments: map[string]any{
 					"project_root": tmpDir,
 					"scope":        scope,
@@ -908,13 +908,13 @@ func TestRunGate_ScopeAwareTemplateCount(t *testing.T) {
 	// Decision scope: 2 templates should be enough
 	tmpDir := t.TempDir()
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
-		Name:      "vivechak_init",
+		Name:      "vivechak_start",
 		Arguments: map[string]any{"project_root": tmpDir, "scope": "decision"},
 	})
 
 	// Save a session
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_save_session",
+		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"session_id":   "S1-01",
@@ -955,7 +955,7 @@ None significant.
 
 	// Gate should pass with only 2 templates
 	res, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name:      "vivechak_run_gate",
+		Name:      "vivechak_gate",
 		Arguments: map[string]any{"project_root": tmpDir},
 	})
 	if err != nil {
@@ -990,7 +990,7 @@ func TestNextSession_ComparisonQualityGuidance(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
-		Name:      "vivechak_init",
+		Name:      "vivechak_start",
 		Arguments: map[string]any{"project_root": tmpDir, "scope": "comparison"},
 	})
 
@@ -998,7 +998,7 @@ func TestNextSession_ComparisonQualityGuidance(t *testing.T) {
 Compare Kafka vs RabbitMQ. A (benchmark)
 `
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_save_plan",
+		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"scope":        "comparison",
@@ -1009,7 +1009,7 @@ Compare Kafka vs RabbitMQ. A (benchmark)
 	})
 
 	res, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name:      "vivechak_next_session",
+		Name:      "vivechak_next",
 		Arguments: map[string]any{"project_root": tmpDir},
 	})
 	if err != nil {
@@ -1033,7 +1033,7 @@ func TestPrepareGenerator_AutoInfersScope(t *testing.T) {
 
 	tmpDir := t.TempDir()
 	res, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_prepare_generator",
+		Name: "vivechak_start",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"context":      "Compare Winston vs Pino for high throughput logging in Node.js",
@@ -1070,7 +1070,7 @@ func TestSavePlan_AutoInitializesWorkspace(t *testing.T) {
 Compare Winston vs Pino. Evidence Grade A (official docs).
 `
 	res, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_save_plan",
+		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"scope":        "comparison",
@@ -1131,7 +1131,7 @@ func TestPrepareGenerator_ScopeAwareNextStep(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			res, err := cs.CallTool(ctx, &mcp.CallToolParams{
-				Name: "vivechak_prepare_generator",
+				Name: "vivechak_start",
 				Arguments: map[string]any{
 					"project_root": t.TempDir(),
 					"scope":        tc.scope,
@@ -1174,7 +1174,7 @@ func TestPrepareGenerator_ExtractComparisonOptions(t *testing.T) {
 
 	for _, tc := range cases {
 		res, err := cs.CallTool(ctx, &mcp.CallToolParams{
-			Name: "vivechak_prepare_generator",
+			Name: "vivechak_start",
 			Arguments: map[string]any{
 				"project_root": t.TempDir(),
 				"scope":        "comparison",
@@ -1218,7 +1218,7 @@ func TestServerInstructions_MultiScopeAndOutofScope(t *testing.T) {
 	}
 }
 
-// TestSaveSession_CustomOutputFileFromDAG verifies that vivechak_save_session respects
+// TestSaveSession_CustomOutputFileFromDAG verifies that vivechak_save respects
 // the custom OutputFile path configured in the DAG pipeline.
 func TestSaveSession_CustomOutputFileFromDAG(t *testing.T) {
 	cs := testServer(t)
@@ -1227,14 +1227,14 @@ func TestSaveSession_CustomOutputFileFromDAG(t *testing.T) {
 
 	// 1. Initialize project scope
 	initRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_init",
+		Name: "vivechak_start",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"scope":        "project",
 		},
 	})
 	if err != nil {
-		t.Fatalf("vivechak_init failed: %v", err)
+		t.Fatalf("vivechak_start failed: %v", err)
 	}
 	_ = parseEnvelope(t, initRes)
 
@@ -1254,7 +1254,7 @@ func TestSaveSession_CustomOutputFileFromDAG(t *testing.T) {
 ` + "```prompt\nResearch Auth\n```" + `
 `
 	savePlanRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_save_plan",
+		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"scope":        "project",
@@ -1262,7 +1262,7 @@ func TestSaveSession_CustomOutputFileFromDAG(t *testing.T) {
 		},
 	})
 	if err != nil {
-		t.Fatalf("vivechak_save_plan failed: %v", err)
+		t.Fatalf("vivechak_save (plan) failed: %v", err)
 	}
 	_ = parseEnvelope(t, savePlanRes)
 
@@ -1278,7 +1278,7 @@ status: complete
 - Finding 1: PostgreSQL handles high concurrency. Grade A (official docs)
 `
 	saveSessRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_save_session",
+		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"session_id":   "T1-01",
@@ -1286,7 +1286,7 @@ status: complete
 		},
 	})
 	if err != nil {
-		t.Fatalf("vivechak_save_session failed: %v", err)
+		t.Fatalf("vivechak_save (session) failed: %v", err)
 	}
 	env := parseEnvelope(t, saveSessRes)
 	data, ok := env.Data.(map[string]any)
@@ -1307,7 +1307,7 @@ status: complete
 
 	// 4. Save session T1-02 without custom OutputFile (should use default T1-02.md)
 	saveSess2Res, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_save_session",
+		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"session_id":   "T1-02",
@@ -1315,7 +1315,7 @@ status: complete
 		},
 	})
 	if err != nil {
-		t.Fatalf("vivechak_save_session T1-02 failed: %v", err)
+		t.Fatalf("vivechak_save (session T1-02) failed: %v", err)
 	}
 	env2 := parseEnvelope(t, saveSess2Res)
 	data2, _ := env2.Data.(map[string]any)

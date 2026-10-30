@@ -175,8 +175,8 @@ func TestMassive_LiveMCP_DiamondDAG_And_DownstreamCascades(t *testing.T) {
 
 	projectDir := t.TempDir()
 
-	// 3. vivechak_init
-	envInit := callAndParse("vivechak_init", map[string]any{
+	// 3. vivechak_start
+	envInit := callAndParse("vivechak_start", map[string]any{
 		"project_root": projectDir,
 		"scope":        "project",
 	})
@@ -255,8 +255,9 @@ func TestMassive_LiveMCP_DiamondDAG_And_DownstreamCascades(t *testing.T) {
 
 ` + "```prompt\nSynthesize founding architecture for the complete system.\n```" + `
 `
-	envPlan := callAndParse("vivechak_save_plan", map[string]any{
+	envPlan := callAndParse("vivechak_save", map[string]any{
 		"project_root": projectDir,
+		"kind":         "plan",
 		"content":      diamondPlan,
 	})
 	if !envPlan.Success {
@@ -264,7 +265,7 @@ func TestMassive_LiveMCP_DiamondDAG_And_DownstreamCascades(t *testing.T) {
 	}
 
 	// 5. Step 1: Layer 0 -> S-01
-	envNext1 := callAndParse("vivechak_next_session", map[string]any{
+	envNext1 := callAndParse("vivechak_next", map[string]any{
 		"project_root": projectDir,
 	})
 	if envNext1.Data["session_id"] != "S-01" {
@@ -288,9 +289,10 @@ Adopt immutable event-sourced aggregate root model. Grade A (formal specificatio
 |---|---|---|
 | Mutable CRUD state | Contradicted | High |
 `
-	envSave1 := callAndParse("vivechak_save_session", map[string]any{
+	envSave1 := callAndParse("vivechak_save", map[string]any{
 		"project_root": projectDir,
-		"session_id":   "S-01",
+		"kind":         "session",
+		"id":           "S-01",
 		"content":      s1Content,
 	})
 	if !envSave1.Success {
@@ -326,7 +328,7 @@ We adopt event sourcing. Grade A (formal proof)
 	}
 
 	// 6. Step 2: Layer 1 -> BOTH S-02 and S-03 are ready in parallel!
-	envNext2 := callAndParse("vivechak_next_session", map[string]any{
+	envNext2 := callAndParse("vivechak_next", map[string]any{
 		"project_root": projectDir,
 	})
 	// Check parallelism_hint
@@ -361,9 +363,10 @@ Compaction stalls observed under sustained concurrent writes requiring custom me
 |---|---|---|
 | SQL database | Contradicted | High |
 `
-	envSave2 := callAndParse("vivechak_save_session", map[string]any{
+	envSave2 := callAndParse("vivechak_save", map[string]any{
 		"project_root": projectDir,
-		"session_id":   "S-02",
+		"kind":         "session",
+		"id":           "S-02",
 		"content":      s2Content,
 	})
 	if !envSave2.Success {
@@ -371,7 +374,7 @@ Compaction stalls observed under sustained concurrent writes requiring custom me
 	}
 
 	// 8. Next session must now return S-03 (S-04 is still blocked because it needs both S-02 AND S-03!)
-	envNext3 := callAndParse("vivechak_next_session", map[string]any{
+	envNext3 := callAndParse("vivechak_next", map[string]any{
 		"project_root": projectDir,
 	})
 	if envNext3.Data["session_id"] != "S-03" {
@@ -393,9 +396,10 @@ Adopt FlatBuffers over gRPC for zero-copy deserialization. Grade B (benchmark)
 |---|---|---|
 | JSON over HTTP | Contradicted | Medium |
 `
-	envSave3 := callAndParse("vivechak_save_session", map[string]any{
+	envSave3 := callAndParse("vivechak_save", map[string]any{
 		"project_root": projectDir,
-		"session_id":   "S-03",
+		"kind":         "session",
+		"id":           "S-03",
 		"content":      s3Content,
 	})
 	if !envSave3.Success {
@@ -403,7 +407,7 @@ Adopt FlatBuffers over gRPC for zero-copy deserialization. Grade B (benchmark)
 	}
 
 	// 9. Now S-04 (Consensus) is unblocked!
-	envNext4 := callAndParse("vivechak_next_session", map[string]any{
+	envNext4 := callAndParse("vivechak_next", map[string]any{
 		"project_root": projectDir,
 	})
 	if envNext4.Data["session_id"] != "S-04" {
@@ -427,9 +431,10 @@ Leader election timeouts cause intermittent transaction pauses during partition 
 |---|---|---|
 | Gossip protocol | Contradicted | High |
 `
-	envSave4 := callAndParse("vivechak_save_session", map[string]any{
+	envSave4 := callAndParse("vivechak_save", map[string]any{
 		"project_root": projectDir,
-		"session_id":   "S-04",
+		"kind":         "session",
+		"id":           "S-04",
 		"content":      s4Content,
 	})
 	if !envSave4.Success {
@@ -437,7 +442,7 @@ Leader election timeouts cause intermittent transaction pauses during partition 
 	}
 
 	// 10. Step 4: Synthesis Session FAD
-	envNextSyn := callAndParse("vivechak_next_session", map[string]any{
+	envNextSyn := callAndParse("vivechak_next", map[string]any{
 		"project_root": projectDir,
 	})
 	if envNextSyn.Data["session_id"] != "FAD" {
@@ -465,9 +470,10 @@ Replay performance monitored with snapshotting. Grade B (operational runbook)
 - SQL rejected due to schema mutation bottlenecks. Grade A (benchmark)
 - JSON HTTP rejected due to serialization overhead. Grade B (docs)
 `
-	envSaveFAD := callAndParse("vivechak_save_session", map[string]any{
+	envSaveFAD := callAndParse("vivechak_save", map[string]any{
 		"project_root": projectDir,
-		"session_id":   "FAD",
+		"kind":         "session",
+		"id":           "FAD",
 		"content":      fadContent,
 	})
 	if !envSaveFAD.Success {
@@ -492,11 +498,10 @@ Replay performance monitored with snapshotting. Grade B (operational runbook)
 	// 11. Multi-hop Downstream Stale Cascading Test:
 	// Amend S-01: Because S-02 and S-03 depend on S-01, S-04 depends on S-02/S-03, and FAD depends on all,
 	// amending S-01 must detect completed downstream sessions and issue W-STALE-DOWNSTREAM.
-	envAmend := callAndParse("vivechak_amend_session", map[string]any{
-		"project_root":        projectDir,
-		"session_id":          "S-01",
-		"amending_session_id": "REV-01",
-		"amendment":           "Architecture revision: Aggregate roots must support snapshotting every 10,000 events.",
+	envAmend := callAndParse("vivechak_amend", map[string]any{
+		"project_root": projectDir,
+		"session_id":   "S-01",
+		"amendment":    "Architecture revision: Aggregate roots must support snapshotting every 10,000 events.",
 	})
 	if !envAmend.Success {
 		t.Fatalf("amend S-01 failed: %s", envAmend.Message)
@@ -528,7 +533,7 @@ Replay performance monitored with snapshotting. Grade B (operational runbook)
 	ws.Close()
 
 	// 12. Run Phase 0 Gate: Must pass and auto-persist research/PHASE-0-GATE.md
-	envGate := callAndParse("vivechak_run_gate", map[string]any{
+	envGate := callAndParse("vivechak_gate", map[string]any{
 		"project_root": projectDir,
 		"verbose":      true,
 	})
@@ -588,7 +593,7 @@ func TestMassive_LiveMCP_HighConcurrencyStress(t *testing.T) {
 
 	// Initialize workspace
 	resInit, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_init",
+		Name: "vivechak_start",
 		Arguments: map[string]any{
 			"project_root": projectDir,
 			"scope":        "project",
@@ -654,10 +659,11 @@ Finding details for session %d. Grade B (automated run)
 `, sessID, id, id, id)
 
 			res, err := cs.CallTool(ctx, &mcp.CallToolParams{
-				Name: "vivechak_save_session",
+				Name: "vivechak_save",
 				Arguments: map[string]any{
 					"project_root": projectDir,
-					"session_id":   sessID,
+					"kind":         "session",
+					"id":           sessID,
 					"content":      sessBody,
 				},
 			})
@@ -715,9 +721,10 @@ Decision details for worker %d.
 			defer wg.Done()
 			time.Sleep(10 * time.Millisecond)
 			_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
-				Name: "vivechak_validate",
+				Name: "vivechak_review",
 				Arguments: map[string]any{
 					"project_root": projectDir,
+					"mode":         "validate",
 				},
 			})
 		}(i)
@@ -795,7 +802,7 @@ func TestMassive_LiveMCP_MultiScopeFullRoundtrips(t *testing.T) {
 		dDir := t.TempDir()
 
 		// 1. Init decision scope (must copy only 2 templates)
-		envInit := callAndParse("vivechak_init", map[string]any{
+		envInit := callAndParse("vivechak_start", map[string]any{
 			"project_root": dDir,
 			"scope":        "decision",
 		})
@@ -808,10 +815,10 @@ func TestMassive_LiveMCP_MultiScopeFullRoundtrips(t *testing.T) {
 		}
 
 		// 2. Prepare generator (decision scope)
-		envPrep := callAndParse("vivechak_prepare_generator", map[string]any{
+		envPrep := callAndParse("vivechak_start", map[string]any{
 			"project_root": dDir,
 			"scope":        "decision",
-			"context":      "Choose between CockroachDB vs TiDB for multi-region transactional SQL.",
+			"question":     "Choose between CockroachDB vs TiDB for multi-region transactional SQL.",
 		})
 		if !envPrep.Success {
 			t.Fatalf("prepare generator failed: %s", envPrep.Message)
@@ -837,18 +844,19 @@ func TestMassive_LiveMCP_MultiScopeFullRoundtrips(t *testing.T) {
 
 ` + "```prompt\nEvaluate CockroachDB and TiDB against regional latency requirements.\n```" + `
 `
-		envPlan := callAndParse("vivechak_save_plan", map[string]any{
+		envPlan := callAndParse("vivechak_save", map[string]any{
 			"project_root": dDir,
+			"kind":         "plan",
+			"id":           "D-001",
 			"content":      planContent,
 			"scope":        "decision",
-			"decision_id":  "D-001",
 		})
 		if !envPlan.Success {
 			t.Fatalf("save decision plan failed: %s", envPlan.Message)
 		}
 
 		// 4. Next session -> D-001-S1
-		envNext := callAndParse("vivechak_next_session", map[string]any{
+		envNext := callAndParse("vivechak_next", map[string]any{
 			"project_root": dDir,
 		})
 		if envNext.Data["session_id"] != "D-001-S1" {
@@ -872,9 +880,10 @@ We recommend CockroachDB. Grade A (regional multi-cloud benchmark)
 |---|---|---|
 | Aurora Global DB | Contradicted | High |
 `
-		envSave := callAndParse("vivechak_save_session", map[string]any{
+		envSave := callAndParse("vivechak_save", map[string]any{
 			"project_root": dDir,
-			"session_id":   "D-001-S1",
+			"kind":         "session",
+			"id":           "D-001-S1",
 			"content":      s1Content,
 		})
 		if !envSave.Success {
@@ -920,15 +929,16 @@ We adopt CockroachDB. Grade A (benchmark)
 		ws.Close()
 
 		// 7. Validate: D-001-plan.md must be whitelisted by IsSpecialResearchFile
-		envVal := callAndParse("vivechak_validate", map[string]any{
+		envVal := callAndParse("vivechak_review", map[string]any{
 			"project_root": dDir,
+			"mode":         "validate",
 		})
 		if !envVal.Success {
 			t.Fatalf("validate failed: %s", envVal.Message)
 		}
 
 		// 8. Run gate for decision scope
-		envGate := callAndParse("vivechak_run_gate", map[string]any{
+		envGate := callAndParse("vivechak_gate", map[string]any{
 			"project_root": dDir,
 			"verbose":      true,
 		})
@@ -945,7 +955,7 @@ We adopt CockroachDB. Grade A (benchmark)
 		cDir := t.TempDir()
 
 		// 1. Init comparison scope (must copy only 1 template)
-		envInit := callAndParse("vivechak_init", map[string]any{
+		envInit := callAndParse("vivechak_start", map[string]any{
 			"project_root": cDir,
 			"scope":        "comparison",
 		})
@@ -973,27 +983,29 @@ We adopt CockroachDB. Grade A (benchmark)
 
 ` + "```prompt\nCompare Kafka vs Redpanda using WEP matrix.\n```" + `
 `
-		envPlan := callAndParse("vivechak_save_plan", map[string]any{
+		envPlan := callAndParse("vivechak_save", map[string]any{
 			"project_root": cDir,
+			"kind":         "plan",
+			"id":           "COMP-01",
 			"content":      compPlan,
 			"scope":        "comparison",
-			"decision_id":  "COMP-01",
 		})
 		if !envPlan.Success {
 			t.Fatalf("save comparison plan failed: %s", envPlan.Message)
 		}
 
-		// 3. Next session -> CMP-01
-		envNext := callAndParse("vivechak_next_session", map[string]any{
+		// 3. Next session -> C-01
+		envNext := callAndParse("vivechak_next", map[string]any{
 			"project_root": cDir,
 		})
-		if envNext.Data["session_id"] != "CMP-01" {
-			t.Fatalf("expected CMP-01, got: %v", envNext.Data["session_id"])
+		sessID, _ := envNext.Data["session_id"].(string)
+		if sessID != "C-01" && sessID != "CMP-01" {
+			t.Fatalf("expected C-01 or CMP-01, got: %v", envNext.Data["session_id"])
 		}
 
 		// 4. Save comparison session with WEP matrix
-		compContent := `---
-session_id: CMP-01
+		compContent := fmt.Sprintf(`---
+session_id: %s
 title: Kafka vs Redpanda Comparison
 date: 2026-10-02
 status: complete
@@ -1010,26 +1022,28 @@ status: complete
 
 ## Recommendation
 Adopt Redpanda for low operational complexity and zero JVM overhead. Grade A (benchmark)
-`
-		envSave := callAndParse("vivechak_save_session", map[string]any{
+`, sessID)
+		envSave := callAndParse("vivechak_save", map[string]any{
 			"project_root": cDir,
-			"session_id":   "CMP-01",
+			"kind":         "session",
+			"id":           sessID,
 			"content":      compContent,
 		})
 		if !envSave.Success {
-			t.Fatalf("save CMP-01 failed: %s", envSave.Message)
+			t.Fatalf("save %s failed: %s", sessID, envSave.Message)
 		}
 
 		// 5. Validate comparison workspace
-		envVal := callAndParse("vivechak_validate", map[string]any{
+		envVal := callAndParse("vivechak_review", map[string]any{
 			"project_root": cDir,
+			"mode":         "validate",
 		})
 		if !envVal.Success {
 			t.Fatalf("validate comparison failed: %s", envVal.Message)
 		}
 
 		// 6. Run gate for comparison scope
-		envGate := callAndParse("vivechak_run_gate", map[string]any{
+		envGate := callAndParse("vivechak_gate", map[string]any{
 			"project_root": cDir,
 			"verbose":      true,
 		})

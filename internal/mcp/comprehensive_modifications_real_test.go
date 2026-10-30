@@ -1358,10 +1358,10 @@ func TestComprehensive_ScopeInferenceAndPrepositionStrippingMCP(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			res, err := cs.CallTool(ctx, &mcp.CallToolParams{
-				Name: "vivechak_prepare_generator",
+				Name: "vivechak_start",
 				Arguments: map[string]any{
 					"project_root": tmpDir,
-					"context":      tc.inputContext,
+					"question":     tc.inputContext,
 				},
 			})
 			if err != nil {
@@ -1384,7 +1384,7 @@ func TestComprehensive_ScopeInferenceAndPrepositionStrippingMCP(t *testing.T) {
 }
 
 // TestComprehensive_WorkspaceAnchoringAcrossCalls verifies that when project_root is passed
-// once to vivechak_prepare_generator, subsequent tool calls that omit project_root inherit
+// once to vivechak_start, subsequent tool calls that omit project_root inherit
 // the anchored workspace from session memory.
 func TestComprehensive_WorkspaceAnchoringAcrossCalls(t *testing.T) {
 	cs := testServer(t)
@@ -1393,19 +1393,19 @@ func TestComprehensive_WorkspaceAnchoringAcrossCalls(t *testing.T) {
 
 	// 1. Prepare generator with explicit project_root
 	res1, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_prepare_generator",
+		Name: "vivechak_start",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"scope":        "comparison",
-			"context":      "Pino vs Winston on Node 22",
+			"question":     "Pino vs Winston on Node 22",
 		},
 	})
 	if err != nil {
-		t.Fatalf("prepare_generator: %v", err)
+		t.Fatalf("start: %v", err)
 	}
 	env1 := parseEnvelope(t, res1)
 	if !env1.Success {
-		t.Fatalf("prepare_generator returned error: %s", env1.Message)
+		t.Fatalf("start returned error: %s", env1.Message)
 	}
 
 	// Verify project_root was anchored in session memory
@@ -1414,19 +1414,19 @@ func TestComprehensive_WorkspaceAnchoringAcrossCalls(t *testing.T) {
 		t.Fatalf("core.GetLastResolvedWorkspace() = %q, want %q", lastResolved, tmpDir)
 	}
 
-	// 2. Call vivechak_save_plan with project_root OMITTED
+	// 2. Call vivechak_save with project_root OMITTED
 	wepContent := `# Comparison: Pino vs Winston
 | Metric | Pino | Winston |
 |---|---|---|
 | Speed | 5 | 3 |
 `
 	res2, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_save_plan",
+		Name: "vivechak_save",
 		Arguments: map[string]any{
-			"scope":       "comparison",
-			"decision_id": "C-01",
-			"slug":        "pino-vs-winston",
-			"content":     wepContent,
+			"kind":    "plan",
+			"id":      "C-01",
+			"slug":    "pino-vs-winston",
+			"content": wepContent,
 		},
 	})
 	if err != nil {
@@ -2115,7 +2115,7 @@ func TestComprehensive_DAG_AllPriorSessions_SerializeAndVisualizeRoundTrip(t *te
 }
 
 // TestComprehensive_PrepareGenerator_AntiLocalSpillGuidance_AllScopes tests that all three
-// scopes include unequivocal guidance directing agents to call vivechak_save_plan rather
+// scopes include unequivocal guidance directing agents to call vivechak_save rather
 // than leaking raw plans to local scratchpads or brain files.
 func TestComprehensive_PrepareGenerator_AntiLocalSpillGuidance_AllScopes(t *testing.T) {
 	ctx := context.Background()
@@ -2723,7 +2723,7 @@ func TestComprehensive_PromptActionVerbsAndMiddlewareEquivalence(t *testing.T) {
 			mustSubstr: []string{
 				`track="track_b"`,
 				`project_root="/opt/workspace"`,
-				"vivechak_run_gate",
+				"vivechak_gate",
 				"track_a_result",
 				"track_b_result",
 			},
@@ -2783,7 +2783,7 @@ func TestComprehensive_AuditRemediations_LiveMCPLifecycle(t *testing.T) {
 
 		// 1.1 Init project
 		_, err := cs.CallTool(ctx, &mcp.CallToolParams{
-			Name: "vivechak_init",
+			Name: "vivechak_start",
 			Arguments: map[string]any{
 				"project_root": tmpDir,
 				"scope":        "project",
@@ -2815,10 +2815,10 @@ func TestComprehensive_AuditRemediations_LiveMCPLifecycle(t *testing.T) {
 ` + "```prompt\nInvestigate queries\n```" + `
 `
 		saveRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
-			Name: "vivechak_save_plan",
+			Name: "vivechak_save",
 			Arguments: map[string]any{
 				"project_root": tmpDir,
-				"scope":        "project",
+				"kind":         "plan",
 				"content":      pipeContent,
 			},
 		})
@@ -2829,7 +2829,7 @@ func TestComprehensive_AuditRemediations_LiveMCPLifecycle(t *testing.T) {
 
 		// 1.3 Request next session — should be T1-01
 		nextRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
-			Name: "vivechak_next_session",
+			Name: "vivechak_next",
 			Arguments: map[string]any{
 				"project_root": tmpDir,
 			},
@@ -2855,10 +2855,11 @@ status: complete
 - Finding 1: PostgreSQL provides robust JSONB querying. Grade A (https://postgresql.org, official docs)
 `
 		saveS1Res, err := cs.CallTool(ctx, &mcp.CallToolParams{
-			Name: "vivechak_save_session",
+			Name: "vivechak_save",
 			Arguments: map[string]any{
 				"project_root": tmpDir,
-				"session_id":   "T1-01",
+				"kind":         "session",
+				"id":           "T1-01",
 				"content":      s1Content,
 			},
 		})
@@ -2871,10 +2872,10 @@ status: complete
 			t.Errorf("expected file_path 'research/sessions/T1-01-database-selection.md', got: %v", s1Data["file_path"])
 		}
 
-		// 1.5 Call next_session again — T1-01 with slugged frontmatter must be detected as complete,
+		// 1.5 Call next again — T1-01 with slugged frontmatter must be detected as complete,
 		// and T1-02 must now be unblocked and offered!
 		next2Res, err := cs.CallTool(ctx, &mcp.CallToolParams{
-			Name: "vivechak_next_session",
+			Name: "vivechak_next",
 			Arguments: map[string]any{
 				"project_root": tmpDir,
 			},
@@ -2913,10 +2914,11 @@ scope_level: comparison
 - Finding: Opt A latency 1ms. Grade A (https://example.com)
 `
 		saveRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
-			Name: "vivechak_save_session",
+			Name: "vivechak_save",
 			Arguments: map[string]any{
 				"project_root": tmpDir,
-				"session_id":   "C-01",
+				"kind":         "session",
+				"id":           "C-01",
 				"content":      cmpContent,
 			},
 		})
@@ -2942,7 +2944,7 @@ scope_level: comparison
 
 		// 3.1 Init decision scope
 		_, err := cs.CallTool(ctx, &mcp.CallToolParams{
-			Name: "vivechak_init",
+			Name: "vivechak_start",
 			Arguments: map[string]any{
 				"project_root": tmpDir,
 				"scope":        "decision",
@@ -2964,10 +2966,11 @@ status: complete
 - Finding 1: In-memory cache handles current load. Grade A (internal benchmark)
 `
 		_, err = cs.CallTool(ctx, &mcp.CallToolParams{
-			Name: "vivechak_save_session",
+			Name: "vivechak_save",
 			Arguments: map[string]any{
 				"project_root": tmpDir,
-				"session_id":   "S1-01",
+				"kind":         "session",
+				"id":           "S1-01",
 				"content":      sessContent,
 			},
 		})
@@ -3007,13 +3010,13 @@ Easy to switch to Redis if memory limits approached.
 
 		// 3.4 Run Gate: Because door_type is two-way, gate must PASS
 		gateRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
-			Name: "vivechak_run_gate",
+			Name: "vivechak_gate",
 			Arguments: map[string]any{
 				"project_root": tmpDir,
 			},
 		})
 		if err != nil {
-			t.Fatalf("run_gate failed: %v", err)
+			t.Fatalf("gate failed: %v", err)
 		}
 		gateEnv := parseEnvelope(t, gateRes)
 		gateData := gateEnv.Data.(map[string]any)
@@ -3030,7 +3033,7 @@ Easy to switch to Redis if memory limits approached.
 
 		// 4.1 Init decision scope
 		_, err := cs.CallTool(ctx, &mcp.CallToolParams{
-			Name: "vivechak_init",
+			Name: "vivechak_start",
 			Arguments: map[string]any{
 				"project_root": tmpDir,
 				"scope":        "decision",
@@ -3053,10 +3056,11 @@ status: complete
 - Finding 2: Raft consensus provides leader election. Grade A (https://raft.github.io)
 `
 		_, err = cs.CallTool(ctx, &mcp.CallToolParams{
-			Name: "vivechak_save_session",
+			Name: "vivechak_save",
 			Arguments: map[string]any{
 				"project_root": tmpDir,
-				"session_id":   "S1-01",
+				"kind":         "session",
+				"id":           "S1-01",
 				"content":      s1,
 			},
 		})
@@ -3139,13 +3143,13 @@ Raft. Grade A (https://raft.github.io)
 
 		// 4.3 Gate must FAIL Track B because D-002 and D-003 lack human review
 		gateRes1, err := cs.CallTool(ctx, &mcp.CallToolParams{
-			Name: "vivechak_run_gate",
+			Name: "vivechak_gate",
 			Arguments: map[string]any{
 				"project_root": tmpDir,
 			},
 		})
 		if err != nil {
-			t.Fatalf("run_gate failed: %v", err)
+			t.Fatalf("gate failed: %v", err)
 		}
 		gateEnv1 := parseEnvelope(t, gateRes1)
 		gateData1 := gateEnv1.Data.(map[string]any)
@@ -3189,7 +3193,7 @@ Raft. Grade A (https://raft.github.io)
 
 		// 4.6 Gate must STILL FAIL because D-003 remains unreviewed
 		gateRes2, _ := cs.CallTool(ctx, &mcp.CallToolParams{
-			Name: "vivechak_run_gate",
+			Name: "vivechak_gate",
 			Arguments: map[string]any{
 				"project_root": tmpDir,
 			},
@@ -3210,7 +3214,7 @@ Raft. Grade A (https://raft.github.io)
 
 		// 4.8 Gate must now PASS with all One-Way Doors human-reviewed!
 		gateRes3, _ := cs.CallTool(ctx, &mcp.CallToolParams{
-			Name: "vivechak_run_gate",
+			Name: "vivechak_gate",
 			Arguments: map[string]any{
 				"project_root": tmpDir,
 			},

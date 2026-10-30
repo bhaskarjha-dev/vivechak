@@ -11,6 +11,7 @@ import (
 
 	"github.com/bhaskarjha-dev/vivechak/internal/core"
 	"github.com/bhaskarjha-dev/vivechak/internal/store"
+	"golang.org/x/term"
 )
 
 func runSignoff(args []string, streams ...io.Writer) error {
@@ -18,6 +19,12 @@ func runSignoff(args []string, streams ...io.Writer) error {
 	if len(streams) > 0 && streams[0] != nil {
 		stdout = streams[0]
 	}
+	return runSignoffWithStreams(args, os.Stdin, stdout, func() bool {
+		return term.IsTerminal(int(os.Stdin.Fd())) && term.IsTerminal(int(os.Stdout.Fd()))
+	})
+}
+
+func runSignoffWithStreams(args []string, stdin io.Reader, stdout io.Writer, isTerminal func() bool) error {
 
 	var explicitWs string
 	var force bool
@@ -67,20 +74,9 @@ func runSignoff(args []string, streams ...io.Writer) error {
 		}
 	}
 
-	// Verify interactive TTY or authorized CI environment token
-	isAuthorizedCI := false
-	if secret := os.Getenv("VCK_APPROVER_SECRET"); len(secret) >= 16 {
-		isAuthorizedCI = true
-		force = true
-	}
-
-	isTestAllowed := os.Getenv("VCK_TEST_ALLOW_NON_TTY_SIGNOFF") == "1"
-	isTestForceNonTTY := os.Getenv("VCK_TEST_FORCE_NON_TTY_SIGNOFF") == "1"
-	fi, err := os.Stdin.Stat()
-	isCharDevice := err == nil && (fi.Mode()&os.ModeCharDevice) != 0
-
-	if !isAuthorizedCI && (isTestForceNonTTY || (!isTestAllowed && !isCharDevice)) {
-		return fmt.Errorf("E-TTY-REQUIRED: vck signoff requires an interactive terminal session (os.ModeCharDevice); autonomous agent execution is prohibited. For automated CI pipelines, set VCK_APPROVER_SECRET (min 16 chars)")
+	// Verify interactive TTY
+	if isTerminal != nil && !isTerminal() {
+		return fmt.Errorf("E-TTY-REQUIRED: vck signoff requires an interactive terminal session; autonomous agent execution is prohibited")
 	}
 
 	decisionID = strings.TrimSpace(decisionID)
@@ -177,7 +173,7 @@ func runSignoff(args []string, streams ...io.Writer) error {
 
 	if !force {
 		fmt.Fprintf(stdout, "Type 'CONFIRM' to sign off on Decision %s: ", decisionID)
-		reader := bufio.NewReader(os.Stdin)
+		reader := bufio.NewReader(stdin)
 		input, err := reader.ReadString('\n')
 		if err != nil {
 			return fmt.Errorf("reading confirmation: %w", err)

@@ -311,7 +311,7 @@ func handlePromptGate(_ context.Context, req *sdkmcp.GetPromptRequest) (*sdkmcp.
 		"# Phase 0 Pre-Codebase Exit Gate Audit\n\n"+
 			"Please audit the current research workspace against the Vivechak Phase 0 Gate criteria before writing any codebase implementation.\n\n"+
 			"**Instructions for AI Agent:**\n"+
-			"1. Invoke the MCP tool `vivechak_gate` (or `vivechak_run_gate`) with `track=%q`", track)
+			"1. Invoke the MCP tool `vivechak_gate` with `track=%q`", track)
 
 	if projectRoot != "" {
 		promptText += fmt.Sprintf(" and `project_root=%q`", projectRoot)

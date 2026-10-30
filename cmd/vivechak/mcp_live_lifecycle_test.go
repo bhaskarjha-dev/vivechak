@@ -16,7 +16,7 @@ import (
 )
 
 // TestMCPLive_Lifecycle executes the canonical multi-scope end-to-end lifecycle
-// across Project, Decision, and Comparison scopes, verifying all 13 MCP tools over genuine
+// across Project, Decision, and Comparison scopes, verifying all 9 MCP tools over genuine
 // subprocess stdio JSON-RPC protocol against the compiled Vivechak binary.
 func TestMCPLive_Lifecycle(t *testing.T) {
 	if testing.Short() {
@@ -49,13 +49,14 @@ func TestMCPLive_Lifecycle(t *testing.T) {
 			return parseTestEnvelope(t, res)
 		}
 
-		// 1.1 vivechak_init (Project scope)
-		initEnv := callTool("vivechak_init", map[string]any{
+		// 1.1 vivechak_start (Project scope)
+		startEnv := callTool("vivechak_start", map[string]any{
 			"project_root": projectDir,
 			"scope":        "project",
+			"context":      "Architecting high-frequency financial distributed ledger with audit guarantees.",
 		})
-		if !initEnv.Success {
-			t.Fatalf("vivechak_init failed: %s", initEnv.Message)
+		if !startEnv.Success {
+			t.Fatalf("vivechak_start failed: %s", startEnv.Message)
 		}
 
 		// Verify research/.gitignore created with *.lock
@@ -65,29 +66,20 @@ func TestMCPLive_Lifecycle(t *testing.T) {
 		}
 
 		// Verify 6 templates copied, including SESSION.template.md
-		tmpls, ok := initEnv.Data["templates_copied"].([]any)
+		tmpls, ok := startEnv.Data["templates_copied"].([]any)
 		if !ok || len(tmpls) != 6 {
-			t.Fatalf("expected 6 templates copied, got: %v", initEnv.Data["templates_copied"])
+			t.Fatalf("expected 6 templates copied, got: %v", startEnv.Data["templates_copied"])
 		}
 		if _, err := os.Stat(filepath.Join(projectDir, core.TemplatesDir, "SESSION.template.md")); err != nil {
 			t.Errorf("expected SESSION.template.md in templates/: %v", err)
 		}
 
-		// 1.2 vivechak_prepare_generator
-		prepEnv := callTool("vivechak_prepare_generator", map[string]any{
-			"project_root": projectDir,
-			"scope":        "project",
-			"context":      "Architecting high-frequency financial distributed ledger with audit guarantees.",
-		})
-		if !prepEnv.Success {
-			t.Fatalf("prepare_generator failed: %s", prepEnv.Message)
-		}
-		prompt := prepEnv.Data["prompt"].(string)
+		prompt := startEnv.Data["prompt"].(string)
 		if !strings.Contains(prompt, "financial distributed ledger") {
 			t.Errorf("expected context injected into generator prompt")
 		}
 
-		// 1.3 vivechak_save_plan: 3-layer DAG with large guidance
+		// 1.3 vivechak_save (kind="plan"): 3-layer DAG with large guidance
 		largeGuidance := strings.Repeat("Ensure rigorous verification and benchmark latency under load. ", 700)
 		planContent := `# Research Pipeline
 
@@ -132,12 +124,13 @@ Synthesize founding architecture:
 [ALL_SESSION_FINDINGS]
 ` + "```" + `
 `
-		planEnv := callTool("vivechak_save_plan", map[string]any{
+		planEnv := callTool("vivechak_save", map[string]any{
 			"project_root": projectDir,
+			"kind":         "plan",
 			"content":      planContent,
 		})
 		if !planEnv.Success {
-			t.Fatalf("save_plan failed: %s", planEnv.Message)
+			t.Fatalf("save plan failed: %s", planEnv.Message)
 		}
 
 		// 1.4 vivechak_status
@@ -151,8 +144,8 @@ Synthesize founding architecture:
 			t.Errorf("expected 0 completed sessions, got %v", statEnv.Data["session_count"])
 		}
 
-		// 1.5 vivechak_next_session for S-01 (prompt truncation check when verbose=false)
-		next1Env := callTool("vivechak_next_session", map[string]any{
+		// 1.5 vivechak_next for S-01 (prompt truncation check when verbose=false)
+		next1Env := callTool("vivechak_next", map[string]any{
 			"project_root": projectDir,
 			"verbose":      false,
 		})
@@ -164,7 +157,7 @@ Synthesize founding architecture:
 			t.Errorf("expected large prompt to be truncated when verbose=false")
 		}
 
-		// 1.6 vivechak_save_session for S-01
+		// 1.6 vivechak_save for S-01
 		s1Content := `---
 session_id: S-01
 title: Storage Engine
@@ -195,13 +188,14 @@ Compaction stall boundary analysis confirmed memory stalls under concurrent writ
 | 1 | https://rocksdb.org | Grade A | fresh | fetched | RocksDB throughput |
 | 2 | internal benchmark v8.1 | Grade B | fresh | fetched | Compaction stalls |
 `
-		saveS1Env := callTool("vivechak_save_session", map[string]any{
+		saveS1Env := callTool("vivechak_save", map[string]any{
 			"project_root": projectDir,
-			"session_id":   "S-01",
+			"kind":         "session",
+			"id":           "S-01",
 			"content":      s1Content,
 		})
 		if !saveS1Env.Success {
-			t.Fatalf("save_session S-01 failed: %s", saveS1Env.Message)
+			t.Fatalf("save S-01 failed: %s", saveS1Env.Message)
 		}
 
 		// 1.7 vivechak_record_decision for D-001 (ADR auto-drafting from S-01)
@@ -266,21 +260,22 @@ Pre-vote extension must be enabled to prevent disrupted elections during cluster
 | # | Source | Grade | Modifiers | Status | Supports |
 | 1 | https://raft.github.io | Grade A | fresh | fetched | Raft consensus |
 `
-		_ = callTool("vivechak_save_session", map[string]any{
+		_ = callTool("vivechak_save", map[string]any{
 			"project_root": projectDir,
-			"session_id":   "S-02",
+			"kind":         "session",
+			"id":           "S-02",
 			"content":      s2Content,
 		})
 
-		// 1.9 vivechak_amend_session: amend S-01 now that S-02 is completed (triggers W-STALE-DOWNSTREAM)
-		amendEnv := callTool("vivechak_amend_session", map[string]any{
+		// 1.9 vivechak_amend: amend S-01 now that S-02 is completed (triggers W-STALE-DOWNSTREAM)
+		amendEnv := callTool("vivechak_amend", map[string]any{
 			"project_root": projectDir,
 			"session_id":   "S-01",
 			"content":      s1Content + "\n\n// Amendment: tune write_buffer_size to 128MB.\n",
 			"reason":       "Tuning buffer parameters for write stall mitigation.",
 		})
 		if !amendEnv.Success {
-			t.Fatalf("amend_session S-01 failed: %s", amendEnv.Message)
+			t.Fatalf("amend S-01 failed: %s", amendEnv.Message)
 		}
 		hasDownstreamWarn := false
 		for _, w := range amendEnv.Warnings {
@@ -293,9 +288,10 @@ Pre-vote extension must be enabled to prevent disrupted elections during cluster
 			t.Errorf("expected W-STALE-DOWNSTREAM warning for S-02, got: %v", amendEnv.Warnings)
 		}
 
-		// 1.10 vivechak_visualize
-		vizEnv := callTool("vivechak_visualize", map[string]any{
+		// 1.10 vivechak_status (Mermaid format)
+		vizEnv := callTool("vivechak_status", map[string]any{
 			"project_root": projectDir,
+			"format":       "mermaid",
 		})
 		if !vizEnv.Success {
 			t.Fatalf("visualize failed: %s", vizEnv.Message)
@@ -341,9 +337,10 @@ S3 multipart upload aborts require lifecycle policies to prevent orphaned part s
 | # | Source | Grade | Modifiers | Status | Supports |
 | 1 | https://aws.amazon.com/s3 | Grade A | fresh | fetched | S3 storage |
 `
-		_ = callTool("vivechak_save_session", map[string]any{
+		_ = callTool("vivechak_save", map[string]any{
 			"project_root": projectDir,
-			"session_id":   "S-03",
+			"kind":         "session",
+			"id":           "S-03",
 			"content":      s3Content,
 		})
 
@@ -368,13 +365,14 @@ Raft majority quorum with pre-vote enabled. Grade A (https://raft.github.io)
 ## Disaster Recovery
 Continuous WAL archiving to S3 object storage. Grade A (https://aws.amazon.com/s3)
 `
-		saveFADEnv := callTool("vivechak_save_session", map[string]any{
+		saveFADEnv := callTool("vivechak_save", map[string]any{
 			"project_root": projectDir,
-			"session_id":   "SYN-01",
+			"kind":         "fad",
+			"id":           "SYN-01",
 			"content":      fadContent,
 		})
 		if !saveFADEnv.Success {
-			t.Fatalf("save_session SYN-01 (FAD) failed: %s", saveFADEnv.Message)
+			t.Fatalf("save SYN-01 (FAD) failed: %s", saveFADEnv.Message)
 		}
 
 		// Verify research/FAD.md was created
@@ -394,12 +392,12 @@ Continuous WAL archiving to S3 object storage. Grade A (https://aws.amazon.com/s
 		}
 		ws.Close()
 
-		// 1.13 vivechak_run_gate
-		gateEnv := callTool("vivechak_run_gate", map[string]any{
+		// 1.13 vivechak_gate
+		gateEnv := callTool("vivechak_gate", map[string]any{
 			"project_root": projectDir,
 		})
 		if !gateEnv.Success {
-			t.Fatalf("run_gate failed: %s", gateEnv.Message)
+			t.Fatalf("gate failed: %s", gateEnv.Message)
 		}
 		if gateEnv.Data["gate_passed"] != true {
 			t.Fatalf("expected gate to pass, got: %+v\nwarnings: %v", gateEnv.Data, gateEnv.Warnings)
@@ -447,7 +445,7 @@ Continuous WAL archiving to S3 object storage. Grade A (https://aws.amazon.com/s
 		}
 
 		// 2.1 Init Decision Workspace
-		initEnv := callTool("vivechak_init", map[string]any{
+		initEnv := callTool("vivechak_start", map[string]any{
 			"project_root": decDir,
 			"scope":        "decision",
 		})
@@ -467,11 +465,10 @@ Continuous WAL archiving to S3 object storage. Grade A (https://aws.amazon.com/s
 |---|---|---|---|
 | D-001-S01 | Raft Protocol Evaluation | none | sessions/D-001-S01.md |
 `
-		planEnv := callTool("vivechak_save_plan", map[string]any{
+		planEnv := callTool("vivechak_save", map[string]any{
 			"project_root": decDir,
-			"scope":        "decision",
-			"decision_id":  "D-001",
-			"slug":         "consensus",
+			"kind":         "plan",
+			"id":           "D-001",
 			"content":      planMD,
 		})
 		if !planEnv.Success {
@@ -507,9 +504,10 @@ Split-brain partition analysis verified safety leases and quorum requirements.
 | 1 | https://raft.github.io | Grade A | fresh | fetched | Raft safety |
 | 2 | https://etcd.io | Grade A | fresh | fetched | Etcd raft |
 `
-		saveSessEnv := callTool("vivechak_save_session", map[string]any{
+		saveSessEnv := callTool("vivechak_save", map[string]any{
 			"project_root": decDir,
-			"session_id":   "D-001-S01",
+			"kind":         "session",
+			"id":           "D-001-S01",
 			"content":      sessMD,
 		})
 		if !saveSessEnv.Success {
@@ -517,13 +515,13 @@ Split-brain partition analysis verified safety leases and quorum requirements.
 		}
 
 		// 2.4 Adversarial Challenge Tool Call
-		challEnv := callTool("vivechak_challenge", map[string]any{
+		challEnv := callTool("vivechak_review", map[string]any{
 			"project_root": decDir,
 			"session_id":   "D-001-S01",
-			"mode":         "red_team",
+			"mode":         "challenge",
 		})
 		if !challEnv.Success {
-			t.Fatalf("vivechak_challenge failed: %s", challEnv.Message)
+			t.Fatalf("vivechak_review failed: %s", challEnv.Message)
 		}
 
 		// 2.5 Record Decision D-001
@@ -566,8 +564,9 @@ Partition tolerance tested across asymmetric network partitions.
 		}
 
 		// 2.6 Validate Workspace (deduplication check between D-001.md and DECISIONS.md)
-		valEnv := callTool("vivechak_validate", map[string]any{
+		valEnv := callTool("vivechak_review", map[string]any{
 			"project_root": decDir,
+			"mode":         "validate",
 		})
 		if !valEnv.Success {
 			t.Fatalf("validate failed: %s", valEnv.Message)
@@ -589,7 +588,7 @@ Partition tolerance tested across asymmetric network partitions.
 		wsDec.Close()
 
 		// 2.7 Run Gate (Track B)
-		gateEnv := callTool("vivechak_run_gate", map[string]any{
+		gateEnv := callTool("vivechak_gate", map[string]any{
 			"project_root": decDir,
 			"track":        "track_b",
 		})
@@ -619,29 +618,20 @@ Partition tolerance tested across asymmetric network partitions.
 			return parseTestEnvelope(t, res)
 		}
 
-		// 3.1 Init Comparison Workspace
-		initEnv := callTool("vivechak_init", map[string]any{
+		// 3.1 vivechak_start (Comparison Scope)
+		startEnv := callTool("vivechak_start", map[string]any{
 			"project_root": cmpDir,
 			"scope":        "comparison",
+			"context":      "Compare Pino vs Winston for high-throughput Node.js microservices.",
 		})
-		if !initEnv.Success {
-			t.Fatalf("init comparison failed: %s", initEnv.Message)
+		if !startEnv.Success {
+			t.Fatalf("start comparison failed: %s", startEnv.Message)
 		}
 
 		// Verify only COMPARISON-SESSION.template.md was copied
 		tplEntries, _ := os.ReadDir(filepath.Join(cmpDir, core.TemplatesDir))
 		if len(tplEntries) != 1 || tplEntries[0].Name() != "COMPARISON-SESSION.template.md" {
 			t.Errorf("expected only COMPARISON-SESSION.template.md, got: %v", tplEntries)
-		}
-
-		// 3.2 Prepare Generator with comparison prompt
-		prepEnv := callTool("vivechak_prepare_generator", map[string]any{
-			"project_root": cmpDir,
-			"scope":        "comparison",
-			"context":      "Compare Pino vs Winston for high-throughput Node.js microservices.",
-		})
-		if !prepEnv.Success {
-			t.Fatalf("prepare_generator comparison failed: %s", prepEnv.Message)
 		}
 
 		// 3.3 Save Comparison Plan (Auto ID extraction C-001)
@@ -651,10 +641,10 @@ Partition tolerance tested across asymmetric network partitions.
 | Pino | Extreme performance JSON logger | candidate |
 | Winston | Flexible multi-transport logger | candidate |
 `
-		planEnv := callTool("vivechak_save_plan", map[string]any{
+		planEnv := callTool("vivechak_save", map[string]any{
 			"project_root": cmpDir,
-			"scope":        "comparison",
-			"decision_id":  "C-001",
+			"kind":         "plan",
+			"id":           "C-001",
 			"slug":         "pino-winston",
 			"content":      planMD,
 		})
@@ -688,9 +678,10 @@ Pino asynchronous logging may lose trailing log lines on unhandled process crash
 | 1 | https://getpino.io | Grade A | fresh | fetched | Pino throughput |
 | 2 | https://github.com/winstonjs/winston | Grade A | fresh | fetched | Winston transports |
 `
-		saveSessEnv := callTool("vivechak_save_session", map[string]any{
+		saveSessEnv := callTool("vivechak_save", map[string]any{
 			"project_root": cmpDir,
-			"session_id":   "C-001",
+			"kind":         "session",
+			"id":           "C-001",
 			"content":      sessMD,
 		})
 		if !saveSessEnv.Success {
@@ -698,8 +689,9 @@ Pino asynchronous logging may lose trailing log lines on unhandled process crash
 		}
 
 		// 3.5 Validate Comparison Workspace
-		valEnv := callTool("vivechak_validate", map[string]any{
+		valEnv := callTool("vivechak_review", map[string]any{
 			"project_root": cmpDir,
+			"mode":         "validate",
 		})
 		if !valEnv.Success {
 			t.Fatalf("validate comparison failed: %s", valEnv.Message)
@@ -714,7 +706,7 @@ Pino asynchronous logging may lose trailing log lines on unhandled process crash
 		cs, cleanup := startLiveMCPServer(t, ctx, binPath, tempDir)
 		t.Cleanup(cleanup)
 
-		// 4.1 Verify exactly 13 tools registered
+		// 4.1 Verify exactly 9 tools registered
 		var toolNames []string
 		for tool, err := range cs.Tools(ctx, nil) {
 			if err != nil {
@@ -779,23 +771,14 @@ Pino asynchronous logging may lose trailing log lines on unhandled process crash
 			return parseTestEnvelope(t, res)
 		}
 
-		// 5.1 Initialize workspace
-		envInit := callTool("vivechak_init", map[string]any{
-			"project_root": projectDir,
-			"scope":        "project",
-		})
-		if !envInit.Success {
-			t.Fatalf("live init failed: %s", envInit.Message)
-		}
-
-		// 5.2 Prepare generator and verify Tier 3 scratch staging guidance
-		envPrep := callTool("vivechak_prepare_generator", map[string]any{
+		// 5.1 Initialize workspace and verify Tier 3 scratch staging guidance
+		envPrep := callTool("vivechak_start", map[string]any{
 			"project_root": projectDir,
 			"scope":        "project",
 			"context":      "Distributed graph analytics engine",
 		})
 		if !envPrep.Success {
-			t.Fatalf("live prepare_generator failed: %s", envPrep.Message)
+			t.Fatalf("live start failed: %s", envPrep.Message)
 		}
 		if !strings.Contains(envPrep.NextStep, "assemble sections in internal scratch") {
 			t.Errorf("expected scratch guidance in next_step: %s", envPrep.NextStep)
@@ -862,21 +845,21 @@ Evaluating NATS JetStream vs Apache Kafka.
 Investigate gRPC vs Arrow Flight for graph query results.
 ` + "```" + `
 `
-		envSave := callTool("vivechak_save_plan", map[string]any{
+		envSave := callTool("vivechak_save", map[string]any{
 			"project_root":      projectDir,
-			"scope":             "project",
+			"kind":              "plan",
 			"content":           pipelineContent,
 			"decisions_content": decisionsRegistry,
 		})
 		if !envSave.Success {
-			t.Fatalf("live save_plan failed: %s", envSave.Message)
+			t.Fatalf("live save plan failed: %s", envSave.Message)
 		}
 		if len(envSave.Warnings) != 0 {
 			t.Errorf("expected 0 warnings on clean plan save, got: %v", envSave.Warnings)
 		}
 
 		// 5.4 Validate registry directly via artifact_type="decisions"
-		envValDec := callTool("vivechak_validate", map[string]any{
+		envValDec := callTool("vivechak_review", map[string]any{
 			"project_root":  projectDir,
 			"artifact_type": "decisions",
 			"content":       decisionsRegistry,
@@ -890,8 +873,9 @@ Investigate gRPC vs Arrow Flight for graph query results.
 		}
 
 		// 5.5 Validate entire workspace via workspace discovery mode
-		envValWs := callTool("vivechak_validate", map[string]any{
+		envValWs := callTool("vivechak_review", map[string]any{
 			"project_root": projectDir,
+			"mode":         "validate",
 		})
 		if !envValWs.Success {
 			t.Fatalf("live workspace validate failed: %s", envValWs.Message)

@@ -8,7 +8,7 @@
 //	  "message": "Session R-01 saved as draft (2 warnings, 0 errors)",
 //	  "data": { ... },
 //	  "warnings": ["W-LOW-OPTIONS"],
-//	  "next_step": "Record decisions using vivechak_record_decision, then run vivechak_next_session."
+//	  "next_step": "Record decisions using vivechak_record_decision, then run vivechak_next."
 //	}
 package mcputil
 

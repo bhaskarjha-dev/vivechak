@@ -461,7 +461,6 @@ func ParsePlanMachineBlock(data []byte) (*PlanMachineBlock, error) {
 
 func parsePipelineFromMachineBlock(data []byte, block *PlanMachineBlock) (*DAG, error) {
 	dag := &DAG{}
-	sessionMap := make(map[string]*Session)
 	for _, item := range block.Sessions {
 		id := strings.Trim(strings.TrimSpace(item.ID), "*_`[]\"'")
 		if id == "" {
@@ -500,7 +499,11 @@ func parsePipelineFromMachineBlock(data []byte, block *PlanMachineBlock) (*DAG, 
 			OutputFile:   out,
 		}
 		dag.Sessions = append(dag.Sessions, s)
-		sessionMap[strings.ToUpper(id)] = &dag.Sessions[len(dag.Sessions)-1]
+	}
+
+	sessionMap := make(map[string]*Session, len(dag.Sessions))
+	for i := range dag.Sessions {
+		sessionMap[strings.ToUpper(dag.Sessions[i].ID)] = &dag.Sessions[i]
 	}
 
 	// Extract prompt blocks for each session from markdown body

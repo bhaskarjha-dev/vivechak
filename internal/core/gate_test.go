@@ -576,7 +576,7 @@ track_b_result: "[PENDING | PASS | FAIL]"
 - [ ] Decision record contains substantive causal rationale, evaluated options, and failure modes (no placeholder stubs)
 
 ### B11. Adversarial Red-Team Challenge
-- [ ] One-Way Door decisions subjected to adversarial challenge (` + "`" + `vivechak_challenge` + "`" + ` red-team probe or disconfirming evidence search)
+- [ ] One-Way Door decisions subjected to adversarial challenge (` + "`" + `vivechak_review(mode="challenge")` + "`" + ` red-team probe or disconfirming evidence search)
 
 **Track B Result:** ` + "`[PASS / FAIL]`" + `
 `
