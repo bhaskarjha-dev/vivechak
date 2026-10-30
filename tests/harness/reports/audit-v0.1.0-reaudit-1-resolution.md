@@ -247,3 +247,4 @@ PASS: 100% byte-for-byte parity across generators, templates, skills, and rules.
 $ golangci-lint run ./...
 0 issues found.
 ```
+
