@@ -62,7 +62,7 @@ Vivechak employs a 4-level validation ladder (**L1–L4**). Below are the common
 
 ### `W-OWD-NO-CHALLENGE` (Level 3 Advisory Warning)
 - **Cause:** Track B Check B11 detected that an irreversible One-Way Door decision was not subjected to adversarial red-team stress testing prior to commitment.
-- **Resolution:** Execute `vivechak_review(target="...", mode="challenge")` (or legacy alias `vivechak_challenge`) on the informing session, search for disconfirming evidence, and record findings in the decision record under `## Challenge Findings & Red-Team Stress Test`.
+- **Resolution:** Execute `vivechak_review(target="...", mode="challenge")` on the informing session, search for disconfirming evidence, and record findings in the decision record under `## Challenge Findings & Red-Team Stress Test`.
 
 ### `W-NO-EVIDENCE-GRADES` (Level 3 Advisory Warning)
 - **Cause:** A completed research session or locked ADR does not contain inline evidence citations (e.g. `[Grade: A]`, `[Grade: B (source)]`). Under Principle P3 (Evidentiary Grounding), every substantive factual claim must carry an inline evidence grade.
@@ -143,7 +143,7 @@ This launches the official web-based MCP Inspector at `http://localhost:5173`, a
 
 ## 5. Phase 0 Exit Gate Troubleshooting
 
-If `vivechak_gate` (or legacy alias `vivechak_run_gate`) fails with status `FAIL`:
+If `vivechak_gate` fails with status `FAIL`:
 
 ```
 Track A (Reversibility & Bounds): PASS
@@ -160,8 +160,8 @@ Issues:
 2. **Verification Method (Check B4):** Ensure factual claims are marked as `fetched` or `cached`. Model parametric memory (`recalled`) is capped at Grade D and cannot anchor irreversible decisions.
 3. **Rejected Alternatives (Check B5 & B10):** Ensure the ADR includes a `## Rejected Alternatives & Tradeoffs` section explaining why candidates were dismissed, with at least 200 characters of substantive rationale.
 4. **Reversal Triggers (Check B6):** Ensure frontmatter defines a measurable `review_trigger` (e.g. `"Throughput exceeds 50k req/sec or p99 latency > 200ms"`) and scheduled `review_date`.
-5. **Adversarial Red-Team Challenge (Check B11):** Run `vivechak_review(target="...", mode="challenge")` (or legacy alias `vivechak_challenge`) on the informing session to stress-test your conclusions. Document the disconfirming search results, edge case probes, and mitigations in a dedicated `## Challenge Findings & Red-Team Stress Test` section in the ADR.
-6. **Human-in-the-Loop Sign-off (Check B8 / Rule G11):** One-Way Doors require verified human sign-off (`human_reviewed: true`). Run `vck signoff <decision-id>` in an interactive terminal (or provide `VCK_APPROVER_SECRET` in automated CI pipelines) to record human approval. Autonomous agents cannot self-sign One-Way Doors.
+5. **Adversarial Red-Team Challenge (Check B11):** Run `vivechak_review(target="...", mode="challenge")` on the informing session to stress-test your conclusions. Document the disconfirming search results, edge case probes, and mitigations in a dedicated `## Challenge Findings & Red-Team Stress Test` section in the ADR.
+6. **Human-in-the-Loop Sign-off (Check B8 / Rule G11):** One-Way Doors require verified human sign-off (`human_reviewed: true`). Run `vck signoff <decision-id>` in an interactive terminal to record human approval. Autonomous agents cannot self-sign One-Way Doors.
 
 ### Direct Terminal Evaluation via `vck gate`:
 You can also run gate evaluations directly from your terminal or CI pipeline without an active MCP agent:

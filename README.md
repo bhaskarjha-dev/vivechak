@@ -33,7 +33,7 @@
 brew install bhaskarjha-dev/tap/vivechak
 
 # Windows (PowerShell)
-irm https://vivechak.dev/install.ps1 | iex
+irm https://raw.githubusercontent.com/bhaskarjha-dev/vivechak/main/install.ps1 | iex
 
 # Any OS with Node or Python (zero install)
 npx -y vivechak serve    # or: uvx vivechak serve
@@ -55,8 +55,8 @@ vck setup                # Auto-detects editor in current workspace
 
 ### Upgrading
 - **Homebrew (macOS & Linux):** `brew update && brew upgrade bhaskarjha-dev/tap/vivechak`
-- **Windows (PowerShell):** Re-run `irm https://vivechak.dev/install.ps1 | iex`
-- **Linux / macOS Shell:** Re-run `curl -fsSL https://vivechak.dev/install.sh | sh`
+- **Windows (PowerShell):** Re-run `irm https://raw.githubusercontent.com/bhaskarjha-dev/vivechak/main/install.ps1 | iex`
+- **Linux / macOS Shell:** Re-run `curl -fsSL https://raw.githubusercontent.com/bhaskarjha-dev/vivechak/main/install.sh | sh`
 - **WinGet / Scoop:** `winget upgrade bhaskarjha-dev.Vivechak` or `scoop update vck`
 - **Go toolchain:** `go install github.com/bhaskarjha-dev/vivechak/cmd/vivechak@latest`
 - **Zero-install runners (`npx` / `uvx`):** Always run the latest package automatically.
@@ -122,9 +122,9 @@ Vivechak is an architectural governance framework, not a code authoring tool:
 
 ## Documentation Index
 
-- [Quickstart Guide](docs/QUICKSTART.md) · [Host Setup & Presets](docs/hosts.md) · [Methodology Specification](FRAMEWORK.md)
-- [MCP Tools Reference](docs/reference/tools.md) · [Validation & Error Codes](docs/reference/codes.md) · [Phase 0 Gate Rules](docs/reference/gate.md)
-- [CLI Architecture](docs/ARCHITECTURE.md) · [Contributing Guide](CONTRIBUTING.md)
+- **Guides:** [Quickstart Guide](docs/QUICKSTART.md) · [Host Setup & Presets](docs/hosts.md) · [Manual Web Workflow](docs/MANUAL-WORKFLOW.md) · [Troubleshooting & Diagnostics](docs/TROUBLESHOOTING.md)
+- **Deep Dives:** [MCP Tools Manual](docs/MCP-TOOLS.md) · [Architecture & Internals](docs/ARCHITECTURE.md) · [Parallel Subagent Execution](docs/PARALLEL-EXECUTION.md) · [Hybrid MCP + Manual Workflows](docs/HYBRID-EXECUTION.md)
+- **Methodology & Contracts:** [Methodology Specification](FRAMEWORK.md) · [Validation & Error Codes](docs/reference/codes.md) · [Phase 0 Gate Rules](docs/reference/gate.md) · [Brand & Identity](docs/BRAND.md) · [Contributing Guide](CONTRIBUTING.md)
 
 ## License
 

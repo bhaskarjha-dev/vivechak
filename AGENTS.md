@@ -180,16 +180,18 @@ vivechak/
 ├── npm/ · pypi/                    ← Zero-script npx & uvx runner packages
 │
 ├── cmd/vivechak/                   ← MCP server + CLI entry point (vck alias)
-│   ├── main.go                     ← Entry point (serve, setup, mcp-config, doctor, gate, version)
+│   ├── main.go                     ← Entry point (serve, setup, mcp-config, doctor, gate, signoff, version)
 │   ├── config.go                   ← setup & mcp-config (auto-detection + 21 presets)
 │   ├── doctor.go                   ← Workspace integrity checker
-│   └── gate.go                     ← Headless Phase 0 exit gate evaluator (CI-ready)
+│   ├── gate.go                     ← Headless Phase 0 exit gate evaluator (CI-ready)
+│   └── signoff.go                  ← Interactive human architectural review sign-off
 │
 ├── internal/                       ← Server implementation (Go)
-│   ├── core/                       ← Pure logic (workspace, DAG, validation, injection)
-│   ├── mcp/                        ← 9 consolidated MCP tools (with legacy alias redirects) + envelope
+│   ├── core/                       ← Pure logic (workspace, DAG, validation, injection, signoff)
+│   ├── workspace/                  ← Workspace resolution chain & path jailing
+│   ├── mcp/                        ← 9 consolidated MCP tools + response envelope
 │   ├── store/                      ← Atomic I/O, locking, os.Root confinement
-│   └── embed/                      ← go:embed generators + templates
+│   └── embed/                      ← go:embed generators, templates, skills, rules
 │
 ├── templates/                      ← 6 operational contracts (copy to projects)
 │   ├── DECISIONS.template.md       ← YAML frontmatter ADR format
@@ -256,19 +258,18 @@ When modifying Go code in `cmd/` or `internal/`:
 1. **Package dependency direction:** `core/` has NO dependency on `mcp/`. `mcp/` depends on `core/`. `store/` is independent.
 2. **Embed sync:** `internal/embed/generators/`, `internal/embed/templates/`, `internal/embed/skills/`, and `internal/embed/rules/` must stay in sync with root-level generators, templates, `skills/vivechak/SKILL.md`, and `templates/rules/`. Verified by `TestEmbeddedFilesMatchRoot` and enforced by CI (`.github/workflows/ci.yml`).
 3. **MCP Protocol Triumvirate (Tools, Prompts, Resources):**
-   - **9 Consolidated MCP Tools (with legacy alias redirects):**
-     1. `vivechak_start`: Initialize workspace and return direct actionable research brief (replaces `vivechak_init` and `vivechak_prepare_generator`).
-     2. `vivechak_save`: Polymorphically persist comparisons, pipeline DAG plans, sessions, or FAD with atomic write validation (replaces `vivechak_save_plan`, `vivechak_save_session`, and `vivechak_validate`).
+   - **9 Consolidated MCP Tools:**
+     1. `vivechak_start`: Initialize workspace and return direct actionable research brief.
+     2. `vivechak_save`: Polymorphically persist comparisons, pipeline DAG plans, sessions, or FAD with atomic write validation.
      3. `vivechak_record_decision`: Canonical ADR persistence (`research/D-NNN.md`) and compiled registry (`research/DECISIONS.md`), supporting `auto_draft_from` and `auto_save: true`.
-     4. `vivechak_next`: Topologically resolve next unblocked session in dependency DAG (replaces `vivechak_next_session`).
+     4. `vivechak_next`: Topologically resolve next unblocked session in dependency DAG.
      5. `vivechak_status`: Return workspace health, progress metrics, and unblocked/blocked DAG sessions.
-     6. `vivechak_review`: Surface real-time quality coaching observations (`Q-*`) for a session without blocking (replaces `vivechak_challenge`).
-     7. `vivechak_amend`: Revise completed research session or record amended findings (replaces `vivechak_amend_session`).
+     6. `vivechak_review`: Surface real-time quality coaching observations (`Q-*`) for a session without blocking.
+     7. `vivechak_amend`: Revise completed research session or record amended findings.
      8. `vivechak_replan`: Dynamically modify dependency DAG (insert/prune sessions) based on discoveries.
-     9. `vivechak_gate`: Mechanically evaluate Phase 0 gate rules G1–G12 across Track A and Track B (replaces `vivechak_run_gate`).
-     *(Legacy tools remain fully supported for backward compatibility).*
+     9. `vivechak_gate`: Mechanically evaluate Phase 0 gate rules G1–G12 across Track A and Track B.
    - **4 MCP Prompts:** `compare` (WEP matrix), `decision` (ADR), `project` (FAD pipeline), `gate` (Phase 0 gate audit) with transparent legacy alias support (`vivechak_*` and `vck_*`). Registered in `internal/mcp/prompts.go` with wire-level receiving middleware normalization.
-   - **Dual Environment Variable Ladder:** Workspace resolution evaluates `VIVECHAK_PROJECT_ROOT` -> `VCK_PROJECT_ROOT` -> `VIVECHAK_DEFAULT_ROOT` -> `VCK_DEFAULT_ROOT` -> `WORKSPACE` -> `PROJECT_ROOT`, safely ignoring unexpanded editor macros (`${workspaceFolder}`).
+   - **Dual Environment Variable Ladder:** Workspace resolution evaluates namespaced environment variables (`VIVECHAK_PROJECT_ROOT` -> `VCK_PROJECT_ROOT` -> `VIVECHAK_DEFAULT_ROOT` -> `VCK_DEFAULT_ROOT`), safely ignoring unexpanded editor macros (`${workspaceFolder}`) and unnamespaced variables like `WORKSPACE` or `PROJECT_ROOT` to protect container isolation per Principle P1.1.
    - **8 MCP Resources:** Canonical read-only access to all 6 templates (`vivechak://templates/{decisions,comparison,fad,conflict-resolution,gate,session}`) and 2 methodology reference cards (`vivechak://methodology/{grades,principles}`). Registered in `internal/mcp/resources.go` via `server.AddResource`.
 4. **Guided Worker pattern:** Every tool response includes `next_step`. Hard refusals ONLY for impossible operations, never for "wrong order."
 5. **Quality coaching:** `core.ObserveSessionQuality` runs inside `vivechak_save`, surfacing real-time non-blocking `Q-*` observations (grade inflation, missing discovered concerns, Delta confirmation bias, low findings count) directly in `next_step`.

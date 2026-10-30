@@ -10,7 +10,7 @@ Vivechak is an evidence-grounded research meta-framework for technical decisions
 2. **Decision** ([`GENERATOR-DECISION.md`](../GENERATOR-DECISION.md)) — Single architectural decision producing an Architectural Decision Record (ADR) across 1–3 sessions.
 3. **Comparison** ([`GENERATOR-COMPARISON.md`](../GENERATOR-COMPARISON.md)) — Bounded technology evaluation producing a Weighted Evaluation Protocol (WEP) matrix in a single session.
 
-The project ships as both a zero-dependency manual workflow and an autonomous **Model Context Protocol (MCP)** server providing 9 consolidated tools (plus backward-compatible legacy aliases).
+The project ships as both a zero-dependency manual workflow and an autonomous **Model Context Protocol (MCP)** server providing 9 consolidated tools.
 
 ---
 
@@ -25,9 +25,10 @@ vivechak/
 │       ├── main.go         # Command dispatcher, stdio server startup, slog routing (vck alias)
 │       ├── config.go       # "setup" and "mcp-config" host configuration & 21 presets
 │       ├── doctor.go       # "doctor" workspace integrity verification and detected scope diagnostics
-│       └── gate.go         # "gate" headless Phase 0 exit gate evaluation (CI-ready)
+│       ├── gate.go         # "gate" headless Phase 0 exit gate evaluation (CI-ready)
+│       └── signoff.go      # "signoff" interactive human architectural review sign-off
 ├── internal/
-│   ├── core/               # Pure business logic (DAG, gate, validation, quality, scopes)
+│   ├── core/               # Pure business logic (DAG, gate, validation, quality, scopes, signoff)
 │   │   ├── scope.go        # Scope definitions (project, decision, comparison)
 │   │   ├── workspace.go    # Workspace layout, WorkspaceFS, & 5-step resolution chain
 │   │   ├── dag.go          # Pipeline DAG parsing and dependency resolution
@@ -45,7 +46,7 @@ vivechak/
 │   ├── mcp/                # MCP protocol server, tools, prompts, and resources (package mcputil)
 │   │   ├── server.go       # Server factory and triumvirate registration dispatcher
 │   │   ├── envelope.go     # Standardized JSON response envelope & dual-channel encoding
-│   │   ├── tool_*.go       # 9 consolidated MCP tool handlers + legacy aliases
+│   │   ├── tool_*.go       # 9 consolidated MCP tool handlers
 │   │   ├── prompts.go      # 4 native MCP prompt templates (slash commands)
 │   │   ├── resources.go    # 8 canonical read-only MCP resources (templates & methodology)
 │   │   └── server_test.go  # In-memory JSON-RPC wire tests
@@ -97,7 +98,7 @@ Defined in [`internal/core/scope.go`](../internal/core/scope.go#L8-L22), [`Scope
 ### Workspace & Resolution Chain
 Defined in [`internal/core/workspace.go`](../internal/core/workspace.go), [`ResolveWorkspace`](../internal/core/workspace.go) evaluates a deterministic 5-step resolution chain:
 1. **Explicit argument**: `project_root` passed directly in the MCP tool call or CLI command.
-2. **Environment variables**: `VIVECHAK_PROJECT_ROOT`, `VCK_PROJECT_ROOT`, `VIVECHAK_DEFAULT_ROOT`, `VCK_DEFAULT_ROOT`, `WORKSPACE`, or `PROJECT_ROOT` if set (ignoring unexpanded `${workspaceFolder}` macros).
+2. **Environment variables**: Namespaced environment variables evaluated in order (`VIVECHAK_PROJECT_ROOT`, `VCK_PROJECT_ROOT`, `VIVECHAK_DEFAULT_ROOT`, `VCK_DEFAULT_ROOT`), safely ignoring unexpanded editor macros (e.g. `${workspaceFolder}`) and unnamespaced variables to protect container isolation.
 3. **CWD Directory Traversal**: Walks upwards from the current working directory searching for an existing `research/` directory (safely skipping host IDE application program directories).
 4. **In-process session memory**: Fallback to the last successfully resolved workspace with existing `research/` within the current server process, eliminating repetitive parameter passing in long agent sessions.
 5. **Fallback error**: Clear diagnostic error instructing the caller to start a research session in their AI editor (e.g. `/compare` or `/project`) or pass `project_root` explicitly.
@@ -146,7 +147,7 @@ Defined in [`internal/core/validate.go`](../internal/core/validate.go), `Observe
 ### Phase 0 Gate Engine & Auto-Persistence (`mcputil.handleGate`)
 Defined in [`internal/mcp/tool_gate.go`](../internal/mcp/tool_gate.go), `vivechak_gate` evaluates decoupled Track A and Track B criteria and automatically renders and persists `research/PHASE-0-GATE.md`:
 - **Track A (Two-Way Doors):** Fast-track reversibility validation (A1–A3). Reversible decisions pass without blocking deep checks. Workspaces with zero two-way doors are marked as `PASS (0 two-way doors)`, eliminating false-pass anomalies.
-- **Track B (One-Way Doors):** Comprehensive mechanical verification across 11 rigorous checks (B1–B11): DAG closure (B1), contradiction resolution (B2), evidentiary threshold requiring ≥60% Grade A/B evidence (B3), verification integrity with qualified provenance (B4), documented rejected alternatives (B5), concrete decay/reversal triggers (B6), premortem protocol (B7), human architect review sign-off (B8), sealed FAD (B9), substantive decision content detecting ADR stubs/placeholders (B10), and adversarial red-team challenge verification (`vivechak_review` challenge mode, `vivechak_challenge`, or disconfirming evidence search) before commitment (B11). Strict promotion enforces blocking failures for B3, B4, and B5 on One-Way Doors.
+- **Track B (One-Way Doors):** Comprehensive mechanical verification across 11 rigorous checks (B1–B11): DAG closure (B1), contradiction resolution (B2), evidentiary threshold requiring ≥60% Grade A/B evidence (B3), verification integrity with qualified provenance (B4), documented rejected alternatives (B5), concrete decay/reversal triggers (B6), premortem protocol (B7), human architect review sign-off (B8), sealed FAD (B9), substantive decision content detecting ADR stubs/placeholders (B10), and adversarial red-team challenge verification (`vivechak_review` challenge mode or disconfirming evidence search) before commitment (B11). Strict promotion enforces blocking failures for B3, B4, and B5 on One-Way Doors.
 - **Decoupled Decision Scope Evaluation:** In `ScopeDecision`, purely Two-Way Door decisions pass on Track A reversibility confirmation alone, and Track B checks remain non-blocking advisories. If an irreversible One-Way Door is present, full Track B checks are strictly enforced.
 
 ### Response Envelope (`mcputil.Envelope`)
@@ -363,36 +364,36 @@ client.Connect(ctx, ct, nil)
 ```
 
 Key wire test suites:
-- [`TestToolListing`](../internal/mcp/server_test.go#L59-L101): Asserts all 9 consolidated tools and legacy aliases are correctly registered.
+- [`TestToolListing`](../internal/mcp/server_test.go#L59-L101): Asserts all 9 consolidated tools are correctly registered.
 - [`TestAnnotations`](../internal/mcp/server_test.go#L104-L134): Verifies tool annotations (`ReadOnlyHint`, `IdempotentHint`, `DestructiveHint`, `OpenWorldHint`).
 - [`TestStatusNoWorkspace`](../internal/mcp/server_test.go#L137-L158): Verifies `vivechak_status` succeeds gracefully even in empty directories.
 - [`TestInitAndStatus`](../internal/mcp/server_test.go#L161-L222): Verifies directory tree creation and template copying.
 - [`TestGuidedWorkerPattern`](../internal/mcp/server_test.go#L349-L384): Asserts that **every tool** returns a non-empty `next_step` and valid `meta.tool`.
 - [`TestEndToEndPipelineFlow`](../internal/mcp/server_test.go#L386-L628): Simulates a complete research lifecycle across multiple layers:
-  1. `vivechak_init` (Initialize project workspace)
-  2. `vivechak_save_plan` (Save multi-session DAG pipeline)
-  3. `vivechak_next_session` (Receives first Layer 0 session)
-  4. `vivechak_save_session` (Save T1-01 output)
-  5. `vivechak_save_session` (Save T1-02 output)
-  6. `vivechak_next_session` (Receives SYN-01 with T1-01 and T1-02 findings automatically injected)
-  7. `vivechak_run_gate` (Executes Phase 0 exit gate)
+  1. `vivechak_start` (Initialize project workspace)
+  2. `vivechak_save` (Save multi-session DAG pipeline with kind="plan")
+  3. `vivechak_next` (Receives first Layer 0 session)
+  4. `vivechak_save` (Save T1-01 output with kind="session")
+  5. `vivechak_save` (Save T1-02 output with kind="session")
+  6. `vivechak_next` (Receives SYN-01 with T1-01 and T1-02 findings automatically injected)
+  7. `vivechak_gate` (Executes Phase 0 exit gate)
 
 ### 4. Massive In-Memory Real-Lifecycle Tests (`internal/mcp/massive_real_lifecycle_test.go`)
 Comprehensive 8-scenario lifecycle test suite running over in-memory JSON-RPC transports. Simulates realistic, non-ideal agent behaviors and validates:
 - **Full Project Pipeline Lifecycle:** End-to-end multi-layer DAG execution with context injection, quality coaching observations (`Q-*`), and Phase 0 Gate pass.
 - **Decision Scope Lifecycle:** Targeted 1–3 session ADR research and automated ADR compilation into `DECISIONS.md`.
 - **Comparison Scope Lifecycle:** Rapid single-session WEP matrix generation with sensitivity analysis.
-- **Resilient Schema Aliasing:** Verifies `vivechak_challenge` accepts `decision_id` and `challenge_type`, and `vivechak_run_gate` accepts `track` with structured machine-readable results (`track_a_result`, `track_b_result`, `decisions`).
+- **Resilient Schema Aliasing:** Verifies `vivechak_review` accepts `decision_id` and `challenge_type`, and `vivechak_gate` accepts `track` with structured machine-readable results (`track_a_result`, `track_b_result`, `decisions`).
 - **Vague Human Prompt Steering:** Validates that ambiguous, informal, or typo-ridden prompts from small LLM harnesses are gracefully steered via the Guided Worker pattern.
 - **High-Concurrency Contention:** Verifies advisory flock concurrency and monotonic temp file isolation during rapid parallel writes.
 - **Phase 0 Gate Strictness:** Verifies that incomplete one-way door ADRs (missing reversal triggers or rejected alternatives) strictly fail Track B.
 - **Dynamic DAG Replanning:** Mid-flight session addition, removal, dependency rewiring, and acyclicity enforcement.
 
 ### 5. Subprocess Live Stdio Integration Tests (`cmd/vivechak/serve_test.go`)
-Spawns the compiled `vivechak serve` binary as a genuine subprocess, connecting via JSON-RPC stdio pipes. Executes a full 17-step end-to-end lifecycle (`init` → `save_plan` → `next_session` → `save_session` → `record_decision` → `validate` → `run_gate`), validating subprocess signal handling, real stdio transport hygiene, and exit gates.
+Spawns the compiled `vivechak serve` binary as a genuine subprocess, connecting via JSON-RPC stdio pipes. Executes a full 17-step end-to-end lifecycle (`start` → `save` → `next` → `save` → `record_decision` → `review` → `gate`), validating subprocess signal handling, real stdio transport hygiene, and exit gates.
 
 ### 6. Subprocess Concurrency & Lifecycle Verification Suites (`cmd/vivechak/*_test.go`)
-- [`cmd/vivechak/mcp_live_lifecycle_test.go`](../cmd/vivechak/mcp_live_lifecycle_test.go): Full end-to-end multi-vector subprocess testing across all consolidated tools and legacy aliases, verifying live stdio JSON-RPC lifecycle, exit gates, and CLI commands (`version`, `doctor`, `mcp-config`).
+- [`cmd/vivechak/mcp_live_lifecycle_test.go`](../cmd/vivechak/mcp_live_lifecycle_test.go): Full end-to-end multi-vector subprocess testing across all 9 consolidated tools, verifying live stdio JSON-RPC lifecycle, exit gates, and CLI commands (`version`, `doctor`, `mcp-config`).
 - [`cmd/vivechak/mcp_live_hardening_test.go`](../cmd/vivechak/mcp_live_hardening_test.go): Live stdio subprocess hardening, error recovery, adversarial payloads, and signal discipline.
 - [`cmd/vivechak/real_harness_integration_test.go`](../cmd/vivechak/real_harness_integration_test.go): Live simulations across 21 host environments, JSONC comment preservation, and auto-detect logic.
 - [`cmd/vivechak/concurrency_test.go`](../cmd/vivechak/concurrency_test.go): High-concurrency subagent stress testing verifying atomic write locks, collision-free temporary file creation under rapid iteration, and race-free multi-agent decision recording.

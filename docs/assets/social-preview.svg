@@ -268,7 +268,7 @@
     <!-- 5. Technical Rigor Anchor Footer (Large, Legible, Crisp) -->
     <g transform="translate(0, 460)">
       <text font-family="'JetBrains Mono', 'SF Mono', Consolas, monospace" font-size="13" font-weight="700" fill="#94A3B8" letter-spacing="1">
-        EVIDENCE GRADES A–E <tspan fill="#F2A33A">·</tspan> 13 MCP TOOLS <tspan fill="#F2A33A">·</tspan> STRUCTURED FALSIFICATION <tspan fill="#F2A33A">·</tspan> GO 1.25+
+        EVIDENCE GRADES A–E <tspan fill="#F2A33A">·</tspan> 9 MCP TOOLS <tspan fill="#F2A33A">·</tspan> STRUCTURED FALSIFICATION <tspan fill="#F2A33A">·</tspan> GO 1.25+
       </text>
     </g>
 

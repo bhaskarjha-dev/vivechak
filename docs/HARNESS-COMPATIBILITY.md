@@ -14,7 +14,7 @@ Vivechak is built from the ground up to be **harness-agnostic**. It communicates
                            │ Standard MCP (JSON-RPC over stdio)
 ┌──────────────────────────▼─────────────────────────────┐
 │ vivechak MCP Server (Single Go Binary)                 │
-│  - 9 consolidated tools (with legacy alias redirects)  │
+│  - 9 consolidated orchestration tools                  │
 │  - 4 native MCP prompts (slash commands)               │
 │  - 8 canonical read-only MCP resources                 │
 │  - Universal Agent Skill & pre-packaged rules          │
@@ -97,7 +97,7 @@ This outputs a drop-in configuration block:
 Frontier agent harnesses frequently spawn parallel subagents to execute multiple research tasks simultaneously. Vivechak is engineered for high-concurrency safety:
 
 1. **Advisory File Locks (`store.LockFile`):**
-   - Every mutating operation (`save_session`, `record_decision`, `amend_session`, `replan`) acquires an advisory lock on the target file with exponential backoff and timeouts.
+   - Every mutating operation (`vivechak_save`, `vivechak_record_decision`, `vivechak_amend`, `vivechak_replan`) acquires an advisory lock on the target file with exponential backoff and timeouts.
    - Recording decisions acquires an exclusive advisory lock on `research/DECISIONS.md` to prevent compilation race conditions.
 2. **Atomic Writes (`store.WriteFileAtomic`):**
    - Files are written to temporary files and atomically renamed into place.
