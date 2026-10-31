@@ -20,11 +20,11 @@ You are operating as an epistemic analyst using **Vivechak**. Your objective is 
 
 Whenever the user asks for a technical comparison, technology choice, architectural fork, or platform architecture, classify their request into one of **3 scopes**:
 
-| Scope | Trigger | Artifact | Overhead | Key Tools / Slash Command |
+| Scope | Trigger | Artifact | Overhead | Key Tools / Prompt |
 |---|---|---|---|---|
-| **1. Comparison** | Evaluate 2–5 named options (*"Pino vs Winston"*) | `research/C-NNN-comparison.md` (WEP) | 1 session (~5m), 0 DAG, 0 Gate | `/compare` (Claude Code) or `vivechak_start(scope="comparison")` |
-| **2. Decision** | Architectural fork in active codebase (*"Migrate to ClickHouse?"*) | `research/D-NNN.md` (ADR) | 1–3 sessions (~30m), 0 Project DAG | `/decision` (Claude Code) or `vivechak_start(scope="decision")` |
-| **3. Project** | Greenfield architecture or major rewrite | `research/FAD.md` (Founding Architecture) | Full DAG (4–30 sessions), Gate | `/project` (Claude Code) or `vivechak_start(scope="project")` |
+| **1. Comparison** | Evaluate 2–5 named options (*"Pino vs Winston"*) | `research/C-NNN-comparison.md` (WEP) | 1 session (~5m), 0 DAG, 0 Gate | `/mcp__vivechak__compare` (Claude Code) or `vivechak_start(scope="comparison")` |
+| **2. Decision** | Architectural fork in active codebase (*"Migrate to ClickHouse?"*) | `research/D-NNN-decision.md` (ADR) | 1–3 sessions (~30m), 0 Project DAG | `/mcp__vivechak__decision` (Claude Code) or `vivechak_start(scope="decision")` |
+| **3. Project** | Greenfield architecture or major rewrite | `research/FAD.md` (Founding Architecture) | Full DAG (4–30 sessions), Gate | `/mcp__vivechak__project` (Claude Code) or `vivechak_start(scope="project")` |
 
 ---
 
@@ -32,21 +32,21 @@ Whenever the user asks for a technical comparison, technology choice, architectu
 
 ### Scope 1: Comparison Scope (`ScopeComparison`)
 Use when asked to compare, benchmark, or choose between 2–5 named technologies, libraries, or datastores:
-1. **Trigger Start:** Call MCP tool `vivechak_start(scope="comparison", question="<user prompt>")` (or run `/compare` in Claude Code).
+1. **Trigger Start:** Call MCP tool `vivechak_start(scope="comparison", question="<user prompt>")` (or run `/mcp__vivechak__compare` in Claude Code).
 2. **Execute Research:** Perform web search for authoritative documentation, reproducible benchmarks, and postmortems. Apply evidence grades (A–E) to all claims.
-3. **Persist Output:** Call MCP tool `vivechak_save(kind="comparison", id="C-01", content="<matrix>")`. Vivechak automatically auto-initializes the workspace and saves `research/C-01-comparison.md`. Done!
+3. **Persist Output:** Call MCP tool `vivechak_save(kind="comparison", id="C-001", content="<matrix>")`. The workspace is created at the resolved project root on the first write and saves `research/C-001-comparison.md`. Done!
 
 ### Scope 2: Decision Scope (`ScopeDecision`)
 Use when resolving an architectural fork, migration, or dilemma in an active codebase:
-1. **Trigger Start:** Call `vivechak_start(scope="decision", question="<dilemma>")` (or run `/decision` in Claude Code).
+1. **Trigger Start:** Call `vivechak_start(scope="decision", question="<dilemma>")` (or run `/mcp__vivechak__decision` in Claude Code).
 2. **Save Decision Plan:** Call `vivechak_save(kind="plan", id="D-NNN", content=...)`.
 3. **Execute Sessions:** Run the 1–3 research sessions (`L` Landscape, `C` Comparison, `F` Falsification) via `vivechak_next` and `vivechak_save(kind="session", id="D-NNN-S1", content=...)`.
-4. **Lock ADR:** Call `vivechak_record_decision(decision_id="D-NNN", auto_draft_from="D-NNN-S1", auto_save=true)` to draft and persist the canonical ADR in `research/D-NNN.md` and update `research/DECISIONS.md`.
+4. **Record ADR:** Call `vivechak_record_decision(decision_id="D-NNN", auto_draft_from="D-NNN-S1", auto_save=true)` to draft and persist the canonical ADR in `research/D-NNN-decision.md` and update `research/DECISIONS.md`.
 5. **Human Sign-Off:** One-way decisions need the user's sign-off (`vck signoff <D-id>`); never set `human_reviewed` yourself.
 
 ### Scope 3: Project Scope (`ScopeProject`)
 Use when designing a brand-new system or greenfield platform architecture from scratch:
-1. **Trigger Start:** Call `vivechak_start(scope="project", question="<project vision>")` (or run `/project` in Claude Code).
+1. **Trigger Start:** Call `vivechak_start(scope="project", question="<project vision>")` (or run `/mcp__vivechak__project` in Claude Code).
 2. **Save Pipeline:** Call `vivechak_save(kind="plan", id="DAG", content=...)` to write `research/RESEARCH-PIPELINE.md`.
 3. **Session Loop:** Loop through DAG sessions:
    - `vivechak_next` → research → `vivechak_save(kind="session", id="<session_id>", content=...)` → `vivechak_record_decision(decision_id="D-NNN", auto_draft_from="<session_id>", auto_save=true)`.
@@ -58,9 +58,9 @@ Use when designing a brand-new system or greenfield platform architecture from s
 ## 3. Evidence Grading Taxonomy (Mandatory)
 
 Every factual claim in Vivechak must carry an inline evidence grade with modifiers and verification method:
-- **Grade A (Primary Empirical):** Official specifications, canonical source code, reproducible benchmarks, or primary documentation with explicit URL anchor.
-- **Grade B (Secondary Empirical):** Peer-reviewed papers, reputable third-party benchmarks, published postmortems, or corroborated engineering reports.
-- **Grade C (Vendor & Practitioner):** Vendor marketing, product whitepapers, conference talks, official tutorials, or non-reproduced claims.
+- **Grade A (Primary Empirical):** Official specifications, canonical source code, RFCs, or primary documentation with explicit URL anchor.
+- **Grade B (Secondary Empirical):** Peer-reviewed papers, reproducible third-party benchmarks, published postmortems, or corroborated engineering reports.
+- **Grade C (Vendor & Practitioner):** Vendor marketing, product whitepapers, vendor benchmarks, conference talks, or interested-party documentation.
 - **Grade D (Informal & Opinion):** Blog posts, forum discussions, StackOverflow answers, or model memory recall (capped at Grade D).
 - **Grade E (Speculative & Unsubstantiated):** Unverified hypotheses, uncorroborated parametric recall, or ungrounded assertions.
 

@@ -28,7 +28,7 @@ An agent uses Vivechak by choosing the scope level that matches the decision tas
 | **DAG Overhead** | **Zero** (no DAG created or required) | **Zero** (no project DAG or topology) | **Full DAG** (topological dependency resolution) | None |
 | **Gate Overhead**| **None** | Optional Track B check | **Mandatory** Track A / Track B Phase 0 Gate | None |
 | **Templates Used**| 1 (`COMPARISON-SESSION.template.md`) | 2 (`DECISIONS`, `CONFLICT-RESOLUTION`) | 6 (All templates) | None |
-| **Primary Output**| `research/C-NNN-comparison.md` (WEP) | `research/D-NNN.md` (Locked ADR) | `research/FAD.md` (Founding Architecture) | Code files / direct response |
+| **Primary Output**| `research/C-NNN-comparison.md` (WEP) | `research/D-NNN-decision.md` (Locked ADR) | `research/FAD.md` (Founding Architecture) | Code files / direct response |
 
 ---
 
@@ -38,13 +38,13 @@ Use when asked to compare, choose, or benchmark 2–5 named technologies, librar
 **MCP Flow:**
 1. Call `vivechak_start(scope="comparison", question="<comparison question>")`.
 2. Run research in a session with web search enabled following the returned brief.
-3. Call `vivechak_save(kind="comparison", id="C-01", content="<output>")`. Done! Output is saved to `research/comparisons/C-01.md` (or `research/C-01-comparison.md`).
+3. Call `vivechak_save(kind="comparison", id="C-001", content="<output>")`. Done! Output is saved to `research/C-001-comparison.md`.
 
 **Manual Flow:**
 1. Open [GENERATOR-COMPARISON.md](GENERATOR-COMPARISON.md) and extract the prompt.
 2. Fill the `OPTIONS:`, `CRITERIA:`, and `CONTEXT:` slots.
 3. Execute in an AI session with web search.
-4. Save the Weighted Evaluation Protocol (WEP) matrix output into `research/COMPARISON.md`.
+4. Save the Weighted Evaluation Protocol (WEP) matrix output into `research/C-001-comparison.md`.
 
 ---
 
@@ -56,12 +56,12 @@ Use when resolving an architectural fork, migration, or dilemma in an existing p
 2. Save the decision plan via `vivechak_save(kind="plan", id="D-NNN", content=...)`.
 3. Execute the 1–3 sessions (`L` Landscape, `C` Comparison, `F` Falsification) via `vivechak_next` and `vivechak_save(kind="session", id="D-NNN-S1", content=...)`.
 4. (Optional) Review quality with `vivechak_review(session_id="D-NNN-S1")`.
-5. Lock the decision via `vivechak_record_decision(decision_id="D-NNN", auto_draft_from="D-NNN-S1", auto_save=true)`. Output is saved as canonical ADR `research/D-NNN.md` and compiled into `research/DECISIONS.md`.
+5. Create or update the ADR via `vivechak_record_decision(decision_id="D-NNN", auto_draft_from="D-NNN-S1", auto_save=true)`. Output is saved as canonical ADR `research/D-NNN-decision.md` and compiled into `research/DECISIONS.md`.
 
 **Manual Flow:**
 1. Open [GENERATOR-DECISION.md](GENERATOR-DECISION.md) and copy prompt with context.
 2. Copy `DECISIONS.template.md` and `CONFLICT-RESOLUTION.template.md` to `research/templates/`.
-3. Execute the 1–3 sessions and record the ADR in `research/D-NNN.md`.
+3. Execute the 1–3 sessions and record the ADR in `research/D-NNN-decision.md`.
 
 ---
 
@@ -261,7 +261,7 @@ When modifying Go code in `cmd/` or `internal/`:
    - **9 Consolidated MCP Tools:**
      1. `vivechak_start`: Initialize workspace and return direct actionable research brief.
      2. `vivechak_save`: Polymorphically persist comparisons, pipeline DAG plans, sessions, or FAD with atomic write validation.
-     3. `vivechak_record_decision`: Canonical ADR persistence (`research/D-NNN.md`) and compiled registry (`research/DECISIONS.md`), supporting `auto_draft_from` and `auto_save: true`.
+     3. `vivechak_record_decision`: Canonical ADR persistence (`research/D-NNN-decision.md`) and compiled registry (`research/DECISIONS.md`), supporting `auto_draft_from` and `auto_save: true`.
      4. `vivechak_next`: Topologically resolve next unblocked session in dependency DAG.
      5. `vivechak_status`: Return workspace health, progress metrics, and unblocked/blocked DAG sessions.
      6. `vivechak_review`: Surface real-time quality coaching observations (`Q-*`) for a session without blocking.
@@ -305,7 +305,7 @@ Vivechak includes an empirical multi-harness autonomous testing engine in `tests
    *Runs tests only on harnesses with active tokens/credits.*
 3. **Run Zero-Token Headless MCP Conformance Test (CI / Offline):**
    `node scripts/run_harness.mjs --harness direct_mcp --scenario 01`
-   *Tests all tools (canonical + legacy aliases) deterministically over JSON-RPC stdio with zero external token expenditure.*
+   *Tests core tools deterministically over JSON-RPC stdio with zero external token expenditure.*
 4. **Ingest Dynamic Triage & Extract Polish:**
    `make harness-triage` or `node scripts/run_harness.mjs --triage`
    *Dynamically parses runs, evaluates pass/fail status, and clusters Turn 4 feedback.*

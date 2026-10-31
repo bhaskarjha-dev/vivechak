@@ -87,7 +87,7 @@ Polymorphically persists research deliverables with automatic atomic writes and 
 ---
 
 ## 3. ` + "`vivechak_record_decision`" + `
-Records and locks an Architectural Decision Record (ADR) as canonical ` + "`research/D-NNN.md`" + ` and compiles consolidated ` + "`research/DECISIONS.md`" + `.
+Records and updates an Architectural Decision Record (ADR) as canonical ` + "`research/D-NNN-decision.md`" + ` and compiles consolidated ` + "`research/DECISIONS.md`" + `.
 - **Parameters:**
   - ` + "`decision_id`" + ` (string, required): Canonical ADR identifier (` + "`D-001`" + `, ` + "`D-002`" + `).
   - ` + "`auto_draft_from`" + ` (string, optional): Session ID to automatically extract rationale, options, and findings from.
@@ -203,8 +203,8 @@ The Phase 0 Gate is Vivechak's mechanical pre-codebase exit audit. It verifies t
 
 | Track | Target Decisions | Governing Rules | Philosophy |
 |---|---|---|---|
-| **Track A** | **Two-Way Doors** (Type 2 Decisions) | Checks A1–A4 (Rules G11–G12) | **Velocity-Calibrated:** Fast spike or convention decision (~70% information). Reversibility confirmation and review triggers. |
-| **Track B** | **One-Way Doors** (Type 1 Decisions) | Checks B1–B11 (Rules G1–G10) | **Rigor-Calibrated:** High evidentiary threshold (Grade A/B), verified provenance, substantive alternatives, and red-team challenge. |
+| **Track A** | **Two-Way Doors** (Type 2 Decisions) | Rule G12 | **Velocity-Calibrated:** Fast spike or convention decision (~70% information). Reversibility confirmation and review triggers. |
+| **Track B** | **One-Way Doors** (Type 1 Decisions) | Rules G1–G11 | **Rigor-Calibrated:** High evidentiary threshold (Grade A/B), verified provenance, substantive alternatives, red-team challenge, and human sign-off. |
 
 ---
 

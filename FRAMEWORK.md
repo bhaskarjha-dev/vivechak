@@ -431,7 +431,7 @@ Sessions failing this rubric should be re-executed with a refined prompt before 
 
 | Grade | Label | Description | Allowed Provenance | Gate Impact |
 |---|---|---|---|---|
-| **Grade A** | Primary Empirical | Official specifications, canonical source code, reproducible benchmarks, or primary documentation with explicit URL anchor. | `fetched, verified` | G6, G7 |
+| **Grade A** | Primary Empirical | Official specifications, canonical source code, RFCs, or primary documentation with explicit URL anchor. | `fetched, verified` | G6, G7 |
 | **Grade B** | Secondary Empirical | Peer-reviewed papers, reputable third-party benchmarks, published postmortems, or corroborated engineering reports. | `fetched, cached` | G6 |
 | **Grade C** | Vendor & Practitioner | Vendor marketing, product whitepapers, conference talks, official tutorials, or non-reproduced claims. | `fetched, cached` | Advisory |
 | **Grade D** | Informal & Opinion | Blog posts, forum discussions, StackOverflow answers, or model memory recall (capped at Grade D). | `fetched, cached, recalled` | Advisory |

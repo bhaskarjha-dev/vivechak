@@ -13,7 +13,7 @@ Activate this skill whenever the user asks to:
 1. **Comparison Scope (`ScopeComparison`):**
    - Call `vivechak_start(scope="comparison", question="...")`.
    - Run grounded web search.
-   - Save output via `vivechak_save(kind="comparison", id="C-01", content=...)`.
+   - Save output via `vivechak_save(kind="comparison", id="C-001", content=...)`.
 2. **Decision Scope (`ScopeDecision`):**
    - Call `vivechak_start(scope="decision", question="...")`.
    - Save decision plan via `vivechak_save(kind="plan", id="D-NNN", content=...)`.

@@ -40,7 +40,7 @@ Polymorphically persists research deliverables with automatic atomic writes and 
 ---
 
 ## 3. `vivechak_record_decision`
-Records and locks an Architectural Decision Record (ADR) as canonical `research/D-NNN.md` and compiles consolidated `research/DECISIONS.md`.
+Records and updates an Architectural Decision Record (ADR) as canonical `research/D-NNN-decision.md` and compiles consolidated `research/DECISIONS.md`.
 - **Parameters:**
   - `decision_id` (string, required): Canonical ADR identifier (`D-001`, `D-002`).
   - `auto_draft_from` (string, optional): Session ID to automatically extract rationale, options, and findings from.

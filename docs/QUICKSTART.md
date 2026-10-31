@@ -63,7 +63,7 @@ curl -fsSL https://raw.githubusercontent.com/bhaskarjha-dev/vivechak/main/instal
 irm https://raw.githubusercontent.com/bhaskarjha-dev/vivechak/main/install.ps1 | iex           # Windows
 ```
 
-**Or Build from Source (Go 1.25+):**
+**Or Build from Source (Go 1.26.10, or any Go with GOTOOLCHAIN=auto):**
 ```sh
 # Clone and build locally with zero external C dependencies:
 git clone https://github.com/bhaskarjha-dev/vivechak.git
@@ -103,13 +103,13 @@ vck mcp-config
 Open your agent chat in your project repository and choose your scope (or invoke native **MCP Slash Commands** in compatible clients):
 
 - **For Quick Comparisons (~5 mins, 1 session):**
-  > `/compare` *(or `/vivechak_compare`)* or *"Vivechak compare: Pino vs Winston for high-throughput Node.js microservices."*
+  > `/compare` or *"Vivechak compare: Pino vs Winston for high-throughput Node.js microservices."*
 - **For Architectural Decisions (~30 mins, 1–3 sessions):**
-  > `/decision` *(or `/vivechak_decision`)* or *"Vivechak decision: Should we migrate our primary analytics datastore from PostgreSQL to ClickHouse?"*
+  > `/decision` or *"Vivechak decision: Should we migrate our primary analytics datastore from PostgreSQL to ClickHouse?"*
 - **For Full Project Pipelines (Hours–Days, greenfield architecture):**
-  > `/project` *(or `/vivechak_project`)* or *"Use Vivechak to research our architecture. We need to build a multi-tenant B2B SaaS analytics platform ingesting 20M events/day."*
+  > `/project` or *"Use Vivechak to research our architecture. We need to build a multi-tenant B2B SaaS analytics platform ingesting 20M events/day."*
 - **For Pre-Code Phase 0 Gate Evaluation:**
-  > `/gate` *(or `/vivechak_gate`)* or *"Evaluate Phase 0 Gate before implementation."*
+  > `/gate` or *"Evaluate Phase 0 Gate before implementation."*
 
 > [!NOTE]
 > **When NOT to use Vivechak:** Do NOT invoke Vivechak for routine coding, writing functions, debugging errors, or syntax explanations. Let your agent write code directly without research tools.
@@ -117,7 +117,7 @@ Open your agent chat in your project repository and choose your scope (or invoke
 ### 4. How the Agent Executes Each Scope
 
 - **Comparison Scope:** Agent calls `vivechak_start(scope="comparison", question="...")` → executes prompt with search → calls `vivechak_save(kind="comparison")` to persist WEP matrix in `research/C-NNN-comparison.md`. Done in 5 minutes! Zero DAG, zero gate.
-- **Decision Scope:** Agent calls `vivechak_start(scope="decision", question="...")` → saves plan via `vivechak_save(kind="plan")` → runs 1–3 sessions → calls `vivechak_record_decision` to lock canonical ADR `research/D-NNN.md` and compiled registry `research/DECISIONS.md`. Zero project DAG, zero FAD.
+- **Decision Scope:** Agent calls `vivechak_start(scope="decision", question="...")` → saves plan via `vivechak_save(kind="plan")` → runs 1–3 sessions → calls `vivechak_record_decision` to record canonical ADR `research/D-NNN-decision.md` and compiled registry `research/DECISIONS.md`. Zero project DAG, zero FAD.
 - **Project Scope:** Autonomous orchestration across 9 consolidated tools:
 ```
 [Agent: vivechak_start (scope: 'project', question: '<vision>')]
@@ -130,7 +130,7 @@ Open your agent chat in your project repository and choose your scope (or invoke
   ├─ vivechak_next           ──> Injects upstream findings into next ready prompt
   ├─ [Agent executes deep research with web search]
   ├─ vivechak_save           ──> Validates evidence grades (A-E) and saves session (kind='session')
-  └─ vivechak_record_decision ──> Locks ADR with One-Way vs Two-Way Door classification
+  └─ vivechak_record_decision ──> Records ADR with One-Way vs Two-Way Door classification
 [Agent: FAD Synthesis (SYN-01)]
   └─ Synthesizes all findings into research/FAD.md via vivechak_save (kind: 'fad')
 [Agent: vivechak_gate (or CLI: vck gate)]
@@ -155,7 +155,7 @@ See the [MCP Tools Reference](MCP-TOOLS.md) for full tool schemas, parameter spe
    - WinGet / Scoop: `winget uninstall bhaskarjha-dev.Vivechak` or `scoop uninstall vck`
    - Shell / Manual: Delete `vck` (and `vivechak`) from your binary directory (e.g. `~/.local/bin/vck` or `%LOCALAPPDATA%\Programs\vivechak\vck.exe`).
 2. **Remove MCP configuration:**
-   - Delete the `"vivechak"` block from your host config file (e.g. `.cursor/mcp.json`, `.vscode/mcp.json`, `~/.claude.json`), or restore the automatic `<config>.bak` backup created during `vck setup`.
+   - Delete the `"vivechak"` block from your host config file (e.g. `.cursor/mcp.json`, `.vscode/mcp.json`, `~/.claude.json`), or restore the automatic `<config>.vivechak-bak-<timestamp>` backup created during `vck setup`.
 
 ---
 

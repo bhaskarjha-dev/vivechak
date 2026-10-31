@@ -6,11 +6,15 @@ Vivechak (विवेचक) is designed as a sovereign, local-first research m
 
 ## 1. Security Architecture & Threat Model
 
-### Workspace Confinement (`os.Root` Jail)
-- All filesystem read and write operations executed by the MCP server and CLI are strictly jailed within the resolved workspace directory using Go 1.25+ standard library [`os.Root`](https://pkg.go.dev/os#Root) APIs.
+### Workspace Confinement (`os.Root` Jail) & `project_root` Threat Model
+- All filesystem read and write operations executed by the MCP server and CLI are confined within the resolved `project_root` workspace directory under `research/` using Go standard library [`os.Root`](https://pkg.go.dev/os#Root) APIs.
+- When an agent or user invokes tools, the target `project_root` is evaluated through a strict 7-step resolution ladder; attempts to target filesystem roots (`/`, `C:\`), protected system paths (`/usr`, `/etc`, `C:\Windows`), application folders, or parent directories are rejected.
 - Path traversal attacks (e.g. `../../../etc/passwd` or `..\..\Windows\System32`) are blocked at the operating system filesystem handle level.
 - Directory creation is confined component-wise (`Workspace.MkdirAll`), eliminating symlink race conditions (TOCTOU).
-- Workspace resolution actively guards against accidental initialization or traversal into operating system binary folders, program directories (`AppData\Local\Programs\...`, `Program Files`, `/usr/bin`), or system roots.
+
+### Host Configuration Safety (`vck setup`)
+- The host configuration command `vck setup` writes and updates MCP server blocks in IDE configuration files.
+- Configuration writes are atomic and non-destructive: existing configurations are backed up with immutable timestamps (`<config>.vivechak-bak-<timestamp>`), existing file permissions are preserved (mode `0600` for new files), and identical configurations are not rewritten.
 
 ### Zero Telemetry & Zero Network Egress
 - **100% Offline & Local-First:** Vivechak contains **zero telemetry**, **zero analytics**, and **zero external network egress**.
@@ -23,7 +27,7 @@ Vivechak (विवेचक) is designed as a sovereign, local-first research m
 - Frontmatter parsing is performed via safe deserialization without arbitrary type instantiation.
 
 ### Concurrency & Mutation Safety
-- Mutating operations (`save_session`, `record_decision`, `amend_session`, `replan`) acquire cross-process advisory file locks (`flock`) with bounded timeouts.
+- Mutating operations (`vivechak_save`, `vivechak_record_decision`, `vivechak_amend`, `vivechak_replan`) acquire cross-process advisory file locks (`flock`) with bounded timeouts.
 - File writes employ atomic file generation with monotonic process counters, preventing torn writes and handle collisions on Windows and POSIX filesystems.
 
 ### Minimal Dependency Surface

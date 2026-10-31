@@ -57,8 +57,8 @@ The agent executes the generator, producing a tailored 2-session research plan (
 ```json
 {
   "success": true,
-  "message": "Decision plan saved in research/decisions/D-01-clickhouse-migration-plan.md. 2 templates copied (DECISIONS, CONFLICT-RESOLUTION). Zero project DAG overhead.",
-  "next_step": "Execute D-01-S1 and call vivechak_save(kind=\"session\", id=\"D-01-S1\", content=...)."
+  "message": "Research plan saved to research/D-001-plan.md.",
+  "next_step": "Execute D-01-S1 and call vivechak_save(kind=\"session\", id=\"D-001-S1\", content=...)."
 }
 ```
 
@@ -115,13 +115,13 @@ The agent formalizes the ADR with **explicit reversal triggers** and **rejected 
 ```json
 {
   "success": true,
-  "message": "Decision D-01 recorded as canonical ADR in research/D-01-clickhouse-migration.md and compiled into consolidated research/DECISIONS.md.",
+  "message": "Decision D-001 recorded as canonical ADR in research/D-001-decision.md and compiled into consolidated research/DECISIONS.md.",
   "data": {
-    "decision_id": "D-01",
+    "decision_id": "D-001",
     "door_type": "one-way",
     "status": "accepted"
   },
-  "next_step": "Decision D-01 is locked! The canonical ADR is saved in research/D-01-clickhouse-migration.md and registry research/DECISIONS.md is up to date. You can now proceed to implement the Vector buffer and ClickHouse schema."
+  "next_step": "Decision D-001 is locked! The canonical ADR is saved in research/D-001-decision.md and registry research/DECISIONS.md is up to date. You can now proceed to implement the Vector buffer and ClickHouse schema."
 }
 ```
 

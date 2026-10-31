@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [0.1.0] - 2026-10-21 — Hardened Initial Release, MCP Server & Autonomous Multi-Harness Engine
+## [0.1.0] - Unreleased — Hardened Initial Release, MCP Server & Autonomous Multi-Harness Engine
 
 Unified release delivering the complete pre-release hardening wave across engine parsers, decoupled exit gates, headless CLI verification, concurrency locks, multi-harness autonomous testing subsystem, and packaging:
 
@@ -252,7 +252,7 @@ Comprehensive production release fusing the 18 quality audit findings (`CRIT-01`
 
 ## [0.1.0-beta.0] - 2026-09-28 — Initial Unified Preview (Go MCP Server & Multi-Scope Engine)
 
-First public release of the automated **Vivechak (विवेचक)** system — uniting evidence-grounded research methodology with an autonomous Model Context Protocol (MCP) server.
+Preview (never tagged) of the automated **Vivechak (विवेचक)** system — uniting evidence-grounded research methodology with an autonomous Model Context Protocol (MCP) server.
 
 ### Added
 - **Go MCP Server (`cmd/vivechak/`):** Autonomous orchestration engine implementing the Guided Worker pattern with 10 atomic tools:
@@ -333,9 +333,4 @@ Foundational meta-research and methodology specification (formerly drafted as v1
 ### Added
 - Initial pre-development research patterns and aspect isolation experiments discovered across 8 independent project pipelines.
 
-[0.1.0]: https://github.com/bhaskarjha-dev/vivechak/releases/tag/v0.1.0
-[0.1.0-beta.1]: https://github.com/bhaskarjha-dev/vivechak/releases/tag/v0.1.0-beta.1
-[0.1.0-beta.0]: https://github.com/bhaskarjha-dev/vivechak/releases/tag/v0.1.0-beta.0
-[0.1.0-alpha.2]: https://github.com/bhaskarjha-dev/vivechak/releases/tag/v0.1.0-alpha.2
-[0.1.0-alpha.1]: https://github.com/bhaskarjha-dev/vivechak/releases/tag/v0.1.0-alpha.1
 [0.0.1-incubating]: https://github.com/bhaskarjha-dev/vivechak/tree/main

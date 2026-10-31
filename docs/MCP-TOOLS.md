@@ -176,10 +176,10 @@ flowchart TD
 **Step-by-step workflow:**
 1. Call `vivechak_start` with `scope: "comparison"` and `question: "<comparison question>"` (or specify `options` and `criteria`).
 2. Run the returned comparison brief with live web search.
-3. Call `vivechak_save` with `kind: "comparison"`, `id: "C-01"`, and the WEP matrix content to persist `research/comparisons/C-01.md`.
+3. Call `vivechak_save` with `kind: "comparison"`, `id: "C-001"`, and the WEP matrix content to persist `research/C-001-comparison.md`.
 4. Done! 0 DAG overhead, 0 gate overhead.
 
-*Manual Alternative:* Copy [`GENERATOR-COMPARISON.md`](../GENERATOR-COMPARISON.md), specify options, and paste output directly into `research/COMPARISON.md`.
+*Manual Alternative:* Copy [`GENERATOR-COMPARISON.md`](../GENERATOR-COMPARISON.md), specify options, and paste output directly into `research/C-001-comparison.md`.
 
 ---
 
@@ -285,10 +285,10 @@ Validate and persist research deliverables (plans, sessions, comparison matrices
 Polymorphically validates and persists artifacts according to `kind` (or auto-infers `kind` from content/ID):
 - `kind: "plan"`: Validates DAG acyclicity and persists `research/RESEARCH-PIPELINE.md`. If `decisions_content` is provided, compiles the initial decision stubs into `research/DECISIONS.md`.
 - `kind: "session"`: Validates YAML frontmatter, required metadata, non-empty body, and inline evidence grades (`A-E`). Runs the real-time non-blocking **Quality Coaching Engine** (`ObserveSessionQuality`), surfacing `Q-*` feedback in `next_step`. Promotes valid sessions to `status: complete` and writes to `research/sessions/<id>.md`.
-- `kind: "comparison"`: Validates Weighted Evaluation Protocol (WEP) matrix and persists `research/comparisons/<id>.md` (or `research/<id>-comparison.md`). Bypasses DAG constraints and gate checks.
+- `kind: "comparison"`: Validates Weighted Evaluation Protocol (WEP) matrix and persists `research/<id>-comparison.md` (or `research/<id>.md`). Bypasses DAG constraints and gate checks.
 - `kind: "fad"`: Validates terminal Map-Reduce synthesis, persists canonical `research/FAD.md`, and automatically mirrors `FOUNDING-ARCHITECTURE.md` to project root.
 
-**Auto-Initialization:** If called on an uninitialized directory, `vivechak_save` automatically initializes the directory layout and templates on the fly, writing `research/.gitignore` (`*.lock`) to avoid blocking the caller.  
+**Workspace Creation:** The workspace is created at the resolved project root on the first write; see the workspace rules.
 **Atomic Writes & Advisory Locking:** All writes use monotonic temporary files and cross-process advisory locks with 5-second timeouts to prevent race conditions during concurrent execution.
 
 #### Input Parameters
@@ -363,7 +363,7 @@ Defined in [`SaveInput`](../internal/mcp/tool_save.go):
 Save an Architectural Decision Record (ADR) or Analysis of Competing Hypotheses (ACH) conflict resolution. Classifies decisions as One-Way or Two-Way Doors and compiles the consolidated registry.
 
 #### What It Does
-1. Validates and persists canonical ADR markdown files to `research/D-NNN.md` (or `research/D-NNN-[slug].md`).
+1. Validates and persists canonical ADR markdown files to `research/D-NNN-decision.md` (or `research/D-NNN-[slug].md`).
 2. Evaluates required YAML frontmatter (`decision_id`, `title`, `status`, `door_type`) and substantive body content (>100 characters).
 3. **Single-Source ADR Compiler:** Automatically discovers all canonical `D-*.md` files in `research/`, wraps frontmatter in collapsible `<details>` blocks, and atomically compiles the consolidated `research/DECISIONS.md` registry.
 4. **One-Shot Auto-Drafting:** Supports `auto_draft_from: "<session_id>"` with `auto_save: true` to synthesize rationale, trade-offs, and citations from session findings into an ADR and persist it in a single atomic turn.

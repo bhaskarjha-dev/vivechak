@@ -1,6 +1,6 @@
 # Architectural Decisions Registry
 
-This file records all architectural decisions accepted during Vivechak development. Canonical definitions live in individual `research/D-NNN.md` files.
+This file records all architectural decisions accepted during Vivechak development. Canonical definitions live in individual `research/D-NNN-decision.md` files.
 
 ---
 

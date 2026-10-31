@@ -102,8 +102,8 @@ which algorithm is faster between b-tree vs lsm-tree for write heavy storage eng
    - WEP Scoring Matrix (1–5 weighted criteria).
    - Failure modes for each candidate.
    - Evidence grades with verified sources (`[Grade A, URL/RFC]`).
-4. **Persist (Optional / Minimal):** Calls `vivechak_save` with `scope: "comparison"` and `decision_id: "C-01"` (or auto-recovered).
-   - **Zero-Bloat Guarantee:** The server creates only `research/C-01-comparison.md` and copies ONLY `COMPARISON-SESSION.template.md`. It does NOT scaffold the 6-template project pipeline or empty DAG folders.
+4. **Persist (Optional / Minimal):** Calls `vivechak_save` with `scope: "comparison"` and `decision_id: "C-001"` (or auto-recovered).
+   - **Zero-Bloat Guarantee:** The server creates only `research/C-001-comparison.md` and copies ONLY `COMPARISON-SESSION.template.md`. It does NOT scaffold the 6-template project pipeline or empty DAG folders.
 
 ### 🔍 Forensic Evaluation Checklist
 - [ ] Did the model avoid vomiting raw parametric memory without calling the tool?
@@ -117,7 +117,7 @@ which algorithm is faster between b-tree vs lsm-tree for write heavy storage eng
 
 ### Intent & Engineering Context
 Small models frequently skip calling `vivechak_start` and jump straight from generating a plan or comparison matrix to calling `vivechak_save`.
-Vivechak automatically initializes the workspace on-the-fly, auto-detects or recovers the decision identifier (`C-01`, `D-01`) from table headers or section titles, copies only scope-appropriate templates, and bypasses DAG cycle constraints for standalone comparison files.
+Vivechak creates the workspace on-the-fly, auto-detects or recovers the decision identifier (`C-001`, `D-001`) from table headers or section titles, copies only scope-appropriate templates, and bypasses DAG cycle constraints for standalone comparison files.
 
 ### 🧪 Test Prompt
 *(Run this in a brand new empty folder where `vivechak_start` was NOT called yet)*
@@ -148,7 +148,7 @@ Pino is recommended for high throughput.
    - Automatically writes `research/.gitignore` containing `*.lock` (E-39) to protect git repositories from ephemeral advisory lock files.
    - Copies only `COMPARISON-SESSION.template.md` (zero bloat).
    - Auto-extracts `decision_id: "C-01"` from `| Decision | C-01 |`.
-   - Writes `research/C-01-comparison.md`.
+   - Writes `research/C-001-comparison.md`.
    - Skips DAG cycle checks for comparison scope.
 3. Returns `success: true` with terminal completion guidance in `next_step` ("Single-session comparison complete (no DAG or gate required)") instead of suggesting `vivechak_next`.
 
@@ -343,7 +343,7 @@ Everyone uses Gin. No downsides found.
 ### Intent & Engineering Context
 Test `vivechak_review(mode="challenge")` to run an adversarial red-team probe.
 Verifies parameter aliasing: accepts `decision_id` (alias for `session_id`) and `challenge_type="premortem"` (alias for `mode="red_team"`).
-**Key Hardening Feature:** Two-Tier Lookup! The tool searches `research/sessions/` first, and if not found, searches `research/` directly for standalone ADR files (`research/D-01.md`, `research/D-01-database.md`) and comparison matrices (`research/C-01.md`, `research/C-01-comparison.md`).
+**Key Hardening Feature:** Two-Tier Lookup! The tool searches `research/sessions/` first, and if not found, searches `research/` directly for standalone ADR files (`research/D-001-decision.md`, `research/D-001-database.md`) and comparison matrices (`research/C-001.md`, `research/C-001-comparison.md`).
 
 ### 🧪 Test Prompt 8A: Roast a Tech Decision (Slang / Casual)
 ```text
@@ -694,18 +694,18 @@ vck plan new b2b payment platform with stripe and plaid
 ## Scenario 17: Dual-Source Decision Resolution & Deduplication (`E-29`)
 
 ### Intent & Engineering Context
-In hybrid workflows, some ADRs are recorded directly as standalone files (`research/D-01.md`), while others are appended to the consolidated registry (`research/DECISIONS.md`).
+In hybrid workflows, some ADRs are recorded directly as standalone files (`research/D-001-decision.md`), while others are appended to the consolidated registry (`research/DECISIONS.md`).
 Before E-29, the presence of any standalone ADR caused `CollectGateDecisions` and `verifyDecisionsMechanical` to ignore `research/DECISIONS.md`.
 With dual-source resolution, both sources are scanned simultaneously with case-insensitive deduplication (`strings.ToUpper(id)`), ensuring zero split-brain behavior.
 
 ### 🧪 Test Prompt
 ```text
-run vivechak gate on our project where decision D-01 is in research/D-01.md and decision D-02 is in research/DECISIONS.md
+run vivechak gate on our project where decision D-01 is in research/D-001-decision.md and decision D-02 is in research/DECISIONS.md
 ```
 
 ### Expected Agent Behavior
 1. Model calls `vivechak_gate()`.
-2. Vivechak scans both `research/D-01.md` and `research/DECISIONS.md`.
+2. Vivechak scans both `research/D-001-decision.md` and `research/DECISIONS.md`.
 3. Discovers both decisions (`D-01` and `D-02`), evaluating Track A for Two-Way Doors and Track B for One-Way Doors.
 4. Returns evaluation results for both decisions without omitting either source.
 
@@ -907,7 +907,7 @@ Rename variable user_id to account_id in src/auth.ts and update references.
 | Observed Model Failure Mode | Why It Happens in Small Models | Vivechak Built-in Defense & Remediation |
 |---|---|---|
 | **Memory Hallucination**<br>*(Answering comparison from training weights without calling tool)* | Small models have high bias to immediately generate answer text. | Front-loaded `ServerInstructions`: `"MANDATORY TRIGGER RULES: ALWAYS invoke vivechak_start for comparisons..."` |
-| **Skipping `vivechak_start`**<br>*(Calling `save_plan` on an uninitialized directory)* | Small models forget multi-step setup sequences. | `tool_save_plan` detects missing `.vivechak.json` and auto-initializes workspace on-the-fly, generating `research/.gitignore` (`*.lock`). |
+| **Skipping `vivechak_start`**<br>*(Calling `save_plan` on an uninitialized directory)* | Small models forget multi-step setup sequences. | `tool_save_plan` detects missing `.vivechak.json` and creates workspace on first write, generating `research/.gitignore` (`*.lock`). |
 | **Argument Misnaming**<br>*(Passing `decision_id` instead of `session_id`, or `content` instead of `amendment`)* | Small models confuse argument names across similar tools. | `tool_challenge` and `tool_amend_session` accept aliases (`decision_id`, `challenge_type`, `content`, `reason`). |
 | **Skipping Decision Recording**<br>*(Leaving decisions as generator stubs in `DECISIONS.md`)* | Models assume generated plan stubs are finalized decisions. | `tool_save_session` generates `auto_draft_from` one-liners in `next_step` to guide immediate ADR recording. |
 | **Skipping the Exit Gate**<br>*(Finishing synthesis and telling user "Done! Ready to code")* | Models don't realize the Phase 0 Gate is mandatory before coding. | `tool_save_session` upon `SYN-01` save explicitly directs the agent to call `vivechak_gate` in `next_step`. |

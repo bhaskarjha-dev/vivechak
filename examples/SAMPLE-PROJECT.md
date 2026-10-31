@@ -65,7 +65,7 @@ The agent saves this plan to the workspace.
 {
   "kind": "plan",
   "id": "DAG",
-  "content": "# RESEARCH-PIPELINE.md\n...\n..."
+  "content": "# Research Pipeline\n\n## Sessions\n\n### Session T1-01: Graph Persistence Landscape\n| Field | Value |\n|---|---|\n| **ID** | T1-01 |\n| **Layer** | 1 |\n| **Door Type** | one-way |\n| **Informs Decision** | D-001 |\n| **Dependencies** | none |\n\n```prompt\n# Brief for T1-01: Graph Persistence Landscape\n```\n\n### Session T1-02: Collaborative Sync: Yjs vs OT\n| Field | Value |\n|---|---|\n| **ID** | T1-02 |\n| **Layer** | 1 |\n| **Door Type** | two-way |\n| **Dependencies** | none |\n\n```prompt\n# Brief for T1-02: Collaborative Sync\n```\n\n### Session T2-01: PostgreSQL + AGE vs Neo4j\n| Field | Value |\n|---|---|\n| **ID** | T2-01 |\n| **Layer** | 2 |\n| **Door Type** | one-way |\n| **Dependencies** | T1-01 |\n\n```prompt\n# Brief for T2-01: PostgreSQL + AGE vs Neo4j\n```\n\n### Session SYN-01: Founding Architecture Document\n| Field | Value |\n|---|---|\n| **ID** | SYN-01 |\n| **Layer** | 3 |\n| **Kind** | synthesis |\n| **Dependencies** | T1-02, T2-01 |\n\n```prompt\n# Brief for SYN-01: Founding Architecture Document\n```"
 }
 ```
 
@@ -73,7 +73,7 @@ The agent saves this plan to the workspace.
 ```json
 {
   "success": true,
-  "message": "Pipeline saved in research/RESEARCH-PIPELINE.md. 4 sessions detected. DAG is valid. No cycles.",
+  "message": "Pipeline saved to research/RESEARCH-PIPELINE.md.",
   "next_step": "Call vivechak_next to get the first actionable session prompt."
 }
 ```
@@ -120,7 +120,7 @@ The agent executes the research using web search and tool capabilities, producin
 ```json
 {
   "success": true,
-  "message": "Saved research/sessions/T1-01-graph-persistence-landscape.md. Evidence grades valid.",
+  "message": "Session T1-01 saved to research/sessions/T1-01.md.",
   "next_step": "Record any resulting decisions with vivechak_record_decision, or call vivechak_next."
 }
 ```
@@ -131,7 +131,7 @@ The agent records the primary datastore decision.
 ```json
 {
   "decision_id": "D-001",
-  "content": "---\nid: D-001\ntitle: Primary Datastore - PostgreSQL 16 with pgvector and Recursive CTEs\nstatus: accepted\ndoor_type: one-way\ndate: 2026-09-01\nhuman_reviewed: true\nevidence_refs: [E-001, E-002]\nreview_trigger: Re-evaluate if graph traversal exceeds 200ms p95 or graph > 500k edges\n---\n\n## Context\nStory graph persistence requires low latency node retrieval with relational metadata.\n\n## Decision\nAdopt PostgreSQL 16 with pgvector extension and recursive CTEs for Katha's story graph persistence. Grade A (https://www.postgresql.org/docs/16/queries-with.html)\n\n## Rejected Alternatives\n- Neo4j: Operational overhead of maintaining a separate cluster with specialized backup procedures is unjustified at 50k nodes.\n- DynamoDB: Multi-hop graph traversals require client-side join logic and costly fan-out queries.\n\n## Evidence\n- [Grade A] https://www.postgresql.org/docs/16/queries-with.html\n- [Grade B] PGBench graph traversal benchmarks at 50k nodes"
+  "content": "---\nid: D-001\ntitle: Primary Datastore - PostgreSQL 16 with pgvector and Recursive CTEs\nstatus: accepted\ndoor_type: one-way\ndate: 2026-09-01\nhuman_reviewed: false\nevidence_refs: [E-001, E-002]\nreview_trigger: Re-evaluate if graph traversal exceeds 200ms p95 or graph > 500k edges\n---\n\n## Context\nStory graph persistence requires low latency node retrieval with relational metadata.\n\n## Decision\nAdopt PostgreSQL 16 with pgvector extension and recursive CTEs for Katha's story graph persistence. Grade A (https://www.postgresql.org/docs/16/queries-with.html)\n\n## Rejected Alternatives\n- Neo4j: Operational overhead of maintaining a separate cluster with specialized backup procedures is unjustified at 50k nodes.\n- DynamoDB: Multi-hop graph traversals require client-side join logic and costly fan-out queries.\n\n## Evidence\n- [Grade A] https://www.postgresql.org/docs/16/queries-with.html\n- [Grade B] PGBench graph traversal benchmarks at 50k nodes"
 }
 ```
 
@@ -139,7 +139,7 @@ The agent records the primary datastore decision.
 ```json
 {
   "success": true,
-  "message": "Decision D-001 locked. One-way door requires review trigger (provided).",
+  "message": "Decision D-001 recorded as canonical ADR in research/D-001-decision.md and compiled into consolidated research/DECISIONS.md.",
   "next_step": "Continue pipeline via vivechak_next."
 }
 ```
@@ -186,14 +186,11 @@ After completing all sessions, synthesizing the FAD via `vivechak_save(kind="fad
 ```json
 {
   "success": true,
-  "message": "Gate evaluation complete.",
+  "message": "Gate evaluation complete. Report saved to research/PHASE-0-GATE.md.",
   "data": {
-    "gate_status": "PASS",
-    "gate_passed": true,
-    "track_a": {"passed": 5, "issues": []},
-    "track_b": {"passed": 7, "issues": []}
+    "gate_artifact": "research/PHASE-0-GATE.md"
   },
-  "next_step": "Gate passed. Proceed to implementation using research/FAD.md as architectural source of truth."
+  "next_step": "Review gate results in research/PHASE-0-GATE.md."
 }
 ```
 
@@ -201,87 +198,9 @@ With the Phase 0 Gate passed, the agent uses the sealed FAD as the architectural
 
 ---
 
-## Walkthrough 2: Mid-Project Architectural Decision (Decision Scope)
+## Further Scope Walkthroughs
 
-*Scenario:* Two months into developing Katha, the team hits scaling issues with JSON REST APIs for high-volume character graph syncing. They need an architectural decision: **Should Katha migrate internal service communication to gRPC or stay on HTTP/2 REST?**
+For complete end-to-end demonstrations of the other two scopes:
+- **Decision Scope:** See [SAMPLE-DECISION.md](SAMPLE-DECISION.md) for resolving architectural forks and recording ADRs in active codebases.
+- **Comparison Scope:** See [SAMPLE-COMPARISON.md](SAMPLE-COMPARISON.md) for rapid 5-minute library evaluations with WEP matrices.
 
-This is an architectural decision with lasting impact, but **it does not require a full greenfield FAD or 30-session pipeline**. The agent uses **Decision Scope**:
-
-### Step 1: Start the Decision Scope
-**Tool Call:** `vivechak_start`
-```json
-{
-  "scope": "decision",
-  "question": "Should Katha migrate internal character graph sync to gRPC or remain on HTTP/2 REST? Node/TypeScript backend; 10k graph mutations/sec; 4 internal microservices."
-}
-```
-
-**Tool Response:**
-```json
-{
-  "success": true,
-  "message": "Decision brief and session plan prepared.",
-  "next_step": "Execute the 2 research sessions and save with vivechak_save(kind=\"session\")."
-}
-```
-
-### Step 2: Save the Decision Plan
-**Tool Call:** `vivechak_save`
-```json
-{
-  "kind": "plan",
-  "id": "D-015",
-  "content": "# Decision Plan: D-015\n| Decision | D-015 |\n| Scope | decision |\n| Door Type | one-way |"
-}
-```
-
-### Step 3: Execute Focused Sessions & Lock ADR
-The agent runs the 2 generated sessions (`L` Landscape and `F` Falsification), saves them via `vivechak_save(kind="session")`, and locks the ADR:
-**Tool Call:** `vivechak_record_decision`
-```json
-{
-  "decision_id": "D-015",
-  "content": "..."
-}
-```
-*Result:* Canonical ADR `research/decisions/D-015-internal-rpc-protocol.md` is locked with reversal triggers and automatically registered in `research/DECISIONS.md`. **Total time: 25 minutes. Zero project DAG, zero FAD overhead.**
-
----
-
-## Walkthrough 3: Rapid Technology Comparison (Comparison Scope)
-
-*Scenario:* During a feature sprint, an engineer needs to pick a high-throughput logging library for Katha's Node.js ingestion worker: **Pino vs Winston**.
-
-This is a bounded library evaluation. Building a DAG or running a Phase 0 Gate would be absurd bureaucracy. The agent uses **Comparison Scope**:
-
-### Step 1: Start the Comparison Scope
-**Tool Call:** `vivechak_start`
-```json
-{
-  "scope": "comparison",
-  "question": "Pino vs Winston for Node.js 22 worker ingesting 15k events/sec with AWS CloudWatch export"
-}
-```
-
-**Tool Response:**
-```json
-{
-  "success": true,
-  "message": "Prepared comparison brief.",
-  "next_step": "Execute research with web search and save WEP comparison matrix with vivechak_save(kind=\"comparison\", id=\"C-001\")."
-}
-```
-
-### Step 2: Execute Research & Save Output
-The agent executes the self-contained prompt with web search. The model returns an evidence-graded Weighted Evaluation Protocol (WEP) matrix with sensitivity analysis (±20% weight shifts) and concrete failure modes.
-
-The agent persists the result directly:
-**Tool Call:** `vivechak_save`
-```json
-{
-  "kind": "comparison",
-  "id": "C-001",
-  "content": "# COMPARISON: Pino vs Winston for High-Throughput Ingestion\n..."
-}
-```
-*Result:* Output is saved to `research/comparisons/C-001.md`. The engineer has an authoritative, evidence-graded recommendation based on primary benchmarks. **Total time: 4 minutes. Zero DAG, zero templates copied, zero gate required.**

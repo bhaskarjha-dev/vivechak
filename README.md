@@ -29,8 +29,11 @@
 ## Quick Install
 
 ```bash
-# macOS & Linux (Homebrew)
-brew install bhaskarjha-dev/tap/vivechak
+# macOS & Linux (Shell)
+curl -fsSL https://raw.githubusercontent.com/bhaskarjha-dev/vivechak/main/install.sh | sh
+
+# macOS & Linux (Homebrew - coming soon)
+# brew install bhaskarjha-dev/tap/vivechak
 
 # Windows (PowerShell)
 irm https://raw.githubusercontent.com/bhaskarjha-dev/vivechak/main/install.ps1 | iex
@@ -49,25 +52,25 @@ vck setup claude-code    # Claude Code (~/.claude.json or .mcp.json)
 vck setup agy            # Google Antigravity
 vck setup                # Auto-detects editor in current workspace
 ```
-*(Note: MCP slash commands such as `/compare` are supported in hosts like Claude Code).*
+*(Prompts: compare, decision, project, gate. How they appear depends on the host (Claude Code: /mcp__vivechak__compare); see docs/HOST-SETUP.md).*
 
 ## Upgrade & Uninstall
 
 ### Upgrading
-- **Homebrew (macOS & Linux):** `brew update && brew upgrade bhaskarjha-dev/tap/vivechak`
+- **Homebrew (macOS & Linux):** `brew update && brew upgrade bhaskarjha-dev/tap/vivechak` (coming soon)
 - **Windows (PowerShell):** Re-run `irm https://raw.githubusercontent.com/bhaskarjha-dev/vivechak/main/install.ps1 | iex`
 - **Linux / macOS Shell:** Re-run `curl -fsSL https://raw.githubusercontent.com/bhaskarjha-dev/vivechak/main/install.sh | sh`
-- **WinGet / Scoop:** `winget upgrade bhaskarjha-dev.Vivechak` or `scoop update vck`
+- **WinGet / Scoop:** `winget upgrade bhaskarjha-dev.Vivechak` or `scoop update vck` (coming soon)
 - **Go toolchain:** `go install github.com/bhaskarjha-dev/vivechak/cmd/vivechak@latest`
 - **Zero-install runners (`npx` / `uvx`):** Always run the latest package automatically.
 
 ### Uninstalling
 1. **Remove binary:**
-   - Homebrew: `brew uninstall bhaskarjha-dev/tap/vivechak`
-   - WinGet / Scoop: `winget uninstall bhaskarjha-dev.Vivechak` or `scoop uninstall vck`
+   - Homebrew: `brew uninstall bhaskarjha-dev/tap/vivechak` (coming soon)
+   - WinGet / Scoop: `winget uninstall bhaskarjha-dev.Vivechak` or `scoop uninstall vck` (coming soon)
    - Shell / Manual: Delete `vck` (and `vivechak`) from your bin directory (e.g. `~/.local/bin/vck` or `%LOCALAPPDATA%\Programs\vivechak\vck.exe`).
 2. **Remove MCP host configuration:**
-   - Delete the `"vivechak"` block from your IDE/host config file (e.g. `.cursor/mcp.json`, `.vscode/mcp.json`, `~/.claude.json`), or restore the automatic `<config>.bak` created during `vck setup`.
+   - Delete the `"vivechak"` block from your IDE/host config file (e.g. `.cursor/mcp.json`, `.vscode/mcp.json`, `~/.claude.json`), or restore the automatic `<config>.vivechak-bak-<timestamp>` backup created during `vck setup`.
 
 ## The Three Decision Scopes
 
@@ -76,7 +79,7 @@ Vivechak scales research depth to decision reversibility:
 | Scope | Deliverable | Typical Prompt | Overhead |
 |---|---|---|---|
 | **Comparison** | `research/C-NNN-comparison.md` (WEP) | *"Compare Pino vs Winston"* | 1 session (~5 min), 0 DAG, 0 gate |
-| **Decision** | `research/D-NNN.md` (ADR) | *"PostgreSQL vs ClickHouse for events"* | 1–3 sessions (~30 min), 0 project DAG |
+| **Decision** | `research/D-NNN-decision.md` (ADR) | *"PostgreSQL vs ClickHouse for events"* | 1–3 sessions (~30 min), 0 project DAG |
 | **Project** | `research/FAD.md` | *"Architect real-time streaming pipeline"* | Full DAG (4–30 sessions), Phase 0 Gate |
 
 ## 9 Consolidated MCP Tools
@@ -85,7 +88,7 @@ Vivechak scales research depth to decision reversibility:
 |---|---|---|
 | `vivechak_start` | Initialize workspace and return targeted research brief | All |
 | `vivechak_save` | Atomically persist comparison, plan, session, or FAD | All |
-| `vivechak_record_decision` | Lock canonical ADR (`D-NNN.md`) and compile `DECISIONS.md` | Decision / Project |
+| `vivechak_record_decision` | Create or update an ADR (`research/D-NNN-decision.md`) and compile `DECISIONS.md` | Decision / Project |
 | `vivechak_next` | Resolve next unblocked DAG session via topological sort | Project |
 | `vivechak_status` | Return workspace health, progress, and blockers | All |
 | `vivechak_review` | Surface real-time quality coaching observations (`Q-*`) | Decision / Project |
@@ -96,13 +99,15 @@ Vivechak scales research depth to decision reversibility:
 ## Evidence Taxonomy
 
 Every factual claim in Vivechak requires an inline evidentiary grade:
-- **Grade A (`E-A`):** Canonical documentation, empirical measurement, RFC, vendor-neutral spec with URL.
-- **Grade B (`E-B`):** Third-party production postmortem, peer-reviewed paper, public issue tracker.
-- **Grade C (`E-C`):** Community benchmark, vendor comparison, tutorial, blog post.
-- **Grade D (`E-D`):** Unverified forum claim, ecosystem reputation, blog post, or model memory recall (capped at Grade D per Principle P3).
+- **Grade A (`E-A`):** Canonical documentation, official specification, RFC, or primary source code with URL anchor.
+- **Grade B (`E-B`):** Peer-reviewed paper, reproducible third-party benchmark, published postmortem, or corroborated issue tracker.
+- **Grade C (`E-C`):** Vendor benchmark, product whitepaper, interested-party comparison, or conference talk.
+- **Grade D (`E-D`):** Community discussion, blog post, or model memory recall (capped at Grade D per Principle P3).
 - **Grade E (`E-E`):** Speculative hypothesis, uncorroborated assertion, or unsubstantiated claim.
 
 *(See [Methodology Specification](FRAMEWORK.md) and [Sample Decision Walkthrough](examples/SAMPLE-DECISION.md) for illustrative examples with graded evidence).*
+
+> **Epistemic Notice:** Vivechak structures research workflows, enforces evidence hierarchies, and tracks provenance. Vivechak **does not fetch or verify** external sources itself; claims and evidence grades are authored by the AI agent using active **web search** and verified by human architects at exit gates.
 
 ## Positioning: What Vivechak Is vs. What Vivechak Is Not
 

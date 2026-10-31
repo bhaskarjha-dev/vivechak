@@ -61,7 +61,7 @@ Vivechak employs a 4-level validation ladder (**L1–L4**). Below are the common
 - **Resolution:** Use phased prompting. Prompt the LLM in a fresh turn to emit the prompt blocks for the remaining layers, and append the missing `### Session ID: ...` sections into `research/RESEARCH-PIPELINE.md`.
 
 ### `W-OWD-NO-CHALLENGE` (Level 3 Advisory Warning)
-- **Cause:** Track B Check B11 detected that an irreversible One-Way Door decision was not subjected to adversarial red-team stress testing prior to commitment.
+- **Cause:** Track B Rule G10 detected that an irreversible One-Way Door decision was not subjected to adversarial red-team stress testing prior to commitment.
 - **Resolution:** Execute `vivechak_review(target="...", mode="challenge")` on the informing session, search for disconfirming evidence, and record findings in the decision record under `## Challenge Findings & Red-Team Stress Test`.
 
 ### `W-NO-EVIDENCE-GRADES` (Level 3 Advisory Warning)
@@ -153,15 +153,15 @@ Issues:
   - Decision D-001 (One-Way): rejected alternatives analysis missing or insufficient (<200 chars)
 ```
 
-> **Decoupled Two-Track Evaluation in Decision Scope:** When running exit gate evaluation for pure Two-Way Door decisions, Track A reversibility confirmation alone passes the gate and authorizes immediate implementation, while Track B quality checks serve as non-blocking advisories. If an irreversible One-Way Door decision is present, full Track B checks (B1–B11) are strictly enforced.
+> **Decoupled Two-Track Evaluation in Decision Scope:** When running exit gate evaluation for pure Two-Way Door decisions, Track A reversibility confirmation alone passes the gate and authorizes immediate implementation, while Track B quality checks serve as non-blocking advisories. If an irreversible One-Way Door decision is present, full Track B exit criteria (Rules G1–G12) are strictly enforced.
 
 ### Remediation for Track B Failures:
-1. **Evidentiary Threshold (Check B3):** Ensure One-Way Door decisions cite at least one Grade A source with a canonical URL (`https://...`) or formal standard (`RFC ...`), or reproducible Grade B benchmark.
-2. **Verification Method (Check B4):** Ensure factual claims are marked as `fetched` or `cached`. Model parametric memory (`recalled`) is capped at Grade D and cannot anchor irreversible decisions.
-3. **Rejected Alternatives (Check B5 & B10):** Ensure the ADR includes a `## Rejected Alternatives & Tradeoffs` section explaining why candidates were dismissed, with at least 200 characters of substantive rationale.
-4. **Reversal Triggers (Check B6):** Ensure frontmatter defines a measurable `review_trigger` (e.g. `"Throughput exceeds 50k req/sec or p99 latency > 200ms"`) and scheduled `review_date`.
-5. **Adversarial Red-Team Challenge (Check B11):** Run `vivechak_review(target="...", mode="challenge")` on the informing session to stress-test your conclusions. Document the disconfirming search results, edge case probes, and mitigations in a dedicated `## Challenge Findings & Red-Team Stress Test` section in the ADR.
-6. **Human-in-the-Loop Sign-off (Check B8 / Rule G11):** One-Way Doors require verified human sign-off (`human_reviewed: true`). Run `vck signoff <decision-id>` in an interactive terminal to record human approval. Autonomous agents cannot self-sign One-Way Doors.
+1. **Evidentiary Threshold (Rule G7):** Ensure One-Way Door decisions cite at least one Grade A source with a canonical URL (`https://...`) or formal standard (`RFC ...`), or reproducible Grade B benchmark.
+2. **Verification Method (Rule G8):** Ensure factual claims are marked as `fetched` or `cached`. Model parametric memory (`recalled`) is capped at Grade D and cannot anchor irreversible decisions.
+3. **Rejected Alternatives (Rule G9):** Ensure the ADR includes a `## Rejected Alternatives & Tradeoffs` section explaining why candidates were dismissed, with at least 200 characters of substantive rationale.
+4. **Reversal Triggers:** Ensure frontmatter defines a measurable `review_trigger` (e.g. `"Throughput exceeds 50k req/sec or p99 latency > 200ms"`) and scheduled `review_date`.
+5. **Adversarial Red-Team Challenge (Rule G10):** Run `vivechak_review(target="...", mode="challenge")` on the informing session to stress-test your conclusions. Document the disconfirming search results, edge case probes, and mitigations in a dedicated `## Challenge Findings & Red-Team Stress Test` section in the ADR.
+6. **Human-in-the-Loop Sign-off (Rule G11):** One-Way Doors require verified human sign-off (`human_reviewed: true`). Run `vck signoff <decision-id>` in an interactive terminal to record human approval. Autonomous agents cannot self-sign One-Way Doors.
 
 ### Direct Terminal Evaluation via `vck gate`:
 You can also run gate evaluations directly from your terminal or CI pipeline without an active MCP agent:

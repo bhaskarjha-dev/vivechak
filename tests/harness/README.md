@@ -89,7 +89,7 @@ make harness-test
 ```
 
 ### Run Zero-Token Headless MCP Conformance Test
-Tests all Vivechak tools deterministically over stdio JSON-RPC without requiring internet or AI credits:
+Tests core tools deterministically over stdio JSON-RPC without requiring internet or AI credits:
 ```bash
 node scripts/run_harness.mjs --harness direct_mcp --scenario 01
 ```
