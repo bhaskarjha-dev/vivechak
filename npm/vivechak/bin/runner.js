@@ -18,7 +18,7 @@ const http = require('http');
 const { spawn, spawnSync } = require('child_process');
 
 const VERSION = '0.1.0';
-const REPO = 'bhaskarjha-dev/vivechak';
+const DEFAULT_DOWNLOAD_BASE = 'https://github.com/bhaskarjha-dev/vivechak/releases/download';
 
 function getPlatformInfo() {
   const p = process.platform;
@@ -49,12 +49,50 @@ function getCacheDir() {
   return path.join(base, 'vivechak', `v${VERSION}`);
 }
 
-function downloadFile(url, destPath) {
+function getDownloadBase() {
+  const customBase = process.env.VIVECHAK_DOWNLOAD_BASE;
+  if (!customBase) {
+    return DEFAULT_DOWNLOAD_BASE;
+  }
+  try {
+    const parsed = new URL(customBase);
+    if (parsed.protocol === 'http:') {
+      const host = parsed.hostname.toLowerCase();
+      if (host !== '127.0.0.1' && host !== 'localhost') {
+        throw new Error(`Insecure HTTP download base only allowed for 127.0.0.1 or localhost, got: ${host}`);
+      }
+    } else if (parsed.protocol !== 'https:') {
+      throw new Error(`Unsupported download protocol: ${parsed.protocol}`);
+    }
+    return customBase.replace(/\/+$/, '');
+  } catch (err) {
+    throw new Error(`Invalid VIVECHAK_DOWNLOAD_BASE (${customBase}): ${err.message}`);
+  }
+}
+
+function downloadFile(url, destPath, redirectCount = 0) {
+  if (redirectCount > 5) {
+    return Promise.reject(new Error(`Too many redirects (limit 5) downloading ${url}`));
+  }
+
   return new Promise((resolve, reject) => {
-    const proto = url.startsWith('https') ? https : http;
+    let parsedUrl;
+    try {
+      parsedUrl = new URL(url);
+    } catch (e) {
+      return reject(new Error(`Invalid URL: ${url}`));
+    }
+
+    const proto = parsedUrl.protocol === 'https:' ? https : http;
     const req = proto.get(url, (res) => {
       if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-        return downloadFile(res.headers.location, destPath).then(resolve).catch(reject);
+        const nextUrl = new URL(res.headers.location, url).toString();
+        // Never allow downgrade from https: to http:
+        if (url.startsWith('https:') && nextUrl.startsWith('http:')) {
+          return reject(new Error(`Insecure redirect downgrade from HTTPS to HTTP forbidden: ${nextUrl}`));
+        }
+        res.resume(); // Discard redirect body
+        return downloadFile(nextUrl, destPath, redirectCount + 1).then(resolve).catch(reject);
       }
       if (res.statusCode !== 200) {
         return reject(new Error(`Download failed with HTTP status ${res.statusCode} from ${url}`));
@@ -65,11 +103,16 @@ function downloadFile(url, destPath) {
       fileStream.on('error', reject);
       res.on('error', reject);
     });
+
     req.setTimeout(30000, () => {
       req.destroy();
       reject(new Error(`Download timed out after 30 seconds from ${url}`));
     });
-    req.on('error', reject);
+
+    req.on('error', (err) => {
+      process.stderr.write(`Download failed. Behind a proxy? Use Node 24+ with NODE_USE_ENV_PROXY=1, or install with install.sh.\n`);
+      reject(err);
+    });
   });
 }
 
@@ -111,20 +154,6 @@ async function ensureBinary() {
     return targetBinPath;
   }
 
-  // Check if we are running in the development repository with local Go installed
-  const repoRoot = path.resolve(__dirname, '..', '..', '..');
-  const localMainGo = path.join(repoRoot, 'cmd', 'vivechak', 'main.go');
-  if (fs.existsSync(localMainGo)) {
-    const localBinPath = path.join(cacheDir, binName);
-    fs.mkdirSync(cacheDir, { recursive: true });
-    process.stderr.write(`[vck] Compiling local development binary in ${cacheDir}...\n`);
-    const buildRes = spawnSync('go', ['build', '-trimpath', '-o', localBinPath, './cmd/vivechak'], { cwd: repoRoot, stdio: ['ignore', 2, 2] });
-    if (buildRes.status === 0 && fs.existsSync(localBinPath)) {
-      if (!isWin) fs.chmodSync(localBinPath, 0o755);
-      return localBinPath;
-    }
-  }
-
   // Determine archive name
   let archiveName = '';
   if (osName === 'darwin') {
@@ -135,12 +164,17 @@ async function ensureBinary() {
     archiveName = `vivechak_${VERSION}_${osName}_${archName}.tar.gz`;
   }
 
-  const downloadUrl = `https://github.com/${REPO}/releases/download/v${VERSION}/${archiveName}`;
-  const checksumUrl = `https://github.com/${REPO}/releases/download/v${VERSION}/checksums.txt`;
+  const base = getDownloadBase();
+  const downloadUrl = `${base}/v${VERSION}/${archiveName}`;
+  const checksumUrl = `${base}/v${VERSION}/checksums.txt`;
+
   fs.mkdirSync(cacheDir, { recursive: true });
 
-  const tempArchive = path.join(cacheDir, `${archiveName}.${process.pid}.tmp`);
-  const tempChecksum = path.join(cacheDir, `checksums.${process.pid}.tmp`);
+  const randomId = crypto.randomBytes(6).toString('hex');
+  const tempExtractDir = path.join(cacheDir, `.tmp-${process.pid}-${randomId}`);
+  const tempArchive = path.join(cacheDir, `${archiveName}.${process.pid}-${randomId}.tmp`);
+  const tempChecksum = path.join(cacheDir, `checksums.${process.pid}-${randomId}.tmp`);
+
   process.stderr.write(`[vck] Fetching Vivechak v${VERSION} for ${osName}/${archName}...\n`);
 
   try {
@@ -173,7 +207,36 @@ async function ensureBinary() {
 
     process.stderr.write(`[vck] Checksum verified: ${hash.slice(0, 8)}...\n`);
 
-    extractArchive(tempArchive, cacheDir);
+    // Safe atomic extraction into temporary directory
+    fs.mkdirSync(tempExtractDir, { recursive: true });
+    extractArchive(tempArchive, tempExtractDir);
+
+    // Set permissions on binaries in temporary directory
+    if (!isWin) {
+      for (const name of ['vck', 'vivechak']) {
+        const bp = path.join(tempExtractDir, name);
+        if (fs.existsSync(bp)) fs.chmodSync(bp, 0o755);
+      }
+    }
+
+    // Atomically move extracted binaries into cacheDir
+    const entries = fs.readdirSync(tempExtractDir);
+    for (const entry of entries) {
+      const srcPath = path.join(tempExtractDir, entry);
+      const dstPath = path.join(cacheDir, entry);
+      if (fs.statSync(srcPath).isFile()) {
+        try {
+          fs.renameSync(srcPath, dstPath);
+        } catch (renameErr) {
+          // If destination exists or cross-device, copy then unlink
+          try {
+            fs.copyFileSync(srcPath, dstPath);
+            fs.unlinkSync(srcPath);
+          } catch (_) {}
+        }
+      }
+    }
+
     if (!isWin) {
       const vckPath = path.join(cacheDir, 'vck');
       const vivPath = path.join(cacheDir, 'vivechak');
@@ -185,6 +248,7 @@ async function ensureBinary() {
   } finally {
     try { fs.unlinkSync(tempArchive); } catch (_) {}
     try { fs.unlinkSync(tempChecksum); } catch (_) {}
+    try { fs.rmSync(tempExtractDir, { recursive: true, force: true }); } catch (_) {}
   }
 
   if (!fs.existsSync(targetBinPath)) {
@@ -192,9 +256,12 @@ async function ensureBinary() {
     const altBinName = isWin ? (prog === 'vck' ? 'vivechak.exe' : 'vck.exe') : (prog === 'vck' ? 'vivechak' : 'vck');
     const altPath = path.join(cacheDir, altBinName);
     if (fs.existsSync(altPath)) {
-      fs.copyFileSync(altPath, targetBinPath);
-      if (!isWin) fs.chmodSync(targetBinPath, 0o755);
-    } else {
+      try {
+        fs.copyFileSync(altPath, targetBinPath);
+        if (!isWin) fs.chmodSync(targetBinPath, 0o755);
+      } catch (_) {}
+    }
+    if (!fs.existsSync(targetBinPath)) {
       throw new Error(`Binary ${binName} was not found after archive extraction in ${cacheDir}`);
     }
   }
@@ -206,7 +273,10 @@ async function main() {
   try {
     const binPath = await ensureBinary();
     const args = process.argv.slice(2);
-    const child = spawn(binPath, args, { stdio: 'inherit' });
+    const child = spawn(binPath, args, {
+      stdio: 'inherit',
+      env: { ...process.env, VIVECHAK_LAUNCHER: 'npx' }
+    });
 
     child.on('error', (err) => {
       process.stderr.write(`[vck] Failed to start native process: ${err.message}\n`);

@@ -61,6 +61,7 @@ curl -fsSL -o "${TMP_DIR}/checksums.txt" "${CHECKSUM_URL}"
 # Verify checksum
 echo "Verifying checksum..."
 cd "$TMP_DIR"
+# >>> verify-checksum
 EXPECTED_SHA=$(grep -E "[[:space:]]${ARCHIVE}$" checksums.txt | awk '{print $1}' || true)
 if [ -z "$EXPECTED_SHA" ]; then
   EXPECTED_SHA=$(grep -F " ${ARCHIVE}" checksums.txt | awk '{print $1}' || true)
@@ -85,6 +86,7 @@ if [ "$EXPECTED_SHA" != "$ACTUAL_SHA" ]; then
   echo "Actual:   ${ACTUAL_SHA}"
   exit 1
 fi
+# <<< verify-checksum
 echo "✓ Checksum verified (${ACTUAL_SHA})"
 
 # Extract
@@ -106,6 +108,10 @@ else
       sudo chmod +x "${INSTALL_DIR}/vck"
     else
       sudo ln -sf "${INSTALL_DIR}/vivechak" "${INSTALL_DIR}/vck"
+    fi
+    if [ "$OS" = "darwin" ] && command -v xattr > /dev/null 2>&1; then
+      sudo xattr -dr com.apple.quarantine "${INSTALL_DIR}/vivechak" 2>/dev/null || true
+      sudo xattr -dr com.apple.quarantine "${INSTALL_DIR}/vck" 2>/dev/null || true
     fi
     echo ""
     echo "✓ vivechak ${TAG} and shorthand 'vck' installed to ${INSTALL_DIR}"
@@ -132,6 +138,10 @@ if [ -f vck ]; then
   chmod +x "${TARGET}/vck"
 else
   ln -sf "${TARGET}/vivechak" "${TARGET}/vck"
+fi
+if [ "$OS" = "darwin" ] && command -v xattr > /dev/null 2>&1; then
+  xattr -dr com.apple.quarantine "${TARGET}/vivechak" 2>/dev/null || true
+  xattr -dr com.apple.quarantine "${TARGET}/vck" 2>/dev/null || true
 fi
 
 echo ""
