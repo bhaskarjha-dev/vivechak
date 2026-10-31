@@ -24,19 +24,12 @@ func TestCheckWorkspace_MissingTemplates(t *testing.T) {
 	tmpDir := t.TempDir()
 	_ = os.MkdirAll(filepath.Join(tmpDir, core.ResearchDir), 0o755)
 
-	hasErrors, _, errs := checkWorkspace(tmpDir)
-	if !hasErrors {
-		t.Error("expected hasErrors=true for missing templates")
-	}
-	found := false
+	_, _, errs := checkWorkspace(tmpDir)
+	// Missing templates directory is no longer an error per re-audit 2
 	for _, e := range errs {
-		if len(e) > 0 {
-			found = true
-			break
+		if strings.Contains(strings.ToLower(e), "template") {
+			t.Errorf("doctor should no longer require copied templates, got error: %s", e)
 		}
-	}
-	if !found {
-		t.Error("expected missing templates error")
 	}
 }
 

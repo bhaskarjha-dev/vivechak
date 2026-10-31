@@ -276,15 +276,22 @@ session_id: T1-01
 title: Database Selection
 date: 2026-09-29
 status: complete
+informs_decisions: ["D-001"]
 ---
-# Findings
-Use RocksDB. A (benchmark)
+## Key Findings
+- Use RocksDB. [Grade A: benchmark](https://rocksdb.org) [verification_method: fetched]
+- High write throughput. [Grade B: benchmark](https://github.com/facebook/rocksdb) [verification_method: fetched]
 
 ## Recommendation
 Adopt RocksDB for embedded transactional state storage.
 
 ## Discovered Concerns
 Write stalls and compaction spikes observed during concurrent bulk ingest operations.
+
+## Sources & Evidence Ledger
+| # | Source | Grade |
+| 1 | https://rocksdb.org | A |
+| 2 | https://github.com/facebook/rocksdb | B |
 `,
 		},
 	})
@@ -322,14 +329,18 @@ title: Consensus
 date: 2026-09-29
 status: complete
 ---
-# Findings
-Use Raft. A (official spec)
+## Key Findings
+- Use Raft. [Grade A: official spec](https://raft.github.io) [verification_method: fetched]
 
 ## Recommendation
 Adopt Raft over QUIC transport protocol.
 
 ## Discovered Concerns
 Leader election delays occur during network partitions under high message volume.
+
+## Sources & Evidence Ledger
+| # | Source | Grade |
+| 1 | https://raft.github.io | A |
 `,
 		},
 	})
@@ -370,17 +381,20 @@ decision_id: D-001
 title: Storage Engine
 status: accepted
 door_type: one-way
-reversal_triggers:
-  - Latency exceeds 100ms
+review_trigger: Latency exceeds 100ms
+informed_by_sessions:
+  - T1-01
 ---
 # Context
 We need storage.
-# Decision
-RocksDB. A (benchmark)
-## Rejected Alternatives
-- SQLite: Rejected due to write contention under high-frequency writes.
-# Consequences
+## Decision Outcome
+RocksDB. [Grade A: benchmark](https://rocksdb.org) and [Grade B: tests](https://github.com/facebook/rocksdb).
+## Consequences
 Fast writes.
+## Rejected Alternatives & Tradeoffs
+- SQLite: Rejected due to write contention under high-frequency writes.
+## Challenge Findings & Red-Team Stress Test
+See D-001-R1: Red-team stress testing confirms write stall recovery bounds.
 `,
 		},
 	})
@@ -391,6 +405,16 @@ Fast writes.
 	if !env.Success {
 		t.Fatalf("record_decision failed: %s", env.Message)
 	}
+
+	// Red-team challenge review for D-001
+	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_review",
+		Arguments: map[string]any{
+			"project_root":   workDir,
+			"decision_id":    "D-001",
+			"challenge_type": "red_team",
+		},
+	})
 
 	// 14. Tool: vivechak_review (dry-run validation)
 	res, err = cs.CallTool(ctx, &mcp.CallToolParams{
@@ -416,18 +440,31 @@ Dry run test.
 		t.Fatalf("validate failed: %s", env.Message)
 	}
 
-	// 15. Save SYN-01 (writes to research/FAD.md and mirrors to FOUNDING-ARCHITECTURE.md)
+	// 15. Save SYN-01
 	fadContent := `---
 session_id: SYN-01
 title: Founding Architecture Document
 date: 2026-09-29
-status: accepted
+status: complete
 ---
-# FAD
-## Summary
-Ledger architecture. A (pipeline)
-## Decisions
-Storage and consensus accepted. A (formal proof)
+# Founding Architecture Document: High-Throughput Ledger
+
+## Executive Summary
+Ledger architecture. [Grade A: pipeline](https://rocksdb.org)
+
+## Locked Decision Registry
+- D-001: Storage Engine (accepted)
+
+## Architecture
+Storage and consensus accepted. [Grade A: formal proof](https://raft.github.io)
+
+## Risk Register & Reversal Triggers
+- Storage compaction overhead. Reversal trigger: latency exceeds 100ms.
+
+## Traceability Matrix
+- T1-01 -> D-001
+- T1-02 -> Consensus
+- SYN-01 -> FAD
 `
 	_, err = cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_save",

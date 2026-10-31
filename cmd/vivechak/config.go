@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -93,6 +94,9 @@ func runMCPConfigWithArgs(args []string, stdout, stderr io.Writer) int {
 	var configPath string
 	cwd, _ := os.Getwd()
 	homeDir, _ := os.UserHomeDir()
+	if envHome := os.Getenv("HOME"); envHome != "" {
+		homeDir = envHome
+	}
 	appData := os.Getenv("APPDATA")
 
 	if customPath != "" {
@@ -217,10 +221,42 @@ func determineServerKey(host, configPath string, existing map[string]any) string
 // resolveLauncher detects ephemeral execution wrappers (such as npx cache paths
 // or Homebrew Cellar temporary locations) and falls back to running via npx.
 func resolveLauncher(exePath string) (cmd string, args []string) {
+	if launcher := strings.TrimSpace(os.Getenv("VIVECHAK_LAUNCHER")); launcher != "" {
+		if strings.EqualFold(launcher, "uvx") {
+			return "uvx", []string{"vivechak", "serve"}
+		}
+		if strings.EqualFold(launcher, "npx") {
+			return "npx", []string{"-y", "vivechak", "serve"}
+		}
+	}
+
 	clean := strings.ToLower(filepath.ToSlash(exePath))
-	if strings.Contains(clean, "_npx") ||
+
+	// Under /nix/store/ write ~/.nix-profile/bin/vck when it exists
+	if strings.Contains(clean, "/nix/store/") {
+		if home, err := os.UserHomeDir(); err == nil && home != "" {
+			nixProfileBin := filepath.Join(home, ".nix-profile", "bin", "vck")
+			if fi, err := os.Stat(nixProfileBin); err == nil && !fi.IsDir() {
+				return nixProfileBin, []string{"serve"}
+			}
+		}
+	}
+
+	// If vck or vivechak is found in PATH and points to the running binary (SameFile), prefer that PATH path
+	if exeFi, err := os.Stat(exePath); err == nil {
+		for _, name := range []string{"vck", "vivechak"} {
+			if pathExe, err := exec.LookPath(name); err == nil {
+				if pathFi, err := os.Stat(pathExe); err == nil && os.SameFile(exeFi, pathFi) {
+					return pathExe, []string{"serve"}
+				}
+			}
+		}
+	}
+
+	if strings.Contains(clean, "/vivechak/v") || strings.Contains(clean, `\vivechak\v`) ||
+		strings.Contains(clean, "_npx") ||
 		strings.Contains(clean, "node_modules/.cache") ||
-		(strings.Contains(clean, "cellar") && strings.Contains(clean, "tmp")) {
+		strings.Contains(clean, "cellar") || strings.Contains(clean, "caskroom") {
 		return "npx", []string{"-y", "vivechak", "serve"}
 	}
 	if (strings.Contains(clean, "/uv/") || strings.Contains(clean, "\\uv\\")) &&
@@ -228,6 +264,7 @@ func resolveLauncher(exePath string) (cmd string, args []string) {
 		strings.Contains(clean, "uv-cache") {
 		return "uvx", []string{"vivechak", "serve"}
 	}
+
 	return exePath, []string{"serve"}
 }
 
@@ -467,26 +504,39 @@ func writeConfigFile(configPath string, out []byte) (retErr error) {
 		}
 	}
 
-	// 3. Detect and preserve existing permissions
-	perm := os.FileMode(0644)
+	// 3. Detect and preserve existing permissions, or use 0600 for new files
+	perm := os.FileMode(0600)
+	var existing []byte
 	if fi, err := os.Stat(targetPath); err == nil {
 		perm = fi.Mode().Perm()
-		if existing, readErr := os.ReadFile(targetPath); readErr == nil {
-			_ = os.WriteFile(targetPath+".bak", existing, perm)
-			_ = os.Chmod(targetPath+".bak", perm)
+		if data, readErr := os.ReadFile(targetPath); readErr == nil {
+			existing = data
 		}
 	} else if fi, err := os.Stat(configPath); err == nil {
 		perm = fi.Mode().Perm()
-		if existing, readErr := os.ReadFile(configPath); readErr == nil {
-			_ = os.WriteFile(configPath+".bak", existing, perm)
-			_ = os.Chmod(configPath+".bak", perm)
+		if data, readErr := os.ReadFile(configPath); readErr == nil {
+			existing = data
 		}
 	}
 
-	if configPath != targetPath {
-		if existing, readErr := os.ReadFile(targetPath); readErr == nil {
-			_ = os.WriteFile(configPath+".bak", existing, perm)
-			_ = os.Chmod(configPath+".bak", perm)
+	// If content is identical, do nothing (no backup, no rewrite)
+	if existing != nil && bytes.Equal(existing, out) {
+		return nil
+	}
+
+	if existing != nil {
+		ts := time.Now().UTC().Format("20060102T150405Z")
+		tsBak := fmt.Sprintf("%s.vivechak-bak-%s", targetPath, ts)
+		if _, err := os.Stat(tsBak); os.IsNotExist(err) {
+			_ = os.WriteFile(tsBak, existing, perm)
+			_ = os.Chmod(tsBak, perm)
+		}
+		if configPath != targetPath {
+			tsBakConfig := fmt.Sprintf("%s.vivechak-bak-%s", configPath, ts)
+			if _, err := os.Stat(tsBakConfig); os.IsNotExist(err) {
+				_ = os.WriteFile(tsBakConfig, existing, perm)
+				_ = os.Chmod(tsBakConfig, perm)
+			}
 		}
 	}
 
@@ -731,7 +781,7 @@ var hostPresets = []HostPreset{
 			if _, err := os.Stat(filepath.Join(cwd, ".cline")); err == nil {
 				return filepath.Join(cwd, ".cline", "mcp.json"), nil
 			}
-			return resolveVSCodeStoragePath("saoudrizwan.claude-dev", homeDir, appData, goos)
+			return resolveVSCodeStoragePath("saoudrizwan.claude-dev", "cline_mcp_settings.json", homeDir, appData, goos)
 		},
 	},
 	{
@@ -743,7 +793,7 @@ var hostPresets = []HostPreset{
 			if _, err := os.Stat(filepath.Join(cwd, ".roo")); err == nil {
 				return filepath.Join(cwd, ".roo", "mcp.json"), nil
 			}
-			return resolveVSCodeStoragePath("rooveterinaryinc.roo-cline", homeDir, appData, goos)
+			return resolveVSCodeStoragePath("rooveterinaryinc.roo-cline", "mcp_settings.json", homeDir, appData, goos)
 		},
 	},
 	{
@@ -908,7 +958,10 @@ func isSupportedPreset(host string) bool {
 }
 
 // resolveVSCodeStoragePath resolves the globalStorage configuration path for VS Code extension agents.
-func resolveVSCodeStoragePath(extID, homeDir, appData, goos string) (string, error) {
+func resolveVSCodeStoragePath(extID, settingsFileName, homeDir, appData, goos string) (string, error) {
+	if settingsFileName == "" {
+		settingsFileName = "mcp_settings.json"
+	}
 	var baseDir string
 	switch goos {
 	case "windows":
@@ -930,7 +983,7 @@ func resolveVSCodeStoragePath(extID, homeDir, appData, goos string) (string, err
 		}
 		baseDir = filepath.Join(homeDir, ".config", "Code", "User")
 	}
-	return filepath.Join(baseDir, "globalStorage", extID, "settings", "cline_mcp_settings.json"), nil
+	return filepath.Join(baseDir, "globalStorage", extID, "settings", settingsFileName), nil
 }
 
 // runSetupWithArgs handles the "setup" (and "install") subcommand.
@@ -953,6 +1006,9 @@ func runSetupWithArgs(args []string, stdout, stderr io.Writer) int {
 
 	cwd, _ := os.Getwd()
 	homeDir, _ := os.UserHomeDir()
+	if envHome := os.Getenv("HOME"); envHome != "" {
+		homeDir = envHome
+	}
 	appData := os.Getenv("APPDATA")
 
 	// If no target provided, attempt smart workspace auto-detection
@@ -1021,12 +1077,15 @@ func runSetupWithArgs(args []string, stdout, stderr io.Writer) int {
 	}
 
 	var out []byte
+	var oldBytes []byte
 	if strings.HasSuffix(configPath, ".yaml") || strings.HasSuffix(configPath, ".yml") {
 		b, _ := os.ReadFile(configPath)
+		oldBytes = b
 		out = mergeGooseYAML(b, exePath)
 	} else {
 		b, err := os.ReadFile(configPath)
 		if err == nil {
+			oldBytes = b
 			if len(bytes.TrimSpace(b)) > 0 {
 				var existing map[string]any
 				if std, err := hujson.Standardize(bytes.Clone(b)); err == nil {
@@ -1056,7 +1115,7 @@ func runSetupWithArgs(args []string, stdout, stderr io.Writer) int {
 
 	if dryRun {
 		fmt.Fprintf(stdout, "[dry-run] Would write Vivechak configuration to %s (%s):\n", configPath, targetKey)
-		fmt.Fprintln(stdout, string(out))
+		printConfigDiff(stdout, oldBytes, out, configPath)
 		return 0
 	}
 
@@ -1143,4 +1202,67 @@ func printSetupUsage(w io.Writer) {
 	fmt.Fprintln(w, "  vck setup vscode                       # Configure VS Code workspace")
 	fmt.Fprintln(w, "  vck setup ./custom-mcp.json            # Write directly to any agent config file")
 	fmt.Fprintln(w, "  vck setup cursor --dry-run             # Preview configuration without writing")
+}
+
+// printConfigDiff prints unified diff of old versus new lines (+ and -) for safe dry-run preview.
+func printConfigDiff(w io.Writer, oldBytes, newBytes []byte, filePath string) {
+	fmt.Fprintf(w, "--- %s\n+++ %s\n", filePath, filePath)
+	if len(oldBytes) == 0 {
+		for _, line := range strings.Split(string(newBytes), "\n") {
+			if line != "" {
+				fmt.Fprintf(w, "+%s\n", line)
+			}
+		}
+		return
+	}
+
+	oldLines := strings.Split(strings.ReplaceAll(string(oldBytes), "\r\n", "\n"), "\n")
+	newLines := strings.Split(strings.ReplaceAll(string(newBytes), "\r\n", "\n"), "\n")
+
+	n := len(oldLines)
+	m := len(newLines)
+	dp := make([][]int, n+1)
+	for i := range dp {
+		dp[i] = make([]int, m+1)
+	}
+	for i := 0; i < n; i++ {
+		for j := 0; j < m; j++ {
+			if oldLines[i] == newLines[j] {
+				dp[i+1][j+1] = dp[i][j] + 1
+			} else if dp[i+1][j] >= dp[i][j+1] {
+				dp[i+1][j+1] = dp[i][j]
+			} else {
+				dp[i+1][j+1] = dp[i][j+1]
+			}
+		}
+	}
+
+	type diffEntry struct {
+		op   byte
+		line string
+	}
+	var diffOps []diffEntry
+	i, j := n, m
+	for i > 0 || j > 0 {
+		if i > 0 && j > 0 && oldLines[i-1] == newLines[j-1] {
+			diffOps = append(diffOps, diffEntry{op: ' ', line: oldLines[i-1]})
+			i--
+			j--
+		} else if j > 0 && (i == 0 || dp[i][j-1] >= dp[i-1][j]) {
+			diffOps = append(diffOps, diffEntry{op: '+', line: newLines[j-1]})
+			j--
+		} else if i > 0 && (j == 0 || dp[i][j-1] < dp[i-1][j]) {
+			diffOps = append(diffOps, diffEntry{op: '-', line: oldLines[i-1]})
+			i--
+		}
+	}
+
+	for k := len(diffOps) - 1; k >= 0; k-- {
+		op := diffOps[k]
+		if op.op == '+' {
+			fmt.Fprintf(w, "+%s\n", op.line)
+		} else if op.op == '-' {
+			fmt.Fprintf(w, "-%s\n", op.line)
+		}
+	}
 }

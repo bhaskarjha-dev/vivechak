@@ -170,8 +170,11 @@ informs_decisions:
 # Storage Engine Evaluation
 
 ## Key Findings
-- RocksDB provides high write throughput with LSM tree design. Grade A (https://rocksdb.org)
-- Value log separation allows scaling write bandwidth. Grade B (internal benchmark v8.1)
+- RocksDB provides high write throughput with LSM tree design. [Grade A: docs](https://rocksdb.org) [verification_method: fetched].
+- Value log separation allows scaling write bandwidth. [Grade B: benchmark](https://github.com/facebook/rocksdb) [verification_method: fetched].
+
+## Recommendation
+Select RocksDB as primary storage engine.
 
 ## Discovered Concerns
 Write stall latency spikes occur during L0 compaction under heavy random write workloads exceeding 50,000 IOPS.
@@ -186,7 +189,7 @@ Compaction stall boundary analysis confirmed memory stalls under concurrent writ
 ## Sources & Evidence Ledger
 | # | Source | Grade | Modifiers | Status | Supports |
 | 1 | https://rocksdb.org | Grade A | fresh | fetched | RocksDB throughput |
-| 2 | internal benchmark v8.1 | Grade B | fresh | fetched | Compaction stalls |
+| 2 | https://github.com/facebook/rocksdb | Grade B | fresh | fetched | Compaction stalls |
 `
 		saveS1Env := callTool("vivechak_save", map[string]any{
 			"project_root": projectDir,
@@ -214,19 +217,19 @@ informed_by_sessions:
 ## Context
 High-frequency distributed ledger requires persistent KV store with high random write throughput.
 
-## Decision
-We select RocksDB for primary state storage. Grade A (https://rocksdb.org)
-
-## Alternatives Considered
-- LMDB: rejected due to write concurrency bottleneck. Grade A (https://symas.com/lmdb)
-- BadgerDB: rejected due to GC compaction pause anomalies under sustained 100K ops/sec write load.
+## Decision Outcome
+We select RocksDB for primary state storage. [Grade A: docs](https://rocksdb.org) and [Grade B: benchmark](https://github.com/facebook/rocksdb).
 
 ## Consequences
 - Positive: battle-tested LSM engine with flexible compaction filters.
 - Negative: memory overhead for block cache and memtables requires active tuning.
 
-## Red-Team Stress Test
-Adversarial disk saturation probe verified write stall recovery within acceptable SLA bounds.
+## Rejected Alternatives & Tradeoffs
+- LMDB: rejected due to write concurrency bottleneck. [Grade A: benchmark](https://symas.com/lmdb)
+- BadgerDB: rejected due to GC compaction pause anomalies under sustained 100K ops/sec write load.
+
+## Challenge Findings & Red-Team Stress Test
+See D-001-R1: Red-team stress testing confirms write stall recovery within acceptable SLA bounds.
 `
 		recEnv := callTool("vivechak_record_decision", map[string]any{
 			"project_root": projectDir,
@@ -237,6 +240,13 @@ Adversarial disk saturation probe verified write stall recovery within acceptabl
 			t.Fatalf("record_decision D-001 failed: %s", recEnv.Message)
 		}
 
+		// Red-team challenge review for D-001
+		_ = callTool("vivechak_review", map[string]any{
+			"project_root":   projectDir,
+			"decision_id":    "D-001",
+			"challenge_type": "red_team",
+		})
+
 		// 1.8 Save S-02
 		s2Content := `---
 session_id: S-02
@@ -246,8 +256,11 @@ status: complete
 door_type: two-way
 ---
 ## Key Findings
-- Raft protocol guarantees safety across network partitions. Grade A (https://raft.github.io)
-- Election timeouts between 150-300ms avoid split votes. Grade A (https://raft.github.io)
+- Raft protocol guarantees safety across network partitions. [Grade A: formal spec](https://raft.github.io)
+- Election timeouts between 150-300ms avoid split votes. [Grade A: benchmark](https://raft.github.io)
+
+## Recommendation
+Adopt Raft consensus protocol.
 
 ## Discovered Concerns
 Pre-vote extension must be enabled to prevent disrupted elections during cluster churn.
@@ -323,8 +336,11 @@ status: complete
 door_type: two-way
 ---
 ## Key Findings
-- S3 object storage enables zero-loss continuous point-in-time recovery. Grade A (https://aws.amazon.com/s3)
-- Snapshot intervals of 15 minutes bound WAL playback time. Grade B (internal DR spike)
+- S3 object storage enables zero-loss continuous point-in-time recovery. [Grade A: specs](https://aws.amazon.com/s3)
+- Snapshot intervals of 15 minutes bound WAL playback time. [Grade B: spike](https://aws.amazon.com/s3)
+
+## Recommendation
+Adopt S3 object storage for continuous WAL archiving.
 
 ## Discovered Concerns
 S3 multipart upload aborts require lifecycle policies to prevent orphaned part storage costs.
@@ -344,7 +360,7 @@ S3 multipart upload aborts require lifecycle policies to prevent orphaned part s
 			"content":      s3Content,
 		})
 
-		// 1.12 Save SYN-01 as FAD.md and verify Root Mirror Copy
+		// 1.12 Save SYN-01 as FAD.md
 		fadContent := `---
 session_id: SYN-01
 title: Founding Architecture Document
@@ -356,14 +372,29 @@ status: complete
 ## Executive Summary
 This architecture specifies the storage and consensus foundation for high-frequency financial transactions.
 
+## Locked Decision Registry
+- D-001: RocksDB as Primary Engine (accepted)
+
+## Architecture
+Storage and consensus foundation for ledger transactions.
+
+## Risk Register & Reversal Triggers
+- Storage compaction latency risk. Reversal trigger: dataset exceeds 100 TB or p99 write latency > 50ms.
+
+## Traceability Matrix
+- S-01 -> D-001
+- S-02 -> Consensus
+- S-03 -> Disaster Recovery
+- SYN-01 -> FAD
+
 ## Storage Layer
-RocksDB state store with write buffer size tuned to 128 MB. Grade A (https://rocksdb.org)
+RocksDB state store with write buffer size tuned to 128 MB. [Grade A: docs](https://rocksdb.org)
 
 ## Consensus Layer
-Raft majority quorum with pre-vote enabled. Grade A (https://raft.github.io)
+Raft majority quorum with pre-vote enabled. [Grade A: formal spec](https://raft.github.io)
 
 ## Disaster Recovery
-Continuous WAL archiving to S3 object storage. Grade A (https://aws.amazon.com/s3)
+Continuous WAL archiving to S3 object storage. [Grade A: specs](https://aws.amazon.com/s3)
 `
 		saveFADEnv := callTool("vivechak_save", map[string]any{
 			"project_root": projectDir,
@@ -486,8 +517,11 @@ informs_decisions:
   - D-001
 ---
 ## Key Findings
-- Raft guarantees deterministic log consistency under majority quorum. Grade A (https://raft.github.io)
-- Etcd raft implementation is heavily tested in production. Grade A (https://etcd.io)
+- Raft guarantees deterministic log consistency under majority quorum. [Grade A: docs](https://raft.github.io) [verification_method: fetched].
+- Etcd raft implementation is heavily tested in production. [Grade A: benchmark](https://etcd.io) [verification_method: fetched].
+
+## Recommendation
+Adopt Raft protocol with etcd implementation.
 
 ## Discovered Concerns
 Pre-vote extension is strictly mandatory in lossy networks to avoid disruptive elections caused by partitioned nodes.
@@ -540,19 +574,19 @@ informed_by_sessions:
 ## Context
 Distributed cluster consensus requires strong leader election and log replication guarantees.
 
-## Decision
-We adopt hashicorp/raft for leader-based cluster consensus. Grade A (https://raft.github.io)
-
-## Alternatives Considered
-- Multi-Paxos: rejected due to high operational complexity and subtle concurrency failure modes.
-- Primary-Backup: rejected due to lack of automatic failover and risk of split-brain data loss.
+## Decision Outcome
+We adopt hashicorp/raft for leader-based cluster consensus. [Grade A: docs](https://raft.github.io) and [Grade A: benchmark](https://etcd.io).
 
 ## Consequences
 - Positive: deterministic leader election and battle-tested log replication.
 - Negative: writes must pass through the active leader bottleneck.
 
-## Red-Team Stress Test
-Partition tolerance tested across asymmetric network partitions.
+## Rejected Alternatives & Tradeoffs
+- Multi-Paxos: rejected due to high operational complexity and subtle concurrency failure modes.
+- Primary-Backup: rejected due to lack of automatic failover and risk of split-brain data loss.
+
+## Challenge Findings & Red-Team Stress Test
+See D-001-R1: Red-team stress testing confirms split-brain safety leases and quorum requirements.
 `
 		recEnv := callTool("vivechak_record_decision", map[string]any{
 			"project_root": decDir,
@@ -562,6 +596,13 @@ Partition tolerance tested across asymmetric network partitions.
 		if !recEnv.Success {
 			t.Fatalf("record_decision failed: %s", recEnv.Message)
 		}
+
+		// Red-team challenge review for D-001
+		_ = callTool("vivechak_review", map[string]any{
+			"project_root":   decDir,
+			"decision_id":    "D-001",
+			"challenge_type": "red_team",
+		})
 
 		// 2.6 Validate Workspace (deduplication check between D-001.md and DECISIONS.md)
 		valEnv := callTool("vivechak_review", map[string]any{
@@ -857,6 +898,41 @@ Investigate gRPC vs Arrow Flight for graph query results.
 		if len(envSave.Warnings) != 0 {
 			t.Errorf("expected 0 warnings on clean plan save, got: %v", envSave.Warnings)
 		}
+
+		_ = callTool("vivechak_record_decision", map[string]any{
+			"project_root": projectDir,
+			"decision_id":  "D-001",
+			"content": `---
+id: D-001
+title: Primary Graph Engine
+door_type: one-way
+status: proposed
+date: "2026-10-21"
+---
+# D-001: Primary Graph Engine
+## Context
+Evaluating Cypher vs Gremlin.
+## Decision
+Proposed.
+`,
+		})
+		_ = callTool("vivechak_record_decision", map[string]any{
+			"project_root": projectDir,
+			"decision_id":  "D-002",
+			"content": `---
+id: D-002
+title: Ingest Buffer
+door_type: two-way
+status: proposed
+date: "2026-10-21"
+---
+# D-002: Ingest Buffer
+## Context
+Evaluating NATS vs Kafka.
+## Decision
+Proposed.
+`,
+		})
 
 		// 5.4 Validate registry directly via artifact_type="decisions"
 		envValDec := callTool("vivechak_review", map[string]any{
@@ -1174,9 +1250,14 @@ informed_decisions: ["D-001"]
 ---
 # State Engine Research
 ## Key Findings
-- Finding 1: SQLite in WAL mode delivers sub-millisecond point lookups. Grade A (https://sqlite.org)
+- Finding 1: SQLite in WAL mode delivers sub-millisecond point lookups. [Grade A: docs](https://sqlite.org) [verification_method: fetched].
+## Recommendation
+Adopt SQLite in WAL mode.
 ## Discovered Concerns
 Concurrency bottleneck if multiple writer threads execute concurrent transactions.
+## Sources & Evidence Ledger
+| # | Source | Grade |
+| 1 | https://sqlite.org | A |
 `
 		saveSessEnv := callTool("vivechak_save", map[string]any{
 			"project_root": projectDir,
@@ -1245,6 +1326,7 @@ Two-way door: migration to external cache easily accommodated via cache interfac
 			"id":           "D-001",
 			"content":      refinedD1,
 			"status":       "accepted",
+			"revise":       true,
 		})
 		if !promoteEnv.Success {
 			t.Fatalf("live decision promotion failed: %s", promoteEnv.Message)
@@ -1295,9 +1377,23 @@ date: 2026-10-25
 status: complete
 ---
 # Founding Architecture Document: Microservice Orchestrator
+
+## Executive Summary
 Synthesizes decision D-001 based on empirical benchmarks.
-- Local State: SQLite in WAL mode. Grade A (https://sqlite.org)
+
+## Locked Decision Registry
+- D-001: Local State Cache Engine (accepted)
+
+## Architecture
+- Local State: SQLite in WAL mode. [Grade A: docs](https://sqlite.org)
 - Failure modes & concurrency: Reader pools isolate read latency from background checkpointing.
+
+## Risk Register & Reversal Triggers
+- Write concurrency stalls. Reversal trigger: cache entries exceed 100k items.
+
+## Traceability Matrix
+- T0-01 -> D-001
+- SYN-01 -> FAD
 `
 		saveFadEnv := callTool("vivechak_save", map[string]any{
 			"project_root": projectDir,

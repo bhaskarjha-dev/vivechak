@@ -22,7 +22,7 @@ func runDoctorWithArgs(args []string, stdout, stderr io.Writer) int {
 		if args[0] == "--help" || args[0] == "-h" {
 			fmt.Fprintln(stdout, "Usage: vivechak doctor [workspace_path]  (or: vck doctor [workspace_path])")
 			fmt.Fprintln(stdout, "")
-			fmt.Fprintln(stdout, "Check workspace integrity, templates, frontmatter validity, and cross-references.")
+			fmt.Fprintln(stdout, "Check workspace integrity, frontmatter validity, and cross-references.")
 			return 0
 		}
 		explicit = args[0]
@@ -92,21 +92,6 @@ func checkWorkspace(workspace string) (bool, []string, []string) {
 			errs = append(errs, fmt.Sprintf("✗ Corrupted workspace metadata in %s", core.MetadataFile))
 			hasErrors = true
 		}
-	}
-
-	templatesDir := filepath.Join(workspace, core.TemplatesDir)
-	expectedTemplates := core.TemplatesForScope(info.Scope)
-	var missingTemplates []string
-	for _, tpl := range expectedTemplates {
-		if _, err := os.Stat(filepath.Join(templatesDir, tpl)); err != nil {
-			missingTemplates = append(missingTemplates, tpl)
-		}
-	}
-	if len(missingTemplates) > 0 {
-		errs = append(errs, fmt.Sprintf("✗ Missing templates: %v", missingTemplates))
-		hasErrors = true
-	} else {
-		successes = append(successes, "✓ All templates present")
 	}
 
 	// Read pipeline or decision plans for session cross-checks

@@ -216,7 +216,7 @@ func TestResolveConfigPath(t *testing.T) {
 	if err != nil {
 		t.Fatalf("roo linux: %v", err)
 	}
-	expectedRooLinux := filepath.Join(homeDir, ".config", "Code", "User", "globalStorage", "rooveterinaryinc.roo-cline", "settings", "cline_mcp_settings.json")
+	expectedRooLinux := filepath.Join(homeDir, ".config", "Code", "User", "globalStorage", "rooveterinaryinc.roo-cline", "settings", "mcp_settings.json")
 	if p != expectedRooLinux {
 		t.Errorf("roo linux path: got %s, want %s", p, expectedRooLinux)
 	}
@@ -530,10 +530,13 @@ func TestWriteConfigFile(t *testing.T) {
 	}
 
 	// Verify backup file was created with previous content
-	bakPath := targetPath + ".bak"
+	bakPath := findBakFile(filepath.Dir(targetPath), filepath.Base(targetPath))
+	if bakPath == "" {
+		t.Fatalf("backup file not created in %s", filepath.Dir(targetPath))
+	}
 	bakContent, err := os.ReadFile(bakPath)
 	if err != nil {
-		t.Fatalf("backup file not created: %v", err)
+		t.Fatalf("reading backup file: %v", err)
 	}
 	if !bytes.Equal(bakContent, content) {
 		t.Errorf("backup got %q, want %q", bakContent, content)
@@ -666,7 +669,11 @@ func TestRunSetupWithArgs_JSONC_PreservesUserConfig(t *testing.T) {
 	}
 
 	// Verify backup was created with original content
-	bakContent, err := os.ReadFile(tempFile + ".bak")
+	bakPath := findBakFile(filepath.Dir(tempFile), filepath.Base(tempFile))
+	if bakPath == "" {
+		t.Fatalf("expected backup file to be created")
+	}
+	bakContent, err := os.ReadFile(bakPath)
 	if err != nil {
 		t.Fatalf("expected backup file to be created: %v", err)
 	}
@@ -1231,6 +1238,12 @@ func TestBuildServerConfig_WorkspaceFolderEnv(t *testing.T) {
 }
 
 func TestSetupWithArgs_WorkspaceFolderEnv(t *testing.T) {
+	tempHome := t.TempDir()
+	t.Setenv("HOME", tempHome)
+	t.Setenv("USERPROFILE", tempHome)
+	t.Setenv("APPDATA", filepath.Join(tempHome, "AppData"))
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(tempHome, ".config"))
+
 	for _, host := range []string{"cursor", "windsurf", "vscode"} {
 		var stdout, stderr bytes.Buffer
 		code := runSetupWithArgs([]string{"--dry-run", host}, &stdout, &stderr)
@@ -1290,9 +1303,9 @@ func TestWriteConfigFile_SymlinkAndPermissions(t *testing.T) {
 	}
 
 	// 3. Verify backup file exists
-	bakPath := targetFile + ".bak"
-	if _, err := os.Stat(bakPath); err != nil {
-		t.Errorf("expected backup file at %s: %v", bakPath, err)
+	bakPath := findBakFile(filepath.Dir(targetFile), filepath.Base(targetFile))
+	if bakPath == "" {
+		t.Errorf("expected backup file at %s", targetFile)
 	}
 
 	// 4. On non-Windows platforms, verify 0600 permissions
@@ -1330,7 +1343,10 @@ func TestWriteConfigFile_PermissionsAndBackup(t *testing.T) {
 		t.Errorf("file missing updated content: %s", string(data))
 	}
 
-	bakPath := configFile + ".bak"
+	bakPath := findBakFile(tmpDir, filepath.Base(configFile))
+	if bakPath == "" {
+		t.Fatalf("expected backup file for %s", configFile)
+	}
 	bakData, err := os.ReadFile(bakPath)
 	if err != nil {
 		t.Fatalf("failed to read backup file: %v", err)
@@ -1338,6 +1354,19 @@ func TestWriteConfigFile_PermissionsAndBackup(t *testing.T) {
 	if !strings.Contains(string(bakData), "existing") {
 		t.Errorf("backup file missing original content: %s", string(bakData))
 	}
+}
+
+func findBakFile(dir, base string) string {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return ""
+	}
+	for _, e := range entries {
+		if strings.HasPrefix(e.Name(), base) && strings.Contains(e.Name(), "bak") {
+			return filepath.Join(dir, e.Name())
+		}
+	}
+	return ""
 }
 
 

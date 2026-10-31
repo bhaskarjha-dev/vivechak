@@ -152,6 +152,7 @@ status: complete
 			"kind":         "session",
 			"id":           "T1-01",
 			"content":      validSess,
+			"revise":       true,
 		})
 		if validEnv.Data["status"] != "valid" && validEnv.Data["status"] != "valid-with-warnings" {
 			t.Errorf("expected session with 50 chars of concerns to be valid, got: %v", validEnv.Data["status"])
@@ -282,6 +283,7 @@ status: complete
 			"project_root": wsDir,
 			"kind":         "plan",
 			"content":      sinkPlan,
+			"revise":       true,
 		})
 		if !saveSink.Success {
 			t.Fatalf("save_plan sink test failed: %s", saveSink.Message)
@@ -366,9 +368,18 @@ Chose option for ` + id + `. Grade A (docs)
 		}
 		content := string(decData)
 
-		idxD1 := strings.Index(content, "D-1")
-		idxD2 := strings.Index(content, "D-2")
-		idxD10 := strings.Index(content, "D-10")
+		idxD1 := strings.Index(content, "D-001")
+		if idxD1 == -1 {
+			idxD1 = strings.Index(content, "D-1")
+		}
+		idxD2 := strings.Index(content, "D-002")
+		if idxD2 == -1 {
+			idxD2 = strings.Index(content, "D-2")
+		}
+		idxD10 := strings.Index(content, "D-010")
+		if idxD10 == -1 {
+			idxD10 = strings.Index(content, "D-10")
+		}
 
 		if idxD1 == -1 || idxD2 == -1 || idxD10 == -1 {
 			t.Fatalf("missing decision entries in DECISIONS.md:\n%s", content)

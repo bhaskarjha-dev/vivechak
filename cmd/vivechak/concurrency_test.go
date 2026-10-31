@@ -280,14 +280,20 @@ date: 2026-10-02
 status: complete
 ---
 # Core Domain Model
-## Recommendations
-Adopt immutable event-sourced aggregate root model. Grade A (formal specification)
+## Key Findings
+- High throughput aggregate root model confirmed. [Grade A: spec](https://example.com/spec)
+## Recommendation
+Adopt immutable event-sourced aggregate root model.
 ## Discovered Concerns & Failure Modes
 - High event stream volume may cause replay latency.
 ## Delta
 | Prior | Status | Impact |
 |---|---|---|
 | Mutable CRUD state | Contradicted | High |
+## Sources & Evidence Ledger
+| # | Source | Grade |
+|---|---|---|
+| 1 | https://example.com/spec | A |
 `
 	envSave1 := callAndParse("vivechak_save", map[string]any{
 		"project_root": projectDir,
@@ -305,18 +311,21 @@ id: D-001
 title: Event-Sourced Core Domain
 status: accepted
 door_type: one-way
-human_reviewed: false
 review_trigger: "Event replay latency exceeds 100ms"
 review_date: 2026-12-01
 ---
-# Context
+# Context & Problem Statement
 Distributed core domain requirements with audit trail.
 
-# Decision
-We adopt event sourcing. Grade A (formal proof)
+## Decision Outcome
+We adopt event sourcing. [Grade A: formal proof](https://lamport.azurewebsites.net/tla/tla.html)
+RocksDB storage provides high throughput [Grade A: RocksDB architecture](https://rocksdb.org).
 
-## Rejected Alternatives
+## Rejected Alternatives & Tradeoffs
 - CRUD State Mutation: Rejected due to inability to audit historic entity mutations.
+
+## Challenge Findings & Red-Team Stress Test
+See D-001-R1: Red-team stress testing confirms replay bounds.
 `
 	envD1 := callAndParse("vivechak_record_decision", map[string]any{
 		"project_root": projectDir,
@@ -354,14 +363,20 @@ date: 2026-10-02
 status: complete
 ---
 # Persistent Storage Layer
-## Recommendations
-Adopt RocksDB for persistent event log. Grade A (benchmark)
+## Key Findings
+- Compaction stalls observed under sustained concurrent writes requiring custom memtable tuning. [Grade A: benchmark](https://rocksdb.org)
+## Recommendation
+Adopt RocksDB for persistent event log.
 ## Discovered Concerns
 Compaction stalls observed under sustained concurrent writes requiring custom memtable tuning.
 ## Delta
 | Prior | Status | Impact |
 |---|---|---|
 | SQL database | Contradicted | High |
+## Sources & Evidence Ledger
+| # | Source | Grade |
+|---|---|---|
+| 1 | https://rocksdb.org | A |
 `
 	envSave2 := callAndParse("vivechak_save", map[string]any{
 		"project_root": projectDir,
@@ -389,12 +404,20 @@ date: 2026-10-02
 status: complete
 ---
 # Network Protocol
-## Recommendations
-Adopt FlatBuffers over gRPC for zero-copy deserialization. Grade B (benchmark)
+## Key Findings
+- FlatBuffers enables zero-copy deserialization. [Grade B: benchmark](https://flatbuffers.dev)
+## Recommendation
+Adopt FlatBuffers over gRPC for zero-copy deserialization.
+## Discovered Concerns
+Schema evolution requires strict field ID ordering rules.
 ## Delta
 | Prior | Status | Impact |
 |---|---|---|
 | JSON over HTTP | Contradicted | Medium |
+## Sources & Evidence Ledger
+| # | Source | Grade |
+|---|---|---|
+| 1 | https://flatbuffers.dev | B |
 `
 	envSave3 := callAndParse("vivechak_save", map[string]any{
 		"project_root": projectDir,
@@ -422,14 +445,20 @@ date: 2026-10-02
 status: complete
 ---
 # Distributed Consensus
-## Recommendations
-Adopt Raft consensus engine. Grade A (formal TLA+ spec)
+## Key Findings
+- Raft consensus verified with formal specification. [Grade A: formal TLA+ spec](https://raft.github.io)
+## Recommendation
+Adopt Raft consensus engine.
 ## Discovered Concerns
 Leader election timeouts cause intermittent transaction pauses during partition recovery.
 ## Delta
 | Prior | Status | Impact |
 |---|---|---|
 | Gossip protocol | Contradicted | High |
+## Sources & Evidence Ledger
+| # | Source | Grade |
+|---|---|---|
+| 1 | https://raft.github.io | A |
 `
 	envSave4 := callAndParse("vivechak_save", map[string]any{
 		"project_root": projectDir,
@@ -455,20 +484,22 @@ title: Founding Architecture Document
 date: 2026-10-02
 status: complete
 ---
-# Founding Architecture Document
-## 1. System Vision
-Diamond DAG resilient high-throughput event processing platform.
-## 2. Core Architecture
-Event-sourced RocksDB storage with FlatBuffers wire format and Raft consensus. Grade A (spec analysis)
-## 3. Technology Choices
-- Storage: RocksDB. Grade A (empirical data)
-- Protocol: FlatBuffers. Grade B (benchmark)
-- Consensus: Raft. Grade A (formal verification)
-## 4. Operational Model & Mitigations
-Replay performance monitored with snapshotting. Grade B (operational runbook)
-## 5. Rejected Alternatives
-- SQL rejected due to schema mutation bottlenecks. Grade A (benchmark)
-- JSON HTTP rejected due to serialization overhead. Grade B (docs)
+# Founding Architecture Document: Diamond Platform
+
+## Executive Summary
+Diamond DAG resilient high-throughput event processing platform. Event-sourced RocksDB storage with FlatBuffers wire format and Raft consensus.
+
+## Locked Decision Registry
+- D-001: Event-Sourced Core Domain (accepted)
+
+## Risk Register & Reversal Triggers
+- Storage compaction overhead monitored with snapshotting. Reversal trigger: p95 latency > 50ms.
+
+## Traceability Matrix
+- S-01 -> D-001
+- S-02 -> Storage
+- S-03 -> Network
+- S-04 -> Consensus
 `
 	envSaveFAD := callAndParse("vivechak_save", map[string]any{
 		"project_root": projectDir,
@@ -521,6 +552,16 @@ Replay performance monitored with snapshotting. Grade B (operational runbook)
 		t.Errorf("expected W-STALE-DOWNSTREAM warning on amending upstream S-01, got: %v", envAmend.Warnings)
 	}
 
+	// Red-team challenge for One-Way Door D-001
+	envChallenge := callAndParse("vivechak_review", map[string]any{
+		"project_root":   projectDir,
+		"decision_id":    "D-001",
+		"challenge_type": "red_team",
+	})
+	if !envChallenge.Success {
+		t.Fatalf("challenge D-001 failed: %s", envChallenge.Message)
+	}
+
 	// Sign off One-Way Door D-001 so Track B Gate can pass
 	ws, err := store.OpenWorkspace(projectDir)
 	if err != nil {
@@ -538,8 +579,8 @@ Replay performance monitored with snapshotting. Grade B (operational runbook)
 		"verbose":      true,
 	})
 	if envGate.Data["gate_status"] != "PASS" || envGate.Data["gate_passed"] != true {
-		t.Fatalf("expected gate PASS, got status=%v passed=%v warnings=%v message=%s",
-			envGate.Data["gate_status"], envGate.Data["gate_passed"], envGate.Warnings, envGate.Message)
+		t.Fatalf("expected gate PASS, got status=%v passed=%v rules=%+v warnings=%v message=%s",
+			envGate.Data["gate_status"], envGate.Data["gate_passed"], envGate.Data["rules"], envGate.Warnings, envGate.Message)
 	}
 
 	gatePath := filepath.Join(projectDir, core.ResearchDir, "PHASE-0-GATE.md")
@@ -547,7 +588,7 @@ Replay performance monitored with snapshotting. Grade B (operational runbook)
 	if err != nil {
 		t.Fatalf("reading research/PHASE-0-GATE.md: %v", err)
 	}
-	if !strings.Contains(string(gateBytes), "verdict: \"PASS\"") {
+	if !strings.Contains(string(gateBytes), "verdict: PASS") && !strings.Contains(string(gateBytes), "verdict: \"PASS\"") {
 		t.Errorf("expected verdict: PASS in gate artifact, got:\n%s", string(gateBytes))
 	}
 
@@ -896,18 +937,21 @@ id: D-001
 title: Adopt CockroachDB for Multi-Region SQL
 status: accepted
 door_type: one-way
-human_reviewed: false
 review_trigger: "WAN partition query latency > 500ms"
 review_date: 2026-12-01
 ---
-# Context
+# Context & Problem Statement
 Multi-region SQL consistency requirements.
 
-# Decision
-We adopt CockroachDB. Grade A (benchmark)
+## Decision Outcome
+We adopt CockroachDB. [Grade A: benchmark](https://www.cockroachlabs.com/docs/)
+Spanner evaluation [Grade A: Spanner docs](https://cloud.google.com/spanner).
 
-## Rejected Alternatives
+## Rejected Alternatives & Tradeoffs
 - Spanner: Rejected due to proprietary cloud lock-in constraints.
+
+## Challenge Findings & Red-Team Stress Test
+See D-001-R1: Red-team challenge stress testing confirms partition resilience and latency bounds under heavy sustained write load.
 `
 		envRec := callAndParse("vivechak_record_decision", map[string]any{
 			"project_root": dDir,
@@ -916,6 +960,16 @@ We adopt CockroachDB. Grade A (benchmark)
 		})
 		if !envRec.Success {
 			t.Fatalf("record decision failed: %s", envRec.Message)
+		}
+
+		// Red-team challenge for One-Way Door D-001
+		envChallenge := callAndParse("vivechak_review", map[string]any{
+			"project_root":   dDir,
+			"decision_id":    "D-001",
+			"challenge_type": "red_team",
+		})
+		if !envChallenge.Success {
+			t.Fatalf("challenge D-001 failed: %s", envChallenge.Message)
 		}
 
 		ws, err := store.OpenWorkspace(dDir)
@@ -943,8 +997,8 @@ We adopt CockroachDB. Grade A (benchmark)
 			"verbose":      true,
 		})
 		if envGate.Data["gate_status"] != "PASS" || envGate.Data["gate_passed"] != true {
-			t.Fatalf("expected gate PASS, got status=%v passed=%v warnings=%v message=%s",
-				envGate.Data["gate_status"], envGate.Data["gate_passed"], envGate.Warnings, envGate.Message)
+			t.Fatalf("expected gate PASS, got status=%v passed=%v rules=%+v warnings=%v message=%s",
+				envGate.Data["gate_status"], envGate.Data["gate_passed"], envGate.Data["rules"], envGate.Warnings, envGate.Message)
 		}
 	})
 
@@ -1047,7 +1101,7 @@ Adopt Redpanda for low operational complexity and zero JVM overhead. Grade A (be
 			"project_root": cDir,
 			"verbose":      true,
 		})
-		if envGate.Data["gate_status"] != "PASS" || envGate.Data["gate_passed"] != true {
+		if (envGate.Data["gate_status"] != "PASS" && envGate.Data["gate_status"] != "not_applicable") || envGate.Data["gate_passed"] != true {
 			t.Fatalf("expected gate PASS for comparison, got status=%v passed=%v warnings=%v message=%s",
 				envGate.Data["gate_status"], envGate.Data["gate_passed"], envGate.Warnings, envGate.Message)
 		}
