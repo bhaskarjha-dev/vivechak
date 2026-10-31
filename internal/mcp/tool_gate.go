@@ -3,13 +3,11 @@ package mcputil
 import (
 	"context"
 	"fmt"
-	"path/filepath"
 	"strings"
 
 	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/bhaskarjha-dev/vivechak/internal/core"
-	"github.com/bhaskarjha-dev/vivechak/internal/embed"
 	"github.com/bhaskarjha-dev/vivechak/internal/store"
 )
 
@@ -41,8 +39,8 @@ func registerGate(server *sdkmcp.Server) {
 				"Must PASS before codebase implementation begins.",
 			Annotations: &sdkmcp.ToolAnnotations{
 				ReadOnlyHint:    false,
-				IdempotentHint:  true,
-				DestructiveHint: BoolPtr(false),
+				IdempotentHint:  false,
+				DestructiveHint: BoolPtr(true),
 				OpenWorldHint:   BoolPtr(false),
 			},
 		},
@@ -80,31 +78,22 @@ func handleGate(_ context.Context, _ *sdkmcp.CallToolRequest, in GateInput) (*sd
 	info := core.InspectWorkspace(root)
 	gateResult := core.EvaluateGate(ws, info, root)
 
-	structuralData := map[string]any{
-		"passed": gateResult.StructuralChecks.Passed,
-		"score":  gateResult.StructuralChecks.Score,
-		"count":  gateResult.StructuralChecks.Count,
-		"total":  gateResult.StructuralChecks.Total,
-	}
-
-	trackAData := map[string]any{
-		"passed": gateResult.TrackAChecks.Passed,
-		"score":  gateResult.TrackAChecks.Score,
-		"count":  gateResult.TrackAChecks.Count,
-		"total":  gateResult.TrackAChecks.Total,
-	}
-
-	trackBData := map[string]any{
-		"passed": gateResult.TrackBChecks.Passed,
-		"score":  gateResult.TrackBChecks.Score,
-		"count":  gateResult.TrackBChecks.Count,
-		"total":  gateResult.TrackBChecks.Total,
-	}
-
-	if in.Verbose {
-		trackAData["issues"] = gateResult.TrackAChecks.Issues
-		trackBData["issues"] = gateResult.TrackBChecks.Issues
-		structuralData["issues"] = gateResult.StructuralChecks.Issues
+	pass := gateResult.Passed
+	verdict := gateResult.Verdict
+	if trackFilter == "track_a" {
+		pass = gateResult.TrackAChecks.Passed
+		if pass {
+			verdict = "PASS"
+		} else {
+			verdict = "FAIL"
+		}
+	} else if trackFilter == "track_b" {
+		pass = gateResult.TrackBChecks.Passed
+		if pass {
+			verdict = "PASS"
+		} else {
+			verdict = "FAIL"
+		}
 	}
 
 	trackAResult := "FAIL"
@@ -116,127 +105,119 @@ func handleGate(_ context.Context, _ *sdkmcp.CallToolRequest, in GateInput) (*sd
 		trackBResult = "PASS"
 	}
 
-	gatePassed := gateResult.Passed
-	gateStatus := gateResult.Status
-	switch trackFilter {
-	case "track_a":
-		gatePassed = gateResult.TrackAChecks.Passed
-		if gatePassed {
-			gateStatus = "PASS"
-		} else {
-			gateStatus = "FAIL"
-		}
-	case "track_b":
-		gatePassed = gateResult.TrackBChecks.Passed
-		if gatePassed {
-			gateStatus = "PASS"
-		} else {
-			gateStatus = "FAIL"
-		}
-	}
-
 	data := map[string]any{
 		"workspace_root":          root,
 		"scope":                   info.Scope,
-		"gate_status":             gateStatus,
-		"gate_passed":             gatePassed,
+		"verdict":                 verdict,
+		"target":                  gateResult.Target,
+		"rules":                   gateResult.Rules,
+		"advisories":              gateResult.Advisories,
+		"decisions":               gateResult.Decisions,
+		"gate_passed":             pass,
+		"gate_status":             verdict,
 		"track_filter":            trackFilter,
 		"track_a_result":          trackAResult,
 		"track_b_result":          trackBResult,
-		"structural_checks":       structuralData,
-		"quality_checks":          trackBData,
-		"track_a_checks":          trackAData,
-		"track_b_checks":          trackBData,
-		"structural_completeness": structuralData,
-		"mechanical_quality":      trackBData,
-		"track_a":                 trackAData,
-		"track_b":                 trackBData,
-		"scope_note": "This gate performs automated MECHANICAL checks only (Track A Two-Way Doors, Track B One-Way Doors, and Structural Completeness). " +
-			"Semantic decisions and human sign-off per PHASE-0-GATE.template.md are the host architect's responsibility.",
-	}
-
-	decisions := gateResult.Decisions
-	data["decisions"] = decisions
-	projectName := core.DetectProjectName(ws, root)
-
-	var tmplBytes []byte
-	if d, err := ws.ReadFile(filepath.Join(core.TemplatesDir, "PHASE-0-GATE.template.md")); err == nil {
-		tmplBytes = d
-	} else if d, err := embed.ReadTemplate("PHASE-0-GATE.template.md"); err == nil {
-		tmplBytes = d
+		"track_a":                 gateResult.TrackAChecks,
+		"track_b":                 gateResult.TrackBChecks,
+		"structural_checks":       gateResult.StructuralChecks,
+		"quality_checks":          gateResult.QualityChecks,
+		"structural_completeness": gateResult.StructuralChecks,
+		"mechanical_quality":      gateResult.TrackBChecks,
+		"scope_note":              "Evidence grades and verification labels are as reported by the agent; Vivechak did not fetch or verify sources.",
 	}
 
 	warnings := gateResult.Warnings
-	allAdvisories := append(append([]string{}, gateResult.Advisories...), warnings...)
-	gateContent := core.RenderGateArtifact(ws, tmplBytes, root, projectName, gateResult.Status, gateResult.TrackAChecks.Passed, gateResult.TrackBChecks.Passed, gateResult.TrackAChecks.Issues, gateResult.TrackBChecks.Issues, decisions, allAdvisories...)
-	if len(gateContent) > 0 {
-		var existingGate []byte
-		if d, err := ws.ReadFile(core.GateFile); err == nil {
-			existingGate = d
-		}
-		mergedContent := core.MergeGateArtifactContent(existingGate, gateContent)
-		_ = ws.MkdirAll(core.ResearchDir, 0o755)
-		if writeErr := store.WriteFileAtomic(ws.Root(), core.GateFile, mergedContent, 0o644); writeErr != nil {
-			warnings = append(warnings, fmt.Sprintf("W-GATE-WRITE: failed to write gate artifact: %v", writeErr))
-		} else {
-			data["gate_artifact"] = core.GateFile
+	for _, adv := range gateResult.Advisories {
+		warnings = append(warnings, adv)
+	}
+	for _, issue := range gateResult.TrackBChecks.Issues {
+		warnings = append(warnings, issue)
+	}
+	for _, issue := range gateResult.StructuralChecks.Issues {
+		warnings = append(warnings, issue)
+	}
+	if gateResult.Verdict == "not_applicable" || info.Scope == core.ScopeComparison {
+		warnings = append(warnings, "Comparison scope: zero gate requirements. Proceed to implementation.")
+	}
+
+	if gateResult.Verdict != "not_applicable" {
+		projectName := core.DetectProjectName(ws, root)
+		gateContent := core.RenderGateReport(ws, root, projectName, gateResult)
+		if len(gateContent) > 0 {
+			var existingGate []byte
+			if d, err := ws.ReadFile(core.GateFile); err == nil {
+				existingGate = d
+			}
+			mergedContent := core.MergeGateArtifactContent(existingGate, gateContent)
+			_ = ws.MkdirAll(core.ResearchDir, 0o755)
+			if writeErr := store.WriteFileAtomic(ws.Root(), core.GateFile, mergedContent, 0o644); writeErr != nil {
+				warnings = append(warnings, fmt.Sprintf("W-GATE-WRITE: failed to write gate artifact: %v", writeErr))
+			} else {
+				data["gate_artifact"] = core.GateFile
+			}
 		}
 	}
 
-	if !gatePassed {
-		var blockingIssues []string
-		failureScope := "Track B"
-		switch trackFilter {
-		case "track_a":
-			blockingIssues = append(blockingIssues, gateResult.TrackAChecks.Issues...)
-			failureScope = "Track A"
-		case "track_b":
-			blockingIssues = append(blockingIssues, gateResult.TrackBChecks.Issues...)
-			failureScope = "Track B"
-		default:
-			blockingIssues = append(blockingIssues, gateResult.StructuralChecks.Issues...)
-			blockingIssues = append(blockingIssues, gateResult.TrackAChecks.Issues...)
-			blockingIssues = append(blockingIssues, gateResult.TrackBChecks.Issues...)
-			if len(gateResult.StructuralChecks.Issues) > 0 && len(gateResult.TrackBChecks.Issues) > 0 {
-				failureScope = "Structural and Quality"
-			} else if len(gateResult.StructuralChecks.Issues) > 0 {
-				failureScope = "Structural Completeness"
-			} else if len(gateResult.TrackBChecks.Issues) > 0 {
-				failureScope = "Track B Quality"
-			} else if len(gateResult.TrackAChecks.Issues) > 0 {
-				failureScope = "Track A Two-Way Door"
+	if !pass {
+		var failingRules []string
+		for _, r := range gateResult.Rules {
+			if r.Status == "FAIL" {
+				failingRules = append(failingRules, fmt.Sprintf("%s: %s", r.ID, r.Reason))
 			}
 		}
-		issueCount := len(blockingIssues)
+		issueCount := len(failingRules)
+		msg := fmt.Sprintf("❌ PHASE 0 GATE FAILED (%d failing rule%s). Implementation is strictly prohibited until resolved.", issueCount, plural(issueCount))
+		if trackFilter == "track_a" {
+			msg = fmt.Sprintf("❌ Phase 0 Gate: Track A requirements not met (%d failing rule%s). Implementation is strictly prohibited until resolved.", issueCount, plural(issueCount))
+		} else if trackFilter == "track_b" {
+			msg = fmt.Sprintf("❌ Phase 0 Gate: Track B requirements not met (%d failing rule%s). Implementation is strictly prohibited until resolved.", issueCount, plural(issueCount))
+		}
+		nextStep := "⛔ DO NOT PROCEED TO CODE. Phase 0 Gate failed: resolve all failing rules above before beginning implementation."
+		if gateResult.NextStep != "" {
+			nextStep = fmt.Sprintf("⛔ DO NOT PROCEED TO CODE. %s", gateResult.NextStep)
+		}
 		env := Envelope{
-			Ok:      true,
-			Success: true,
-			Message: fmt.Sprintf("❌ PHASE 0 GATE FAILED: %s requirements not met (%d blocking issue%s). Implementation is strictly prohibited.",
-				failureScope, issueCount, plural(issueCount)),
+			Ok:       true,
+			Success:  true,
+			Message:  msg,
 			Data:     data,
 			Warnings: warnings,
 			Next: &NextAction{
-				Why: fmt.Sprintf("⛔ DO NOT PROCEED TO CODE. Resolve %d blocking issue(s): %s", issueCount, strings.Join(blockingIssues, "; ")),
+				Why: fmt.Sprintf("DO NOT START IMPLEMENTATION. Resolve %d failing rule(s): %s", issueCount, strings.Join(failingRules, "; ")),
 			},
-			NextStep: fmt.Sprintf("⛔ DO NOT PROCEED TO CODE. Phase 0 exit criteria NOT MET. "+
-				"Resolve the %d blocking issue(s) before code scaffolding: %s",
-				issueCount, strings.Join(blockingIssues, "; ")),
-			Meta: NewMeta(tool),
+			NextStep: nextStep,
+			Meta:     NewMeta(tool),
 		}
 		return env.ToResult()
 	}
 
-	next := &NextAction{
-		Why: "Phase 0 Gate PASSED. All Track A and Track B exit criteria satisfied. Ready for codebase implementation.",
+	if gateResult.Verdict == "not_applicable" {
+		env := Envelope{
+			Ok:       true,
+			Success:  true,
+			Message:  "Phase 0 Gate: not applicable (Comparison scope only; no architecture gate required).",
+			Data:     data,
+			Warnings: warnings,
+			Next: &NextAction{
+				Why: "Comparison scope complete. WEP matrix generated. Proceed to implementation.",
+			},
+			NextStep: gateResult.NextStep,
+			Meta:     NewMeta(tool),
+		}
+		return env.ToResult()
 	}
 
+	// PASS
 	env := Envelope{
 		Ok:       true,
 		Success:  true,
-		Message:  fmt.Sprintf("Phase 0 Gate: %s (Structural Completeness: %d/%d, Quality Indicators: %d/%d)", gateStatus, gateResult.StructuralChecks.Count, gateResult.StructuralChecks.Total, gateResult.QualityChecks.Count, gateResult.QualityChecks.Total),
+		Message:  fmt.Sprintf("Phase 0 Gate: PASS. %s", gateResult.NextStep),
 		Data:     data,
 		Warnings: warnings,
-		Next:     next,
+		Next: &NextAction{
+			Why: gateResult.NextStep,
+		},
 		NextStep: gateResult.NextStep,
 		Meta:     NewMeta(tool),
 	}

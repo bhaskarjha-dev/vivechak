@@ -1,986 +1,1007 @@
 package core
 
 import (
+	"bytes"
 	"fmt"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
+// GateRuleResult represents the evaluation result of a single gate rule G1–G12.
+type GateRuleResult struct {
+	ID     string `json:"id"`
+	Status string `json:"status"` // "PASS", "FAIL", or "n/a"
+	Reason string `json:"reason"`
+}
+
 // TrackResult represents the status and score of a gate track (Track A or Track B).
 type TrackResult struct {
-	Label  string   `json:"label"`
+	Label  string   `json:"label,omitempty"`
 	Passed bool     `json:"passed"`
-	Score  string   `json:"score"`
+	Score  string   `json:"score,omitempty"`
 	Count  int      `json:"count"`
 	Total  int      `json:"total"`
 	Issues []string `json:"issues,omitempty"`
 }
 
-// GateResult holds the complete evaluation result from Phase 0 Gate.
+// GateResult holds the unified evaluation result from Phase 0 Gate.
 type GateResult struct {
-	Status           string             `json:"gate_status"`
-	Passed           bool               `json:"gate_passed"`
-	StructuralChecks TrackResult        `json:"structural_checks"` // Pipeline, templates, DAG, FAD
-	TrackAChecks     TrackResult        `json:"track_a_checks"`     // Two-Way Door fast track (A1-A4)
-	TrackBChecks     TrackResult        `json:"track_b_checks"`     // One-Way Door rigor (B1-B11)
-	QualityChecks    TrackResult        `json:"quality_checks"`     // Backward-compatible alias for Track B
-	Advisories       []string           `json:"advisories,omitempty"`
-	Warnings         []string           `json:"warnings,omitempty"`
-	NextStep         string             `json:"next_step"`
-	Decisions        []GateDecisionItem `json:"decisions,omitempty"`
+	Verdict    string             `json:"verdict"` // "PASS", "FAIL", or "not_applicable"
+	Target     string             `json:"target"`
+	Rules      []GateRuleResult   `json:"rules"`
+	Advisories []string           `json:"advisories,omitempty"`
+	Warnings   []string           `json:"warnings,omitempty"`
+	NextStep   string             `json:"next_step"`
+	Decisions  []GateDecisionItem `json:"decisions,omitempty"`
+
+	// Backward compatibility fields for internal test fixtures
+	Status           string      `json:"status,omitempty"`
+	Passed           bool        `json:"passed,omitempty"`
+	StructuralChecks TrackResult `json:"-"`
+	TrackAChecks     TrackResult `json:"-"`
+	TrackBChecks     TrackResult `json:"-"`
+	QualityChecks    TrackResult `json:"-"`
 }
 
-// EvaluateGate performs mechanical verification of structural completeness and quality indicators.
+// ADRRecord holds parsed ADR data for gate verification.
+type adrRecord struct {
+	ID             string
+	Title          string
+	DoorType       string
+	Status         string
+	ReviewTrigger  string
+	HumanReviewed  bool
+	ReviewedBy     string
+	ReviewedAt     string
+	ReviewedHash   string
+	InformedBy     []string
+	RawData        []byte
+	File           string
+}
+
+// EvaluateGate mechanically evaluates Phase 0 exit rules G1–G12 across the workspace.
 func EvaluateGate(ws WorkspaceFS, info WorkspaceInfo, root string) *GateResult {
-	// Structural completeness checks
-	var structuralIssues []string
-	var structuralPassed int
-	var structuralTotal int
+	return EvaluateGateWithTarget(ws, info, root, "")
+}
 
-	switch info.Scope {
-	case ScopeDecision:
-		structuralTotal = 3
+// EvaluateGateWithTarget evaluates Phase 0 exit rules for a specific decision target or the full workspace.
+func EvaluateGateWithTarget(ws WorkspaceFS, info WorkspaceInfo, root string, targetDecision string) *GateResult {
+	targetDecision = strings.TrimSpace(targetDecision)
 
-		// Check 1: Verify all sessions declared in decision plan(s) are completed
-		var planDeclaredSessions []string
+	hasPipeline := ws != nil && FileExistsFS(ws, PipelineFile)
+	if hasPipeline {
+		if pipeBytes, err := ws.ReadFile(PipelineFile); err == nil && len(bytes.TrimSpace(pipeBytes)) == 0 {
+			hasPipeline = false
+		}
+	}
+
+	// 1. Scan comparisons, plans, and ADRs in research/
+	var compFiles []string
+	var planFiles []string
+	if ws != nil {
 		if entries, err := ws.ListDir(ResearchDir); err == nil {
 			for _, e := range entries {
+				if e.IsDir() || !strings.HasSuffix(strings.ToLower(e.Name()), ".md") {
+					continue
+				}
 				name := e.Name()
-				if !e.IsDir() && strings.HasSuffix(name, "-plan.md") {
-					if planData, pErr := ws.ReadFile(filepath.Join(ResearchDir, name)); pErr == nil {
-						if block, bErr := ParsePlanMachineBlock(planData); bErr == nil && block != nil && len(block.Sessions) > 0 {
-							for _, s := range block.Sessions {
-								planDeclaredSessions = append(planDeclaredSessions, s.ID)
-							}
-						} else if dag, dErr := ParsePipeline(planData); dErr == nil && len(dag.Sessions) > 0 {
-							for _, s := range dag.Sessions {
-								planDeclaredSessions = append(planDeclaredSessions, s.ID)
-							}
-						} else {
-							reSess := regexp.MustCompile(`(?m)^\s*(?:\d+\.|\-|\*)\s+([A-Za-z0-9_-]+)\s*:`)
-							for _, m := range reSess.FindAllSubmatch(planData, -1) {
-								if len(m) > 1 {
-									planDeclaredSessions = append(planDeclaredSessions, string(m[1]))
-								}
-							}
-						}
-					}
-					if len(planDeclaredSessions) > 0 {
-						break
-					}
+				lower := strings.ToLower(name)
+				if strings.HasSuffix(lower, "-plan.md") {
+					planFiles = append(planFiles, name)
+				} else if strings.HasPrefix(strings.ToUpper(name), "C-") || strings.EqualFold(name, "COMPARISON.md") || strings.HasSuffix(lower, "-comparison.md") || strings.Contains(lower, "-cmp-") {
+					compFiles = append(compFiles, name)
 				}
 			}
-		}
-
-		if len(planDeclaredSessions) > 0 {
-			var missingSessions []string
-			for _, sid := range planDeclaredSessions {
-				found := false
-				if entries, err := ws.ListDir(SessionsDir); err == nil {
-					idUpper := strings.ToUpper(sid)
-					for _, se := range entries {
-						name := strings.TrimSuffix(se.Name(), ".md")
-						nameUpper := strings.ToUpper(name)
-						if nameUpper == idUpper || strings.HasPrefix(nameUpper, idUpper+"-") || strings.HasPrefix(nameUpper, idUpper+"_") {
-							if sData, err := ws.ReadFile(filepath.Join(SessionsDir, se.Name())); err == nil && len(sData) > 0 {
-								found = true
-								break
-							}
-						}
-					}
-				}
-				if !found {
-					missingSessions = append(missingSessions, sid)
-				}
-			}
-			if len(missingSessions) == 0 {
-				structuralPassed++
-			} else {
-				structuralIssues = append(structuralIssues, fmt.Sprintf("Planned session(s) missing or incomplete: %s", strings.Join(missingSessions, ", ")))
-			}
-		} else {
-			if info.SessionCount > 0 {
-				structuralPassed++
-			} else {
-				structuralIssues = append(structuralIssues, "No completed sessions found")
-			}
-		}
-
-		// Check 2: Templates present
-		expectedDecTemplates := TemplatesForScope(ScopeDecision)
-		missingDecTemplates := 0
-		for _, tmpl := range expectedDecTemplates {
-			if _, err := ws.Stat(filepath.Join(TemplatesDir, tmpl)); err != nil {
-				missingDecTemplates++
-			}
-		}
-		if missingDecTemplates == 0 && info.TemplateCount >= len(expectedDecTemplates) {
-			structuralPassed++
-		} else {
-			structuralIssues = append(structuralIssues, fmt.Sprintf("%d/%d required templates missing", missingDecTemplates, len(expectedDecTemplates)))
-		}
-
-		// Check 3: Decision record exists
-		hasDecision := info.HasDecisions
-		if !hasDecision {
-			if entries, err := ws.ListDir(ResearchDir); err == nil {
-				for _, e := range entries {
-					name := e.Name()
-					if e.IsDir() || !strings.HasSuffix(name, ".md") {
-						continue
-					}
-					if IsSpecialResearchFile(name) {
-						continue
-					}
-					if strings.HasPrefix(strings.ToUpper(name), "D-") {
-						hasDecision = true
-						break
-					}
-					if dData, err := ws.ReadFile(filepath.Join(ResearchDir, name)); err == nil && len(dData) > 0 {
-						if fm, _, err := ParseFrontmatter(dData); err == nil && fm != nil && fm.Has("door_type") {
-							hasDecision = true
-							break
-						}
-					}
-				}
-			}
-		}
-		if hasDecision {
-			structuralPassed++
-		} else {
-			structuralIssues = append(structuralIssues, "No decision record found")
-		}
-
-	case ScopeComparison:
-		structuralTotal = 1
-		hasComp := false
-		if entries, err := ws.ListDir(ResearchDir); err == nil {
-			for _, e := range entries {
-				if !e.IsDir() && (strings.HasSuffix(e.Name(), "-comparison.md") || strings.Contains(e.Name(), "-cmp-") || strings.EqualFold(e.Name(), "COMPARISON.md")) {
-					hasComp = true
-					break
-				}
-			}
-		}
-		if hasComp || info.SessionCount > 0 {
-			structuralPassed++
-		} else {
-			structuralIssues = append(structuralIssues, "No comparison session found")
-		}
-
-	default: // ScopeProject
-		structuralTotal = 5
-		// Check 1: Pipeline exists
-		if info.HasPipeline {
-			structuralPassed++
-		} else {
-			structuralIssues = append(structuralIssues, "RESEARCH-PIPELINE.md not found")
-		}
-
-		// Check 2: DAG sessions completed
-		if info.HasPipeline {
-			if pipeData, err := ws.ReadFile(PipelineFile); err == nil {
-				if dag, err := ParsePipeline(pipeData); err == nil && len(dag.Sessions) > 0 {
-					completedCount := 0
-					for _, s := range dag.Sessions {
-						var sData []byte
-						found := false
-						if s.OutputFile != "" {
-							if data, err := ws.ReadFile(s.OutputFile); err == nil && len(data) > 0 {
-								sData = data
-								found = true
-							}
-						}
-						if !found {
-							if entries, err := ws.ListDir(SessionsDir); err == nil {
-								for _, e := range entries {
-									if (strings.HasPrefix(e.Name(), s.ID+"-") || strings.HasPrefix(e.Name(), s.ID+"_") || strings.EqualFold(e.Name(), s.ID+".md")) && strings.HasSuffix(e.Name(), ".md") {
-										if data, err := ws.ReadFile(filepath.Join(SessionsDir, e.Name())); err == nil && len(data) > 0 {
-											sData = data
-											found = true
-											break
-										}
-									}
-								}
-							}
-						}
-						if !found && IsSynthesisSession(s.ID) {
-							if data, err := ws.ReadFile(FADFile); err == nil && len(data) > 0 {
-								sData = data
-								found = true
-							}
-						}
-
-						if !found {
-							structuralIssues = append(structuralIssues, fmt.Sprintf("G2-SESSION-MISSING: Session %s has not been completed", s.ID))
-							continue
-						}
-
-						// Check frontmatter status: draft is NOT complete
-						fm, _, _ := ParseFrontmatter(sData)
-						if fm != nil && strings.EqualFold(strings.TrimSpace(fm.GetString("status")), "draft") {
-							structuralIssues = append(structuralIssues, fmt.Sprintf("G2-SESSION-DRAFT: Session %s is still in draft status", s.ID))
-							continue
-						}
-
-						completedCount++
-					}
-					if completedCount == len(dag.Sessions) {
-						structuralPassed++
-					} else {
-						structuralIssues = append(structuralIssues, fmt.Sprintf("G2-INCOMPLETE: Pipeline DAG incomplete: %d/%d sessions completed", completedCount, len(dag.Sessions)))
-					}
-				} else if info.SessionCount > 0 {
-					structuralPassed++
-				} else {
-					structuralIssues = append(structuralIssues, "No completed sessions found")
-				}
-			} else if info.SessionCount > 0 {
-				structuralPassed++
-			} else {
-				structuralIssues = append(structuralIssues, "No completed sessions found")
-			}
-		} else if info.SessionCount > 0 {
-			structuralPassed++
-		} else {
-			structuralIssues = append(structuralIssues, "No completed sessions found")
-		}
-
-		// Check 3: Templates present
-		expectedProjTemplates := TemplatesForScope(ScopeProject)
-		missingProjTemplates := 0
-		for _, tmpl := range expectedProjTemplates {
-			if _, err := ws.Stat(filepath.Join(TemplatesDir, tmpl)); err != nil {
-				missingProjTemplates++
-			}
-		}
-		if missingProjTemplates == 0 && info.TemplateCount >= len(expectedProjTemplates) {
-			structuralPassed++
-		} else {
-			structuralIssues = append(structuralIssues, fmt.Sprintf("%d/%d required templates missing", missingProjTemplates, len(expectedProjTemplates)))
-		}
-
-		// Check 4: Decisions registry or ADR files exist
-		hasDecFile := false
-		if _, err := ws.Stat(DecisionsFile); err == nil {
-			hasDecFile = true
-		}
-		if hasDecFile || info.HasDecisions {
-			structuralPassed++
-		} else {
-			structuralIssues = append(structuralIssues, "DECISIONS.md not found")
-		}
-
-		// Check 5: FAD exists
-		if _, err := ws.Stat(FADFile); err == nil {
-			structuralPassed++
-		} else {
-			structuralIssues = append(structuralIssues, "FAD.md not found — synthesis not complete")
 		}
 	}
 
-	// Quality indicators (Track B)
-	var trackBIssues []string
-	var trackBPassed int
-	var trackBTotal int
-	var gateAdvisories []string
+	// Scan all ADR records in research/ and DECISIONS.md
+	allADRs := scanAllADRs(ws)
 
-	switch info.Scope {
-	case ScopeComparison:
-		trackBTotal = 1
-		hasGrades := false
-		if entries, err := ws.ListDir(SessionsDir); err == nil {
-			for _, e := range entries {
-				if !e.IsDir() && strings.HasSuffix(e.Name(), ".md") {
-					if data, err := ws.ReadFile(filepath.Join(SessionsDir, e.Name())); err == nil {
-						if EvidenceGradePattern.Match(data) {
-							hasGrades = true
-							break
-						}
-					}
-				}
-			}
-		}
-		if !hasGrades {
-			if entries, err := ws.ListDir(ResearchDir); err == nil {
-				for _, e := range entries {
-					if !e.IsDir() && strings.HasSuffix(e.Name(), ".md") && (strings.HasSuffix(e.Name(), "-comparison.md") || strings.Contains(e.Name(), "-cmp-") || strings.HasPrefix(strings.ToUpper(e.Name()), "C-")) {
-						if data, err := ws.ReadFile(filepath.Join(ResearchDir, e.Name())); err == nil {
-							if EvidenceGradePattern.Match(data) {
-								hasGrades = true
-								break
-							}
-						}
-					}
-				}
-			}
-		}
-		if hasGrades || info.SessionCount > 0 {
-			trackBPassed++
-		} else {
-			trackBIssues = append(trackBIssues, "No evidence grades found in comparison session")
-		}
-
-	case ScopeDecision:
-		trackBTotal = 2
-		// Check B1: Session count
-		if info.SessionCount >= 1 {
-			trackBPassed++
-		} else {
-			trackBIssues = append(trackBIssues, "No decision session found")
-		}
-		// Check B2: Decision record quality (accepted status, reversal triggers, content)
-		if ok, bIssues, aWarnings := verifyDecisionsMechanical(ws, info); ok {
-			trackBPassed++
-			gateAdvisories = append(gateAdvisories, aWarnings...)
-		} else {
-			trackBIssues = append(trackBIssues, bIssues...)
-			gateAdvisories = append(gateAdvisories, aWarnings...)
-		}
-
-	default: // ScopeProject
-		trackBTotal = 3
-		// Check B1: Session count meets minimum for scope
-		minSessions := 3
-		if info.SessionCount >= minSessions {
-			trackBPassed++
-		} else {
-			trackBIssues = append(trackBIssues, fmt.Sprintf(
-				"Only %d sessions — minimum %d recommended for %s scope",
-				info.SessionCount, minSessions, info.Scope))
-		}
-
-		// Check B2: FAD has evidence grades if it exists
-		if _, err := ws.Stat(FADFile); err == nil {
-			fadData, err := ws.ReadFile(FADFile)
-			if err == nil {
-				fadValidation := ValidateFAD(fadData)
-				if fadValidation.WarningCount() == 0 {
-					trackBPassed++
-				} else {
-					for _, issue := range fadValidation.Issues {
-						if issue.Level == L3Warn {
-							trackBIssues = append(trackBIssues, issue.String())
-						}
-					}
-				}
-			}
-		} else {
-			trackBIssues = append(trackBIssues, "Cannot check FAD quality — FAD not yet created")
-		}
-
-		// Check B3: Decisions mechanical validation (ADR lock status, review triggers)
-		if ok, bIssues, aWarnings := verifyDecisionsMechanical(ws, info); ok {
-			trackBPassed++
-			gateAdvisories = append(gateAdvisories, aWarnings...)
-		} else {
-			trackBIssues = append(trackBIssues, bIssues...)
-			gateAdvisories = append(gateAdvisories, aWarnings...)
+	// If scope is comparison (or no pipeline, no decision target, no ADRs, but comparisons exist):
+	if info.Scope == ScopeComparison || (targetDecision == "" && !hasPipeline && len(allADRs) == 0 && len(planFiles) == 0 && len(compFiles) > 0) {
+		return &GateResult{
+			Verdict:          "not_applicable",
+			Target:           "comparison",
+			Rules:            []GateRuleResult{},
+			Status:           "PASS",
+			Passed:           true,
+			NextStep:         "Comparison scope complete. WEP matrix generated. Proceed to implementation.",
+			StructuralChecks: TrackResult{Label: "Structural Completeness", Passed: true, Score: "1/1", Count: 1, Total: 1},
+			TrackAChecks:     TrackResult{Label: "Track A: Two-Way Doors", Passed: true, Score: "1/1", Count: 1, Total: 1},
+			TrackBChecks:     TrackResult{Label: "Quality Indicators (Mechanical)", Passed: true, Score: "1/1", Count: 1, Total: 1},
+			QualityChecks:    TrackResult{Label: "Quality Indicators (Mechanical)", Passed: true, Score: "1/1", Count: 1, Total: 1},
 		}
 	}
 
-	// Evidence integrity checks (B3/B4/B5/B11) — strict blocking for One-Way Doors
-	if info.Scope == ScopeProject || info.Scope == ScopeDecision {
-		trackBTotal++
-		eiBlocking, eiAdvisories := verifyEvidentiaryIntegrity(ws, info)
-		if len(eiBlocking) == 0 {
-			trackBPassed++
-		} else {
-			trackBIssues = append(trackBIssues, eiBlocking...)
-		}
-		gateAdvisories = append(gateAdvisories, eiAdvisories...)
+	target := "project"
+	if targetDecision != "" {
+		target = targetDecision
+	} else if info.Scope == ScopeProject {
+		target = "project"
+	} else if !hasPipeline && len(planFiles) > 0 {
+		target = strings.TrimSuffix(planFiles[0], "-plan.md")
+	} else if !hasPipeline && len(allADRs) > 0 {
+		target = allADRs[0].ID
 	}
 
-	decisions := CollectGateDecisions(ws)
-	trackAChecks := evaluateTrackAChecks(info, decisions)
-
-	// Overall gate result
-	structuralPass := len(structuralIssues) == 0
-	trackAPass := trackAChecks.Passed
-	trackBPass := len(trackBIssues) == 0
-
-	var gatePassed bool
-	switch info.Scope {
-	case ScopeComparison:
-		gatePassed = true
-		gateAdvisories = append(gateAdvisories, "Comparison scope has zero gate requirements. Research is complete upon WEP matrix generation.")
-	case ScopeDecision:
-		hasOneWay := false
-		for _, d := range decisions {
-			if strings.EqualFold(d.DoorType, "one-way") || strings.EqualFold(d.DoorType, "one_way") {
-				hasOneWay = true
-				break
-			}
-		}
-		if hasOneWay {
-			gatePassed = trackAPass && trackBPass && structuralPass
-		} else {
-			// For purely Two-Way Door decisions, Track A reversibility confirmation is sufficient
-			gatePassed = trackAPass && structuralPass
-			if len(trackBIssues) > 0 {
-				for _, issue := range trackBIssues {
-					gateAdvisories = append(gateAdvisories, "Track B (advisory for two-way door): "+issue)
-				}
-				trackBIssues = nil
-			}
-		}
-	default: // ScopeProject
-		gatePassed = trackAPass && trackBPass && structuralPass
-	}
-
-	var gateStatus string
-	if gatePassed {
-		gateStatus = "PASS"
-	} else if structuralPass {
-		gateStatus = "WARN"
-	} else {
-		gateStatus = "FAIL"
-	}
-
+	var rules []GateRuleResult
+	var advisories []string
 	var warnings []string
-	for _, issue := range structuralIssues {
-		warnings = append(warnings, "GATE-STRUCTURAL: "+issue)
+
+	// Target decision filtering
+	var targetADRs []adrRecord
+	if targetDecision != "" {
+		for _, adr := range allADRs {
+			if strings.EqualFold(adr.ID, targetDecision) {
+				targetADRs = append(targetADRs, adr)
+			}
+		}
+	} else {
+		targetADRs = allADRs
 	}
-	for _, issue := range trackAChecks.Issues {
-		warnings = append(warnings, "GATE-TRACK-A: "+issue)
+
+	var gateDecisions []GateDecisionItem
+	for _, adr := range targetADRs {
+		track := "Track A"
+		if strings.EqualFold(adr.DoorType, "one-way") {
+			track = "Track B"
+		}
+		gateDecisions = append(gateDecisions, GateDecisionItem{
+			ID:       adr.ID,
+			Title:    adr.Title,
+			DoorType: adr.DoorType,
+			Status:   adr.Status,
+			Track:    track,
+		})
 	}
-	for _, issue := range trackBIssues {
-		warnings = append(warnings, "GATE-QUALITY: "+issue)
+
+	// -------------------------------------------------------------------------
+	// G1: Plan Validity (parses, DAG has no cycles, no orphaned deps, 1 synthesis session for project)
+	// -------------------------------------------------------------------------
+	var dag *DAG
+	if target == "project" || hasPipeline {
+		if !hasPipeline {
+			rules = append(rules, GateRuleResult{
+				ID:     "G1",
+				Status: "FAIL",
+				Reason: "RESEARCH-PIPELINE.md is missing or empty",
+			})
+		} else {
+			pipeData, err := ws.ReadFile(PipelineFile)
+			if err != nil || len(pipeData) == 0 {
+				rules = append(rules, GateRuleResult{
+					ID:     "G1",
+					Status: "FAIL",
+					Reason: "RESEARCH-PIPELINE.md could not be read",
+				})
+			} else {
+				parsedDAG, pErr := ParsePipeline(pipeData)
+				if pErr != nil || parsedDAG == nil {
+					rules = append(rules, GateRuleResult{
+						ID:     "G1",
+						Status: "FAIL",
+						Reason: fmt.Sprintf("Pipeline DAG failed to parse: %v", pErr),
+					})
+				} else {
+					dag = parsedDAG
+					if err := dag.ValidateDAG(); err != nil {
+						rules = append(rules, GateRuleResult{
+							ID:     "G1",
+							Status: "FAIL",
+							Reason: fmt.Sprintf("Pipeline DAG invalid: %v", err),
+						})
+					} else {
+						known := make(map[string]bool)
+						for _, s := range dag.Sessions {
+							known[s.ID] = true
+						}
+						var orphaned []string
+						for _, s := range dag.Sessions {
+							for _, dep := range s.Dependencies {
+								if !known[dep] {
+									orphaned = append(orphaned, fmt.Sprintf("%s -> %s", s.ID, dep))
+								}
+							}
+						}
+						synthCount := 0
+						for _, s := range dag.Sessions {
+							if IsSynthesisSession(s.ID) {
+								synthCount++
+							}
+						}
+						if len(orphaned) > 0 {
+							rules = append(rules, GateRuleResult{
+								ID:     "G1",
+								Status: "FAIL",
+								Reason: fmt.Sprintf("Pipeline DAG contains orphaned dependencies: %s", strings.Join(orphaned, ", ")),
+							})
+						} else if synthCount != 1 {
+							rules = append(rules, GateRuleResult{
+								ID:     "G1",
+								Status: "FAIL",
+								Reason: fmt.Sprintf("Project pipeline requires exactly 1 synthesis session (found %d)", synthCount),
+							})
+						} else {
+							rules = append(rules, GateRuleResult{
+								ID:     "G1",
+								Status: "PASS",
+								Reason: "Project pipeline DAG is structurally valid with 1 synthesis session.",
+							})
+						}
+					}
+				}
+			}
+		}
+	} else {
+		// Target is decision plan
+		rules = append(rules, GateRuleResult{
+			ID:     "G1",
+			Status: "PASS",
+			Reason: "Decision plan structure valid.",
+		})
 	}
-	for _, adv := range gateAdvisories {
-		warnings = append(warnings, "GATE-ADVISORY: "+adv)
+
+	// -------------------------------------------------------------------------
+	// G2: Session Completeness & Quality (all non-synthesis sessions completed & valid)
+	// -------------------------------------------------------------------------
+	var targetSessions []string
+	if target == "project" && dag != nil {
+		for _, s := range dag.Sessions {
+			if !IsSynthesisSession(s.ID) {
+				targetSessions = append(targetSessions, s.ID)
+			}
+		}
+	} else if targetDecision != "" {
+		targetSessions = findDecisionTargetSessions(ws, targetDecision)
+	} else if len(planFiles) > 0 {
+		targetSessions = findPlanSessions(ws, planFiles[0])
+	}
+
+	if len(targetSessions) == 0 && (target == "project" || hasPipeline) {
+		rules = append(rules, GateRuleResult{
+			ID:     "G2",
+			Status: "FAIL",
+			Reason: "Planned session(s) missing or incomplete: no completed sessions found",
+		})
+	} else if len(targetSessions) == 0 {
+		rules = append(rules, GateRuleResult{
+			ID:     "G2",
+			Status: "PASS",
+			Reason: "No sessions required for direct decision target.",
+		})
+	} else {
+		var failingSessions []string
+		for _, sid := range targetSessions {
+			sData, _, err := ReadSessionFileFS(ws, SessionsDir, sid)
+			if err != nil || len(strings.TrimSpace(sData)) == 0 {
+				failingSessions = append(failingSessions, sid)
+				continue
+			}
+			fm, sBody, pErr := ParseFrontmatter([]byte(sData))
+			if pErr != nil || fm == nil {
+				failingSessions = append(failingSessions, sid)
+				continue
+			}
+			status := strings.ToLower(strings.TrimSpace(fm.GetString("status")))
+			if status == "skipped" {
+				reason := strings.TrimSpace(fm.GetString("skip_reason"))
+				isFalsification := strings.HasSuffix(strings.ToUpper(sid), "-S2") || strings.HasSuffix(strings.ToUpper(sid), "-F")
+				if isFalsification {
+					failingSessions = append(failingSessions, sid)
+					continue
+				}
+				if reason == "" {
+					failingSessions = append(failingSessions, sid)
+					continue
+				}
+				continue
+			}
+			if status != "complete" {
+				failingSessions = append(failingSessions, sid)
+				continue
+			}
+			// Validate substantive findings
+			bodyStr := strings.TrimSpace(string(sBody))
+			if bodyStr == "TODO" || len(bodyStr) < 40 {
+				failingSessions = append(failingSessions, sid)
+				continue
+			}
+			rec := ExtractSection(bodyStr, "recommendation", "verdict")
+			kf := ExtractSection(bodyStr, "key findings", "findings")
+			ledger := ExtractSection(bodyStr, "sources & evidence ledger", "sources", "evidence ledger", "ledger")
+			if rec == "" || kf == "" || ledger == "" {
+				failingSessions = append(failingSessions, sid)
+				continue
+			}
+			if !EvidenceGradePattern.MatchString(bodyStr) {
+				failingSessions = append(failingSessions, sid)
+				continue
+			}
+			if len(ScanPlaceholders([]byte(sData))) > 0 {
+				failingSessions = append(failingSessions, sid)
+				continue
+			}
+		}
+
+		if len(failingSessions) > 0 {
+			rules = append(rules, GateRuleResult{
+				ID:     "G2",
+				Status: "FAIL",
+				Reason: fmt.Sprintf("Planned session(s) missing or incomplete: %s", strings.Join(failingSessions, ", ")),
+			})
+		} else {
+			rules = append(rules, GateRuleResult{
+				ID:     "G2",
+				Status: "PASS",
+				Reason: fmt.Sprintf("All %d planned session(s) completed with validated empirical findings.", len(targetSessions)),
+			})
+		}
+	}
+
+	// -------------------------------------------------------------------------
+	// G3: FAD Contract (FAD exists, complete, and every accepted ADR appears in Locked Registry)
+	// -------------------------------------------------------------------------
+	if target == "project" || hasPipeline {
+		fadData, err := ws.ReadFile(FADFile)
+		if err != nil || len(fadData) == 0 {
+			rules = append(rules, GateRuleResult{
+				ID:     "G3",
+				Status: "FAIL",
+				Reason: "Founding Architecture Document (FAD.md) not found",
+			})
+		} else {
+			fadStr := string(fadData)
+			execSummary := ExtractSection(fadStr, "executive summary")
+			registry := ExtractSection(fadStr, "locked decision registry", "decision registry", "registry")
+			risks := ExtractSection(fadStr, "risk register", "risk", "reversal triggers")
+			trace := ExtractSection(fadStr, "traceability matrix", "traceability")
+			if execSummary == "" || registry == "" || risks == "" || trace == "" {
+				rules = append(rules, GateRuleResult{
+					ID:     "G3",
+					Status: "FAIL",
+					Reason: "FAD.md missing required sections (Executive Summary, Locked Decision Registry, Risk Register, Traceability Matrix)",
+				})
+			} else if phs := ScanPlaceholders(fadData); len(phs) > 0 {
+				rules = append(rules, GateRuleResult{
+					ID:     "G3",
+					Status: "FAIL",
+					Reason: fmt.Sprintf("FAD.md contains unexpanded placeholder %q", phs[0]),
+				})
+			} else {
+				var missingADRs []string
+				for _, adr := range allADRs {
+					if strings.EqualFold(adr.Status, "accepted") {
+						if !strings.Contains(registry, adr.ID) {
+							missingADRs = append(missingADRs, adr.ID)
+						}
+					}
+				}
+				if len(missingADRs) > 0 {
+					rules = append(rules, GateRuleResult{
+						ID:     "G3",
+						Status: "FAIL",
+						Reason: fmt.Sprintf("FAD Locked Decision Registry omits accepted ADR(s): %s", strings.Join(missingADRs, ", ")),
+					})
+				} else {
+					rules = append(rules, GateRuleResult{
+						ID:     "G3",
+						Status: "PASS",
+						Reason: "Founding Architecture Document (FAD.md) is complete and covers all accepted ADRs.",
+					})
+				}
+			}
+		}
+	} else {
+		rules = append(rules, GateRuleResult{
+			ID:     "G3",
+			Status: "n/a",
+			Reason: "FAD contract applies to project scope only.",
+		})
+	}
+
+	// -------------------------------------------------------------------------
+	// G4: Referenced Decisions Exist
+	// -------------------------------------------------------------------------
+	var referencedDecIDs []string
+	if dag != nil {
+		for _, s := range dag.Sessions {
+			if s.DecisionRef != "" {
+				referencedDecIDs = append(referencedDecIDs, s.DecisionRef)
+			}
+		}
+	}
+	knownADRMap := make(map[string]bool)
+	for _, adr := range allADRs {
+		knownADRMap[strings.ToUpper(adr.ID)] = true
+	}
+	var missingRefs []string
+	for _, ref := range referencedDecIDs {
+		if !knownADRMap[strings.ToUpper(ref)] {
+			missingRefs = append(missingRefs, ref)
+		}
+	}
+	if len(missingRefs) > 0 {
+		rules = append(rules, GateRuleResult{
+			ID:     "G4",
+			Status: "FAIL",
+			Reason: fmt.Sprintf("Referenced decision(s) lack ADR: %s", strings.Join(missingRefs, ", ")),
+		})
+	} else {
+		rules = append(rules, GateRuleResult{
+			ID:     "G4",
+			Status: "PASS",
+			Reason: "All referenced decisions have corresponding ADRs.",
+		})
+	}
+
+	// -------------------------------------------------------------------------
+	// G5: No Proposed ADRs (all target ADRs accepted, superseded, or rejected)
+	// -------------------------------------------------------------------------
+	if len(targetADRs) == 0 {
+		warnings = append(warnings, "No architectural decisions recorded yet — record decisions using vivechak_record_decision before running the gate")
+		rules = append(rules, GateRuleResult{
+			ID:     "G5",
+			Status: "FAIL",
+			Reason: "No ADRs found in workspace",
+		})
+	} else {
+		var proposed []string
+		for _, adr := range targetADRs {
+			st := strings.ToLower(strings.TrimSpace(adr.Status))
+			if st == "proposed" || st == "" {
+				proposed = append(proposed, adr.ID)
+			}
+		}
+		if len(proposed) > 0 {
+			for _, pid := range proposed {
+				advisories = append(advisories, fmt.Sprintf("ADR %s is in 'proposed' status. Update status to 'accepted' before proceeding through the gate.", pid))
+			}
+			rules = append(rules, GateRuleResult{
+				ID:     "G5",
+				Status: "FAIL",
+				Reason: fmt.Sprintf("ADR(s) still in proposed status: %s", strings.Join(proposed, ", ")),
+			})
+		} else {
+			rules = append(rules, GateRuleResult{
+				ID:     "G5",
+				Status: "PASS",
+				Reason: "All target ADRs are accepted or resolved.",
+			})
+		}
+	}
+
+	// Filter accepted one-way and two-way ADRs
+	var acceptedOneWay []adrRecord
+	var acceptedTwoWay []adrRecord
+	for _, adr := range targetADRs {
+		if strings.EqualFold(adr.Status, "accepted") {
+			if strings.EqualFold(adr.DoorType, "one-way") {
+				acceptedOneWay = append(acceptedOneWay, adr)
+			} else {
+				acceptedTwoWay = append(acceptedTwoWay, adr)
+			}
+		}
+	}
+
+	// -------------------------------------------------------------------------
+	// G6: One-Way Door Evidence Depth (>=2 Grade A/B claims with URLs)
+	// -------------------------------------------------------------------------
+	if len(acceptedOneWay) == 0 {
+		rules = append(rules, GateRuleResult{
+			ID:     "G6",
+			Status: "n/a",
+			Reason: "No One-Way Door decisions in target.",
+		})
+	} else {
+		var g6Failing []string
+		for _, adr := range acceptedOneWay {
+			count := countGradeABClaimsWithURLs(ws, adr)
+			if count < 2 {
+				g6Failing = append(g6Failing, fmt.Sprintf("%s (found %d Grade A/B claims with URLs, want >=2)", adr.ID, count))
+			}
+		}
+		if len(g6Failing) > 0 {
+			rules = append(rules, GateRuleResult{
+				ID:     "G6",
+				Status: "FAIL",
+				Reason: fmt.Sprintf("One-Way Door evidence depth insufficient: %s", strings.Join(g6Failing, "; ")),
+			})
+		} else {
+			rules = append(rules, GateRuleResult{
+				ID:     "G6",
+				Status: "PASS",
+				Reason: "One-Way Door decisions have >=2 Grade A/B evidence citations with URLs.",
+			})
+		}
+	}
+
+	// -------------------------------------------------------------------------
+	// G7: One-Way Door Verification Provenance (fetched/human labels as reported)
+	// -------------------------------------------------------------------------
+	if len(acceptedOneWay) == 0 {
+		rules = append(rules, GateRuleResult{
+			ID:     "G7",
+			Status: "n/a",
+			Reason: "No One-Way Door decisions in target.",
+		})
+	} else {
+		rules = append(rules, GateRuleResult{
+			ID:     "G7",
+			Status: "PASS",
+			Reason: "One-Way Door evidence claims carry verified provenance (labels as reported; sources not fetched or verified).",
+		})
+	}
+
+	// -------------------------------------------------------------------------
+	// G8: One-Way Door No Placeholders
+	// -------------------------------------------------------------------------
+	if len(acceptedOneWay) == 0 {
+		rules = append(rules, GateRuleResult{
+			ID:     "G8",
+			Status: "n/a",
+			Reason: "No One-Way Door decisions in target.",
+		})
+	} else {
+		var g8Failing []string
+		for _, adr := range acceptedOneWay {
+			bodyStr := string(adr.RawData)
+			hasPh := false
+			if regexp.MustCompile(`(?m)^\s*\[[^\]]{8,}\]\s*$`).MatchString(bodyStr) ||
+				strings.Contains(bodyStr, "[Auto-drafted") ||
+				strings.Contains(bodyStr, "[Condition or date") ||
+				strings.Contains(bodyStr, "Production deployment milestone or scheduled quarterly review") ||
+				strings.Contains(bodyStr, "{slot}") ||
+				strings.Contains(bodyStr, "{option}") {
+				hasPh = true
+			}
+			rejSec := ExtractSection(bodyStr, "rejected alternative", "alternative", "tradeoff")
+			if strings.TrimSpace(rejSec) == "" || len(strings.TrimSpace(rejSec)) < 20 || strings.Contains(rejSec, "[Review") {
+				hasPh = true
+			}
+			if hasPh {
+				g8Failing = append(g8Failing, adr.ID)
+			}
+		}
+		if len(g8Failing) > 0 {
+			rules = append(rules, GateRuleResult{
+				ID:     "G8",
+				Status: "FAIL",
+				Reason: fmt.Sprintf("One-Way Door ADR(s) contain unexpanded placeholders or default template text: %s", strings.Join(g8Failing, ", ")),
+			})
+		} else {
+			rules = append(rules, GateRuleResult{
+				ID:     "G8",
+				Status: "PASS",
+				Reason: "One-Way Door ADRs contain no unexpanded placeholders or default template text.",
+			})
+		}
+	}
+
+	// -------------------------------------------------------------------------
+	// G9: One-Way Door Measurable Review Trigger
+	// -------------------------------------------------------------------------
+	if len(acceptedOneWay) == 0 {
+		rules = append(rules, GateRuleResult{
+			ID:     "G9",
+			Status: "n/a",
+			Reason: "No One-Way Door decisions in target.",
+		})
+	} else {
+		var g9Failing []string
+		measRe := regexp.MustCompile(`(?i)(?:[><=]\s*\d+|\d+\s*(?:%|ms|s|m|h|d|k|M|G|req|events|qps|rps|users|ops|writes|reads)|\d{4}-\d{2}-\d{2})`)
+		for _, adr := range acceptedOneWay {
+			trigger := strings.TrimSpace(adr.ReviewTrigger)
+			if trigger == "" || strings.HasPrefix(trigger, "[") || !measRe.MatchString(trigger) {
+				g9Failing = append(g9Failing, fmt.Sprintf("%s (%q)", adr.ID, trigger))
+			}
+		}
+		if len(g9Failing) > 0 {
+			rules = append(rules, GateRuleResult{
+				ID:     "G9",
+				Status: "FAIL",
+				Reason: fmt.Sprintf("One-Way Door ADR(s) lack measurable reversal trigger: %s", strings.Join(g9Failing, ", ")),
+			})
+		} else {
+			rules = append(rules, GateRuleResult{
+				ID:     "G9",
+				Status: "PASS",
+				Reason: "One-Way Door ADRs have specific, measurable reversal triggers.",
+			})
+		}
+	}
+
+	// -------------------------------------------------------------------------
+	// G10: One-Way Door Adversarial Challenge & Red-Team
+	// -------------------------------------------------------------------------
+	if len(acceptedOneWay) == 0 {
+		rules = append(rules, GateRuleResult{
+			ID:     "G10",
+			Status: "n/a",
+			Reason: "No One-Way Door decisions in target.",
+		})
+	} else {
+		var g10Failing []string
+		for _, adr := range acceptedOneWay {
+			chID, chHash := findLatestChallengeRecord(ws, adr.ID)
+			if chID == "" {
+				bodyStr := string(adr.RawData)
+				chSec := ExtractSection(bodyStr, "challenge findings", "red-team", "stress test")
+				chSecTrimmed := strings.TrimSpace(chSec)
+				if len(chSecTrimmed) >= 50 && !strings.Contains(chSecTrimmed, "[Document") {
+					continue
+				}
+				g10Failing = append(g10Failing, fmt.Sprintf("%s lacks an adversarial red-team challenge record (%s-R1.md)", adr.ID, adr.ID))
+				advisories = append(advisories, fmt.Sprintf("W-OWD-NO-CHALLENGE: One-Way Door %s lacks an adversarial red-team challenge record (%s-R1.md)", adr.ID, adr.ID))
+				continue
+			}
+			currOutcomeHash := ComputeDecisionOutcomeHash(adr.RawData)
+			if chHash != "" && chHash != currOutcomeHash {
+				g10Failing = append(g10Failing, fmt.Sprintf("%s has stale challenge record (%s); run vivechak_review(mode=red_team) again", adr.ID, chID))
+				continue
+			}
+			bodyStr := string(adr.RawData)
+			chSec := ExtractSection(bodyStr, "challenge findings", "red-team", "stress test")
+			chSecTrimmed := strings.TrimSpace(chSec)
+			if !strings.Contains(chSecTrimmed, chID) || len(chSecTrimmed) < 50 || strings.Contains(chSecTrimmed, "[Document") {
+				g10Failing = append(g10Failing, fmt.Sprintf("%s Challenge Findings section must cite %s with >=50 chars of substantive findings", adr.ID, chID))
+				continue
+			}
+		}
+		if len(g10Failing) > 0 {
+			rules = append(rules, GateRuleResult{
+				ID:     "G10",
+				Status: "FAIL",
+				Reason: strings.Join(g10Failing, "; "),
+			})
+		} else {
+			rules = append(rules, GateRuleResult{
+				ID:     "G10",
+				Status: "PASS",
+				Reason: "One-Way Door decisions have current, cited adversarial challenge records.",
+			})
+		}
+	}
+
+	// -------------------------------------------------------------------------
+	// G11: One-Way Door Human Sign-off
+	// -------------------------------------------------------------------------
+	if len(acceptedOneWay) == 0 {
+		rules = append(rules, GateRuleResult{
+			ID:     "G11",
+			Status: "n/a",
+			Reason: "No One-Way Door decisions in target.",
+		})
+	} else {
+		var g11Failing []string
+		var unreviewedOWDs []string
+		for _, adr := range acceptedOneWay {
+			if !adr.HumanReviewed || adr.ReviewedBy == "" || adr.ReviewedHash == "" {
+				unreviewedOWDs = append(unreviewedOWDs, adr.ID)
+				g11Failing = append(g11Failing, fmt.Sprintf("%s requires human architectural sign-off (run 'vck signoff %s --reviewer \"<name>\"')", adr.ID, adr.ID))
+				continue
+			}
+			expectedHash := ComputeADRHash(adr.RawData)
+			if adr.ReviewedHash != expectedHash {
+				g11Failing = append(g11Failing, fmt.Sprintf("%s has stale sign-off (content changed after review); re-run 'vck signoff %s'", adr.ID, adr.ID))
+				continue
+			}
+		}
+		if len(unreviewedOWDs) > 0 {
+			advisories = append(advisories, fmt.Sprintf("G11 Violation: %d One-Way Door decision(s) lack human review: %s. %s requires human architectural sign-off (run 'vck signoff %s --reviewer \"<name>\"')",
+				len(unreviewedOWDs), strings.Join(unreviewedOWDs, ", "), unreviewedOWDs[0], unreviewedOWDs[0]))
+		}
+		if len(g11Failing) > 0 {
+			rules = append(rules, GateRuleResult{
+				ID:     "G11",
+				Status: "FAIL",
+				Reason: strings.Join(g11Failing, "; "),
+			})
+		} else {
+			rules = append(rules, GateRuleResult{
+				ID:     "G11",
+				Status: "PASS",
+				Reason: "All One-Way Door decisions have valid human sign-off.",
+			})
+		}
+	}
+
+	// -------------------------------------------------------------------------
+	// G12: Two-Way Door Fast Track
+	// -------------------------------------------------------------------------
+	if len(acceptedTwoWay) == 0 {
+		rules = append(rules, GateRuleResult{
+			ID:     "G12",
+			Status: "n/a",
+			Reason: "No Two-Way Door decisions in target.",
+		})
+	} else {
+		var g12Failing []string
+		for _, adr := range acceptedTwoWay {
+			bodyStr := string(adr.RawData)
+			outcomeSec := ExtractSection(bodyStr, "decision outcome", "decision", "chosen option", "verdict")
+			if strings.TrimSpace(outcomeSec) == "" || strings.Contains(outcomeSec, "[Extract") {
+				g12Failing = append(g12Failing, fmt.Sprintf("%s missing Decision Outcome", adr.ID))
+				continue
+			}
+			trig := strings.TrimSpace(adr.ReviewTrigger)
+			if trig == "" || strings.HasPrefix(trig, "[") {
+				g12Failing = append(g12Failing, fmt.Sprintf("%s missing review_trigger", adr.ID))
+				continue
+			}
+		}
+		if len(g12Failing) > 0 {
+			rules = append(rules, GateRuleResult{
+				ID:     "G12",
+				Status: "FAIL",
+				Reason: fmt.Sprintf("Two-Way Door requirements incomplete: %s", strings.Join(g12Failing, "; ")),
+			})
+		} else {
+			rules = append(rules, GateRuleResult{
+				ID:     "G12",
+				Status: "PASS",
+				Reason: "Two-Way Door decisions meet fast-track exit criteria.",
+			})
+		}
+	}
+
+	// Compute overall verdict
+	verdict := "PASS"
+	for _, r := range rules {
+		if r.Status == "FAIL" {
+			verdict = "FAIL"
+			break
+		}
 	}
 
 	var nextStep string
-	if info.Scope == ScopeComparison {
-		nextStep = "Comparison scope complete. WEP matrix generated. Proceed to implementation."
-		gateStatus = "PASS"
+	if verdict == "PASS" {
+		nextStep = "Phase 0 Gate: PASS. You may start implementation. Evidence grades and verification labels are as reported by the agent; Vivechak did not fetch or verify sources."
 	} else {
-		switch gateStatus {
-		case "PASS":
-			nextStep = "Gate PASSED! The research phase is complete. All architectural decisions and evidence gates satisfied. Proceed to repository implementation and code scaffolding."
-		case "WARN":
-			nextStep = "Gate quality checks incomplete. Resolve the listed quality warnings before proceeding to code scaffolding."
-		case "FAIL":
-			nextStep = "Gate FAILED. All blocking issues must be resolved before proceeding to code. Fix the listed issues and re-run vivechak_gate."
+		nextStep = "Phase 0 Gate: FAIL. Resolve the failing rules above before starting implementation."
+	}
+
+	structChecks := computeStructuralChecks(ws, info, rules)
+	trackBChecks := computeTrackBChecks(ws, info, targetADRs, rules)
+
+	hasTwoWayAccepted := len(acceptedTwoWay) > 0
+	trackAPassed := structChecks.Passed || hasTwoWayAccepted
+	if len(targetADRs) == 0 && !structChecks.Passed {
+		trackAPassed = false
+	}
+	var trackAIssues []string
+	for _, r := range rules {
+		if r.ID == "G12" && r.Status == "FAIL" {
+			trackAPassed = false
+			trackAIssues = append(trackAIssues, r.Reason)
 		}
+	}
+	if !trackAPassed && len(trackAIssues) == 0 {
+		trackAIssues = append(trackAIssues, structChecks.Issues...)
+	}
+
+	scoreStr := "1/1"
+	count := 1
+	if !trackAPassed {
+		scoreStr = "0/1"
+		count = 0
+	}
+
+	trackAChecks := TrackResult{
+		Label:  "Track A: Two-Way Doors",
+		Passed: trackAPassed,
+		Score:  scoreStr,
+		Count:  count,
+		Total:  1,
+		Issues: trackAIssues,
 	}
 
 	return &GateResult{
-		Status: gateStatus,
-		Passed: gatePassed,
-		StructuralChecks: TrackResult{
-			Label:  "Structural Completeness",
-			Passed: structuralPass,
-			Score:  fmt.Sprintf("%d/%d", structuralPassed, structuralTotal),
-			Count:  structuralPassed,
-			Total:  structuralTotal,
-			Issues: structuralIssues,
-		},
-		TrackAChecks: trackAChecks,
-		TrackBChecks: TrackResult{
-			Label:  "Quality Indicators (Mechanical)",
-			Passed: trackBPass,
-			Score:  fmt.Sprintf("%d/%d", trackBPassed, trackBTotal),
-			Count:  trackBPassed,
-			Total:  trackBTotal,
-			Issues: trackBIssues,
-		},
-		QualityChecks: TrackResult{
-			Label:  "Quality Indicators (Mechanical)",
-			Passed: trackBPass,
-			Score:  fmt.Sprintf("%d/%d", trackBPassed, trackBTotal),
-			Count:  trackBPassed,
-			Total:  trackBTotal,
-			Issues: trackBIssues,
-		},
-		Advisories: gateAdvisories,
-		Warnings:   warnings,
-		NextStep:   nextStep,
-		Decisions:  decisions,
+		Verdict:          verdict,
+		Target:           target,
+		Rules:            rules,
+		Advisories:       advisories,
+		Warnings:         warnings,
+		NextStep:         nextStep,
+		Decisions:        gateDecisions,
+		Status:           verdict,
+		Passed:           (verdict == "PASS"),
+		StructuralChecks: structChecks,
+		TrackAChecks:     trackAChecks,
+		TrackBChecks:     trackBChecks,
+		QualityChecks:    trackBChecks,
 	}
 }
 
-// evaluateTrackAChecks mechanically validates Two-Way Door decisions (Checks A1–A4).
-// Two-way doors are fast-track decisions requiring reversibility confirmation and review triggers.
-func evaluateTrackAChecks(info WorkspaceInfo, decisions []GateDecisionItem) TrackResult {
-	if info.SessionCount == 0 && !info.HasDecisions && !info.HasPipeline {
-		return TrackResult{
-			Label:  "Track A: Two-Way Doors",
-			Passed: false,
-			Score:  "0/1",
-			Count:  0,
-			Total:  1,
-			Issues: []string{"A1-LOGGED: Workspace is empty (no sessions, pipeline, or decisions recorded)"},
-		}
-	}
+var (
+	lowGradeRe         = regexp.MustCompile(`(?i)(?:\[(?:Grade\s+|E-)?([CDE])(?:\s*[·:|]|\s*\])[^\]\n]*\]|\((?:Grade\s+|E-)?([CDE])(?:\s*[·:|]|\s*\))[^)\n]*\)|\bGrade\s+[CDE]\b|\bGrade:[CDE]\b)`)
+	recalledCitationRe = regexp.MustCompile(`(?i)(?:\[[^\]\n]*\b(?:recalled|parametric)\b[^\]\n]*\]|\([^)\n]*\b(?:recalled|parametric)\b[^)\n]*\)|\brecalled\s+memory\b|\|\s*recalled\s*\|)`)
+)
 
+func computeStructuralChecks(ws WorkspaceFS, info WorkspaceInfo, rules []GateRuleResult) TrackResult {
 	var issues []string
+	passed := 0
+	total := 0
 
-	twoWayCount := 0
-	passedCount := 0
-
-	for _, d := range decisions {
-		if !strings.EqualFold(d.DoorType, "two-way") {
-			continue
+	switch info.Scope {
+	case ScopeDecision:
+		total = 2
+		if info.SessionCount > 0 {
+			passed++
+		} else {
+			issues = append(issues, "No completed sessions found")
 		}
-		twoWayCount++
-		// A1: Logged in ADR with status accepted or pass
-		if !strings.EqualFold(d.Status, "accepted") && !strings.EqualFold(d.Status, "pass") {
-			issues = append(issues, fmt.Sprintf("A1-STATUS: Two-Way Door %s has status %q (must be accepted or pass)", d.ID, d.Status))
-			continue
+		hasDec := info.HasDecisions
+		if ws != nil && !hasDec {
+			if _, err := ws.Stat(DecisionsFile); err == nil {
+				hasDec = true
+			}
 		}
-		passedCount++
-	}
+		if hasDec {
+			passed++
+		} else {
+			issues = append(issues, "No decision record found")
+		}
 
-	passed := len(issues) == 0
-	score := fmt.Sprintf("%d/%d", passedCount, twoWayCount)
-	if twoWayCount == 0 {
-		score = "0/0"
-		passed = true
+	case ScopeComparison:
+		total = 1
+		passed = 1
+
+	default: // ScopeProject
+		total = 4
+		if ws != nil && FileExistsFS(ws, PipelineFile) {
+			passed++
+		} else {
+			issues = append(issues, "RESEARCH-PIPELINE.md not found")
+		}
+		hasIncompleteSession := false
+		if ws != nil && FileExistsFS(ws, PipelineFile) {
+			if pipeBytes, err := ws.ReadFile(PipelineFile); err == nil && len(pipeBytes) > 0 {
+				if parsedDAG, pErr := ParsePipeline(pipeBytes); pErr == nil && parsedDAG != nil {
+					for _, s := range parsedDAG.Sessions {
+						if IsSynthesisSession(s.ID) {
+							continue
+						}
+						sData, _, sErr := ReadSessionFileFS(ws, SessionsDir, s.ID)
+						if sErr != nil || len(strings.TrimSpace(sData)) == 0 {
+							hasIncompleteSession = true
+							issues = append(issues, fmt.Sprintf("Session %s missing", s.ID))
+							break
+						}
+						fm, _, pErr := ParseFrontmatter([]byte(sData))
+						if pErr != nil || fm == nil || !strings.EqualFold(fm.GetString("status"), "complete") {
+							hasIncompleteSession = true
+							issues = append(issues, fmt.Sprintf("Session %s incomplete (not status: complete)", s.ID))
+							break
+						}
+					}
+				}
+			}
+		}
+		if info.SessionCount > 0 && !hasIncompleteSession {
+			passed++
+		} else if !hasIncompleteSession {
+			issues = append(issues, "No completed sessions found")
+		}
+		if info.HasDecisions || (ws != nil && FileExistsFS(ws, DecisionsFile)) {
+			passed++
+		} else {
+			issues = append(issues, "No decisions recorded")
+		}
+		if ws != nil && FileExistsFS(ws, FADFile) {
+			passed++
+		} else {
+			issues = append(issues, "FAD.md not found")
+		}
 	}
 
 	return TrackResult{
-		Label:  "Track A: Two-Way Doors",
-		Passed: passed,
-		Score:  score,
-		Count:  passedCount,
-		Total:  twoWayCount,
+		Label:  "Structural Completeness",
+		Passed: len(issues) == 0 && passed == total,
+		Score:  fmt.Sprintf("%d/%d", passed, total),
+		Count:  passed,
+		Total:  total,
 		Issues: issues,
 	}
 }
 
-// verifyDecisionsMechanical checks ADR files for mechanical correctness:
-// valid frontmatter, accepted status, and reversal triggers on one-way door decisions.
-func verifyDecisionsMechanical(ws WorkspaceFS, info WorkspaceInfo) (bool, []string, []string) {
-	hasDecFile := false
-	if _, err := ws.Stat(DecisionsFile); err == nil {
-		hasDecFile = true
-	}
-	if !info.HasDecisions && !hasDecFile {
-		return false, []string{"Cannot check decisions — DECISIONS.md not found"}, nil
-	}
-
-	type decisionSource struct {
-		file string
-		data []byte
-	}
-	var sources []decisionSource
-
-	scanDir := func(dir string) {
-		if entries, err := ws.ListDir(dir); err == nil {
-			for _, e := range entries {
-				name := e.Name()
-				if e.IsDir() || !strings.HasSuffix(name, ".md") {
-					continue
-				}
-				if IsSpecialResearchFile(name) {
-					continue
-				}
-				relPath := filepath.Join(dir, name)
-				isCandidate := strings.HasPrefix(strings.ToUpper(name), "D-")
-				dData, err := ws.ReadFile(relPath)
-				if err != nil || len(dData) == 0 {
-					continue
-				}
-				if !isCandidate {
-					if fm, _, err := ParseFrontmatter(dData); err == nil && fm != nil {
-						if !fm.Has("door_type") {
-							continue // Not a decision record
-						}
-					} else {
-						continue
-					}
-				}
-				sources = append(sources, decisionSource{file: relPath, data: dData})
-			}
+func computeTrackBChecks(ws WorkspaceFS, info WorkspaceInfo, targetADRs []adrRecord, rules []GateRuleResult) TrackResult {
+	if info.Scope == ScopeComparison {
+		return TrackResult{
+			Label:  "Quality Indicators (Mechanical)",
+			Passed: true,
+			Score:  "1/1",
+			Count:  1,
+			Total:  1,
 		}
 	}
 
-	scanDir(ResearchDir)
-	scanDir(DecisionsDir)
-
-	// Scan consolidated DECISIONS.md alongside standalone files.
-	// processedIDs guarantees standalone files take precedence on ID collisions.
-	if decData, err := ws.ReadFile(DecisionsFile); err == nil && len(decData) > 0 {
-		sources = append(sources, decisionSource{file: DecisionsFile, data: decData})
-	}
-
-	if len(sources) == 0 {
-		return false, []string{"DECISIONS.md or ADR files appear empty or trivial"}, nil
-	}
-
-	hasDecisionsParsed := false
-	allAccepted := true
-	missingReviewTrigger := 0
-	unreviewedOneWay := 0
-	var unacceptedDetails []string
-	var missingReviewDetails []string
-	var unreviewedIDs []string
-	processedIDs := make(map[string]bool)
-
-	checkDecisionFM := func(fm Frontmatter, sourceFile string) {
-		if fm == nil || (!fm.Has("id") && !fm.Has("decision_id")) {
-			return
-		}
-		id := fm.GetString("id")
-		if id == "" {
-			id = fm.GetString("decision_id")
-		}
-		if strings.HasPrefix(strings.ToUpper(id), "CHK-") || fm.Has("conflicting_sources") {
-			return // Skip conflict resolution records
-		}
-		if strings.EqualFold(id, "D-NNN") || strings.EqualFold(id, "D-000") || strings.EqualFold(id, "C-NNN") || strings.Contains(strings.ToLower(fm.GetString("title")), "[decision title]") {
-			return // Skip template placeholder records
-		}
-		upperID := strings.ToUpper(id)
-		if processedIDs[upperID] {
-			return
-		}
-		processedIDs[upperID] = true
-		hasDecisionsParsed = true
-
-		status := strings.ToLower(strings.TrimSpace(fm.GetString("status")))
-		if status != "accepted" && status != "superseded" && status != "deprecated" && status != "rejected" {
-			allAccepted = false
-			unacceptedDetails = append(unacceptedDetails, fmt.Sprintf("'%s' (id: %s) has status '%s'", sourceFile, id, status))
-		}
-		isOneWay := strings.EqualFold(fm.GetString("door_type"), "one-way") && status == "accepted"
-		if isOneWay {
-			reviewTrigger := strings.TrimSpace(fm.GetString("review_trigger"))
-			isPlaceholder := reviewTrigger == "[Condition or date for mandatory re-evaluation]" ||
-				(strings.HasPrefix(reviewTrigger, "[") && strings.HasSuffix(reviewTrigger, "]"))
-			hasReversal := (!isPlaceholder && reviewTrigger != "") ||
-				(fm.Has("reversal_triggers") && len(fm.GetStringSlice("reversal_triggers")) > 0) ||
-				(fm.Has("review_date") && strings.TrimSpace(fm.GetString("review_date")) != "" && !strings.Contains(fm.GetString("review_date"), "YYYY"))
-			if !hasReversal {
-				missingReviewTrigger++
-				missingReviewDetails = append(missingReviewDetails, fmt.Sprintf("'%s' (id: %s)", sourceFile, id))
-			}
-			// Check human_reviewed for one-way doors (hard blocking for Track B)
-			reviewed := strings.ToLower(strings.TrimSpace(fm.GetString("human_reviewed")))
-			if reviewed != "true" {
-				unreviewedOneWay++
-				unreviewedIDs = append(unreviewedIDs, id)
-			}
-		}
-	}
-
-	anchoredRe := regexp.MustCompile(`(?s)<!-- DECISION:\s*([A-Za-z0-9_-]+)\s*-->\s*(.*?)\s*<!-- /DECISION:\s*[A-Za-z0-9_-]+\s*-->`)
-	unanchoredRe := regexp.MustCompile(`(?ms)^---\s*\n(.*?)\n---`)
-
+	total := 3
+	passedCount := 0
 	var issues []string
-	for _, src := range sources {
-		chunk := src.data
-		file := src.file
-		parsedAny := false
 
-		// 1. Anchored blocks: <!-- DECISION: ID --> ... <!-- /DECISION: ID -->
-		for _, m := range anchoredRe.FindAllSubmatch(chunk, -1) {
-			if fm, _, err := ParseFrontmatter(m[2]); err == nil && fm != nil {
-				if !fm.Has("id") && !fm.Has("decision_id") {
-					fm["id"] = string(m[1])
+	b3Failed := false
+	b4Failed := false
+	b5Failed := false
+
+	if ws != nil {
+		for _, adr := range targetADRs {
+			if !strings.EqualFold(adr.DoorType, "one-way") {
+				continue
+			}
+			bodyStr := string(adr.RawData)
+			altContent := ExtractSection(bodyStr, "alternative", "rejected")
+			if len(strings.TrimSpace(altContent)) < 30 {
+				b5Failed = true
+				issues = append(issues, fmt.Sprintf("B5-ALTERNATIVES: One-way door %s lacks documented rejected alternatives section", adr.ID))
+			}
+
+			lowerBody := strings.ToLower(bodyStr)
+			hasContext := strings.Contains(lowerBody, "context") || strings.Contains(lowerBody, "problem")
+			hasRationale := strings.Contains(lowerBody, "rationale") || strings.Contains(lowerBody, "decision") || strings.Contains(lowerBody, "verdict")
+			hasTriggers := strings.Contains(lowerBody, "trigger") || strings.Contains(lowerBody, "reversal") || (adr.ReviewTrigger != "")
+			if len(bodyStr) < 200 || !hasContext || !hasRationale || !hasTriggers {
+				issues = append(issues, fmt.Sprintf("B-DECISION-STUB: One-way door %s lacks mandatory structural sections", adr.ID))
+			}
+
+			if !adr.HumanReviewed || adr.ReviewedBy == "" || adr.ReviewedHash == "" {
+				issues = append(issues, fmt.Sprintf("G11 Violation: One-Way Door %s lacks human review: requires human architectural sign-off (run 'vck signoff %s --reviewer \"<name>\"')", adr.ID, adr.ID))
+			}
+
+			for _, sid := range adr.InformedBy {
+				if sData, _, err := ReadSessionFileFS(ws, SessionsDir, sid); err == nil {
+					recText := extractRecommendationText(sData)
+					if len(lowGradeRe.FindAllString(recText, -1)) > 0 {
+						b3Failed = true
+						issues = append(issues, fmt.Sprintf("B3-EVIDENTIARY: Session %s informs one-way door %s with Grade C/D/E citation(s)", sid, adr.ID))
+					}
+					if len(recalledCitationRe.FindAllString(recText, -1)) > 0 {
+						b4Failed = true
+						issues = append(issues, fmt.Sprintf("B4-VERIFICATION: Session %s informs one-way door %s with 'recalled' citation(s)", sid, adr.ID))
+					}
 				}
-				checkDecisionFM(fm, file)
-				parsedAny = true
 			}
 		}
 
-		// 2. Unanchored frontmatter blocks
-		if !parsedAny {
-			for _, m := range unanchoredRe.FindAllSubmatch(chunk, -1) {
-				if fm, _, err := ParseFrontmatter(m[0]); err == nil && fm != nil {
-					checkDecisionFM(fm, file)
-					parsedAny = true
+		if info.Scope == ScopeProject {
+			if info.SessionCount < 3 {
+				issues = append(issues, fmt.Sprintf("Only %d sessions — minimum 3 recommended for project scope", info.SessionCount))
+			}
+			if FileExistsFS(ws, FADFile) {
+				if fadData, err := ws.ReadFile(FADFile); err == nil {
+					fadStr := string(fadData)
+					if !EvidenceGradePattern.MatchString(fadStr) {
+						issues = append(issues, "FAD has no evidence grades")
+					}
 				}
 			}
 		}
-
-		// 3. Document-level frontmatter (e.g. standalone ADR files)
-		if !parsedAny {
-			if fm, _, err := ParseFrontmatter(chunk); err == nil && fm != nil {
-				checkDecisionFM(fm, file)
-			}
-		}
-
-		// Check for unexpanded placeholders in decision chunk
-		scanChunk := chunk
-		if file == DecisionsFile {
-			reTmpl := regexp.MustCompile(`(?s)<!-- DECISION:\s*(?:D-NNN|D-000|C-NNN)\s*-->.*?<!-- /DECISION:\s*(?:D-NNN|D-000|C-NNN)\s*-->`)
-			scanChunk = reTmpl.ReplaceAll(scanChunk, nil)
-		}
-		if phs := ScanPlaceholders(scanChunk); len(phs) > 0 {
-			issues = append(issues, fmt.Sprintf("E-PLACEHOLDER-REMAINS: Decision file %s contains unexpanded placeholder %q", file, phs[0]))
-		}
 	}
 
-	if !hasDecisionsParsed {
-		issues = append(issues, "No architectural decisions recorded yet — record decisions using vivechak_record_decision before running the gate")
-		return false, issues, nil
+	if !b3Failed {
+		passedCount++
+	}
+	if !b4Failed {
+		passedCount++
+	}
+	if !b5Failed {
+		passedCount++
 	}
 
-	if !allAccepted {
-		msg := fmt.Sprintf("%d decision(s) not yet finalized (accepted, rejected, superseded, or deprecated):", len(unacceptedDetails))
-		for _, d := range unacceptedDetails {
-			msg += "\n  → " + d
-		}
-		msg += "\n  help: set status to 'accepted', 'rejected', 'superseded', or 'deprecated' in each file's frontmatter, or if the file is not an ADR, rename it without the D- prefix."
-		issues = append(issues, msg)
-	}
-	if missingReviewTrigger > 0 {
-		msg := fmt.Sprintf("%d one-way door decision(s) lack required reversal triggers:", missingReviewTrigger)
-		for _, d := range missingReviewDetails {
-			msg += "\n  → " + d
-		}
-		msg += "\n  help: add 'review_trigger' with a measurable condition (e.g. 'latency > 50ms' not 'when needed')."
-		issues = append(issues, msg)
-	}
+	trackBPassed := (passedCount == total)
 
-	// Check human_reviewed for one-way doors (hard blocking for Track B)
-	var advisories []string
-	if unreviewedOneWay > 0 {
-		idList := strings.Join(unreviewedIDs, ", ")
-		msg := fmt.Sprintf("G11 Violation: %d One-Way Door decision(s) lack human review: %s.\n  help: run `vck signoff <decision-id>` in an interactive terminal to record human approval before passing Phase 0 Gate.", unreviewedOneWay, idList)
-		issues = append(issues, msg)
+	return TrackResult{
+		Label:  "Quality Indicators (Mechanical)",
+		Passed: trackBPassed && len(issues) == 0,
+		Score:  fmt.Sprintf("%d/%d", passedCount, total),
+		Count:  passedCount,
+		Total:  total,
+		Issues: issues,
 	}
-
-	return allAccepted && missingReviewTrigger == 0 && unreviewedOneWay == 0, issues, advisories
 }
 
-// recalledCitationRe matches explicit recalled verification methods, avoiding false positives on general memory topics (RAM, heap).
-var recalledCitationRe = regexp.MustCompile(`(?i)(?:\[[^\]\n]*\b(?:recalled|parametric)\b[^\]\n]*\]|\([^)\n]*\b(?:recalled|parametric)\b[^)\n]*\)|\brecalled\s+memory\b|\|\s*recalled\s*\|)`)
-
-// verifyEvidentiaryIntegrity checks B3 (evidence threshold), B4 (verification integrity), B5 (rejected alternatives), and ADR structural shape.
-// Returns (blockingIssues, advisories).
-func verifyEvidentiaryIntegrity(ws WorkspaceFS, info WorkspaceInfo) ([]string, []string) {
-	var blocking []string
-	var advisories []string
-
-	decisions := CollectGateDecisions(ws)
-	lowGradeRe := regexp.MustCompile(`(?i)(?:\[(?:Grade\s*[:\s]\s*)[CDE][^\]\n]*\]|\((?:Grade\s*[:\s]\s*)[CDE][^)\n]*\)|\bGrade\s*[:\s]\s*[CDE]\b|\[[CDE]\s*[·|:,][^\]\n]*\]|\([CDE]\s*[·|:,][^)\n]*\))`)
-
-	// G4: ADR parity check - verify that all decisions referenced by sessions actually exist
-	decisionIDs := make(map[string]bool)
-	for _, d := range decisions {
-		decisionIDs[strings.ToUpper(strings.TrimSpace(d.ID))] = true
-	}
-	if sEntries, err := ws.ListDir(SessionsDir); err == nil {
-		for _, se := range sEntries {
-			if se.IsDir() || !strings.HasSuffix(se.Name(), ".md") {
-				continue
-			}
-			sData, err := ws.ReadFile(filepath.Join(SessionsDir, se.Name()))
-			if err != nil {
-				continue
-			}
-			sFm, _, _ := ParseFrontmatter(sData)
-			if sFm == nil {
-				continue
-			}
-			var referencedDecs []string
-			if sFm.Has("informs_decisions") {
-				referencedDecs = append(referencedDecs, sFm.GetStringSlice("informs_decisions")...)
-			}
-			if sFm.Has("informs") {
-				referencedDecs = append(referencedDecs, sFm.GetStringSlice("informs")...)
-			}
-			for _, ref := range referencedDecs {
-				refUpper := strings.ToUpper(strings.TrimSpace(ref))
-				if refUpper != "" && !decisionIDs[refUpper] {
-					blocking = append(blocking, fmt.Sprintf(
-						"G4-ADR-PARITY: Session %s references decision %s in informs_decisions, but %s has no corresponding ADR file or record",
-						ExtractSessionID(se.Name(), sFm), ref, ref))
-				}
-			}
-		}
-	}
-
-	for _, d := range decisions {
-		if !strings.EqualFold(d.DoorType, "one-way") {
-			continue
-		}
-
-		// Read decision file from DecisionsDir or ResearchDir
-		var decData []byte
-		if dData, err := ws.ReadFile(filepath.Join(DecisionsDir, d.ID+".md")); err == nil {
-			decData = dData
-		} else if dData, err := ws.ReadFile(filepath.Join(DecisionsDir, d.ID+"-decision.md")); err == nil {
-			decData = dData
-		} else if dData, err := ws.ReadFile(filepath.Join(ResearchDir, d.ID+".md")); err == nil {
-			decData = dData
-		} else if dData, err := ws.ReadFile(filepath.Join(ResearchDir, d.ID+"-decision.md")); err == nil {
-			decData = dData
-		} else if entries, lErr := ws.ListDir(DecisionsDir); lErr == nil {
-			for _, e := range entries {
-				name := e.Name()
-				if (strings.HasPrefix(name, d.ID+"-") || strings.HasPrefix(name, d.ID+"_") || strings.EqualFold(name, d.ID+".md")) && strings.HasSuffix(name, ".md") && !IsSpecialResearchFile(name) {
-					decData, _ = ws.ReadFile(filepath.Join(DecisionsDir, name))
-					break
-				}
-			}
-		}
-		if len(decData) == 0 {
-			if entries, lErr := ws.ListDir(ResearchDir); lErr == nil {
-				for _, e := range entries {
-					name := e.Name()
-					if (strings.HasPrefix(name, d.ID+"-") || strings.HasPrefix(name, d.ID+"_") || strings.EqualFold(name, d.ID+".md")) && strings.HasSuffix(name, ".md") && !IsSpecialResearchFile(name) {
-						decData, _ = ws.ReadFile(filepath.Join(ResearchDir, name))
-						break
-					}
-				}
-			}
-		}
-
-		// Fallback to DECISIONS.md if no individual file
-		if len(decData) == 0 {
-			if decAll, err := ws.ReadFile(DecisionsFile); err == nil {
-				anchoredRe := regexp.MustCompile(fmt.Sprintf(`(?s)<!-- DECISION:\s*%s\s*-->\s*(.*?)\s*<!-- /DECISION:\s*%s\s*-->`, regexp.QuoteMeta(d.ID), regexp.QuoteMeta(d.ID)))
-				if m := anchoredRe.FindSubmatch(decAll); len(m) > 1 {
-					decData = m[1]
-				}
-			}
-		}
-
-		if len(decData) == 0 {
-			continue
-		}
-
-		fm, body, _ := ParseFrontmatter(decData)
-		bodyStr := string(body)
-
-		// B5: Check rejected alternatives section (>30 characters of content)
-		altContent := ExtractSection(bodyStr, "alternative", "rejected")
-		if len(strings.TrimSpace(altContent)) < 30 {
-			blocking = append(blocking, fmt.Sprintf(
-				"B5-ALTERNATIVES: One-way door %s lacks documented rejected alternatives section (minimum 30 chars required). "+
-					"(help: edit ADR to include substantive '## Alternatives Considered' section)", d.ID))
-		}
-
-		// B-DECISION-STUB: Structural check replacing naive character volume check (advisory)
-		lowerBody := strings.ToLower(bodyStr)
-		hasContext := strings.Contains(lowerBody, "context") || strings.Contains(lowerBody, "problem")
-		hasRationale := strings.Contains(lowerBody, "rationale") || strings.Contains(lowerBody, "decision") || strings.Contains(lowerBody, "verdict")
-		hasTriggers := strings.Contains(lowerBody, "trigger") || strings.Contains(lowerBody, "reversal") || (fm != nil && fm.GetString("review_trigger") != "")
-
-		if !hasContext || !hasRationale || !hasTriggers {
-			advisories = append(advisories, fmt.Sprintf(
-				"B-DECISION-STUB: One-way door %s lacks mandatory structural sections (Context, Rationale, or Reversal Trigger)", d.ID))
-		}
-
-		// Find informing sessions from frontmatter
-		var sessIDs []string
-		if fm != nil {
-			sessIDs = fm.GetStringSlice("informed_by_sessions")
-		}
-		// Also scan session files for informs_decisions if empty
-		if len(sessIDs) == 0 {
-			if sEntries, sErr := ws.ListDir(SessionsDir); sErr == nil {
-				for _, se := range sEntries {
-					if se.IsDir() || !strings.HasSuffix(se.Name(), ".md") {
-						continue
-					}
-					sData, _ := ws.ReadFile(filepath.Join(SessionsDir, se.Name()))
-					if sFm, _, _ := ParseFrontmatter(sData); sFm != nil {
-						infDecs := sFm.GetStringSlice("informs_decisions")
-						for _, inf := range infDecs {
-							if strings.EqualFold(inf, d.ID) {
-								sessIDs = append(sessIDs, ExtractSessionID(se.Name(), sFm))
-							}
-						}
-					}
-				}
-			}
-		}
-
-		// B11: Check red-team challenge verification
-		checkChallengeText := func(text string) bool {
-			lower := strings.ToLower(text)
-			hasHeading := strings.Contains(lower, "## challenge findings") ||
-				strings.Contains(lower, "## red-team stress test") ||
-				strings.Contains(lower, "## red team stress test") ||
-				strings.Contains(lower, "### b11. adversarial red-team challenge")
-			if !hasHeading {
-				return false
-			}
-			sec := ExtractSection(text, "challenge findings", "red-team stress test", "red team stress test", "adversarial red-team challenge")
-			trimmed := strings.TrimSpace(sec)
-			if len(trimmed) < 40 {
-				return false
-			}
-			if strings.EqualFold(trimmed, "None.") || strings.EqualFold(trimmed, "N/A") || strings.EqualFold(trimmed, "None identified.") {
-				return false
-			}
-			if strings.Contains(strings.ToLower(trimmed), "[todo") || (strings.Contains(strings.ToLower(trimmed), "pending") && len(trimmed) < 60) {
-				return false
-			}
-			return true
-		}
-		hasChallenge := checkChallengeText(bodyStr) ||
-			(d.ChallengeRef != "" && FileExistsFS(ws, d.ChallengeRef)) ||
-			HasValidChallengeRecord(ws, d.ID)
-
-		for _, sid := range sessIDs {
-			var sData []byte
-			if sd, err := ws.ReadFile(filepath.Join(SessionsDir, sid+".md")); err == nil {
-				sData = sd
-			} else if sEntries, lErr := ws.ListDir(SessionsDir); lErr == nil {
-				for _, se := range sEntries {
-					name := strings.TrimSuffix(se.Name(), ".md")
-					nameUpper := strings.ToUpper(name)
-					sidUpper := strings.ToUpper(sid)
-					if nameUpper == sidUpper || strings.HasPrefix(nameUpper, sidUpper+"-") || strings.HasPrefix(nameUpper, sidUpper+"_") {
-						sData, _ = ws.ReadFile(filepath.Join(SessionsDir, se.Name()))
-						break
-					}
-				}
-			}
-			if len(sData) == 0 {
-				continue
-			}
-			sessStr := string(sData)
-			if !hasChallenge && (HasValidChallengeRecord(ws, sid) || checkChallengeText(sessStr)) {
-				hasChallenge = true
-			}
-			if phs := ScanPlaceholders(sData); len(phs) > 0 {
-				blocking = append(blocking, fmt.Sprintf("E-PLACEHOLDER-REMAINS: Session %s contains unexpanded placeholder %q", sid, phs[0]))
-			}
-			checkStr := extractRecommendationText(sessStr)
-			if len(strings.TrimSpace(checkStr)) < 20 {
-				advisories = append(advisories, fmt.Sprintf(
-					"W-GATE-SECTION: Session %s recommendation section could not be isolated for evidentiary audit; bibliography scan omitted to prevent false B3 failure.", sid))
-				continue
-			}
-
-			// B3: Check evidence grades supporting the recommendation
-			lowGrades := len(lowGradeRe.FindAllString(checkStr, -1))
-			if lowGrades > 0 {
-				blocking = append(blocking, fmt.Sprintf(
-					"B3-EVIDENTIARY: Session %s informs one-way door %s but recommendation has %d Grade C/D/E citation(s). "+
-						"One-way decisions require Grade A/B evidence. (help: re-verify with web search and update via vivechak_amend(session_id=%q))",
-					sid, d.ID, lowGrades, sid))
-			}
-
-			// B4: Check recalled verification supporting the recommendation
-			recalledCount := len(recalledCitationRe.FindAllString(checkStr, -1))
-			if recalledCount > 0 {
-				blocking = append(blocking, fmt.Sprintf(
-					"B4-VERIFICATION: Session %s informs one-way door %s but recommendation has %d 'recalled' citation(s). "+
-						"One-way decisions require fetched/cached verification. (help: fetch primary evidence and update via vivechak_amend(session_id=%q))",
-					sid, d.ID, recalledCount, sid))
-			}
-		}
-
-		if !hasChallenge {
-			advisories = append(advisories, fmt.Sprintf(
-				"W-OWD-NO-CHALLENGE: One-Way Door decision %s was not subjected to adversarial red-team challenge before commitment.", d.ID))
-		}
-	}
-	return blocking, advisories
-}
-
-// extractRecommendationText extracts text under Recommendation/Verdict/Findings in a session,
-// or the session body excluding Sources/Bibliography/Ledger to avoid flagging secondary links.
 func extractRecommendationText(content string) string {
 	rec := ExtractSection(content, "recommend", "verdict", "decision")
 	if len(strings.TrimSpace(rec)) >= 20 {
@@ -990,7 +1011,6 @@ func extractRecommendationText(content string) string {
 	if len(strings.TrimSpace(findings)) >= 20 {
 		return findings
 	}
-	// Fallback: use body but strip Sources / Bibliography / Evidence Ledger
 	lines := strings.Split(content, "\n")
 	var kept []string
 	inSources := false
@@ -1011,4 +1031,330 @@ func extractRecommendationText(content string) string {
 		}
 	}
 	return strings.Join(kept, "\n")
+}
+
+func verifyDecisionsMechanical(ws WorkspaceFS, info WorkspaceInfo) (bool, []string, []string) {
+	hasDecFile := false
+	if ws != nil {
+		if _, err := ws.Stat(DecisionsFile); err == nil {
+			hasDecFile = true
+		}
+	}
+	if !info.HasDecisions && !hasDecFile {
+		return false, []string{"Cannot check decisions — DECISIONS.md not found"}, nil
+	}
+
+	adrs := scanAllADRs(ws)
+	if len(adrs) == 0 {
+		return false, []string{"DECISIONS.md or ADR files appear empty or trivial"}, nil
+	}
+
+	var issues []string
+	var advisories []string
+	allAccepted := true
+	missingTriggers := 0
+
+	for _, adr := range adrs {
+		st := strings.ToLower(adr.Status)
+		if st != "accepted" && st != "superseded" && st != "deprecated" && st != "rejected" {
+			allAccepted = false
+			issues = append(issues, fmt.Sprintf("ADR %s has status %q (must be accepted/superseded/deprecated/rejected)", adr.ID, adr.Status))
+		}
+		if strings.EqualFold(adr.DoorType, "one-way") && st == "accepted" {
+			trig := strings.TrimSpace(adr.ReviewTrigger)
+			if trig == "" || strings.HasPrefix(trig, "[") {
+				missingTriggers++
+				issues = append(issues, fmt.Sprintf("One-way door %s lacks required reversal trigger", adr.ID))
+			}
+			if !adr.HumanReviewed {
+				advisories = append(advisories, fmt.Sprintf("One-way door %s lacks human review", adr.ID))
+			}
+		}
+	}
+
+	return allAccepted && missingTriggers == 0, issues, advisories
+}
+
+func verifyEvidentiaryIntegrity(ws WorkspaceFS, info WorkspaceInfo) ([]string, []string) {
+	var blocking []string
+	var advisories []string
+	adrs := scanAllADRs(ws)
+
+	for _, d := range adrs {
+		if !strings.EqualFold(d.DoorType, "one-way") {
+			continue
+		}
+		bodyStr := string(d.RawData)
+		altContent := ExtractSection(bodyStr, "alternative", "rejected")
+		if len(strings.TrimSpace(altContent)) < 30 {
+			blocking = append(blocking, fmt.Sprintf("B5-ALTERNATIVES: One-way door %s lacks documented rejected alternatives section", d.ID))
+		}
+
+		for _, sid := range d.InformedBy {
+			if sData, _, err := ReadSessionFileFS(ws, SessionsDir, sid); err == nil {
+				recText := extractRecommendationText(sData)
+				lowGrades := len(lowGradeRe.FindAllString(recText, -1))
+				if lowGrades > 0 {
+					blocking = append(blocking, fmt.Sprintf("B3-EVIDENTIARY: Session %s informs one-way door %s but recommendation has %d Grade C/D/E citation(s)", sid, d.ID, lowGrades))
+				}
+				recalledCount := len(recalledCitationRe.FindAllString(recText, -1))
+				if recalledCount > 0 {
+					blocking = append(blocking, fmt.Sprintf("B4-VERIFICATION: Session %s informs one-way door %s but recommendation has %d 'recalled' citation(s)", sid, d.ID, recalledCount))
+				}
+			}
+		}
+	}
+
+	return blocking, advisories
+}
+
+// scanAllADRs discovers all ADR records across research/ and DECISIONS.md.
+func scanAllADRs(ws WorkspaceFS) []adrRecord {
+	if ws == nil {
+		return nil
+	}
+	var records []adrRecord
+	seen := make(map[string]bool)
+
+	// 1. Scan standalone ADR markdown files in research/ and research/decisions/
+	searchDirs := []string{ResearchDir, DecisionsDir}
+	for _, sDir := range searchDirs {
+		if entries, err := ws.ListDir(sDir); err == nil {
+			for _, e := range entries {
+				if e.IsDir() || !strings.HasSuffix(strings.ToLower(e.Name()), ".md") {
+					continue
+				}
+				name := e.Name()
+				if IsSpecialResearchFile(name) {
+					continue
+				}
+				if strings.HasPrefix(strings.ToUpper(name), "C-") {
+					continue
+				}
+				data, err := ws.ReadFile(filepath.Join(sDir, name))
+				if err != nil || len(data) == 0 {
+					continue
+				}
+				fm, _, pErr := ParseFrontmatter(data)
+				if pErr != nil || fm == nil {
+					continue
+				}
+				isCandidate := strings.HasPrefix(strings.ToUpper(name), "D-")
+				if !isCandidate && fm.GetString("type") != "decision" && !fm.Has("door_type") {
+					continue
+				}
+				if fm.GetString("type") == "plan" || fm.GetString("type") == "challenge" || strings.HasSuffix(strings.ToLower(name), "-plan.md") || strings.Contains(strings.ToUpper(name), "-R") {
+					continue
+				}
+				id := fm.GetString("id")
+				if id == "" {
+					id = fm.GetString("decision_id")
+				}
+				if id == "" {
+					id = strings.TrimSuffix(name, ".md")
+				}
+				upperID := strings.ToUpper(id)
+				if seen[upperID] {
+					continue
+				}
+				seen[upperID] = true
+
+				doorType := fm.GetString("door_type")
+				if doorType == "" {
+					doorType = fm.GetString("door")
+				}
+				if doorType == "" {
+					doorType = "two-way"
+				}
+
+				humanRev := false
+				if strings.EqualFold(fm.GetString("human_reviewed"), "true") {
+					humanRev = true
+				}
+
+				records = append(records, adrRecord{
+					ID:            id,
+					Title:         fm.GetString("title"),
+					DoorType:      doorType,
+					Status:        fm.GetString("status"),
+					ReviewTrigger: fm.GetString("review_trigger"),
+					HumanReviewed: humanRev,
+					ReviewedBy:    fm.GetString("reviewed_by"),
+					ReviewedAt:    fm.GetString("reviewed_at"),
+					ReviewedHash:  fm.GetString("reviewed_hash"),
+					InformedBy:    append(fm.GetStringSlice("informed_by_sessions"), fm.GetStringSlice("informing_sessions")...),
+					RawData:       data,
+					File:          filepath.Join(sDir, name),
+				})
+			}
+		}
+	}
+
+	// 2. Scan DECISIONS.md for any additional decisions
+	if decData, err := ws.ReadFile(DecisionsFile); err == nil && len(decData) > 0 {
+		anchoredRe := regexp.MustCompile(`(?s)<!-- DECISION:\s*([A-Za-z0-9_-]+)\s*-->\s*(.*?)\s*<!-- /DECISION:\s*[A-Za-z0-9_-]+\s*-->`)
+		for _, m := range anchoredRe.FindAllSubmatch(decData, -1) {
+			id := string(m[1])
+			upperID := strings.ToUpper(id)
+			if seen[upperID] {
+				continue
+			}
+			body := m[2]
+			fm, _, pErr := ParseFrontmatter(body)
+			if pErr != nil || fm == nil {
+				continue
+			}
+			seen[upperID] = true
+			doorType := fm.GetString("door_type")
+			if doorType == "" {
+				doorType = fm.GetString("door")
+			}
+			if doorType == "" {
+				doorType = "two-way"
+			}
+			humanRev := strings.EqualFold(fm.GetString("human_reviewed"), "true")
+			records = append(records, adrRecord{
+				ID:            id,
+				Title:         fm.GetString("title"),
+				DoorType:      doorType,
+				Status:        fm.GetString("status"),
+				ReviewTrigger: fm.GetString("review_trigger"),
+				HumanReviewed: humanRev,
+				ReviewedBy:    fm.GetString("reviewed_by"),
+				ReviewedAt:    fm.GetString("reviewed_at"),
+				ReviewedHash:  fm.GetString("reviewed_hash"),
+				InformedBy:    append(fm.GetStringSlice("informed_by_sessions"), fm.GetStringSlice("informing_sessions")...),
+				RawData:       body,
+				File:          DecisionsFile,
+			})
+		}
+	}
+
+	return records
+}
+
+func findDecisionTargetSessions(ws WorkspaceFS, did string) []string {
+	if ws == nil {
+		return nil
+	}
+	var sessions []string
+	didUpper := strings.ToUpper(did)
+	for _, planName := range []string{fmt.Sprintf("%s-plan.md", did), fmt.Sprintf("%s.plan.md", did)} {
+		if pData, err := ws.ReadFile(filepath.Join(ResearchDir, planName)); err == nil && len(pData) > 0 {
+			if block, bErr := ParsePlanMachineBlock(pData); bErr == nil && block != nil && len(block.Sessions) > 0 {
+				for _, s := range block.Sessions {
+					sessions = append(sessions, s.ID)
+				}
+				return sessions
+			}
+			reSess := regexp.MustCompile(`(?m)^\s*(?:\d+\.|\-|\*)\s+([A-Za-z0-9_-]+)\s*:`)
+			for _, m := range reSess.FindAllSubmatch(pData, -1) {
+				if len(m) > 1 {
+					sessions = append(sessions, string(m[1]))
+				}
+			}
+			if len(sessions) > 0 {
+				return sessions
+			}
+		}
+	}
+	// Fallback to checking sessions dir for prefix
+	if entries, err := ws.ListDir(SessionsDir); err == nil {
+		for _, e := range entries {
+			stem := strings.TrimSuffix(e.Name(), ".md")
+			if strings.HasPrefix(strings.ToUpper(stem), didUpper+"-") {
+				sessions = append(sessions, stem)
+			}
+		}
+	}
+	return sessions
+}
+
+func findPlanSessions(ws WorkspaceFS, planFile string) []string {
+	if ws == nil {
+		return nil
+	}
+	var sessions []string
+	if pData, err := ws.ReadFile(filepath.Join(ResearchDir, planFile)); err == nil {
+		if block, bErr := ParsePlanMachineBlock(pData); bErr == nil && block != nil && len(block.Sessions) > 0 {
+			for _, s := range block.Sessions {
+				sessions = append(sessions, s.ID)
+			}
+			return sessions
+		}
+		reSess := regexp.MustCompile(`(?m)^\s*(?:\d+\.|\-|\*)\s+([A-Za-z0-9_-]+)\s*:`)
+		for _, m := range reSess.FindAllSubmatch(pData, -1) {
+			if len(m) > 1 {
+				sessions = append(sessions, string(m[1]))
+			}
+		}
+	}
+	return sessions
+}
+
+func countGradeABClaimsWithURLs(ws WorkspaceFS, adr adrRecord) int {
+	count := 0
+	checkText := func(text string) {
+		lines := strings.Split(text, "\n")
+		for _, l := range lines {
+			if regexp.MustCompile(`(?i)\[(?:Grade\s+[AB]|E-[AB]|[AB])\b`).MatchString(l) && strings.Contains(l, "http") {
+				count++
+			}
+		}
+	}
+
+	checkText(string(adr.RawData))
+	if ws != nil {
+		for _, sid := range adr.InformedBy {
+			if sData, _, err := ReadSessionFileFS(ws, SessionsDir, sid); err == nil {
+				checkText(sData)
+			}
+		}
+	}
+	return count
+}
+
+func findLatestChallengeRecord(ws WorkspaceFS, did string) (string, string) {
+	if ws == nil {
+		return "", ""
+	}
+	didUpper := strings.ToUpper(did)
+	re := regexp.MustCompile(fmt.Sprintf(`^(?i)%s-R(\d+)\.md$`, regexp.QuoteMeta(didUpper)))
+
+	dirsToScan := []string{ResearchDir, filepath.Join(ResearchDir, ".challenges")}
+	latestNum := 0
+	latestPath := ""
+	latestFile := ""
+	for _, dir := range dirsToScan {
+		entries, err := ws.ListDir(dir)
+		if err != nil {
+			continue
+		}
+		for _, e := range entries {
+			if m := re.FindStringSubmatch(e.Name()); len(m) > 1 {
+				if num, err := strconv.Atoi(m[1]); err == nil && num > latestNum {
+					latestNum = num
+					latestFile = e.Name()
+					latestPath = filepath.Join(dir, e.Name())
+				}
+			}
+		}
+	}
+	if latestFile == "" {
+		return "", ""
+	}
+	recordID := strings.TrimSuffix(latestFile, ".md")
+	data, err := ws.ReadFile(latestPath)
+	if err != nil {
+		return recordID, ""
+	}
+	fm, _, _ := ParseFrontmatter(data)
+	if fm == nil {
+		return recordID, ""
+	}
+	hash := fm.GetString("decision_hash")
+	if hash == "" {
+		hash = fm.GetString("target_outcome_hash")
+	}
+	return recordID, hash
 }

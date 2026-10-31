@@ -1,11 +1,14 @@
 package core
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"unicode/utf8"
+
+	"github.com/bhaskarjha-dev/vivechak/internal/store"
 )
 
 func TestIsSynthesisSession_TightPattern(t *testing.T) {
@@ -85,6 +88,10 @@ status: final
 ## Research Question
 Which logging library provides the lowest overhead and best throughput for Node.js microservices?
 
+## Key Findings
+- Pino uses sonic-boom asynchronous writes for 5x lower latency [Grade A: https://github.com/pinojs/pino].
+- Winston event-loop synchronous logging adds overhead [Grade B: local benchmark].
+
 ## Weighted Evaluation Matrix
 
 | Criterion | Weight | Pino | Winston |
@@ -96,6 +103,10 @@ Which logging library provides the lowest overhead and best throughput for Node.
 
 ## Recommendation
 Pino is recommended because its asynchronous sonic-boom pipeline provides 5x lower latency than Winston.
+
+## Sources & Evidence Ledger
+- Pino repository: https://github.com/pinojs/pino [Grade A]
+- Benchmarks: local benchmark suites [Grade B]
 `)
 	resValid := ValidateComparison(validDoc)
 	if resValid.HasBlocking() {
@@ -171,8 +182,16 @@ status: complete
 informs_decisions: ["D-001", "D-002"]
 ---
 # Foundation
+## Key Findings
+- PostgreSQL is best suited for durable ACID multi-table transactions [Grade A: https://www.postgresql.org/docs/].
+- Redis handles high-throughput in-memory caching [Grade B: https://redis.io/benchmarks].
+
 ## Recommendation
 We select PostgreSQL [Grade A: https://www.postgresql.org/docs/] and Redis [Grade B: https://redis.io/benchmarks].
+
+## Sources & Evidence Ledger
+- PostgreSQL official documentation: https://www.postgresql.org/docs/ [Grade A]
+- Redis benchmark results: https://redis.io/benchmarks [Grade B]
 `
 		_ = os.WriteFile(filepath.Join(dir, SessionsDir, "T0-01.md"), []byte(s1), 0o644)
 
@@ -181,8 +200,14 @@ session_id: T1-01
 status: complete
 ---
 # Backend Architecture
+## Key Findings
+- Go microservices provide low memory overhead and predictable concurrency [Grade A: https://go.dev].
+
 ## Recommendation
 Go microservices architecture backed by official specs [Grade A: https://go.dev].
+
+## Sources & Evidence Ledger
+- Go documentation: https://go.dev [Grade A]
 `
 		_ = os.WriteFile(filepath.Join(dir, SessionsDir, "T1-01.md"), []byte(s2), 0o644)
 
@@ -191,8 +216,14 @@ session_id: T2-01
 status: complete
 ---
 # Data Tier Architecture
+## Key Findings
+- Managed read replicas support read horizontal scaling [Grade A: https://aws.amazon.com/rds/].
+
 ## Recommendation
 Replication with read replicas verified against vendor specs [Grade A: https://aws.amazon.com/rds/].
+
+## Sources & Evidence Ledger
+- AWS RDS documentation: https://aws.amazon.com/rds/ [Grade A]
 `
 		_ = os.WriteFile(filepath.Join(dir, SessionsDir, "T2-01.md"), []byte(s3), 0o644)
 
@@ -210,6 +241,22 @@ schema_version: "0.1.0"
 ## Executive Summary
 This document provides the foundational architecture synthesized across all research sessions for the platform.
 The architecture combines Go microservices with PostgreSQL [Grade A: https://www.postgresql.org/docs/] and Redis [Grade B: https://redis.io/benchmarks].
+
+## System Context & Architecture
+System context diagram and boundary specifications for microservices and datastores.
+
+## Locked Decision Registry
+- D-001: Primary Datastore Selection (One-Way Door, Accepted)
+- D-002: Caching Tier (Two-Way Door, Accepted)
+
+## Risk Register & Reversal Triggers
+- PostgreSQL query latency p99 exceeds 50ms under peak load (Reversal Trigger)
+- Redis cache hit ratio drops below 80% (Reversal Trigger)
+
+## Traceability Matrix
+- T0-01 -> D-001, D-002
+- T1-01 -> Architecture
+- T2-01 -> Data Tier
 `
 		_ = os.WriteFile(filepath.Join(dir, FADFile), []byte(fad), 0o644)
 
@@ -226,18 +273,33 @@ informed_by_sessions: ["T0-01"]
 # Context
 We need a durable, transactional datastore.
 
-# Decision
+## Decision Outcome
 We adopt PostgreSQL backed by official documentation [Grade A: https://www.postgresql.org/docs/] and empirical benchmark analysis [Grade B: https://tech.benchmarks.org/pg].
 
-# Alternatives Considered
+## Rejected Alternatives
 - MySQL: Viable option but lacks advanced JSONB indexing required for metadata.
 - MongoDB: Document model flexible but lacks ACID multi-table transactions required for ledger.
 
-# Red-Team Stress Test
-## Challenge Findings
-Evaluated failover latency and split-brain risks under network partitions.
+## Red-Team Stress Test
+### Challenge Findings
+Evaluated D-001-R1 failover latency and split-brain risks under network partitions with Gary Klein premortem substantive findings.
 `
 		_ = os.WriteFile(filepath.Join(dir, DecisionsDir, "D-001.md"), []byte(d1), 0o644)
+
+		outcomeHash := ComputeDecisionOutcomeHash([]byte(d1))
+		chRecord := fmt.Sprintf(`---
+decision_id: D-001
+decision_hash: %s
+date: 2026-10-24
+---
+# Adversarial Challenge D-001-R1
+Substantive challenge findings for D-001.
+`, outcomeHash)
+		_ = os.WriteFile(filepath.Join(dir, ResearchDir, "D-001-R1.md"), []byte(chRecord), 0o644)
+		if storeWS, sErr := store.OpenWorkspace(dir); sErr == nil {
+			_, _ = SignoffDecision(storeWS, "D-001", "Principal Architect")
+			_ = storeWS.Close()
+		}
 
 		// ADR D-002 (Two-Way Door: G12)
 		d2 := `---
@@ -249,7 +311,7 @@ review_trigger: "Cache hit ratio drops below 80%"
 ---
 # Context
 In-memory caching.
-# Decision
+## Decision Outcome
 We use Redis.
 `
 		_ = os.WriteFile(filepath.Join(dir, DecisionsDir, "D-002.md"), []byte(d2), 0o644)
@@ -266,7 +328,7 @@ We use Redis.
 		info := InspectWorkspace(dir)
 		res := EvaluateGate(ws, info, dir)
 		if !res.Passed {
-			t.Fatalf("expected golden base to pass, got warnings: %v", res.Warnings)
+			t.Fatalf("expected golden base to pass, got rules: %+v, warnings: %v", res.Rules, res.Warnings)
 		}
 	})
 
@@ -298,14 +360,31 @@ status: draft
 		}
 	})
 
-	// 4. Negative G3: missing template
-	t.Run("Fail_G3_MissingTemplates", func(t *testing.T) {
+	// 4. Negative G3: FAD missing accepted ADR
+	t.Run("Fail_G3_FADMissingADR", func(t *testing.T) {
 		dir, ws := setupPassingBase(t)
-		_ = os.Remove(filepath.Join(dir, TemplatesDir, "DECISIONS.template.md"))
+		fadBad := `---
+id: FAD-001
+title: Founding Architecture Document
+status: complete
+---
+# Founding Architecture Document
+## Executive Summary
+Summary
+## System Context & Architecture
+Context
+## Locked Decision Registry
+- D-002: Caching Tier
+## Risk Register & Reversal Triggers
+- Trigger
+## Traceability Matrix
+- Trace
+`
+		_ = os.WriteFile(filepath.Join(dir, FADFile), []byte(fadBad), 0o644)
 		info := InspectWorkspace(dir)
 		res := EvaluateGate(ws, info, dir)
-		if res.Passed || res.StructuralChecks.Passed {
-			t.Error("expected G3 failure when template is missing")
+		if res.Passed {
+			t.Error("expected G3 failure when FAD Locked Decision Registry omits accepted ADR")
 		}
 	})
 

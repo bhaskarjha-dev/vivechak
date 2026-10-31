@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -27,7 +26,6 @@ func runSignoff(args []string, streams ...io.Writer) error {
 func runSignoffWithStreams(args []string, stdin io.Reader, stdout io.Writer, isTerminal func() bool) error {
 
 	var explicitWs string
-	var force bool
 	var decisionID string
 	var explicitReviewer string
 
@@ -37,13 +35,12 @@ func runSignoffWithStreams(args []string, stdin io.Reader, stdout io.Writer, isT
 			fmt.Fprintln(stdout, "Usage: vivechak signoff [flags] <decision-id>  (or: vck signoff [flags] <decision-id>)")
 			fmt.Fprintln(stdout, "")
 			fmt.Fprintln(stdout, "Interactively sign off on an Architectural Decision (One-Way Door).")
-			fmt.Fprintln(stdout, "Requires an interactive terminal session (os.ModeCharDevice).")
+			fmt.Fprintln(stdout, "Requires an interactive terminal session and human typed confirmation.")
 			fmt.Fprintln(stdout, "")
 			fmt.Fprintln(stdout, "Flags:")
 			fmt.Fprintln(stdout, "  --project-root <path>  Path to project workspace root (default: current directory)")
 			fmt.Fprintln(stdout, "  --root <path>          Path to project workspace root (shorthand)")
-			fmt.Fprintln(stdout, "  --reviewer <name>      Name or email of the human reviewer")
-			fmt.Fprintln(stdout, "  -f, --force            Sign off without prompt confirmation")
+			fmt.Fprintln(stdout, "  --reviewer <name>      Name or email of the human reviewer (required)")
 			return nil
 		} else if arg == "--project-root" || arg == "-project-root" || arg == "--root" || arg == "-root" {
 			if i+1 < len(args) {
@@ -64,7 +61,7 @@ func runSignoffWithStreams(args []string, stdin io.Reader, stdout io.Writer, isT
 		} else if strings.HasPrefix(arg, "--by=") {
 			explicitReviewer = strings.TrimPrefix(arg, "--by=")
 		} else if arg == "--force" || arg == "-force" || arg == "-f" || arg == "--f" {
-			force = true
+			return fmt.Errorf("unknown flag: %s (--force is not supported; human typed confirmation is strictly required)", arg)
 		} else if !strings.HasPrefix(arg, "-") {
 			if decisionID == "" {
 				decisionID = arg
@@ -77,6 +74,11 @@ func runSignoffWithStreams(args []string, stdin io.Reader, stdout io.Writer, isT
 	// Verify interactive TTY
 	if isTerminal != nil && !isTerminal() {
 		return fmt.Errorf("E-TTY-REQUIRED: vck signoff requires an interactive terminal session; autonomous agent execution is prohibited")
+	}
+
+	reviewer := strings.TrimSpace(explicitReviewer)
+	if reviewer == "" {
+		return fmt.Errorf("vck signoff needs --reviewer \"<your name>\"")
 	}
 
 	decisionID = strings.TrimSpace(decisionID)
@@ -171,34 +173,15 @@ func runSignoffWithStreams(args []string, stdin io.Reader, stdout io.Writer, isT
 		fmt.Fprintln(stdout, "-------------------------------------------------------")
 	}
 
-	if !force {
-		fmt.Fprintf(stdout, "Type 'CONFIRM' to sign off on Decision %s: ", decisionID)
-		reader := bufio.NewReader(stdin)
-		input, err := reader.ReadString('\n')
-		if err != nil {
-			return fmt.Errorf("reading confirmation: %w", err)
-		}
-		input = strings.TrimSpace(input)
-		if input != "CONFIRM" {
-			return fmt.Errorf("signoff cancelled: expected 'CONFIRM', got %q", input)
-		}
-	} else {
-		fmt.Fprintf(stdout, "Force flag specified. Proceeding with sign-off on Decision %s...\n", decisionID)
+	fmt.Fprintf(stdout, "Type the decision ID (%s) or 'CONFIRM' to sign off: ", decisionID)
+	reader := bufio.NewReader(stdin)
+	input, err := reader.ReadString('\n')
+	if err != nil {
+		return fmt.Errorf("reading confirmation: %w", err)
 	}
-
-	// Detect reviewer
-	reviewer := strings.TrimSpace(explicitReviewer)
-	if reviewer == "" {
-		reviewer = getGitUserName(root)
-	}
-	if reviewer == "" {
-		reviewer = os.Getenv("USER")
-		if reviewer == "" {
-			reviewer = os.Getenv("USERNAME")
-		}
-		if reviewer == "" {
-			reviewer = "Human Architect"
-		}
+	input = strings.TrimSpace(input)
+	if !strings.EqualFold(input, decisionID) && input != "CONFIRM" {
+		return fmt.Errorf("signoff cancelled: expected %q or 'CONFIRM', got %q", decisionID, input)
 	}
 
 	savedPath, err := core.SignoffDecision(ws, decisionID, reviewer)
@@ -208,16 +191,4 @@ func runSignoffWithStreams(args []string, stdin io.Reader, stdout io.Writer, isT
 
 	fmt.Fprintf(stdout, "\n✓ Decision %s successfully signed off by %s.\nSaved to %s.\n", decisionID, reviewer, savedPath)
 	return nil
-}
-
-func getGitUserName(workspace string) string {
-	cmd := exec.Command("git", "config", "user.name")
-	if workspace != "" {
-		cmd.Dir = workspace
-	}
-	out, err := cmd.Output()
-	if err == nil {
-		return strings.TrimSpace(string(out))
-	}
-	return ""
 }

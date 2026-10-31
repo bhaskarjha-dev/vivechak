@@ -144,6 +144,7 @@ title: Logging Strategy
 status: accepted
 door_type: two-way
 date: 2026-10-18
+review_trigger: "p95 latency above 50 ms"
 ---
 # Context
 Logging choice.

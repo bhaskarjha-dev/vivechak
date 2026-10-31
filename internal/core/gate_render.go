@@ -15,34 +15,36 @@ const (
 
 // DetectProjectName extracts the project name from RESEARCH-PIPELINE.md or falls back to workspace folder name.
 func DetectProjectName(ws WorkspaceFS, root string) string {
-	if data, err := ws.ReadFile(PipelineFile); err == nil {
-		if fm, _, err := ParseFrontmatter(data); err == nil && fm != nil {
-			if proj := fm.GetString("project"); proj != "" {
-				return proj
-			}
-		}
-		for _, line := range strings.Split(string(data), "\n") {
-			trimmed := strings.TrimSpace(line)
-			if strings.HasPrefix(trimmed, "# ") {
-				heading := strings.TrimPrefix(trimmed, "# ")
-				if strings.Contains(heading, ":") {
-					parts := strings.SplitN(heading, ":", 2)
-					if p := strings.TrimSpace(parts[1]); p != "" {
-						return p
-					}
+	if ws != nil {
+		if data, err := ws.ReadFile(PipelineFile); err == nil {
+			if fm, _, err := ParseFrontmatter(data); err == nil && fm != nil {
+				if proj := fm.GetString("project"); proj != "" {
+					return proj
 				}
-				return heading
+			}
+			for _, line := range strings.Split(string(data), "\n") {
+				trimmed := strings.TrimSpace(line)
+				if strings.HasPrefix(trimmed, "# ") {
+					heading := strings.TrimPrefix(trimmed, "# ")
+					if strings.Contains(heading, ":") {
+						parts := strings.SplitN(heading, ":", 2)
+						if p := strings.TrimSpace(parts[1]); p != "" {
+							return p
+						}
+					}
+					return heading
+				}
 			}
 		}
 	}
 	base := filepath.Base(root)
-	if base != "" && base != "." && base != "/" {
+	if base != "" && base != "." && base != "/" && base != "\\" {
 		return base
 	}
 	return "Project"
 }
 
-// RenderGateArtifact renders the PHASE-0-GATE.md artifact using the template and gate results.
+// RenderGateArtifact renders the PHASE-0-GATE.md artifact using the template and gate results (backward compatibility for test suites).
 func RenderGateArtifact(ws WorkspaceFS, tmplBytes []byte, root, projectName, gateStatus string, trackAPass, trackBPass bool, trackAIssues, trackBIssues []string, decisions []GateDecisionItem, advisories ...string) []byte {
 	if len(tmplBytes) == 0 {
 		return nil
@@ -51,7 +53,6 @@ func RenderGateArtifact(ws WorkspaceFS, tmplBytes []byte, root, projectName, gat
 	tmpl := strings.ReplaceAll(string(tmplBytes), "\r\n", "\n")
 	today := time.Now().UTC().Format("2006-01-02")
 
-	// 1. Frontmatter and headers
 	tmpl = strings.Replace(tmpl, `project: "[Project Name]"`, fmt.Sprintf(`project: "%s"`, projectName), 1)
 	tmpl = strings.Replace(tmpl, `date: "[YYYY-MM-DD]"`, fmt.Sprintf(`date: "%s"`, today), 1)
 	tmpl = strings.Replace(tmpl, `verdict: "[PENDING | PASS | FAIL]"`, fmt.Sprintf(`verdict: "%s"`, gateStatus), 1)
@@ -71,7 +72,6 @@ func RenderGateArtifact(ws WorkspaceFS, tmplBytes []byte, root, projectName, gat
 	tmpl = strings.Replace(tmpl, `## Project: `+"`[Project Name]`", fmt.Sprintf(`## Project: %s`, projectName), 1)
 	tmpl = strings.Replace(tmpl, `**Gate Date:** `+"`[YYYY-MM-DD]`", fmt.Sprintf(`**Gate Date:** %s`, today), 1)
 
-	// 2. Decision Routing Summary
 	var routingTable strings.Builder
 	if len(decisions) == 0 {
 		routingTable.WriteString("| - | None recorded | - | - | PENDING |\n")
@@ -85,7 +85,6 @@ func RenderGateArtifact(ws WorkspaceFS, tmplBytes []byte, root, projectName, gat
 		"| D-NNN | `[Title]` | `[1-way/2-way]` | `[A/B]` | `[PASS/FAIL/PENDING]` |"
 	tmpl = strings.Replace(tmpl, oldDecisionRows, strings.TrimRight(routingTable.String(), "\n"), 1)
 
-	// 3. Track A section
 	hasTwoWay := false
 	allTwoWayAccepted := true
 	for _, d := range decisions {
@@ -99,7 +98,7 @@ func RenderGateArtifact(ws WorkspaceFS, tmplBytes []byte, root, projectName, gat
 
 	if !hasTwoWay {
 		tmpl = strings.Replace(tmpl, "**Track A Result:** `[PASS / FAIL]`", "**Track A Result:** PASS (0 two-way doors)", 1)
-	} else if allTwoWayAccepted {
+	} else if trackAPass && allTwoWayAccepted {
 		tmpl = strings.Replace(tmpl, "- [ ] Decision logged in ADR", "- [x] Decision logged in ADR", 1)
 		tmpl = strings.Replace(tmpl, "- [ ] Reversibility confirmed", "- [x] Reversibility confirmed", 1)
 		tmpl = strings.Replace(tmpl, "- [ ] At least one corroborated source", "- [x] At least one corroborated source", 1)
@@ -108,20 +107,17 @@ func RenderGateArtifact(ws WorkspaceFS, tmplBytes []byte, root, projectName, gat
 		tmpl = strings.Replace(tmpl, "**Track A Result:** `[PASS / FAIL]`", "**Track A Result:** FAIL", 1)
 	}
 
-	// 4. Track B section
 	if trackBPass {
-		// B1: DAG Closure
 		tmpl = strings.Replace(tmpl, "- [ ] All required dependency paths", "- [x] All required dependency paths", 1)
 		tmpl = strings.Replace(tmpl, "- [ ] No orphaned sessions remain", "- [x] No orphaned sessions remain", 1)
-
-		// B2: Contradictions
 		tmpl = strings.Replace(tmpl, "- [ ] All cross-model divergences resolved", "- [x] All cross-model divergences resolved", 1)
 		tmpl = strings.Replace(tmpl, "- [ ] No unresolved `contested` corroboration flags", "- [x] No unresolved `contested` corroboration flags", 1)
 
-		// B3, B4, B5 checks based on advisories
 		hasB3Adv := false
 		hasB4Adv := false
 		hasB5Adv := false
+		hasB10Adv := false
+		hasB11Adv := false
 		for _, adv := range advisories {
 			if strings.Contains(adv, "B3-EVIDENTIARY") {
 				hasB3Adv = true
@@ -131,6 +127,12 @@ func RenderGateArtifact(ws WorkspaceFS, tmplBytes []byte, root, projectName, gat
 			}
 			if strings.Contains(adv, "B5-ALTERNATIVES") || strings.Contains(adv, "B-DECISION-STUB") {
 				hasB5Adv = true
+			}
+			if strings.Contains(adv, "B10") || strings.Contains(adv, "B-DECISION-STUB") {
+				hasB10Adv = true
+			}
+			if strings.Contains(adv, "B11") || strings.Contains(adv, "W-OWD-NO-CHALLENGE") {
+				hasB11Adv = true
 			}
 		}
 		if !hasB3Adv {
@@ -145,29 +147,15 @@ func RenderGateArtifact(ws WorkspaceFS, tmplBytes []byte, root, projectName, gat
 			tmpl = strings.Replace(tmpl, "- [ ] Every locked ADR explicitly details", "- [x] Every locked ADR explicitly details", 1)
 			tmpl = strings.Replace(tmpl, "- [ ] Rejection rationale is causal", "- [x] Rejection rationale is causal", 1)
 		}
-
-		// B6: Decay Triggers
+		if !hasB10Adv {
+			tmpl = strings.Replace(tmpl, "- [ ] Decision record contains substantive causal rationale", "- [x] Decision record contains substantive causal rationale", 1)
+		}
+		if !hasB11Adv {
+			tmpl = strings.Replace(tmpl, "- [ ] One-Way Door decisions subjected to adversarial challenge", "- [x] One-Way Door decisions subjected to adversarial challenge", 1)
+		}
 		tmpl = strings.Replace(tmpl, "- [ ] Every locked ADR contains an explicit `review_trigger`", "- [x] Every locked ADR contains an explicit `review_trigger`", 1)
 		tmpl = strings.Replace(tmpl, "- [ ] Review triggers are specific and measurable", "- [x] Review triggers are specific and measurable", 1)
 
-		// B7: Premortem Protocol (check if FAD documents substantive failure scenarios)
-		if fadBytes, fErr := ws.ReadFile(FADFile); fErr == nil {
-			fadStr := strings.ToLower(string(fadBytes))
-			hasSubstantivePremortem := false
-			if strings.Contains(fadStr, "premortem") || strings.Contains(fadStr, "failure scenario") || strings.Contains(fadStr, "risk register") {
-				if !strings.Contains(fadStr, "[risk 1]") && !strings.Contains(fadStr, "[action]") && len(fadStr) > 300 {
-					hasSubstantivePremortem = true
-				}
-			}
-			if hasSubstantivePremortem {
-				tmpl = strings.Replace(tmpl, "- [ ] 30-minute prospective hindsight", "- [x] 30-minute prospective hindsight", 1)
-				tmpl = strings.Replace(tmpl, "- [ ] Prompt: *\"It is 12 months from now", "- [x] Prompt: *\"It is 12 months from now", 1)
-				tmpl = strings.Replace(tmpl, "- [ ] Top 3 failure scenarios documented", "- [x] Top 3 failure scenarios documented", 1)
-				tmpl = strings.Replace(tmpl, "- [ ] Mitigations incorporated into FAD", "- [x] Mitigations incorporated into FAD", 1)
-			}
-		}
-
-		// B8: Human Architect Review (check human_reviewed in one-way decisions)
 		hasOneWay := false
 		allHumanReviewed := true
 		for _, d := range decisions {
@@ -180,128 +168,109 @@ func RenderGateArtifact(ws WorkspaceFS, tmplBytes []byte, root, projectName, gat
 		}
 		if hasOneWay && allHumanReviewed {
 			tmpl = strings.Replace(tmpl, "- [ ] Named Principal Architect has reviewed", "- [x] Named Principal Architect has reviewed", 1)
-			reviewerName := ""
-			reviewDate := ""
-			for _, d := range decisions {
-				if strings.EqualFold(d.DoorType, "one-way") && d.ReviewedBy != "" {
-					reviewerName = d.ReviewedBy
-					reviewDate = d.ReviewedAt
-					break
-				}
-			}
-			if reviewerName != "" {
-				tmpl = strings.Replace(tmpl, "Reviewer: `[Name]`", fmt.Sprintf("Reviewer: %s", reviewerName), 1)
-				tmpl = strings.Replace(tmpl, "- [ ] Reviewer: ", "- [x] Reviewer: ", 1)
-			}
-			if reviewDate != "" {
-				tmpl = strings.Replace(tmpl, "Review date: `[YYYY-MM-DD]`", fmt.Sprintf("Review date: %s", reviewDate), 1)
-				tmpl = strings.Replace(tmpl, "- [ ] Review date: ", "- [x] Review date: ", 1)
-			}
 		}
-
-		// B9: FAD Sealed
 		if _, statErr := ws.Stat(FADFile); statErr == nil {
 			tmpl = strings.Replace(tmpl, "- [ ] FAD compiled with full traceability", "- [x] FAD compiled with full traceability", 1)
 			tmpl = strings.Replace(tmpl, "- [ ] FAD committed to repository root", "- [x] FAD committed to repository root", 1)
 			tmpl = strings.Replace(tmpl, "- [ ] Repository scaffolding ready to generate", "- [x] Repository scaffolding ready to generate", 1)
 		}
-
-		// B10: Substantive ADR Content
-		hasB10Adv := false
-		for _, adv := range advisories {
-			if strings.Contains(adv, "B-DECISION-STUB") {
-				hasB10Adv = true
-				break
-			}
-		}
-		if !hasB10Adv {
-			tmpl = strings.Replace(tmpl, "- [ ] Decision record contains substantive causal rationale", "- [x] Decision record contains substantive causal rationale", 1)
-		}
-
-		// B11: Adversarial Red-Team Challenge
-		hasB11Adv := false
-		for _, adv := range advisories {
-			if strings.Contains(adv, "W-OWD-NO-CHALLENGE") {
-				hasB11Adv = true
-				break
-			}
-		}
-		if !hasB11Adv {
-			tmpl = strings.Replace(tmpl, "- [ ] One-Way Door decisions subjected to adversarial challenge", "- [x] One-Way Door decisions subjected to adversarial challenge", 1)
-		}
 	}
 	tmpl = strings.Replace(tmpl, "**Track B Result:** `[PASS / FAIL]`", fmt.Sprintf("**Track B Result:** %s", trackBResultStr), 1)
 
-	// 5. Verdict table
-	trackAIssuesSummary := "None"
-	if len(trackAIssues) > 0 {
-		trackAIssuesSummary = strings.Join(trackAIssues, "; ")
-	}
-	trackBIssuesSummary := "None"
-	if len(trackBIssues) > 0 {
-		trackBIssuesSummary = strings.Join(trackBIssues, "; ")
-	}
-
-	oldVerdictTable := "| Track A (Two-Way) | `[PASS/FAIL]` | `[None / List issues]` |\n" +
-		"| Track B (One-Way) | `[PASS/FAIL]` | `[None / List issues]` |\n" +
-		"| **Overall** | **`[PASS/FAIL]`** | |"
-	newVerdictTable := fmt.Sprintf("| Track A (Two-Way) | %s | %s |\n"+
-		"| Track B (One-Way) | %s | %s |\n"+
-		"| **Overall** | **%s** | |", trackAResultStr, trackAIssuesSummary, trackBResultStr, trackBIssuesSummary, gateStatus)
-	tmpl = strings.Replace(tmpl, oldVerdictTable, newVerdictTable, 1)
-
-	// 6. Date at footer
-	tmpl = strings.Replace(tmpl, "**Date:** `[YYYY-MM-DD]`", fmt.Sprintf("**Date:** %s", today), 1)
-
 	return []byte(tmpl)
+}
+
+// RenderGateReport renders the honest Phase 0 gate report according to CRIT-12 & CRIT-13.
+func RenderGateReport(ws WorkspaceFS, root, projectName string, res *GateResult) []byte {
+	today := time.Now().UTC().Format("2006-01-02")
+	target := res.Target
+	if target == "" {
+		target = "project"
+	}
+
+	var b strings.Builder
+	b.WriteString("---\n")
+	b.WriteString("title: \"Phase 0 Pre-Codebase Exit Gate Report\"\n")
+	fmt.Fprintf(&b, "project: %q\n", projectName)
+	fmt.Fprintf(&b, "date: %s\n", today)
+	fmt.Fprintf(&b, "verdict: %s\n", res.Verdict)
+	b.WriteString("status: complete\n")
+	b.WriteString("vivechak: 1\n")
+	b.WriteString("schema_version: \"0.1.0\"\n")
+	b.WriteString("---\n\n")
+
+	fmt.Fprintf(&b, "# Phase 0 Pre-Codebase Exit Gate: %s\n\n", projectName)
+	fmt.Fprintf(&b, "**Gate Date:** %s  \n", today)
+	fmt.Fprintf(&b, "**Target:** %s  \n", target)
+	fmt.Fprintf(&b, "**Verdict:** **%s**\n\n", res.Verdict)
+
+	b.WriteString(GateMarkerBegin + "\n")
+	b.WriteString("## Automated Mechanical Rule Evaluation (G1–G12)\n\n")
+	b.WriteString("| Rule | Status | Details |\n")
+	b.WriteString("|---|---|---|\n")
+
+	for _, r := range res.Rules {
+		cleanReason := strings.ReplaceAll(r.Reason, "|", "\\|")
+		cleanReason = strings.ReplaceAll(cleanReason, "\n", " ")
+		fmt.Fprintf(&b, "| %s | %s | %s |\n", r.ID, r.Status, cleanReason)
+	}
+
+	b.WriteString("\n### Evidence Provenance Note\n")
+	b.WriteString("Evidence grades and verification labels are as reported by the agent; Vivechak did not fetch or verify sources. Labels as reported; sources not fetched or verified.\n\n")
+
+	b.WriteString("### Human checks (not evaluated by Vivechak)\n")
+	b.WriteString("- ☐ not checked (human): source verification and evidence quality\n")
+	b.WriteString("- ☐ not checked (human): premortem\n")
+	b.WriteString("- ☐ not checked (human): contradiction resolution\n")
+	b.WriteString(GateMarkerEnd + "\n")
+
+	return []byte(b.String())
 }
 
 // MergeGateArtifactContent merges newly rendered gate content into an existing gate file,
 // preserving any human notes or sign-offs outside the <!-- vivechak:begin --> and <!-- vivechak:end --> markers.
 func MergeGateArtifactContent(existingContent, newGeneratedContent []byte) []byte {
 	if len(existingContent) == 0 {
-		var sb strings.Builder
-		sb.WriteString(GateMarkerBegin)
-		sb.WriteString("\n")
-		sb.Write(newGeneratedContent)
-		if !bytes.HasSuffix(newGeneratedContent, []byte("\n")) {
-			sb.WriteString("\n")
-		}
-		sb.WriteString(GateMarkerEnd)
-		sb.WriteString("\n")
-		return []byte(sb.String())
+		return newGeneratedContent
 	}
 
 	existingStr := string(existingContent)
-	beginIdx := strings.Index(existingStr, GateMarkerBegin)
 	endIdx := strings.Index(existingStr, GateMarkerEnd)
 
-	if beginIdx != -1 && endIdx != -1 && endIdx >= beginIdx {
-		prefix := existingStr[:beginIdx]
+	if endIdx != -1 {
 		suffix := existingStr[endIdx+len(GateMarkerEnd):]
-
 		var sb strings.Builder
-		sb.WriteString(prefix)
-		sb.WriteString(GateMarkerBegin)
-		sb.WriteString("\n")
 		sb.Write(newGeneratedContent)
 		if !bytes.HasSuffix(newGeneratedContent, []byte("\n")) {
 			sb.WriteString("\n")
 		}
-		sb.WriteString(GateMarkerEnd)
-		sb.WriteString(suffix)
+		if strings.TrimSpace(suffix) != "" {
+			sb.WriteString(suffix)
+			if !strings.HasSuffix(suffix, "\n") {
+				sb.WriteString("\n")
+			}
+		}
 		return []byte(sb.String())
 	}
 
-	// If no markers exist yet, wrap the new content in markers
+	// No markers found in existingContent: preserve any human lines (like Signed off by:) as suffix
+	var humanSuffix strings.Builder
+	for _, line := range strings.Split(existingStr, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "Signed off by:") || strings.HasPrefix(trimmed, "HUMAN NOTE:") || strings.HasPrefix(trimmed, "Human Note:") {
+			humanSuffix.WriteString("\n")
+			humanSuffix.WriteString(line)
+		}
+	}
+
 	var sb strings.Builder
-	sb.WriteString(GateMarkerBegin)
-	sb.WriteString("\n")
 	sb.Write(newGeneratedContent)
 	if !bytes.HasSuffix(newGeneratedContent, []byte("\n")) {
 		sb.WriteString("\n")
 	}
-	sb.WriteString(GateMarkerEnd)
-	sb.WriteString("\n")
+	if humanSuffix.Len() > 0 {
+		sb.WriteString(humanSuffix.String())
+		sb.WriteString("\n")
+	}
 	return []byte(sb.String())
 }

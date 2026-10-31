@@ -1,114 +1,42 @@
 ---
-document: "Phase 0 Exit Gate"
+title: "Phase 0 Pre-Codebase Exit Gate Report"
 project: "[Project Name]"
 date: "[YYYY-MM-DD]"
-owner: "[Name]"
 verdict: "[PENDING | PASS | FAIL]"
-track_a_result: "[PENDING | PASS | FAIL]"
-track_b_result: "[PENDING | PASS | FAIL]"
+status: complete
+vivechak: 1
 schema_version: "0.1.0"
 ---
 
-# Phase 0 Exit Gate Template — Vivechak v0.1.0
-### Two-Track Pre-Codebase Gate Checklist
+# Phase 0 Pre-Codebase Exit Gate: `[Project Name]`
 
-> **Usage:** Complete this checklist before initializing repository scaffolding.
-> Route each decision through Track A or Track B based on door type.
-
----
-
-## Project: `[Project Name]`
 **Gate Date:** `[YYYY-MM-DD]`
-**Gate Owner:** `[Name]`
+**Target:** `[Target]`
+**Verdict:** **`[PENDING | PASS | FAIL]`**
 
----
+<!-- vivechak:begin -->
+## Automated Rule Evaluation (G1–G12)
 
-## Decision Routing Summary
-
-| D-ID | Decision Title | Door Type | Track | Gate Status |
-|---|---|---|---|---|
-| D-001 | `[Title]` | `[1-way/2-way]` | `[A/B]` | `[PASS/FAIL/PENDING]` |
-| D-002 | `[Title]` | `[1-way/2-way]` | `[A/B]` | `[PASS/FAIL/PENDING]` |
-| D-NNN | `[Title]` | `[1-way/2-way]` | `[A/B]` | `[PASS/FAIL/PENDING]` |
-
----
-
-## Track A: Fast-Track Gate (Two-Way Door Decisions)
-
-For each Two-Way Door decision:
-
-- [ ] Decision logged in ADR with `door_type: two-way`
-- [ ] Reversibility confirmed — can be changed without major refactoring
-- [ ] At least one corroborated source supports the choice
-
-**Track A Result:** `[PASS / FAIL]`
-
----
-
-## Track B: Rigorous 11-Step Gate (One-Way Door Decisions)
-
-For each One-Way Door decision:
-
-### B1. DAG Closure
-- [ ] All required dependency paths have terminated in `status: final` session artifacts
-- [ ] No orphaned sessions remain in the DAG
-
-### B2. Contradiction Resolution
-- [ ] All cross-model divergences resolved via ACH matrix or explicit trade-off rationale
-- [ ] No unresolved `contested` corroboration flags on critical claims
-
-### B3. Evidentiary Threshold
-- [ ] Zero uncorroborated Grade C/D/E claims underpin irreversible architectural pillars
-- [ ] All critical claims backed by Grade A or B evidence
-
-### B4. Verification Integrity
-- [ ] 100% of critical citations carry `verification_method: fetched` or `cached` with qualified provenance
-- [ ] Zero `recalled` citations support any One-Way Door decision
-
-### B5. Rejected Alternatives Documented
-- [ ] Every locked ADR explicitly details evaluated and rejected competing options
-- [ ] Rejection rationale is causal, not preferential
-
-### B6. Decay Triggers Assigned
-- [ ] Every locked ADR contains an explicit `review_trigger` condition or date
-- [ ] Review triggers are specific and measurable (not "review when needed")
-
-### B7. Premortem Protocol (Klein, 2007; Mitchell et al., 1989)
-- [ ] 30-minute prospective hindsight exercise completed
-- [ ] Prompt: *"It is 12 months from now. The system has suffered a catastrophic architectural failure. What caused it?"*
-- [ ] Top 3 failure scenarios documented with mitigations
-- [ ] Mitigations incorporated into FAD risk register
-
-### B8. Human Architect Review
-- [ ] Named Principal Architect has reviewed all One-Way Door ADRs
-- [ ] Reviewer: `[Name]`
-- [ ] Review date: `[YYYY-MM-DD]`
-
-### B9. Founding Architecture Document Sealed
-- [ ] FAD compiled with full traceability matrix
-- [ ] FAD committed to repository root
-- [ ] Repository scaffolding ready to generate
-
-### B10. Substantive ADR Content
-- [ ] Decision record contains substantive causal rationale, evaluated options, and failure modes (no placeholder stubs)
-
-### B11. Adversarial Red-Team Challenge
-- [ ] One-Way Door decisions subjected to adversarial challenge (`vivechak_review` challenge mode or disconfirming evidence search)
-
-**Track B Result:** `[PASS / FAIL]`
-
----
-
-## Gate Verdict
-
-| Track | Result | Blocking Issues |
+| Rule | Status | Details |
 |---|---|---|
-| Track A (Two-Way) | `[PASS/FAIL]` | `[None / List issues]` |
-| Track B (One-Way) | `[PASS/FAIL]` | `[None / List issues]` |
-| **Overall** | **`[PASS/FAIL]`** | |
+| G1 | PASS | Pipeline DAG is valid with no cycles or orphaned dependencies |
+| G2 | PASS | All planned sessions completed with validated empirical findings |
+| G3 | PASS | Founding Architecture Document (FAD.md) complete and covers all accepted ADRs |
+| G4 | PASS | All referenced decisions have corresponding ADRs |
+| G5 | PASS | No ADRs remain in proposed status |
+| G6 | PASS | One-Way Door decisions have >=2 Grade A/B evidence citations with URLs |
+| G7 | PASS | Evidence citations carry verified provenance (labels as reported; sources not fetched or verified) |
+| G8 | PASS | One-Way Door ADRs contain no unexpanded placeholders or default template text |
+| G9 | PASS | One-Way Door ADRs have specific, measurable reversal triggers |
+| G10 | PASS | One-Way Door decisions have current, cited adversarial challenge records |
+| G11 | PASS | One-Way Door decisions have valid human sign-off |
+| G12 | PASS | Two-Way Door decisions meet fast-track exit criteria |
 
-**Signed Off By:** `[Name]`
-**Date:** `[YYYY-MM-DD]`
+### Evidence Provenance Note
+Evidence grades and verification labels are as reported by the agent; Vivechak did not fetch or verify sources. Labels as reported; sources not fetched or verified.
 
-> **PASS:** Proceed to repository scaffolding and development.
-> **FAIL:** Address all blocking issues before re-gating.
+### Human checks (not evaluated by Vivechak)
+- ☐ not checked (human): source verification and evidence quality
+- ☐ not checked (human): premortem
+- ☐ not checked (human): contradiction resolution
+<!-- vivechak:end -->

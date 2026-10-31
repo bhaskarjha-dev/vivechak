@@ -10,20 +10,9 @@ import (
 
 func TestSignoff_RequiresInteractiveTTY(t *testing.T) {
 	var stdout bytes.Buffer
-	err := runSignoffWithStreams([]string{"D-001"}, nil, &stdout, func() bool { return false })
+	err := runSignoffWithStreams([]string{"D-001", "--reviewer", "Alice"}, nil, &stdout, func() bool { return false })
 	if err == nil {
 		t.Fatalf("expected error from runSignoff in non-TTY test environment, got nil")
-	}
-	if !strings.Contains(err.Error(), "E-TTY-REQUIRED") {
-		t.Errorf("expected error to contain E-TTY-REQUIRED, got: %v", err)
-	}
-}
-
-func TestSignoff_RequiresInteractiveTTY_EvenWithForce(t *testing.T) {
-	var stdout bytes.Buffer
-	err := runSignoffWithStreams([]string{"D-001", "--force"}, nil, &stdout, func() bool { return false })
-	if err == nil {
-		t.Fatalf("expected error from runSignoff in non-TTY test environment even with --force, got nil")
 	}
 	if !strings.Contains(err.Error(), "E-TTY-REQUIRED") {
 		t.Errorf("expected error to contain E-TTY-REQUIRED, got: %v", err)
@@ -37,6 +26,25 @@ func TestSignoff_Help(t *testing.T) {
 	}
 	if !strings.Contains(stdout.String(), "Usage: vivechak signoff") {
 		t.Errorf("expected help output, got: %s", stdout.String())
+	}
+	if strings.Contains(stdout.String(), "--force") {
+		t.Errorf("help output should not list --force flag")
+	}
+}
+
+func TestSignoff_RequiresReviewer(t *testing.T) {
+	var stdout bytes.Buffer
+	err := runSignoffWithStreams([]string{"D-001"}, nil, &stdout, func() bool { return true })
+	if err == nil || !strings.Contains(err.Error(), "vck signoff needs --reviewer") {
+		t.Fatalf("expected error requiring --reviewer, got: %v", err)
+	}
+}
+
+func TestSignoff_ForceFlagRejected(t *testing.T) {
+	var stdout bytes.Buffer
+	err := runSignoffWithStreams([]string{"D-001", "--force", "--reviewer", "Alice"}, nil, &stdout, func() bool { return true })
+	if err == nil || !strings.Contains(err.Error(), "unknown flag") {
+		t.Fatalf("expected --force to be rejected, got: %v", err)
 	}
 }
 
@@ -84,6 +92,29 @@ MySQL was evaluated and rejected due to JSON querying limitations.
 	}
 }
 
+func TestSignoff_InteractiveConfirmation_DecisionID(t *testing.T) {
+	tmpDir := t.TempDir()
+	decisionsDir := filepath.Join(tmpDir, "research", "decisions")
+	_ = os.MkdirAll(decisionsDir, 0755)
+
+	adrContent := `---
+id: D-001
+title: Core Storage Engine
+door_type: one-way
+status: proposed
+---
+# Decision
+`
+	_ = os.WriteFile(filepath.Join(decisionsDir, "D-001.md"), []byte(adrContent), 0644)
+
+	var stdout bytes.Buffer
+	stdin := strings.NewReader("D-001\n")
+	err := runSignoffWithStreams([]string{"D-001", "--project-root", tmpDir, "--reviewer", "Bob"}, stdin, &stdout, func() bool { return true })
+	if err != nil {
+		t.Fatalf("expected successful signoff typing decision id, got: %v", err)
+	}
+}
+
 func TestSignoff_InteractiveConfirmation_Cancelled(t *testing.T) {
 	tmpDir := t.TempDir()
 	decisionsDir := filepath.Join(tmpDir, "research", "decisions")
@@ -101,44 +132,9 @@ status: proposed
 
 	var stdout bytes.Buffer
 	stdin := strings.NewReader("NO\n")
-	err := runSignoffWithStreams([]string{"D-001", "--project-root", tmpDir}, stdin, &stdout, func() bool { return true })
-	if err == nil || !strings.Contains(err.Error(), "signoff cancelled: expected 'CONFIRM', got \"NO\"") {
+	err := runSignoffWithStreams([]string{"D-001", "--project-root", tmpDir, "--reviewer", "Alice"}, stdin, &stdout, func() bool { return true })
+	if err == nil || !strings.Contains(err.Error(), "signoff cancelled") {
 		t.Fatalf("expected cancellation error, got: %v", err)
-	}
-}
-
-func TestSignoff_ForceFlagWithTerminal(t *testing.T) {
-	tmpDir := t.TempDir()
-	decisionsDir := filepath.Join(tmpDir, "research", "decisions")
-	_ = os.MkdirAll(decisionsDir, 0755)
-
-	adrContent := `---
-id: D-002
-title: Security Boundary
-door_type: one-way
-status: proposed
-review_trigger: Annual audit
----
-# Decision
-`
-	_ = os.WriteFile(filepath.Join(decisionsDir, "D-002.md"), []byte(adrContent), 0644)
-
-	var stdout bytes.Buffer
-	err := runSignoffWithStreams([]string{"D-002", "--project-root", tmpDir, "--force", "--reviewer", "ci-admin@acme.corp"}, nil, &stdout, func() bool { return true })
-	if err != nil {
-		t.Fatalf("expected successful signoff with force and terminal, got: %v", err)
-	}
-
-	updated, err := os.ReadFile(filepath.Join(decisionsDir, "D-002.md"))
-	if err != nil {
-		t.Fatalf("failed to read updated ADR: %v", err)
-	}
-	updatedStr := string(updated)
-	if !strings.Contains(updatedStr, "human_reviewed: true") {
-		t.Errorf("expected ADR to have human_reviewed: true, got:\n%s", updatedStr)
-	}
-	if !strings.Contains(updatedStr, "reviewed_by: ci-admin@acme.corp") {
-		t.Errorf("expected ADR to have reviewed_by: ci-admin@acme.corp, got:\n%s", updatedStr)
 	}
 }
 
@@ -167,7 +163,8 @@ Storage decision.
 	_ = os.WriteFile(filepath.Join(rDir, "D-001-clinic-datastore.md"), []byte(adrContent), 0644)
 
 	var stdout bytes.Buffer
-	if err := runSignoffWithStreams([]string{"D-001", "--project-root", tmpDir, "--force", "--reviewer", "Lead Architect"}, nil, &stdout, func() bool { return true }); err != nil {
+	stdin := strings.NewReader("D-001\n")
+	if err := runSignoffWithStreams([]string{"D-001", "--project-root", tmpDir, "--reviewer", "Lead Architect"}, stdin, &stdout, func() bool { return true }); err != nil {
 		t.Fatalf("runSignoff failed: %v", err)
 	}
 

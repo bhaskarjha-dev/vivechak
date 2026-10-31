@@ -100,7 +100,14 @@ status: complete
 completed_at: "2026-10-13T00:00:00Z"
 ---
 # Session Findings
+## Key Findings
 Claim A [Grade A: verified by RFC 7519 https://tools.ietf.org/html/rfc7519]
+
+## Recommendation
+Adopt JWT per RFC 7519 [Grade A: https://tools.ietf.org/html/rfc7519].
+
+## Sources & Evidence Ledger
+- RFC 7519: https://tools.ietf.org/html/rfc7519 [Grade A]
 `
 	if err := os.WriteFile(filepath.Join(dir, "research", "sessions", "T1-01.md"), []byte(s1Content), 0o644); err != nil {
 		t.Fatal(err)
@@ -113,7 +120,14 @@ status: complete
 completed_at: "2026-10-13T00:00:00Z"
 ---
 # Session Findings 2
+## Key Findings
 Claim B [Grade B: benchmark tests conducted locally]
+
+## Recommendation
+Use Redis cache layer [Grade B: benchmark tests].
+
+## Sources & Evidence Ledger
+- Local benchmarks [Grade B]
 `
 	if err := os.WriteFile(filepath.Join(dir, "research", "sessions", "T1-02.md"), []byte(s2Content), 0o644); err != nil {
 		t.Fatal(err)
@@ -126,7 +140,14 @@ status: complete
 completed_at: "2026-10-13T00:00:00Z"
 ---
 # Session Findings 3
-Claim C [Grade B: vendor documentation]
+## Key Findings
+Claim C [Grade B: vendor documentation https://example.com/docs]
+
+## Recommendation
+Deploy stateless workers [Grade B: vendor docs].
+
+## Sources & Evidence Ledger
+- Vendor docs [Grade B]
 `
 	if err := os.WriteFile(filepath.Join(dir, "research", "sessions", "T1-03.md"), []byte(s3Content), 0o644); err != nil {
 		t.Fatal(err)
@@ -140,8 +161,24 @@ synthesis_date: "2026-10-13"
 status: complete
 ---
 # Founding Architecture Document
+
+## Executive Summary
 This comprehensive architectural blueprint synthesizes all session findings into a cohesive system design.
 All major subsystems, data boundaries, and protocols are rigorously specified [Grade A: official docs https://golang.org/doc].
+
+## System Context & Architecture
+System context specification and container boundaries.
+
+## Locked Decision Registry
+- D-001: Cache Strategy (Two-Way Door, Accepted)
+
+## Risk Register & Reversal Triggers
+- Latency exceeds 50ms (Reversal Trigger)
+
+## Traceability Matrix
+- T1-01 -> Auth
+- T1-02 -> Cache
+- T1-03 -> Workers
 `
 	if err := os.WriteFile(filepath.Join(dir, FADFile), []byte(fadContent), 0o644); err != nil {
 		t.Fatal(err)
@@ -155,7 +192,10 @@ status: accepted
 review_trigger: "Latency exceeds 50ms"
 ---
 # D-001: Cache Strategy
-Decision details.
+## Context
+Cache layer evaluation.
+## Decision Outcome
+We use in-memory caching.
 ## Reversal Triggers
 - Latency > 50ms
 `
@@ -404,7 +444,14 @@ session_id: D-001-S01
 status: complete
 ---
 # Findings
+## Key Findings
 Evaluation of choices [Grade A: https://tools.ietf.org/rfc/rfc1234].
+
+## Recommendation
+Adopt OAuth2 based on [Grade A: https://tools.ietf.org/rfc/rfc1234].
+
+## Sources & Evidence Ledger
+- RFC 1234: https://tools.ietf.org/rfc/rfc1234 [Grade A]
 `
 	_ = os.WriteFile(filepath.Join(dir, "research", "sessions", "D-001-S01.md"), []byte(sContent), 0o644)
 
@@ -416,7 +463,10 @@ status: accepted
 review_trigger: "Library deprecation"
 ---
 # D-001: Auth
-Details.
+## Context
+Authentication evaluation.
+## Decision Outcome
+We use OAuth2.
 ## Reversal Triggers
 - Library deprecation
 `
@@ -788,6 +838,8 @@ status: accepted
 review_trigger: Traffic > 100k req/s
 ---
 # Logging Library
+## Decision Outcome
+We use Zap.
 `
 	_ = os.WriteFile(filepath.Join(dir, "research", "D-01.md"), []byte(d1), 0o644)
 
@@ -941,7 +993,14 @@ status: complete
 door_type: two-way
 ---
 # S-01: Research
-Investigated pino. Reversible fast spike.
+## Key Findings
+- Investigated pino. Reversible fast spike with zero lock-in [Grade B: benchmark].
+
+## Recommendation
+Use Pino wrapper with swap fallback.
+
+## Sources & Evidence Ledger
+- Local spike: benchmark [Grade B]
 `
 	if err := os.WriteFile(filepath.Join(dir, "research", "sessions", "S-01.md"), []byte(sessContent), 0644); err != nil {
 		t.Fatal(err)
@@ -954,6 +1013,7 @@ decision_id: D-001
 title: Logging Library Selection
 status: accepted
 door_type: two-way
+review_trigger: "Logging latency exceeds 2ms under load"
 reversibility:
   type: two-way
   reversal_cost: low
@@ -964,7 +1024,7 @@ reversibility:
 ## Context
 Need structured JSON logging.
 
-## Decision
+## Decision Outcome
 Use Pino for speed.
 `
 	if err := os.WriteFile(filepath.Join(dir, "research", "D-001-logging.md"), []byte(adr), 0644); err != nil {

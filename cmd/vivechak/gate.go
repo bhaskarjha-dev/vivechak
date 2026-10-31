@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 
 	"github.com/bhaskarjha-dev/vivechak/internal/core"
@@ -29,10 +30,12 @@ func runGateWithArgs(args []string, stdout, stderr io.Writer) int {
 
 	var track string
 	var format string
+	var jsonFlag bool
 	var verbose bool
 
 	fs.StringVar(&track, "track", "all", "Track filter: 'all', 'track_a', or 'track_b'")
 	fs.StringVar(&format, "format", "text", "Output format: 'text' or 'json'")
+	fs.BoolVar(&jsonFlag, "json", false, "Output format: json")
 	fs.BoolVar(&verbose, "verbose", false, "Show detailed issue breakdown")
 	fs.BoolVar(&verbose, "v", false, "Show detailed issue breakdown (shorthand)")
 
@@ -61,7 +64,7 @@ func runGateWithArgs(args []string, stdout, stderr io.Writer) int {
 
 	workspace, err := core.ResolveWorkspace(explicit)
 	if err != nil {
-		fmt.Fprintf(stderr, "Workspace resolution failed: %v\n", err)
+		fmt.Fprintf(stderr, "Error: workspace not initialized at %s (%v)\n", explicit, err)
 		return 1
 	}
 
@@ -85,70 +88,86 @@ func runGateWithArgs(args []string, stdout, stderr io.Writer) int {
 	info := core.InspectWorkspace(workspace)
 	gateResult := core.EvaluateGate(ws, info, workspace)
 
-	gatePassed := gateResult.Passed
-	gateStatus := gateResult.Status
-	switch track {
-	case "track_a":
-		gatePassed = gateResult.TrackAChecks.Passed
-		if gatePassed {
-			gateStatus = "PASS"
-		} else {
-			gateStatus = "FAIL"
-		}
-	case "track_b":
-		gatePassed = gateResult.TrackBChecks.Passed
-		if gatePassed {
-			gateStatus = "PASS"
-		} else {
-			gateStatus = "FAIL"
+	// Persist PHASE-0-GATE.md if applicable
+	if gateResult.Verdict != "not_applicable" {
+		projectName := core.DetectProjectName(ws, workspace)
+		gateContent := core.RenderGateReport(ws, workspace, projectName, gateResult)
+		if len(gateContent) > 0 {
+			var existingGate []byte
+			if d, err := ws.ReadFile(core.GateFile); err == nil {
+				existingGate = d
+			}
+			mergedContent := core.MergeGateArtifactContent(existingGate, gateContent)
+			_ = ws.MkdirAll(core.ResearchDir, 0o755)
+			_ = store.WriteFileAtomic(ws.Root(), core.GateFile, mergedContent, 0o644)
 		}
 	}
 
-	if format == "json" {
+	passed := true
+	if track == "track_a" {
+		for _, r := range gateResult.Rules {
+			if r.ID == "G12" && r.Status == "FAIL" {
+				passed = false
+			}
+		}
+	} else if track == "track_b" {
+		for _, r := range gateResult.Rules {
+			if r.ID != "G12" && r.Status == "FAIL" {
+				passed = false
+			}
+		}
+	} else {
+		passed = (gateResult.Verdict == "PASS" || gateResult.Verdict == "not_applicable")
+	}
+
+	gateStatus := "PASS"
+	if !passed {
+		gateStatus = "FAIL"
+	}
+
+	if jsonFlag || format == "json" {
 		outMap := map[string]any{
-			"workspace":         workspace,
-			"scope":             info.Scope,
-			"track":             track,
-			"status":            gateStatus,
-			"passed":            gatePassed,
-			"structural_checks": gateResult.StructuralChecks,
-			"track_a_checks":    gateResult.TrackAChecks,
-			"track_b_checks":    gateResult.TrackBChecks,
-			"advisories":        gateResult.Advisories,
-			"warnings":          gateResult.Warnings,
-			"next_step":         gateResult.NextStep,
+			"workspace":  workspace,
+			"scope":      info.Scope,
+			"track":      track,
+			"status":     gateStatus,
+			"passed":     passed,
+			"verdict":    gateResult.Verdict,
+			"target":     gateResult.Target,
+			"rules":      gateResult.Rules,
+			"advisories": gateResult.Advisories,
+			"warnings":   gateResult.Warnings,
+			"next_step":  gateResult.NextStep,
 		}
 		enc := json.NewEncoder(stdout)
 		enc.SetIndent("", "  ")
 		_ = enc.Encode(outMap)
 	} else {
-		fmt.Fprintf(stdout, "Phase 0 Gate: %s (Track: %s, Scope: %s)\n", gateStatus, track, info.Scope)
-		fmt.Fprintf(stdout, "  • Track A (Two-Way Doors): %s (%s)\n", passStr(gateResult.TrackAChecks.Passed), gateResult.TrackAChecks.Score)
-		fmt.Fprintf(stdout, "  • Track B (One-Way Doors): %s (%s)\n", passStr(gateResult.TrackBChecks.Passed), gateResult.TrackBChecks.Score)
-		fmt.Fprintf(stdout, "  • Structural Completeness: %s (%s)\n", passStr(gateResult.StructuralChecks.Passed), gateResult.StructuralChecks.Score)
-
-		if verbose || !gatePassed {
-			if len(gateResult.TrackAChecks.Issues) > 0 && (track == "all" || track == "track_a") {
-				fmt.Fprintln(stdout, "\nTrack A Issues:")
-				for _, iss := range gateResult.TrackAChecks.Issues {
-					fmt.Fprintf(stdout, "  - %s\n", iss)
-				}
+		fmt.Fprintf(stdout, "Phase 0 Gate: %s\n", strings.ToUpper(gateResult.Verdict))
+		trackAStatus := "PASS"
+		trackBStatus := "PASS"
+		for _, r := range gateResult.Rules {
+			if r.ID == "G12" && r.Status == "FAIL" {
+				trackAStatus = "FAIL"
 			}
-			if len(gateResult.TrackBChecks.Issues) > 0 && (track == "all" || track == "track_b") {
-				fmt.Fprintln(stdout, "\nTrack B Issues:")
-				for _, iss := range gateResult.TrackBChecks.Issues {
-					fmt.Fprintf(stdout, "  - %s\n", iss)
-				}
-			}
-			if len(gateResult.StructuralChecks.Issues) > 0 && track == "all" {
-				fmt.Fprintln(stdout, "\nStructural Issues:")
-				for _, iss := range gateResult.StructuralChecks.Issues {
-					fmt.Fprintf(stdout, "  - %s\n", iss)
+			if strings.HasPrefix(r.ID, "G") {
+				num, _ := strconv.Atoi(strings.TrimPrefix(r.ID, "G"))
+				if num >= 6 && num <= 11 && r.Status == "FAIL" {
+					trackBStatus = "FAIL"
 				}
 			}
 		}
+		if track == "track_a" || track == "all" {
+			fmt.Fprintf(stdout, "  • Track A (Two-Way Doors): %s\n", trackAStatus)
+		}
+		if track == "track_b" || track == "all" {
+			fmt.Fprintf(stdout, "  • Track B (One-Way Doors): %s\n", trackBStatus)
+		}
+		for _, r := range gateResult.Rules {
+			fmt.Fprintf(stdout, "  • %s: %s - %s\n", r.ID, r.Status, r.Reason)
+		}
 
-		if len(gateResult.Advisories) > 0 && verbose {
+		if len(gateResult.Advisories) > 0 {
 			fmt.Fprintln(stdout, "\nAdvisories:")
 			for _, adv := range gateResult.Advisories {
 				fmt.Fprintf(stdout, "  • %s\n", adv)
@@ -158,15 +177,8 @@ func runGateWithArgs(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stdout, "\nNext Step: %s\n", gateResult.NextStep)
 	}
 
-	if gatePassed {
-		return 0
+	if !passed {
+		return 1
 	}
-	return 1
-}
-
-func passStr(p bool) string {
-	if p {
-		return "PASS"
-	}
-	return "FAIL"
+	return 0
 }

@@ -1,6 +1,8 @@
 package core
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"path/filepath"
 	"regexp"
@@ -9,6 +11,42 @@ import (
 
 	"github.com/bhaskarjha-dev/vivechak/internal/store"
 )
+
+// ComputeADRHash computes the SHA-256 hex digest of an ADR excluding sign-off fields.
+func ComputeADRHash(adrData []byte) string {
+	lines := strings.Split(strings.ReplaceAll(string(adrData), "\r\n", "\n"), "\n")
+	var filtered []string
+	inFrontmatter := false
+	fmCount := 0
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "---" {
+			fmCount++
+			if fmCount <= 2 {
+				inFrontmatter = (fmCount == 1)
+			}
+			filtered = append(filtered, line)
+			continue
+		}
+		if inFrontmatter {
+			lower := strings.ToLower(trimmed)
+			if strings.HasPrefix(lower, "human_reviewed") ||
+				strings.HasPrefix(lower, "\"human_reviewed\"") ||
+				strings.HasPrefix(lower, "'human_reviewed'") ||
+				strings.HasPrefix(lower, "reviewed_by") ||
+				strings.HasPrefix(lower, "reviewed_at") ||
+				strings.HasPrefix(lower, "reviewed_hash") {
+				continue
+			}
+		}
+		filtered = append(filtered, line)
+	}
+	cleanText := strings.Join(filtered, "\n")
+	sum := sha256.Sum256([]byte(cleanText))
+	return hex.EncodeToString(sum[:])
+}
+
+var reSessionOrReview = regexp.MustCompile(`(?i)-[RS]\d+`)
 
 // SignoffDecision sets human_reviewed: true, reviewed_by, and reviewed_at on the specified decision,
 // then updates the compiled DECISIONS.md registry.
@@ -49,6 +87,9 @@ func SignoffDecision(ws *store.Workspace, decisionID string, reviewer string) (s
 					}
 					name := strings.TrimSuffix(e.Name(), ".md")
 					nameUpper := strings.ToUpper(name)
+					if strings.HasSuffix(nameUpper, "-PLAN") || reSessionOrReview.MatchString(nameUpper) {
+						continue
+					}
 					if nameUpper == idUpper || strings.HasPrefix(nameUpper, idUpper+"-") || strings.HasPrefix(nameUpper, idUpper+"_") {
 						cand := filepath.Join(sDir, e.Name())
 						if data, rErr := ws.ReadFile(cand); rErr == nil && len(data) > 0 {
@@ -84,6 +125,15 @@ func SignoffDecision(ws *store.Workspace, decisionID string, reviewer string) (s
 		fm["reviewed_by"] = reviewer
 	}
 	fm["reviewed_at"] = now
+
+	// Render canonical intermediate content to establish exact key formatting
+	intermediateContent, err := ComposeFrontmatter(fm, body)
+	if err != nil {
+		return "", fmt.Errorf("composing intermediate frontmatter: %w", err)
+	}
+
+	hash := ComputeADRHash(intermediateContent)
+	fm["reviewed_hash"] = hash
 
 	// Render updated content
 	updatedContent, err := ComposeFrontmatter(fm, body)
@@ -146,7 +196,7 @@ func SignoffDecision(ws *store.Workspace, decisionID string, reviewer string) (s
 			}
 
 			if modified {
-				_ = ws.WriteArtifact(decisionsPath, []byte(content), 0o644, false)
+				_ = ws.WriteArtifact(decisionsPath, []byte(content), 0o644, true)
 			}
 		}
 	}
