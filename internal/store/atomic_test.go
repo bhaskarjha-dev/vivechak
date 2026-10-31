@@ -3,6 +3,8 @@ package store
 import (
 	"bytes"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -10,6 +12,9 @@ import (
 
 func TestWriteFileAtomic(t *testing.T) {
 	tmpDir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(tmpDir, "research"), 0755); err != nil {
+		t.Fatal(err)
+	}
 
 	w, err := OpenWorkspace(tmpDir)
 	if err != nil {
@@ -19,12 +24,12 @@ func TestWriteFileAtomic(t *testing.T) {
 
 	root := w.Root()
 
-	err = WriteFileAtomic(root, "atomic.txt", []byte("atomic data"), 0644)
+	err = WriteFileAtomic(root, "research/atomic.txt", []byte("atomic data"), 0644)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	data, err := w.ReadFile("atomic.txt")
+	data, err := w.ReadFile("research/atomic.txt")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -33,7 +38,7 @@ func TestWriteFileAtomic(t *testing.T) {
 	}
 
 	// Verify no temp files left behind
-	entries, err := w.ListDir(".")
+	entries, err := w.ListDir("research")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -44,8 +49,12 @@ func TestWriteFileAtomic(t *testing.T) {
 	}
 }
 
-func TestWriteFileAtomic_Concurrent(t *testing.T) {
+func TestWriteFileAtomic_Confinement(t *testing.T) {
 	tmpDir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(tmpDir, "research"), 0755); err != nil {
+		t.Fatal(err)
+	}
+
 	w, err := OpenWorkspace(tmpDir)
 	if err != nil {
 		t.Fatal(err)
@@ -53,7 +62,31 @@ func TestWriteFileAtomic_Concurrent(t *testing.T) {
 	defer w.Close()
 
 	root := w.Root()
-	target := "concurrent.txt"
+
+	if err := WriteFileAtomic(root, "README.md", []byte("x"), 0644); err == nil {
+		t.Fatal("expected error writing README.md outside research/")
+	}
+	if err := WriteFileAtomic(root, "../x", []byte("x"), 0644); err == nil {
+		t.Fatal("expected error writing ../x outside research/")
+	}
+	if err := WriteFileAtomic(root, "research/x.md", []byte("x"), 0644); err != nil {
+		t.Fatalf("WriteFileAtomic refused research/x.md: %v", err)
+	}
+}
+
+func TestWriteFileAtomic_Concurrent(t *testing.T) {
+	tmpDir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(tmpDir, "research"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	w, err := OpenWorkspace(tmpDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer w.Close()
+
+	root := w.Root()
+	target := "research/concurrent.txt"
 	const numWriters = 20
 	var wg sync.WaitGroup
 
@@ -88,7 +121,7 @@ func TestWriteFileAtomic_Concurrent(t *testing.T) {
 	}
 
 	// Verify no leftover temp files
-	entries, err := w.ListDir(".")
+	entries, err := w.ListDir("research")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -101,6 +134,9 @@ func TestWriteFileAtomic_Concurrent(t *testing.T) {
 
 func TestWriteFileAtomic_CleanupOnFailure(t *testing.T) {
 	tmpDir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(tmpDir, "research"), 0755); err != nil {
+		t.Fatal(err)
+	}
 	w, err := OpenWorkspace(tmpDir)
 	if err != nil {
 		t.Fatal(err)
@@ -109,13 +145,13 @@ func TestWriteFileAtomic_CleanupOnFailure(t *testing.T) {
 
 	root := w.Root()
 	// Target path in a non-existent subdirectory will fail at rename or open
-	err = WriteFileAtomic(root, "nonexistent_dir/target.txt", []byte("data"), 0644)
+	err = WriteFileAtomic(root, "research/nonexistent_dir/target.txt", []byte("data"), 0644)
 	if err == nil {
 		t.Error("expected error for nonexistent directory target, got nil")
 	}
 
-	// Verify no temp file left in root directory
-	entries, err := w.ListDir(".")
+	// Verify no temp file left in research directory
+	entries, err := w.ListDir("research")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -128,6 +164,9 @@ func TestWriteFileAtomic_CleanupOnFailure(t *testing.T) {
 
 func TestWriteFileAtomic_ContentIntegrity(t *testing.T) {
 	tmpDir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(tmpDir, "research"), 0755); err != nil {
+		t.Fatal(err)
+	}
 	w, err := OpenWorkspace(tmpDir)
 	if err != nil {
 		t.Fatal(err)
@@ -135,7 +174,7 @@ func TestWriteFileAtomic_ContentIntegrity(t *testing.T) {
 	defer w.Close()
 
 	root := w.Root()
-	target := "large.txt"
+	target := "research/large.txt"
 	largePayload := bytes.Repeat([]byte("Vivechak evidentiary grounding and architectural decision testing.\n"), 1000)
 
 	if err := WriteFileAtomic(root, target, largePayload, 0644); err != nil {

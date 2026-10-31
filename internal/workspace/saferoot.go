@@ -49,7 +49,7 @@ func SafeRoot(dirPath string) error {
 
 	// Check system or application directory
 	if IsSystemOrAppDir(cleanAbs) {
-		return fmt.Errorf("E-ROOT-UNSAFE: path %q is located inside a protected system or application directory", dirPath)
+		return fmt.Errorf("E-ROOT-UNSAFE: path %q is located inside a protected application or system directory", dirPath)
 	}
 
 	// Unix root-level directories (/etc, /bin, /usr, /sys, /proc, /dev, /root, /home)

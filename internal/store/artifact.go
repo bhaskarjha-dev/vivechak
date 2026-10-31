@@ -100,7 +100,7 @@ func (w *Workspace) WriteArtifact(relPath string, data []byte, perm os.FileMode,
 		return err
 	}
 	cleanSlash := filepath.ToSlash(filepath.Clean(relPath))
-	if cleanSlash != "research" && !strings.HasPrefix(cleanSlash, "research/") && cleanSlash != ".gitignore" {
+	if cleanSlash != "research" && !strings.HasPrefix(cleanSlash, "research/") {
 		return fmt.Errorf("E-CONFINEMENT: artifact path %q must be located under research/", relPath)
 	}
 
@@ -111,16 +111,21 @@ func (w *Workspace) WriteArtifact(relPath string, data []byte, perm os.FileMode,
 	if w.FileExists(relPath) {
 		existing, err := w.ReadFile(relPath)
 		if err == nil && len(existing) > 0 {
+			if bytes.Equal(existing, normalized) {
+				return nil
+			}
 			oldID := ExtractFrontmatterID(existing)
 			newID := ExtractFrontmatterID(normalized)
 			if oldID != "" && newID != "" && !strings.EqualFold(oldID, newID) {
 				return fmt.Errorf("E-ID-CONFLICT: cannot overwrite existing artifact %s (id: %s) with differing id %s", relPath, oldID, newID)
 			}
 
-			if revise {
-				if err := ArchiveRevision(w, relPath, existing); err != nil {
-					return fmt.Errorf("archiving prior version: %w", err)
-				}
+			if !revise {
+				return fmt.Errorf("E-REVISE-REQUIRED: file %s already exists with different content; pass revise: true to overwrite", relPath)
+			}
+
+			if err := ArchiveRevision(w, relPath, existing); err != nil {
+				return fmt.Errorf("archiving prior version: %w", err)
 			}
 		}
 	}

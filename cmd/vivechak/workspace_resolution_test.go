@@ -96,6 +96,7 @@ func TestMassive_LiveIDEInheritance_RejectionAndGuidance(t *testing.T) {
 
 	// 6. Case C: vivechak_start with EXPLICIT project workspace MUST succeed
 	realProjectDir := filepath.Join(t.TempDir(), "lab", "personal-finance-dashboard")
+	_ = os.MkdirAll(realProjectDir, 0o755)
 	resExplicit, err := cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_start",
 		Arguments: map[string]any{
@@ -310,8 +311,8 @@ We assumed SQLite would be standard.
 Which embedded database satisfies privacy and native encryption?
 
 ## Key Findings
-- libsql supports AEAD AES-GCM native database-level encryption A (https://github.com/tursodatabase/libsql).
-- Go driver requires explicit build tags B (benchmarks spike).
+- libsql supports AEAD AES-GCM native database-level encryption [Grade A: docs](https://github.com/tursodatabase/libsql) [verification_method: fetched].
+- Go driver requires explicit build tags [Grade B: benchmark](https://github.com/tursodatabase/libsql-client-go) [verification_method: fetched].
 
 ## Recommendation
 Select libsql with native encryption.
@@ -324,7 +325,7 @@ Select libsql with native encryption.
 - Driver build complexity on Windows ARM64.
 
 ## Discovered Concerns
-- Turso licensing stability over multi-year horizon.
+- Turso licensing stability over multi-year horizon and supply chain risk.
 
 ## Delta
 | Belief | Shift | Rationale |
@@ -364,6 +365,7 @@ confidence: "high"
 human_reviewed: false
 review_trigger: "Write latency exceeds 50ms"
 review_date: "2026-12-01"
+informed_by_sessions: ["T1-01"]
 informing_sessions: ["T1-01"]
 ---
 
@@ -372,19 +374,22 @@ informing_sessions: ["T1-01"]
 ## Context
 Personal finance dashboard requires local AES-GCM encryption at rest.
 
-## Decision
-Adopt libsql with native AEAD encryption. Corroborated by Grade A docs. A (https://github.com/tursodatabase/libsql).
+## Decision Outcome
+Adopt libsql with native AEAD encryption. Corroborated by Grade A docs. [Grade A: docs](https://github.com/tursodatabase/libsql) and [Grade B: driver](https://github.com/tursodatabase/libsql-client-go).
 
 ## Consequences
 - Requires CGO build flags.
 - High write throughput.
 
-## Rejected Alternatives
+## Rejected Alternatives & Tradeoffs
 - SQLite vanilla: lacks encryption.
 - SQLCipher: compilation friction.
 
 ## Reversal Trigger
-If Turso changes licensing or Go driver deprecates native encryption.
+If Turso changes licensing or Go driver deprecates native encryption, review_trigger: latency > 50ms.
+
+## Challenge Findings & Red-Team Stress Test
+See D-001-R1: Red-team stress testing confirms durability and single-binary security bounds.
 `
 	resDec, err := cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_record_decision",
@@ -400,6 +405,23 @@ If Turso changes licensing or Go driver deprecates native encryption.
 	envDec := parseTestEnvelope(t, resDec)
 	if !envDec.Success {
 		t.Fatalf("record_decision failed: %s", envDec.Message)
+	}
+
+	// Red-team challenge for One-Way Door D-001
+	resChallenge, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name: "vivechak_review",
+		Arguments: map[string]any{
+			"project_root":   realProjectDir,
+			"decision_id":    "D-001",
+			"challenge_type": "red_team",
+		},
+	})
+	if err != nil {
+		t.Fatalf("challenge call: %v", err)
+	}
+	envChallenge := parseTestEnvelope(t, resChallenge)
+	if !envChallenge.Success {
+		t.Fatalf("challenge D-001 failed: %s", envChallenge.Message)
 	}
 
 	ws, err := store.OpenWorkspace(realProjectDir)
@@ -426,8 +448,19 @@ informs_decisions: ["D-001"]
 ## Executive Summary
 Privacy-first finance dashboard built on Wails v2 and encrypted libsql.
 
+## Locked Decision Registry
+- D-001: Select libsql as Primary Encrypted Datastore (accepted)
+
 ## Architecture
-See ADR D-001 for datastore selection. Corroborated with Grade A evidence. A (https://github.com/tursodatabase/libsql).
+See ADR D-001 for datastore selection. Corroborated with Grade A evidence. [Grade A: docs](https://github.com/tursodatabase/libsql).
+
+## Risk Register & Reversal Triggers
+- Datastore migration risk. Reversal trigger: p95 latency > 50ms.
+
+## Traceability Matrix
+- T0-01 -> Aggregation
+- T1-01 -> D-001
+- SYN-01 -> FAD
 
 ## Prior
 None.
@@ -436,7 +469,7 @@ None.
 Terminal architecture synthesis.
 
 ## Key Findings
-- Single binary desktop app viable. A (specs)
+- Single binary desktop app viable. [Grade A: specs](https://wails.io)
 
 ## Recommendation
 Proceed to implementation.
@@ -448,7 +481,7 @@ Proceed to implementation.
 - Pre-coding spike needed.
 
 ## Discovered Concerns
-- None.
+- Desktop binary bundle size on Windows platforms.
 
 ## Delta
 | Item | Shift |
@@ -458,7 +491,7 @@ Proceed to implementation.
 ## Evidence Ledger
 | Finding | Grade | Source |
 |---|---|---|
-| Viability | A | specs |
+| Viability | A | https://wails.io |
 `
 	resFAD, err := cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_save",
@@ -489,8 +522,8 @@ Proceed to implementation.
 	}
 	envGate := parseTestEnvelope(t, resGate)
 	if envGate.Data["gate_status"] != "PASS" || envGate.Data["gate_passed"] != true {
-		t.Fatalf("expected gate PASS, got status=%v passed=%v warnings=%v message=%s",
-			envGate.Data["gate_status"], envGate.Data["gate_passed"], envGate.Warnings, envGate.Message)
+		t.Fatalf("expected gate PASS, got status=%v passed=%v warnings=%v message=%s rules=%#v",
+			envGate.Data["gate_status"], envGate.Data["gate_passed"], envGate.Warnings, envGate.Message, envGate.Data["rules"])
 	}
 
 	// 8. Physical disk assertion on realProjectDir
@@ -552,6 +585,7 @@ func TestMassive_SandboxesAndEnterprisePaths_LiveMCPMatrix(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			targetDir := filepath.Join(baseDir, tc.relPath)
+			_ = os.MkdirAll(targetDir, 0o755)
 
 			// 1. vivechak_start
 			resInit, err := cs.CallTool(ctx, &mcp.CallToolParams{
@@ -618,21 +652,18 @@ func TestMassive_ContainerEnvironmentVariables_LiveMCP(t *testing.T) {
 
 	binPath := resolveOrBuildTestBinary(t)
 
-	envCases := []struct {
+	supportedCases := []struct {
 		envKey string
 		name   string
 	}{
 		{"VIVECHAK_PROJECT_ROOT", "Canonical Vivechak Project Root"},
 		{"VCK_PROJECT_ROOT", "Shorthand VCK Project Root Alias"},
-		{"VIVECHAK_DEFAULT_ROOT", "Default Vivechak Root Fallback"},
-		{"VCK_DEFAULT_ROOT", "Shorthand VCK Default Root Fallback"},
-		{"WORKSPACE", "Standard OpenHands / GitHub Actions WORKSPACE"},
-		{"PROJECT_ROOT", "Container Standard PROJECT_ROOT"},
 	}
 
-	for _, tc := range envCases {
+	for _, tc := range supportedCases {
 		t.Run(tc.name, func(t *testing.T) {
 			targetDir := filepath.Join(t.TempDir(), "sandboxed", tc.envKey)
+			_ = os.MkdirAll(targetDir, 0o755)
 
 			serverCmd := exec.CommandContext(ctx, binPath, "serve")
 			serverCmd.Env = append(os.Environ(), tc.envKey+"="+targetDir)
@@ -665,6 +696,56 @@ func TestMassive_ContainerEnvironmentVariables_LiveMCP(t *testing.T) {
 			// Verify files landed in targetDir
 			if !core.WorkspaceExists(targetDir) {
 				t.Errorf("expected workspace to be created at %s via %s", targetDir, tc.envKey)
+			}
+		})
+	}
+
+	ignoredCases := []struct {
+		envKey string
+		name   string
+	}{
+		{"VIVECHAK_DEFAULT_ROOT", "Default Vivechak Root Fallback Ignored"},
+		{"VCK_DEFAULT_ROOT", "Shorthand VCK Default Root Fallback Ignored"},
+		{"WORKSPACE", "Standard OpenHands / GitHub Actions WORKSPACE Ignored"},
+		{"PROJECT_ROOT", "Container Standard PROJECT_ROOT Ignored"},
+	}
+
+	for _, tc := range ignoredCases {
+		t.Run(tc.name, func(t *testing.T) {
+			targetDir := filepath.Join(t.TempDir(), "sandboxed", tc.envKey)
+			_ = os.MkdirAll(targetDir, 0o755)
+
+			emptyCWD := t.TempDir()
+
+			serverCmd := exec.CommandContext(ctx, binPath, "serve")
+			serverCmd.Dir = emptyCWD
+			serverCmd.Env = append(os.Environ(), tc.envKey+"="+targetDir)
+			transport := &mcp.CommandTransport{Command: serverCmd}
+
+			client := mcp.NewClient(
+				&mcp.Implementation{Name: "env-test-client", Version: "1.0.0"},
+				nil,
+			)
+
+			cs, err := client.Connect(ctx, transport, nil)
+			if err != nil {
+				t.Fatalf("connecting to server with %s: %v", tc.envKey, err)
+			}
+			defer cs.Close()
+
+			// Call vivechak_start with EMPTY arguments - must fail or not write to targetDir
+			res, err := cs.CallTool(ctx, &mcp.CallToolParams{
+				Name:      "vivechak_start",
+				Arguments: map[string]any{},
+			})
+			if err != nil {
+				t.Fatalf("callTool with %s failed: %v", tc.envKey, err)
+			}
+			_ = parseTestEnvelope(t, res)
+
+			// Target dir MUST NOT have a workspace created inside it
+			if core.WorkspaceExists(targetDir) {
+				t.Errorf("expected %s to be ignored, but workspace was created at %s", tc.envKey, targetDir)
 			}
 		})
 	}

@@ -22,8 +22,6 @@ func WorkspaceExists(root string) bool {
 func IsSpecialResearchFile(name string) bool {
 	lower := strings.ToLower(name)
 	if strings.HasSuffix(lower, "-plan.md") ||
-		strings.HasSuffix(lower, "-comparison.md") ||
-		strings.Contains(lower, "-cmp-") ||
 		strings.EqualFold(name, "COMPARISON.md") ||
 		strings.HasSuffix(lower, "-conflict-resolution.md") ||
 		strings.EqualFold(name, "DECISIONS.md") ||
@@ -31,6 +29,13 @@ func IsSpecialResearchFile(name string) bool {
 		strings.EqualFold(name, "FOUNDING-ARCHITECTURE.md") ||
 		strings.EqualFold(name, "PHASE-0-GATE.md") ||
 		strings.EqualFold(name, "RESEARCH-PIPELINE.md") {
+		return true
+	}
+	// Files with D- prefix are ADRs, not special non-ADR research files (e.g. D-020-orm-comparison.md)
+	if strings.HasPrefix(lower, "d-") {
+		return false
+	}
+	if strings.HasSuffix(lower, "-comparison.md") || strings.Contains(lower, "-cmp-") {
 		return true
 	}
 	return false

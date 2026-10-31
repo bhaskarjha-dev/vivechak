@@ -42,7 +42,8 @@ const (
 // WorkspaceMeta holds metadata written to research/.vivechak.json.
 type WorkspaceMeta struct {
 	Schema    int            `json:"schema,omitempty"`
-	Scope     Scope          `json:"scope"`
+	Scope     Scope          `json:"scope,omitempty"`
+	CreatedBy string         `json:"created_by,omitempty"`
 	CreatedAt string         `json:"created_at,omitempty"`
 	Counters  map[string]int `json:"counters,omitempty"`
 }

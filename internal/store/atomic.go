@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"sync/atomic"
 	"time"
 )
@@ -12,6 +13,15 @@ import (
 var tmpFileCounter atomic.Uint64
 
 func WriteFileAtomic(root *os.Root, relPath string, data []byte, perm os.FileMode) error {
+	// Central store path confinement invariant: all writes must be strictly confined within research/
+	if err := ValidateSafePath(relPath); err != nil {
+		return err
+	}
+	cleanSlash := filepath.ToSlash(filepath.Clean(relPath))
+	if cleanSlash != "research" && !strings.HasPrefix(cleanSlash, "research/") {
+		return fmt.Errorf("E-CONFINEMENT: write target %q is outside research/", relPath)
+	}
+
 	dir := filepath.Dir(relPath)
 	if dir == "." {
 		dir = ""

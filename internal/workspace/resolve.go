@@ -62,117 +62,149 @@ func HasProjectAnchor(dir string) bool {
 	return false
 }
 
-// ResolveWorkspace resolves the workspace root using the standard 7-step resolution ladder:
-//  1. Explicit project_root argument
-//  2. (Skipped in headless mode; see ResolveWorkspaceWithRoots)
-//  3. Environment variables (VIVECHAK_PROJECT_ROOT -> VCK_PROJECT_ROOT -> VIVECHAK_DEFAULT_ROOT -> VCK_DEFAULT_ROOT)
-//  4. In-process session memory (anchors subsequent calls in the active session)
-//  5. Marker walk-up from CWD (checking research/.vivechak.json and research/)
-//  6. Guarded CWD (project manifest anchor detection)
-//  7. Fail-closed with E-ROOT-UNRESOLVED
+// ResolveWorkspace resolves the workspace root using the standard 7-step resolution ladder.
 func ResolveWorkspace(explicit string) (string, error) {
+	root, _, err := ResolveWorkspaceWithRule(explicit)
+	return root, err
+}
+
+// ResolveWorkspaceWithRule resolves the workspace root and reports the rule that matched.
+func ResolveWorkspaceWithRule(explicit string) (string, string, error) {
 	return ResolveWorkspaceWithRoots(context.Background(), explicit, nil)
 }
 
 // ResolveWorkspaceWithRoots resolves the workspace root evaluating MCP client roots at step 2.
-func ResolveWorkspaceWithRoots(ctx context.Context, explicit string, roots []string) (string, error) {
-	// Step 1: Explicit project_root argument
+// Rules returned: "explicit", "roots", "env", "marker", "cwd", "session".
+func ResolveWorkspaceWithRoots(ctx context.Context, explicit string, roots []string) (string, string, error) {
 	trimmedExplicit := strings.TrimSpace(explicit)
-	if trimmedExplicit != "" && !strings.HasPrefix(trimmedExplicit, "${") {
-		abs, err := filepath.Abs(trimmedExplicit)
-		if err != nil {
-			return "", fmt.Errorf("resolving explicit path %q: %w", explicit, err)
-		}
-		// If explicit path points directly to research directory, normalize to parent workspace root
-		if filepath.Base(abs) == ResearchDir {
-			if _, err := os.Stat(filepath.Join(abs, ResearchDir)); os.IsNotExist(err) {
-				if fi, err := os.Stat(abs); err == nil && fi.IsDir() {
-					abs = filepath.Dir(abs)
-				}
+
+	// Step 1: Explicit project_root argument (rule: "explicit")
+	if trimmedExplicit != "" && !strings.Contains(trimmedExplicit, "${") {
+		// Expand leading ~
+		if trimmedExplicit == "~" {
+			if home, err := os.UserHomeDir(); err == nil && home != "" {
+				trimmedExplicit = home
+			}
+		} else if strings.HasPrefix(trimmedExplicit, "~/") || strings.HasPrefix(trimmedExplicit, `~\`) {
+			if home, err := os.UserHomeDir(); err == nil && home != "" {
+				trimmedExplicit = filepath.Join(home, trimmedExplicit[2:])
 			}
 		}
-		if err := SafeRoot(abs); err != nil {
-			return "", err
+		// Expand $VAR and ${VAR}
+		trimmedExplicit = os.ExpandEnv(trimmedExplicit)
+
+		abs, err := filepath.Abs(trimmedExplicit)
+		if err != nil {
+			return "", "", fmt.Errorf("E-ROOT-INVALID: resolving explicit path %q: %w", explicit, err)
 		}
+
+		// Verify SafeRoot first
+		if err := SafeRoot(abs); err != nil {
+			return "", "", fmt.Errorf("E-ROOT-INVALID: %w", err)
+		}
+
+		// Check if explicit path exists and is a directory (never create it)
+		fi, err := os.Stat(abs)
+		if err != nil || !fi.IsDir() {
+			return "", "", fmt.Errorf("E-ROOT-INVALID: explicit project_root %q does not exist or is not a directory", explicit)
+		}
+
+		// If explicit path points directly to research directory, normalize to parent workspace root
+		if filepath.Base(abs) == ResearchDir {
+			abs = filepath.Dir(abs)
+		}
+
 		SetLastResolvedWorkspace(abs)
-		return abs, nil
+		return abs, "explicit", nil
 	}
 
-	// Step 2: MCP Roots protocol
+	// Step 2: MCP Roots protocol (rule: "roots")
+	var validRoots []string
 	for _, rootURI := range roots {
 		parsedPath := parseRootURI(rootURI)
 		if parsedPath != "" {
-			abs, err := filepath.Abs(parsedPath)
-			if err == nil {
-				if err := SafeRoot(abs); err == nil {
-					// Check if research marker or research dir exists
-					marker := filepath.Join(abs, MetadataFile)
-					research := filepath.Join(abs, ResearchDir)
-					if _, err := os.Stat(marker); err == nil {
-						SetLastResolvedWorkspace(abs)
-						return abs, nil
-					}
-					if fi, err := os.Stat(research); err == nil && fi.IsDir() {
-						SetLastResolvedWorkspace(abs)
-						return abs, nil
-					}
-					// If anchor found or directory exists, record and return
-					if HasProjectAnchor(abs) {
-						SetLastResolvedWorkspace(abs)
-						return abs, nil
-					}
+			if abs, err := filepath.Abs(parsedPath); err == nil {
+				if fi, err := os.Stat(abs); err == nil && fi.IsDir() && SafeRoot(abs) == nil {
+					validRoots = append(validRoots, abs)
 				}
 			}
 		}
 	}
+	if len(validRoots) == 1 {
+		SetLastResolvedWorkspace(validRoots[0])
+		return validRoots[0], "roots", nil
+	} else if len(validRoots) > 1 {
+		for _, vr := range validRoots {
+			marker := filepath.Join(vr, MetadataFile)
+			if _, err := os.Stat(marker); err == nil {
+				SetLastResolvedWorkspace(vr)
+				return vr, "roots", nil
+			}
+		}
+		return "", "", fmt.Errorf("E-ROOT-AMBIGUOUS: multiple MCP client roots provided (%s); specify project_root explicitly", strings.Join(validRoots, ", "))
+	}
 
-	// Step 3: Environment variables
+	// Step 3: Environment variables (rule: "env")
 	envLadder := []string{
 		"VIVECHAK_PROJECT_ROOT",
 		"VCK_PROJECT_ROOT",
-		"VIVECHAK_DEFAULT_ROOT",
-		"VCK_DEFAULT_ROOT",
 	}
 	for _, ev := range envLadder {
 		val := strings.TrimSpace(os.Getenv(ev))
-		if val != "" && !strings.HasPrefix(val, "${") {
-			abs, err := filepath.Abs(val)
-			if err == nil {
-				if filepath.Base(abs) == ResearchDir {
-					abs = filepath.Dir(abs)
+		if val != "" && !strings.Contains(val, "${") {
+			if val == "~" {
+				if home, err := os.UserHomeDir(); err == nil && home != "" {
+					val = home
 				}
-				if err := SafeRoot(abs); err == nil {
+			} else if strings.HasPrefix(val, "~/") || strings.HasPrefix(val, `~\`) {
+				if home, err := os.UserHomeDir(); err == nil && home != "" {
+					val = filepath.Join(home, val[2:])
+				}
+			}
+			val = os.ExpandEnv(val)
+			if abs, err := filepath.Abs(val); err == nil {
+				if fi, err := os.Stat(abs); err == nil && fi.IsDir() && SafeRoot(abs) == nil {
+					if filepath.Base(abs) == ResearchDir {
+						abs = filepath.Dir(abs)
+					}
 					SetLastResolvedWorkspace(abs)
-					return abs, nil
+					return abs, "env", nil
 				}
 			}
 		}
 	}
 
-	// Step 4: In-process session memory (anchors subsequent calls in the active session)
+	// Step 4: In-process session memory (rule: "session")
 	if cached := GetLastResolvedWorkspace(); cached != "" {
-		if fi, err := os.Stat(cached); err == nil && fi.IsDir() {
-			if err := SafeRoot(cached); err == nil {
-				return cached, nil
-			}
+		if fi, err := os.Stat(cached); err == nil && fi.IsDir() && SafeRoot(cached) == nil {
+			return cached, "session", nil
 		}
 	}
 
-	// Step 5: Walk up from CWD looking strictly for verified research/.vivechak.json markers
+	// Step 5: Marker walk-up from CWD (rule: "marker")
 	cwd, err := os.Getwd()
 	if err != nil {
-		return "", fmt.Errorf("getting working directory: %w", err)
+		return "", "", fmt.Errorf("getting working directory: %w", err)
+	}
+
+	homeDir, _ := os.UserHomeDir()
+	cleanHome := ""
+	if homeDir != "" {
+		cleanHome = filepath.Clean(homeDir)
 	}
 
 	dir := cwd
 	for {
-		if !IsSystemOrAppDir(dir) {
-			markerPath := filepath.Join(dir, MetadataFile)
+		cleanDir := filepath.Clean(dir)
+		// Stop before reaching HOME or outside HOME
+		if cleanHome != "" && (cleanDir == cleanHome || strings.EqualFold(cleanDir, cleanHome)) {
+			break
+		}
+		if !IsSystemOrAppDir(cleanDir) && SafeRoot(cleanDir) == nil {
+			markerPath := filepath.Join(cleanDir, MetadataFile)
 			if fi, err := os.Stat(markerPath); err == nil && !fi.IsDir() {
-				if err := SafeRoot(dir); err == nil {
-					SetLastResolvedWorkspace(dir)
-					return dir, nil
-				}
+				SetLastResolvedWorkspace(cleanDir)
+				return cleanDir, "marker", nil
 			}
 		}
 
@@ -183,45 +215,22 @@ func ResolveWorkspaceWithRoots(ctx context.Context, explicit string, roots []str
 		dir = parent
 	}
 
-	// Step 6: Guarded CWD & Project Manifest Anchor detection
-	if !IsSystemOrAppDir(cwd) {
-		rPath := filepath.Join(cwd, ResearchDir)
-		if fi, err := os.Stat(rPath); err == nil && fi.IsDir() {
-			if err := SafeRoot(cwd); err == nil {
-				SetLastResolvedWorkspace(cwd)
-				return cwd, nil
-			}
-		}
-		if HasProjectAnchor(cwd) {
-			if err := SafeRoot(cwd); err == nil {
-				SetLastResolvedWorkspace(cwd)
-				return cwd, nil
-			}
-		}
+	// Step 6: Guarded working directory (rule: "cwd")
+	if !IsSystemOrAppDir(cwd) && HasProjectAnchor(cwd) && SafeRoot(cwd) == nil {
+		SetLastResolvedWorkspace(cwd)
+		return cwd, "cwd", nil
 	}
 
-	// If CWD is a subdirectory inside a project with an anchor, walk up to find project root
-	dir = cwd
-	for {
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			break
-		}
-		dir = parent
-		if !IsSystemOrAppDir(dir) && HasProjectAnchor(dir) {
-			if err := SafeRoot(dir); err == nil {
-				SetLastResolvedWorkspace(dir)
-				return dir, nil
-			}
-		}
+	// Step 7: Fail-closed with E-ROOT-UNRESOLVED or E-ROOT-SYSTEM
+	if IsSystemOrAppDir(cwd) {
+		return "", "", fmt.Errorf("E-ROOT-SYSTEM: %q is an application or system directory, not a research workspace. Pass project_root=<absolute path of the user's project>", cwd)
 	}
 
-	// Step 7: Fail-closed with E-ROOT-UNRESOLVED
-	return "", fmt.Errorf(
+	return "", "", fmt.Errorf(
 		"E-ROOT-UNRESOLVED: could not resolve workspace root (no explicit path, no MCP roots, "+
 			"no VIVECHAK_PROJECT_ROOT, no research/ or project anchors walking up from %s, "+
 			"and no prior workspace in session memory). "+
-			"Start a research session in your AI editor or pass project_root explicitly", cwd)
+			"Pass project_root=<absolute path of the user's project>", cwd)
 }
 
 func parseRootURI(uri string) string {

@@ -96,7 +96,7 @@ func TestResolveWorkspace_Ladder(t *testing.T) {
 	_ = os.MkdirAll(filepath.Join(mcpDir, "research"), 0o755)
 	_ = os.WriteFile(filepath.Join(mcpDir, "research", ".vivechak.json"), []byte(`{"scope":"comparison"}`), 0o644)
 
-	res, err = ResolveWorkspaceWithRoots(context.Background(), "", []string{mcpDir})
+	res, _, err = ResolveWorkspaceWithRoots(context.Background(), "", []string{mcpDir})
 	if err != nil {
 		t.Fatalf("MCP roots resolution failed: %v", err)
 	}
