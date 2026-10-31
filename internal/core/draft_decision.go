@@ -93,8 +93,18 @@ func DraftDecisionFromSessionWithExisting(existingADR []byte, sessionContent []b
 	title := sessionTitle
 	if existFM != nil && !isPlaceholder(existFM.GetString("title")) {
 		title = existFM.GetString("title")
-	} else if title == "" {
-		title = "[Decision Title]"
+	} else if title == "" || isPlaceholder(title) {
+		if existBodyStr != "" {
+			if m := regexp.MustCompile(`(?m)^#\s+(?:[A-Za-z0-9_-]+:\s*)?(.*)$`).FindStringSubmatch(existBodyStr); len(m) > 1 {
+				hTitle := strings.TrimSpace(m[1])
+				if !isPlaceholder(hTitle) && hTitle != "" {
+					title = hTitle
+				}
+			}
+		}
+		if title == "" || isPlaceholder(title) {
+			title = "[Decision Title]"
+		}
 	}
 
 	status := "proposed"
@@ -319,19 +329,22 @@ func DraftDecisionFromSessionWithExisting(existingADR []byte, sessionContent []b
 
 
 func extractEvidenceGrades(body string) []string {
-	matches := EvidenceGradePattern.FindAllString(body, -1)
-	if len(matches) == 0 {
-		return nil
-	}
-
-	// Deduplicate
+	lines := strings.Split(body, "\n")
 	seen := make(map[string]bool)
 	var unique []string
-	for _, m := range matches {
-		cleaned := strings.TrimSpace(m)
-		if !seen[cleaned] {
-			seen[cleaned] = true
-			unique = append(unique, cleaned)
+	for _, l := range lines {
+		trimmed := strings.TrimSpace(l)
+		if trimmed == "" {
+			continue
+		}
+		if EvidenceGradePattern.MatchString(trimmed) {
+			clean := strings.TrimPrefix(trimmed, "- ")
+			clean = strings.TrimPrefix(clean, "* ")
+			clean = strings.TrimSpace(clean)
+			if !seen[clean] {
+				seen[clean] = true
+				unique = append(unique, clean)
+			}
 		}
 	}
 	return unique

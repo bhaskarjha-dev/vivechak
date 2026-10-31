@@ -116,7 +116,7 @@ func registerPrompts(server *sdkmcp.Server) {
 		&sdkmcp.Prompt{
 			Name:        "gate",
 			Title:       "Phase 0 Pre-Codebase Exit Gate",
-			Description: "Evaluate Track A (reversibility) and Track B (checks B1–B11) pre-codebase exit criteria before coding.",
+			Description: "Evaluate Track A (reversibility) and Track B (Rules G1–G12) pre-codebase exit criteria before coding.",
 			Arguments: []*sdkmcp.PromptArgument{
 				{
 					Name:        "track",
@@ -317,7 +317,7 @@ func handlePromptGate(_ context.Context, req *sdkmcp.GetPromptRequest) (*sdkmcp.
 		promptText += fmt.Sprintf(" and `project_root=%q`", projectRoot)
 	}
 	promptText += ".\n" +
-		"2. Review the resulting `track_a_result` (Reversibility confirmation for Two-Way Doors) and `track_b_result` (checks B1–B11 for One-Way Doors).\n" +
+		"2. Review the resulting `track_a_result` (Reversibility confirmation for Two-Way Doors) and `track_b_result` (Rules G1–G12 for One-Way Doors).\n" +
 		"3. Summarize all passing checks, and for any failed checks, provide specific recommendations on how to remediate them before starting implementation.\n"
 
 	return &sdkmcp.GetPromptResult{

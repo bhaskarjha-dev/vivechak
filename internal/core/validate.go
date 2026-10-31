@@ -3,7 +3,9 @@ package core
 import (
 	"bytes"
 	"fmt"
+	"math"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -77,6 +79,12 @@ type ValidationResult struct {
 
 	// Status summarizes the result.
 	Status string `json:"status"`
+
+	// Valid indicates whether validation passed without blocking issues.
+	Valid bool `json:"valid"`
+
+	// HasWEPMatrix indicates whether a valid WEP matrix was parsed.
+	HasWEPMatrix bool `json:"wep_matrix,omitempty"`
 }
 
 // MaxLevel returns the highest severity level found.
@@ -163,13 +171,43 @@ func (r *ValidationResult) AddFieldIssueWithHint(level ValidationLevel, code, fi
 	})
 }
 
-var reHumanReviewed = regexp.MustCompile(`(?i)\bhuman_reviewed\s*:\s*(?:true\b|yes\b|"true"|'true')`)
-
 // CheckHumanOnlyField checks if content attempts to set human_reviewed to true,
-// which is strictly reserved for human interactive signoff.
+// or set reviewed_by, reviewed_at, or reviewed_hash, which are strictly reserved for human interactive signoff.
 func CheckHumanOnlyField(content []byte) error {
-	if reHumanReviewed.Match(content) {
-		return fmt.Errorf("E-HUMAN-ONLY-FIELD: agents are prohibited from setting human_reviewed: true. A human must review and sign off via 'vck signoff <decision-id>' on an interactive terminal")
+	fm, _, _ := ParseFrontmatter(content)
+	if fm != nil {
+		if val, exists := fm["human_reviewed"]; exists {
+			switch v := val.(type) {
+			case bool:
+				if v {
+					return fmt.Errorf("E-HUMAN-ONLY-FIELD: agents are prohibited from setting human_reviewed: true. A human must review and sign off via 'vck signoff <decision-id>' on an interactive terminal")
+				}
+			case string:
+				s := strings.ToLower(strings.TrimSpace(v))
+				if s == "true" || s == "yes" || s == "1" {
+					return fmt.Errorf("E-HUMAN-ONLY-FIELD: agents are prohibited from setting human_reviewed: true. A human must review and sign off via 'vck signoff <decision-id>' on an interactive terminal")
+				}
+			}
+		}
+		for _, key := range []string{"reviewed_by", "reviewed_at", "reviewed_hash"} {
+			if val, exists := fm[key]; exists && val != nil {
+				if s, ok := val.(string); ok && strings.TrimSpace(s) != "" {
+					return fmt.Errorf("E-HUMAN-ONLY-FIELD: agents are prohibited from setting %s. A human must review and sign off via 'vck signoff <decision-id>' on an interactive terminal", key)
+				}
+			}
+		}
+	}
+
+	// Regex check for YAML variants, type tags (e.g. !!bool true), or quoted keys
+	lower := strings.ToLower(string(content))
+	for _, key := range []string{"human_reviewed", "reviewed_by", "reviewed_at", "reviewed_hash"} {
+		re := regexp.MustCompile(`(?i)(?:^|\n)\s*["']?` + regexp.QuoteMeta(key) + `["']?\s*:\s*(?:!+[a-zA-Z0-9_-]+\s+)?([^\s\r\n#]+)`)
+		if m := re.FindStringSubmatch(lower); len(m) > 1 {
+			val := strings.Trim(m[1], `"'`)
+			if val != "" && val != "false" && val != "no" && val != "null" && val != "~" {
+				return fmt.Errorf("E-HUMAN-ONLY-FIELD: agents are prohibited from setting %s. A human must review and sign off via 'vck signoff <decision-id>' on an interactive terminal", key)
+			}
+		}
 	}
 	return nil
 }
@@ -790,129 +828,258 @@ func ValidateFAD(data []byte) *ValidationResult {
 	return result
 }
 
-// ValidateComparison checks a comparison session or WEP matrix output.
-// It verifies frontmatter (id/session_id, title, status), substantive body content,
-// absence of unreplaced template placeholders, Weighted Evaluation Protocol (WEP) matrix,
-// Recommendation section, and inline evidence grades.
+// ValidateComparison checks a comparison session or WEP matrix output against CRIT-11 requirements.
 func ValidateComparison(data []byte) *ValidationResult {
-	result := &ValidationResult{Status: "valid"}
+	result := &ValidationResult{Status: "valid", Valid: true}
 
 	trimmed := bytes.TrimSpace(data)
 	if len(trimmed) == 0 {
 		result.AddIssue(L2Block, "V-EMPTY", "Comparison content is empty")
 		result.Status = "invalid"
+		result.Valid = false
 		return result
-	}
-
-	if len(trimmed) < 150 {
-		result.AddIssueWithHint(L2Block, "V-TOO-SHORT",
-			"Comparison content is too short to be a substantive evaluation (< 150 characters)",
-			"Include the full research question, WEP matrix, recommendation, and sources")
 	}
 
 	contentStr := string(data)
 
-	// Check for unreplaced template placeholders
-	if phs := ScanPlaceholders(data); len(phs) > 0 {
-		result.AddIssueWithHint(L2Block, "E-PLACEHOLDER-REMAINS",
-			fmt.Sprintf("Comparison contains unexpanded placeholder %q", phs[0]),
-			"Replace all template bracketed placeholders with actual empirical research content.")
+	// Check for unfilled slot e.g. {option} or {slot} or template bracketed placeholder
+	reSlot := regexp.MustCompile(`\{[a-zA-Z0-9_-]+\}`)
+	if reSlot.MatchString(contentStr) {
+		result.AddIssueWithHint(L2Block, "V-PLACEHOLDER",
+			"Comparison contains unfilled template slot (e.g. {option})",
+			"Replace all template slots with actual comparison data")
 	}
-	unreplacedPlaceholders := []string{
-		"[Comparison Title]",
-		"[Option A]",
-		"[Criterion 1]",
-		"[One-sentence neutral framing",
-		"[Why this criterion",
-	}
-	for _, ph := range unreplacedPlaceholders {
-		if strings.Contains(contentStr, ph) {
-			result.AddIssueWithHint(L2Block, "E-PLACEHOLDER-REMAINS",
-				fmt.Sprintf("Comparison contains unreplaced template placeholder %q", ph),
-				"Replace all template bracketed placeholders with actual empirical research content.")
-			break
-		}
+
+	reBracketLine := regexp.MustCompile(`(?m)^\s*\[[^\]]{8,}\]\s*$`)
+	if reBracketLine.MatchString(contentStr) {
+		result.AddIssueWithHint(L2Block, "V-PLACEHOLDER",
+			"Comparison contains unexpanded template placeholder line",
+			"Replace all bracketed instructions with empirical findings")
+	} else if phs := ScanPlaceholders(data); len(phs) > 0 {
+		result.AddIssueWithHint(L2Block, "V-PLACEHOLDER",
+			fmt.Sprintf("Comparison contains placeholder %q", phs[0]),
+			"Replace all bracketed placeholders with empirical content")
 	}
 
 	// Check frontmatter
 	fm, body, err := ParseFrontmatter(data)
-	if err != nil {
-		result.AddIssueWithHint(L2Block, "V-MALFORMED-FRONTMATTER",
-			fmt.Sprintf("Invalid YAML frontmatter: %v", err),
-			"Ensure frontmatter is delimited by '---' and contains valid YAML syntax")
-	} else if fm == nil {
-		result.AddIssueWithHint(L3Warn, "W-MISSING-FRONTMATTER",
-			"Comparison lacks YAML frontmatter",
-			"Add frontmatter with id, title, and status: complete")
+	if err != nil || fm == nil {
+		result.AddIssueWithHint(L2Block, "V-MISSING-FRONTMATTER",
+			"Comparison lacks valid YAML frontmatter delimited by '---'",
+			"Add YAML frontmatter with id and title")
 	} else {
-		// Required frontmatter fields
-		if !fm.Has("id") && !fm.Has("session_id") {
-			result.AddFieldIssueWithHint(L2Block, "V-MISSING-FIELD", "id",
-				"Required frontmatter field 'id' (or 'session_id') is missing",
-				"Add 'id: C-01-cmp-<slug>' to frontmatter")
-		}
 		if !fm.Has("title") || strings.TrimSpace(fm.GetString("title")) == "" {
-			result.AddFieldIssueWithHint(L2Block, "V-MISSING-FIELD", "title",
-				"Required frontmatter field 'title' is missing",
+			result.AddIssueWithHint(L2Block, "V-MISSING-FRONTMATTER",
+				"Required frontmatter field 'title' is missing or empty",
 				"Add 'title: [Comparison Title]' to frontmatter")
 		}
 	}
 
-	// Check for Weighted Evaluation Protocol or criteria matrix table
 	bodyStr := string(body)
 	if fm == nil {
 		bodyStr = contentStr
 	}
 
-	hasTable := false
-	hasMatrixKeywords := false
-	lowerBody := strings.ToLower(bodyStr)
-	if strings.Contains(lowerBody, "matrix") || strings.Contains(lowerBody, "weight") ||
-		strings.Contains(lowerBody, "criteria") || strings.Contains(lowerBody, "criterion") ||
-		strings.Contains(lowerBody, "score") {
-		hasMatrixKeywords = true
+	if len(strings.TrimSpace(bodyStr)) < 150 {
+		result.AddIssueWithHint(L2Block, "V-TOO-SHORT",
+			"Comparison body content is too short to be a substantive evaluation (< 150 characters)",
+			"Include the full research question, WEP matrix, recommendation, and sources")
 	}
 
+	// Check required sections: Recommendation, Key Findings, Weighted Evaluation Matrix, Sources & Evidence Ledger
+	reRec := regexp.MustCompile(`(?mi)^#+\s*(?:Summary\s+)?(?:Recommendation|Verdict)`)
+	if !reRec.MatchString(bodyStr) {
+		result.AddIssueWithHint(L2Block, "V-MISSING-SECTION",
+			"Missing required section 'Recommendation'",
+			"Add a '## Recommendation' section")
+	}
+	reKey := regexp.MustCompile(`(?mi)^#+\s*Key\s+Findings`)
+	if !reKey.MatchString(bodyStr) {
+		result.AddIssueWithHint(L2Block, "V-MISSING-SECTION",
+			"Missing required section 'Key Findings'",
+			"Add a '## Key Findings' section")
+	}
+	reWepHeader := regexp.MustCompile(`(?mi)^#+\s*(?:Weighted\s+Evaluation(?:\s+Protocol)?(?:\s*\([^)]*\))?|WEP|Evaluation)\s+Matrix`)
+	if !reWepHeader.MatchString(bodyStr) {
+		result.AddIssueWithHint(L2Block, "V-MISSING-SECTION",
+			"Missing required section 'Weighted Evaluation Matrix'",
+			"Add a '## Weighted Evaluation Matrix' section")
+	}
+	reSrc := regexp.MustCompile(`(?mi)^#+\s*(?:Sources(?:\s*&|\s+and)?\s+Evidence\s+Ledger|Sources|Evidence\s+Ledger)`)
+	if !reSrc.MatchString(bodyStr) {
+		result.AddIssueWithHint(L2Block, "V-MISSING-SECTION",
+			"Missing required section 'Sources & Evidence Ledger'",
+			"Add a '## Sources & Evidence Ledger' section")
+	}
+
+	// Check for graded claims
+	reGraded := regexp.MustCompile(`\[[A-E]\s*[·:]\s*[^\]]+\]`)
+	if !reGraded.MatchString(bodyStr) && !EvidenceGradePattern.MatchString(bodyStr) {
+		result.AddIssueWithHint(L2Block, "V-NO-GRADED-CLAIM",
+			"Comparison contains no inline evidence-graded claims (Grade A–E)",
+			"Annotate claims and scores with evidence grades e.g. '[A · single · fresh · direct · fetched](url)'")
+	}
+
+	// Parse matrix table
 	lines := strings.Split(bodyStr, "\n")
-	tableRowCount := 0
-	for _, line := range lines {
-		trimmedLine := strings.TrimSpace(line)
+	var tableHeader []string
+	var tableRows [][]string
+	inTable := false
+
+	for _, l := range lines {
+		trimmedLine := strings.TrimSpace(l)
 		if strings.HasPrefix(trimmedLine, "|") && strings.HasSuffix(trimmedLine, "|") {
-			tableRowCount++
+			parts := splitMarkdownRow(trimmedLine)
+			if !inTable {
+				lowerLine := strings.ToLower(trimmedLine)
+				if (strings.Contains(lowerLine, "criterion") || strings.Contains(lowerLine, "criteria")) &&
+					strings.Contains(lowerLine, "weight") {
+					inTable = true
+					tableHeader = parts
+				}
+			} else {
+				if isSeparatorRow(parts) {
+					continue
+				}
+				tableRows = append(tableRows, parts)
+			}
+		} else if inTable && len(tableRows) > 0 {
+			break
 		}
 	}
-	if tableRowCount >= 3 && hasMatrixKeywords {
-		hasTable = true
-	}
 
-	if !hasTable {
-		result.AddIssueWithHint(L2Block, "W-MISSING-WEP-MATRIX",
+	if len(tableHeader) == 0 || len(tableRows) == 0 {
+		result.AddIssueWithHint(L2Block, "V-CMP-NO-MATRIX",
 			"Comparison must contain a Weighted Evaluation Protocol (WEP) matrix table",
-			"Include a criteria and score matrix per COMPARISON-SESSION.template.md")
-	}
+			"Include a table with Criterion, Weight, and option columns")
+	} else {
+		ignoreCols := map[string]bool{
+			"criterion": true, "criteria": true, "weight": true,
+			"rationale": true, "evidence": true, "notes": true,
+			"source": true, "sources": true, "score": true, "scores": true,
+		}
 
-	// Check for Recommendation section
-	if !strings.Contains(lowerBody, "recommendation") && !strings.Contains(lowerBody, "verdict") {
-		result.AddIssueWithHint(L3Warn, "W-MISSING-RECOMMENDATION",
-			"Comparison lacks an explicit Recommendation or Verdict section",
-			"Add a '## Recommendation' section stating the recommended option and core rationale")
-	}
+		type optCol struct {
+			index int
+			name  string
+		}
+		var optionCols []optCol
 
-	// Check for evidence grades and recalled grade cap
-	if !EvidenceGradePattern.MatchString(bodyStr) {
-		result.AddIssueWithHint(L3Warn, "W-NO-EVIDENCE-GRADES",
-			"Comparison contains no inline evidence grades (Grade A–E)",
-			"Annotate factual claims and scores with evidence grades (e.g. '[Grade A: URL]')")
+		for idx, col := range tableHeader {
+			cleanCol := strings.TrimSpace(col)
+			lowerCol := strings.ToLower(cleanCol)
+			if ignoreCols[lowerCol] ||
+				strings.Contains(lowerCol, "evidence") ||
+				strings.Contains(lowerCol, "provenance") ||
+				strings.Contains(lowerCol, "grade") ||
+				strings.Contains(lowerCol, "rationale") ||
+				strings.Contains(lowerCol, "notes") ||
+				strings.Contains(lowerCol, "source") ||
+				strings.Contains(lowerCol, "justification") {
+				continue
+			}
+			optName := cleanCol
+			for _, suffix := range []string{" Score (1-5)", " Score (1-10)", " Score", " (1-5)", " (1-10)"} {
+				if strings.HasSuffix(strings.ToLower(optName), strings.ToLower(suffix)) {
+					optName = strings.TrimSpace(optName[:len(optName)-len(suffix)])
+					break
+				}
+			}
+			if optName != "" {
+				optionCols = append(optionCols, optCol{index: idx, name: optName})
+			}
+		}
+
+		if len(optionCols) < 2 {
+			result.AddIssueWithHint(L2Block, "V-CMP-OPTIONS",
+				fmt.Sprintf("Matrix must compare at least 2 options, found %d", len(optionCols)),
+				"Include columns for at least 2 distinct options")
+		}
+
+		totalWeight := 0.0
+		hasScoreError := false
+
+		for _, row := range tableRows {
+			rowStr := strings.ToLower(strings.Join(row, " "))
+			if strings.Contains(rowStr, "weighted total") || strings.Contains(rowStr, "total score") {
+				continue
+			}
+
+			if len(row) > 1 {
+				wStr := strings.Trim(strings.TrimSpace(row[1]), "%* ")
+				wVal, wErr := strconv.ParseFloat(wStr, 64)
+				if wErr == nil {
+					totalWeight += wVal
+				}
+			}
+
+			for _, opt := range optionCols {
+				if opt.index < len(row) {
+					scoreVal := strings.TrimSpace(row[opt.index])
+					if scoreVal == "" {
+						hasScoreError = true
+					} else {
+						sClean := strings.Trim(scoreVal, "* ")
+						reScore := regexp.MustCompile(`^\s*(\d+(?:\.\d+)?)\b`)
+						if m := reScore.FindStringSubmatch(sClean); len(m) > 1 {
+							sClean = m[1]
+						}
+						if sNum, sErr := strconv.ParseFloat(sClean, 64); sErr != nil || sNum < 1 || sNum > 10 {
+							hasScoreError = true
+						}
+					}
+				} else {
+					hasScoreError = true
+				}
+			}
+		}
+
+		if hasScoreError {
+			result.AddIssueWithHint(L2Block, "V-CMP-SCORES",
+				"Every option must have a 1-5 score for each criterion",
+				"Fill in numeric scores for all options across all criteria rows")
+		}
+
+		if math.Abs(totalWeight-1.0) > 0.05 && math.Abs(totalWeight-100.0) > 5.0 {
+			result.AddIssueWithHint(L2Block, "V-CMP-WEIGHTS",
+				fmt.Sprintf("Matrix weights must sum to 1.0 ± 0.05 (got %0.2f)", totalWeight),
+				"Adjust criteria weights so their sum equals 1.0")
+		}
+
+		if len(optionCols) >= 2 && !hasScoreError && (math.Abs(totalWeight-1.0) <= 0.05 || math.Abs(totalWeight-100.0) <= 5.0) {
+			result.HasWEPMatrix = true
+		}
 	}
-	checkRecalledGradeCap(bodyStr, result)
 
 	if result.HasBlocking() {
 		result.Status = "draft"
-	} else if result.WarningCount() > 0 {
-		result.Status = "valid-with-warnings"
+		result.Valid = false
+	} else {
+		result.Status = "valid"
+		result.Valid = true
 	}
 
 	return result
+}
+
+func splitMarkdownRow(line string) []string {
+	trimmed := strings.Trim(line, "|")
+	rawParts := strings.Split(trimmed, "|")
+	var parts []string
+	for _, p := range rawParts {
+		parts = append(parts, strings.TrimSpace(p))
+	}
+	return parts
+}
+
+func isSeparatorRow(parts []string) bool {
+	for _, p := range parts {
+		clean := strings.Trim(p, "- :")
+		if clean != "" {
+			return false
+		}
+	}
+	return true
 }
 
 // ValidatePlan validates a research plan or pipeline DAG.

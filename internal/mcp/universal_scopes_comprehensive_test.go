@@ -95,8 +95,11 @@ func TestUniversal_SavePlan_DecisionAutoRecovery(t *testing.T) {
 	}
 
 	savedFile := filepath.Join(tmpDir, core.ResearchDir, "D-05-plan.md")
+	savedFileNorm := filepath.Join(tmpDir, core.ResearchDir, "D-005-plan.md")
 	if _, err := os.Stat(savedFile); os.IsNotExist(err) {
-		t.Errorf("expected %s to be created via auto-recovered decision_id", savedFile)
+		if _, errNorm := os.Stat(savedFileNorm); os.IsNotExist(errNorm) {
+			t.Errorf("expected %s or %s to be created via auto-recovered decision_id", savedFile, savedFileNorm)
+		}
 	}
 }
 

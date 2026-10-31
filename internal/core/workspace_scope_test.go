@@ -117,7 +117,7 @@ func TestIsSpecialResearchFile(t *testing.T) {
 		"research-pipeline.md",
 		"D-001-plan.md",
 		"my-project-plan.md",
-		"D-002-comparison.md",
+		"C-002-comparison.md",
 		"database-comparison.md",
 		"D-001-conflict-resolution.md",
 	}
@@ -131,6 +131,7 @@ func TestIsSpecialResearchFile(t *testing.T) {
 	adrFiles := []string{
 		"D-001.md",
 		"D-001-database-selection.md",
+		"D-002-comparison.md",
 		"d-002-cache-layer.md",
 		"custom-adr.md",
 		"NOTES.md",

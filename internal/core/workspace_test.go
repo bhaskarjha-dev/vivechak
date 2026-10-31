@@ -215,17 +215,15 @@ func TestResolveWorkspace_EnvironmentAndMacroGuard(t *testing.T) {
 		}
 	})
 
-	t.Run("resolves VIVECHAK_DEFAULT_ROOT as fallback", func(t *testing.T) {
+	t.Run("ignores VIVECHAK_DEFAULT_ROOT as removed fallback", func(t *testing.T) {
 		tmpDir := t.TempDir()
 		t.Setenv("VIVECHAK_PROJECT_ROOT", "")
+		t.Setenv("VCK_PROJECT_ROOT", "")
 		t.Setenv("VIVECHAK_DEFAULT_ROOT", tmpDir)
 
 		res, err := ResolveWorkspace("")
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if filepath.Clean(res) != filepath.Clean(tmpDir) {
-			t.Errorf("got %q, want %q", res, tmpDir)
+		if err == nil && filepath.Clean(res) == filepath.Clean(tmpDir) {
+			t.Errorf("VIVECHAK_DEFAULT_ROOT should be ignored, but resolved to %q", res)
 		}
 	})
 
@@ -245,7 +243,7 @@ func TestResolveWorkspace_EnvironmentAndMacroGuard(t *testing.T) {
 		}
 	})
 
-	t.Run("resolves VCK_DEFAULT_ROOT as fallback alias", func(t *testing.T) {
+	t.Run("ignores VCK_DEFAULT_ROOT as removed fallback alias", func(t *testing.T) {
 		tmpDir := t.TempDir()
 		t.Setenv("VIVECHAK_PROJECT_ROOT", "")
 		t.Setenv("VCK_PROJECT_ROOT", "")
@@ -253,11 +251,8 @@ func TestResolveWorkspace_EnvironmentAndMacroGuard(t *testing.T) {
 		t.Setenv("VCK_DEFAULT_ROOT", tmpDir)
 
 		res, err := ResolveWorkspace("")
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if filepath.Clean(res) != filepath.Clean(tmpDir) {
-			t.Errorf("got %q, want %q", res, tmpDir)
+		if err == nil && filepath.Clean(res) == filepath.Clean(tmpDir) {
+			t.Errorf("VCK_DEFAULT_ROOT should be ignored, but resolved to %q", res)
 		}
 	})
 

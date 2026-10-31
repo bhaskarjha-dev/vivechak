@@ -158,6 +158,7 @@ Found major connection limits and serialization anomalies under high concurrent 
 		ProjectRoot: tmpDir,
 		SessionID:   "T1-01",
 		Content:     validOWDContent,
+		Revise:      true,
 	})
 	if err != nil || res2.IsError {
 		t.Fatalf("save valid session failed: %v, env: %+v", err, env2)

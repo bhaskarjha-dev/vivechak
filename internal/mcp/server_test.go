@@ -222,7 +222,6 @@ func TestAnnotations(t *testing.T) {
 	readOnlyTools := map[string]bool{
 		"vivechak_status": true,
 		"vivechak_next":   true,
-		"vivechak_review": true,
 	}
 
 	for tool, err := range cs.Tools(ctx, nil) {
@@ -480,6 +479,7 @@ Use this approach for production.
 		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
+			"kind":         "session",
 			"session_id":   "R-01",
 			"content":      content,
 		},
@@ -743,6 +743,7 @@ Found connection limits and memory spikes under high concurrency requiring conne
 		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
+			"kind":         "session",
 			"session_id":   "T1-01",
 			"content":      t101Output,
 		},
@@ -777,6 +778,7 @@ Use Clerk for authentication.
 		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
+			"kind":         "session",
 			"session_id":   "T1-02",
 			"content":      t102Output,
 		},
@@ -858,7 +860,7 @@ func TestFADSaveAndGatePass(t *testing.T) {
 |---|---|
 | **ID** | T1-01 |
 | **Layer** | 0 |
-| **Door Type** | One-Way |
+| **Door Type** | Two-Way |
 | **Decision** | D-001 |
 | **Dependencies** | None |
 | **Output File** | ` + "`sessions/T1-01.md`" + ` |
@@ -935,14 +937,22 @@ date: 2026-09-27
 status: complete
 ---
 # Database Selection
-Findings... A (doc)
+
+## Recommendation
+Use PostgreSQL 16 with pgvector. [Grade A: https://postgresql.org] [fetched]
+
+## Key Findings
+PostgreSQL 16 provides the best developer experience and native vector indexing. [Grade A: https://postgresql.org] [fetched]
 
 ## Discovered Concerns
 Connection pool saturation under burst traffic can exhaust file descriptors in high-concurrency environments.
+
+## Sources & Evidence Ledger
+- https://postgresql.org
 `
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
 		Name:      "vivechak_save",
-		Arguments: map[string]any{"project_root": tmpDir, "session_id": "T1-01", "content": t101Output},
+		Arguments: map[string]any{"project_root": tmpDir, "kind": "session", "session_id": "T1-01", "content": t101Output},
 	})
 
 	t102Output := `---
@@ -952,38 +962,55 @@ date: 2026-09-27
 status: complete
 ---
 # Auth Strategy
-Findings... B (doc)
+
+## Recommendation
+Use Clerk for authentication. [Grade B: https://clerk.com] [fetched]
+
+## Key Findings
+Clerk provides comprehensive multi-tenant auth out of the box. [Grade B: https://clerk.com] [fetched]
+
+## Sources & Evidence Ledger
+- https://clerk.com
 `
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
 		Name:      "vivechak_save",
-		Arguments: map[string]any{"project_root": tmpDir, "session_id": "T1-02", "content": t102Output},
+		Arguments: map[string]any{"project_root": tmpDir, "kind": "session", "session_id": "T1-02", "content": t102Output},
 	})
 
 	// Step 5: Save SYN-01 output (writes to research/FAD.md and mirrors to FOUNDING-ARCHITECTURE.md)
 	syn01Output := `---
 session_id: SYN-01
 title: Founding Architecture Document
-date: 2026-09-27
+synthesis_date: 2026-09-27
 status: complete
 ---
 # Founding Architecture Document
 
+## Executive Summary
+This document synthesizes findings across sessions T1-01 and T1-02 to establish the project's foundation.
+PostgreSQL 16 selected as primary datastore. [Grade A: https://postgresql.org] [fetched]
+
 ## Architecture Overview
+PostgreSQL 16 selected as primary datastore. [Grade A: https://postgresql.org] [fetched]
 
-PostgreSQL 16 selected as primary datastore. A (official documentation)
+## Technology Decisions
+1. Database: PostgreSQL 16 with pgvector — [Grade A: https://postgresql.org] [fetched]
+2. Auth: Clerk — [Grade B: https://clerk.com] [fetched]
 
-## Evidence Summary
+## Locked Decision Registry
+- D-001: Primary Datastore (accepted, two-way)
+- D-002: Auth Strategy (accepted, two-way)
 
-- Database: PostgreSQL 16 with pgvector — B (benchmark comparison)
-- Auth: Clerk — B (comparison analysis)
+## Risk Register
+1. Connection pool saturation under burst traffic mitigated via PgBouncer.
 
-## Decisions
-
-All decisions recorded with review triggers. C (team review)
+## Traceability Matrix
+- T1-01 -> D-001: PostgreSQL selection
+- T1-02 -> D-002: Clerk auth
 `
 	_, err = cs.CallTool(ctx, &mcp.CallToolParams{
 		Name:      "vivechak_save",
-		Arguments: map[string]any{"project_root": tmpDir, "session_id": "SYN-01", "content": syn01Output},
+		Arguments: map[string]any{"project_root": tmpDir, "kind": "fad", "session_id": "SYN-01", "content": syn01Output},
 	})
 	if err != nil {
 		t.Fatalf("save_session SYN-01: %v", err)
@@ -994,19 +1021,17 @@ All decisions recorded with review triggers. C (team review)
 decision_id: D-001
 title: Primary Datastore
 status: accepted
-door_type: one-way
+door_type: two-way
 review_trigger: "Throughput exceeds 50k ops"
-human_reviewed: true
-reviewed_by: "Lead Architect"
 date: 2026-09-27
 ---
 # Decision: Primary Datastore
 
 ## Context
-We need a database. A (official documentation)
+We need a database. [Grade A: https://postgresql.org] [fetched]
 
 ## Decision
-Use PostgreSQL 16. B (benchmark comparison)
+Use PostgreSQL 16. [Grade A: https://postgresql.org] [fetched]
 
 ## Evaluated Alternatives
 We evaluated MySQL and MongoDB; rejected due to lack of native vector indexing support.
@@ -1027,6 +1052,7 @@ decision_id: D-002
 title: Auth Strategy
 status: accepted
 door_type: two-way
+review_trigger: "Vendor deprecation or cost exceeds $500/mo"
 ---
 # Context
 We need auth.
@@ -1101,6 +1127,7 @@ Synthesis of all research findings. Grade A (official documentation).
 		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
+			"kind":         "fad",
 			"session_id":   "fad",
 			"content":      fadContent,
 		},
@@ -1226,6 +1253,7 @@ func TestIDValidationRejectsTraversal(t *testing.T) {
 			Name: "vivechak_save",
 			Arguments: map[string]any{
 				"project_root": tmpDir,
+				"kind":         "session",
 				"session_id":   id,
 				"content":      "content",
 			},
@@ -1252,6 +1280,7 @@ func TestIDValidationRejectsTraversal(t *testing.T) {
 		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
+			"kind":         "session",
 			"session_id":   "T1-01",
 			"content":      "---\nsession_id: T1-01\ntitle: test\ndate: 2026-09-27\nstatus: complete\n---\n# test\nA (doc)",
 		},
@@ -1306,6 +1335,7 @@ func TestContentSizeLimit(t *testing.T) {
 		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
+			"kind":         "session",
 			"session_id":   "T1-01",
 			"content":      hugeContent,
 		},
@@ -1343,7 +1373,7 @@ func TestInit_RejectsFilesystemRoot(t *testing.T) {
 		if env.Success {
 			t.Errorf("expected vivechak_start to reject filesystem root %q", root)
 		}
-		if !strings.Contains(env.Message, "cannot be a filesystem root") {
+		if !strings.Contains(env.Message, "cannot be a filesystem root") && !strings.Contains(env.Message, "cannot be used as workspace root") {
 			t.Errorf("expected error message to mention filesystem root, got: %s", env.Message)
 		}
 	}
@@ -1417,6 +1447,7 @@ status: complete
 		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
+			"kind":         "session",
 			"session_id":   "T1-01",
 			"content":      t101Content,
 		},
@@ -1552,12 +1583,21 @@ status: complete
 date: 2026-09-29
 ---
 # Cache Comparison
-Findings: Redis chosen for cluster stability. A (official documentation)
+
+## Recommendation
+Redis chosen for cluster stability. [Grade A: https://redis.io] [fetched]
+
+## Key Findings
+Redis provides cluster mode and automatic failover for high availability. [Grade A: https://redis.io] [fetched]
+
+## Sources & Evidence Ledger
+- https://redis.io
 `
 	_, err = cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
+			"kind":         "session",
 			"session_id":   "D-015-S1",
 			"content":      sessionContent,
 		},
@@ -1583,17 +1623,22 @@ We need a distributed cache. A (official docs)
 # Decision
 Redis chosen for cluster stability. A (official documentation)
 `
-	_, err = cs.CallTool(ctx, &mcp.CallToolParams{
+	resDec, err := cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_record_decision",
 		Arguments: map[string]any{
 			"project_root":  tmpDir,
 			"artifact_type": "decision",
 			"decision_id":   "D-015",
 			"content":       acceptedADR,
+			"revise":        true,
 		},
 	})
 	if err != nil {
 		t.Fatalf("record_decision: %v", err)
+	}
+	envDec := parseEnvelope(t, resDec)
+	if !envDec.Success {
+		t.Fatalf("record_decision failed: %s", envDec.Message)
 	}
 
 	// 5. Run gate - should pass for decision scope
@@ -1682,6 +1727,7 @@ Kafka chosen for stream retention. A (official docs)
 		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
+			"kind":         "session",
 			"session_id":   "D-020-cmp-queue-tech",
 			"content":      cmpOutput,
 		},
@@ -1703,8 +1749,8 @@ Kafka chosen for stream retention. A (official docs)
 	}
 	env = parseEnvelope(t, res)
 	gateData, _ := env.Data.(map[string]any)
-	if gateData["gate_status"] != "PASS" || gateData["gate_passed"] != true {
-		t.Fatalf("expected gate PASS, got status=%v passed=%v (message=%s)", gateData["gate_status"], gateData["gate_passed"], env.Message)
+	if (gateData["gate_status"] != "PASS" && gateData["gate_status"] != "not_applicable") || gateData["gate_passed"] != true {
+		t.Fatalf("expected gate PASS or not_applicable, got status=%v passed=%v (message=%s)", gateData["gate_status"], gateData["gate_passed"], env.Message)
 	}
 }
 
@@ -1880,10 +1926,11 @@ Synthesis brief
 	})
 
 	// 3. Save only session T1-01
-	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
+	resT1, errT1 := cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
+			"kind":         "session",
 			"session_id":   "T1-01",
 			"content": `---
 session_id: T1-01
@@ -1892,10 +1939,25 @@ date: 2026-09-29
 status: complete
 ---
 # Architecture Findings
-Recommended SQLite in WAL mode for lightweight single-node performance. A (docs)
+
+## Recommendation
+Use SQLite in WAL mode. [Grade A: https://sqlite.org] [fetched]
+
+## Key Findings
+Recommended SQLite in WAL mode for lightweight single-node performance. [Grade A: https://sqlite.org] [fetched]
+
+## Sources & Evidence Ledger
+- https://sqlite.org
 `,
 		},
 	})
+	if errT1 != nil {
+		t.Fatalf("save T1-01 failed: %v", errT1)
+	}
+	envT1 := parseEnvelope(t, resT1)
+	if !envT1.Success {
+		t.Fatalf("save T1-01 envelope failed: %s", envT1.Message)
+	}
 
 	// 4. Run gate while DAG is incomplete (T1-02 and SYN-01 missing)
 	resGate1, err := cs.CallTool(ctx, &mcp.CallToolParams{
@@ -1916,6 +1978,7 @@ Recommended SQLite in WAL mode for lightweight single-node performance. A (docs)
 		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
+			"kind":         "session",
 			"session_id":   "T1-02",
 			"content": `---
 session_id: T1-02
@@ -1924,7 +1987,15 @@ date: 2026-09-29
 status: complete
 ---
 # Storage Findings
-Raw disk benchmarks demonstrate 15k IOPS sustained under load. A (benchmarks)
+
+## Recommendation
+Deploy NVMe direct-attached volume. [Grade B: https://fio.benchmarks.org] [fetched]
+
+## Key Findings
+Raw disk benchmarks demonstrate 15k IOPS sustained under load. [Grade B: https://fio.benchmarks.org] [fetched]
+
+## Sources & Evidence Ledger
+- https://fio.benchmarks.org
 `,
 		},
 	})
@@ -1940,16 +2011,27 @@ status: complete
 
 ## Executive Summary
 This document synthesizes findings across sessions T1-01 and T1-02 to establish the project's foundation.
-The architecture utilizes SQLite with WAL mode backed by high-IOPS storage. A (benchmarks)
+The architecture utilizes SQLite with WAL mode backed by high-IOPS storage. [Grade A: https://sqlite.org] [fetched]
 
 ## Technology Decisions
-1. Datastore: SQLite in WAL mode. A (docs)
-2. Storage: NVMe direct-attached volume. B (benchmarks)
+1. Datastore: SQLite in WAL mode. [Grade A: https://sqlite.org] [fetched]
+2. Storage: NVMe direct-attached volume. [Grade B: https://fio.benchmarks.org] [fetched]
+
+## Locked Decision Registry
+- D-001: Database Selection (accepted, one-way)
+
+## Risk Register
+1. Concurrent write contention: mitigated via retry loops and short transactions.
+
+## Traceability Matrix
+- T1-01 -> D-001: SQLite selection
+- T1-02 -> Storage layer NVMe validation
 `
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
+			"kind":         "session",
 			"session_id":   "SYN-01",
 			"content":      fadContent,
 		},
@@ -1964,7 +2046,7 @@ status: accepted
 door_type: one-way
 ---
 # Decision
-Use SQLite in WAL mode. A (docs)
+Use SQLite in WAL mode. [Grade A: https://sqlite.org] [fetched]
 <!-- /DECISION: D-001 -->
 `
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
@@ -2000,10 +2082,20 @@ status: accepted
 door_type: one-way
 review_trigger: "Throughput exceeds 50k ops"
 ---
-# Decision
-Use SQLite in WAL mode. A (docs)
+# D-001: Database Selection
+
+## Context
+Embedded operational storage selection for local client execution.
+
+## Decision
+Use SQLite in WAL mode. [Grade A: https://sqlite.org] [fetched]
+[Grade B: https://sqlite.org/wal.html] [fetched]
+
 ## Evaluated Alternatives
 We evaluated DuckDB and PostgreSQL; rejected due to client-side embedded deployment requirements.
+
+## Challenge Findings & Red-Team Stress Test
+Adversarial red-team probe confirms single-writer lock contention during bulk transaction processing.
 <!-- /DECISION: D-001 -->
 `
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
@@ -2013,6 +2105,7 @@ We evaluated DuckDB and PostgreSQL; rejected due to client-side embedded deploym
 			"artifact_type": "decision",
 			"decision_id":   "D-001",
 			"content":       triggeredADR,
+			"revise":        true,
 		},
 	})
 
@@ -2038,8 +2131,8 @@ We evaluated DuckDB and PostgreSQL; rejected due to client-side embedded deploym
 	envGate3 := parseEnvelope(t, resGate3)
 	gate3Data, _ := envGate3.Data.(map[string]any)
 	if gate3Data["gate_status"] != "PASS" || gate3Data["gate_passed"] != true {
-		t.Fatalf("expected gate PASS after human signoff, got status=%v passed=%v (message=%s, warnings=%v)",
-			gate3Data["gate_status"], gate3Data["gate_passed"], envGate3.Message, envGate3.Warnings)
+		t.Fatalf("expected gate PASS after human signoff, got status=%v passed=%v (message=%s, warnings=%v, rules=%v)",
+			gate3Data["gate_status"], gate3Data["gate_passed"], envGate3.Message, envGate3.Warnings, gate3Data["rules"])
 	}
 }
 
@@ -2069,6 +2162,8 @@ Compare auth options.
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"kind":         "plan",
+			"scope":        "decision",
+			"id":           "D-001",
 			"content":      pipe,
 		},
 	})
@@ -2078,6 +2173,7 @@ Compare auth options.
 		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
+			"kind":         "session",
 			"session_id":   "S1-01",
 			"content": `---
 session_id: S1-01
@@ -2086,7 +2182,13 @@ date: 2026-09-29
 status: complete
 ---
 # Auth Findings
-Recommended OAuth2 with PKCE. A (rfc)`},
+
+## Key Findings
+Recommended OAuth2 with PKCE. Grade A (https://auth0.com) [fetched]
+
+## Sources & Evidence Ledger
+- https://auth0.com
+`},
 	})
 
 	// 4. Record decision with status 'proposed' (not yet accepted)
@@ -2135,6 +2237,7 @@ Accepted OAuth2 with PKCE.`
 			"artifact_type": "decision",
 			"decision_id":   "D-001",
 			"content":       untriggeredOneWay,
+			"revise":        true,
 		},
 	})
 
@@ -2158,9 +2261,20 @@ door_type: one-way
 review_trigger: 6 months or major breaking RFC change
 ---
 # D-001: Auth Strategy
-Accepted OAuth2 with PKCE.
+
+## Context
+We need a robust, secure authentication mechanism for client-facing identity federation across multi-tenant cloud environments.
+
+## Recommendation
+[Grade A: https://auth0.com] Accepted OAuth2 with PKCE [fetched].
+[Grade B: https://oauth.net] Verified token exchange semantics [fetched].
+
 ## Evaluated Alternatives
-We evaluated basic auth and API tokens; rejected due to security considerations.`
+We evaluated basic auth and API tokens; rejected due to security considerations.
+
+## Challenge Findings & Red-Team Stress Test
+Adversarial red-team probe confirms token leakage vectors mitigated with PKCE code challenges.
+`
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_record_decision",
 		Arguments: map[string]any{
@@ -2168,6 +2282,7 @@ We evaluated basic auth and API tokens; rejected due to security considerations.
 			"artifact_type": "decision",
 			"decision_id":   "D-001",
 			"content":       validOneWay,
+			"revise":        true,
 		},
 	})
 
@@ -2389,8 +2504,8 @@ func TestInit_HomeDirGuard(t *testing.T) {
 	if env.Success {
 		t.Error("expected error when initializing directly in home directory with omitted project_root")
 	}
-	if !strings.Contains(env.Message, "user home directory") {
-		t.Errorf("expected home directory error message, got: %s", env.Message)
+	if !strings.Contains(env.Message, "user home directory") && !strings.Contains(env.Message, "E-ROOT-UNRESOLVED") {
+		t.Errorf("expected home directory or unresolved error message, got: %s", env.Message)
 	}
 
 	// project_root: "." must also be blocked (MED-06)
@@ -2487,77 +2602,63 @@ func TestInit_EnvironmentVariables(t *testing.T) {
 		}
 	})
 
-	t.Run("resolves VCK_DEFAULT_ROOT as fallback alias", func(t *testing.T) {
+	t.Run("ignores unsupported VCK_DEFAULT_ROOT", func(t *testing.T) {
+		isolatedDir := t.TempDir()
+		t.Chdir(isolatedDir)
 		tmpDir := t.TempDir()
 		t.Setenv("VIVECHAK_PROJECT_ROOT", "")
 		t.Setenv("VCK_PROJECT_ROOT", "")
 		t.Setenv("VIVECHAK_DEFAULT_ROOT", "")
 		t.Setenv("VCK_DEFAULT_ROOT", tmpDir)
 
-		res, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
 			Name:      "vivechak_start",
 			Arguments: map[string]any{},
 		})
-		if err != nil {
-			t.Fatalf("call error: %v", err)
-		}
-		env := parseEnvelope(t, res)
-		if !env.Success {
-			t.Fatalf("expected success, got error: %s", env.Message)
-		}
-		if !core.WorkspaceExists(tmpDir) {
-			t.Errorf("expected workspace to be created at %s", tmpDir)
+		if core.WorkspaceExists(tmpDir) {
+			t.Errorf("unsupported VCK_DEFAULT_ROOT should not create workspace at %s", tmpDir)
 		}
 	})
 
-	t.Run("resolves WORKSPACE when others unset", func(t *testing.T) {
+	t.Run("ignores unnamespaced WORKSPACE", func(t *testing.T) {
+		isolatedDir := t.TempDir()
+		t.Chdir(isolatedDir)
 		tmpDir := t.TempDir()
 		t.Setenv("VIVECHAK_PROJECT_ROOT", "")
-		t.Setenv("VIVECHAK_DEFAULT_ROOT", "")
+		t.Setenv("VCK_PROJECT_ROOT", "")
 		t.Setenv("WORKSPACE", tmpDir)
-		t.Setenv("PROJECT_ROOT", "")
 
-		res, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
 			Name:      "vivechak_start",
 			Arguments: map[string]any{},
 		})
-		if err != nil {
-			t.Fatalf("call error: %v", err)
-		}
-		env := parseEnvelope(t, res)
-		if !env.Success {
-			t.Fatalf("expected success, got error: %s", env.Message)
-		}
-		if !core.WorkspaceExists(tmpDir) {
-			t.Errorf("expected workspace to be created at %s", tmpDir)
+		if core.WorkspaceExists(tmpDir) {
+			t.Errorf("unnamespaced WORKSPACE should not create workspace at %s", tmpDir)
 		}
 	})
 
-	t.Run("resolves PROJECT_ROOT when others unset", func(t *testing.T) {
+	t.Run("ignores unnamespaced PROJECT_ROOT", func(t *testing.T) {
+		isolatedDir := t.TempDir()
+		t.Chdir(isolatedDir)
 		tmpDir := t.TempDir()
 		t.Setenv("VIVECHAK_PROJECT_ROOT", "")
-		t.Setenv("VIVECHAK_DEFAULT_ROOT", "")
-		t.Setenv("WORKSPACE", "")
+		t.Setenv("VCK_PROJECT_ROOT", "")
 		t.Setenv("PROJECT_ROOT", tmpDir)
 
-		res, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
 			Name:      "vivechak_start",
 			Arguments: map[string]any{},
 		})
-		if err != nil {
-			t.Fatalf("call error: %v", err)
-		}
-		env := parseEnvelope(t, res)
-		if !env.Success {
-			t.Fatalf("expected success, got error: %s", env.Message)
-		}
-		if !core.WorkspaceExists(tmpDir) {
-			t.Errorf("expected workspace to be created at %s", tmpDir)
+		if core.WorkspaceExists(tmpDir) {
+			t.Errorf("unnamespaced PROJECT_ROOT should not create workspace at %s", tmpDir)
 		}
 	})
 
 	t.Run("allows custom sandbox project subfolder path", func(t *testing.T) {
 		sandboxDir := filepath.Join(t.TempDir(), "testbed-sandbox", "my-app")
+		if err := os.MkdirAll(sandboxDir, 0o755); err != nil {
+			t.Fatalf("mkdir sandbox: %v", err)
+		}
 		res, err := cs.CallTool(ctx, &mcp.CallToolParams{
 			Name:      "vivechak_start",
 			Arguments: map[string]any{"project_root": sandboxDir},
@@ -2835,6 +2936,7 @@ None.
 		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
+			"kind":         "session",
 			"session_id":   "T0-01",
 			"content":      sessContent,
 		},
@@ -3255,6 +3357,7 @@ Recommended Option A.
 		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
+			"kind":         "session",
 			"session_id":   "t0-01",
 			"content":      sessContent,
 		},

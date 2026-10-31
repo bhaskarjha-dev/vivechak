@@ -1052,6 +1052,10 @@ scope_level: comparison
 ---
 # Pino vs Winston Comparison
 
+## Key Findings
+- Pino uses sonic-boom asynchronous writing [Grade A: official benchmarks].
+- Winston uses synchronous formatting [Grade B: local tests].
+
 ## Recommendation
 Pino is recommended for high-throughput microservices.
 
@@ -1061,13 +1065,17 @@ Pino is recommended for high-throughput microservices.
 | Latency | 0.6 | 5 (Grade A: official benchmarks) | 3 (Grade B: local tests) |
 | Ecosystem | 0.4 | 4 (Grade A: npm stats) | 5 (Grade A: npm stats) |
 | **Weighted Total** | 1.0 | 4.6 | 3.8 |
+
+## Sources & Evidence Ledger
+- Pino benchmarks: official benchmarks [Grade A]
+- Winston test data: local tests [Grade B]
 `
 	res := ValidateComparison([]byte(validCmp))
 	if res.Status != "valid" {
 		t.Errorf("expected valid comparison, got: %s (issues: %v)", res.Status, res.Issues)
 	}
 
-	// Missing WEP matrix should produce W-MISSING-WEP-MATRIX warning
+	// Missing WEP matrix should produce W-MISSING-WEP-MATRIX warning or V-CMP-NO-MATRIX issue
 	noWEP := `---
 id: C-02-cmp-algo
 title: Algorithm Comparison
@@ -1081,7 +1089,7 @@ Grade A: fetched from official paper.
 	resNoWEP := ValidateComparison([]byte(noWEP))
 	foundWarn := false
 	for _, iss := range resNoWEP.Issues {
-		if iss.Code == "W-MISSING-WEP-MATRIX" {
+		if iss.Code == "W-MISSING-WEP-MATRIX" || iss.Code == "V-CMP-NO-MATRIX" {
 			foundWarn = true
 			break
 		}

@@ -79,7 +79,7 @@ func TestResourceRead_AllCanonicalResources(t *testing.T) {
 		},
 		{
 			uri:          "vivechak://templates/gate",
-			expectedText: "Phase 0 Exit Gate",
+			expectedText: "Phase 0 Pre-Codebase Exit Gate",
 		},
 		{
 			uri:          "vivechak://templates/session",

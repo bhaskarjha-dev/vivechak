@@ -53,8 +53,8 @@ func registerStart(server *sdkmcp.Server) {
 				"Pass the user's technical dilemma or options as 'question'.",
 			Annotations: &sdkmcp.ToolAnnotations{
 				ReadOnlyHint:    false,
-				IdempotentHint:  true,
-				DestructiveHint: BoolPtr(false),
+				IdempotentHint:  false,
+				DestructiveHint: BoolPtr(true),
 				OpenWorldHint:   BoolPtr(false),
 			},
 		},
@@ -62,69 +62,23 @@ func registerStart(server *sdkmcp.Server) {
 	)
 }
 
-func handleStart(_ context.Context, _ *sdkmcp.CallToolRequest, in StartInput) (*sdkmcp.CallToolResult, Envelope, error) {
+func handleStart(ctx context.Context, req *sdkmcp.CallToolRequest, in StartInput) (*sdkmcp.CallToolResult, Envelope, error) {
 	const tool = "vivechak_start"
 
-	// Resolve workspace: explicit argument -> environment variable -> CWD walk-up
-	root := in.ProjectRoot
-	if root == "" {
-		if env := os.Getenv("VIVECHAK_PROJECT_ROOT"); env != "" && !strings.HasPrefix(env, "${") {
-			root = env
-		} else if env := os.Getenv("VCK_PROJECT_ROOT"); env != "" && !strings.HasPrefix(env, "${") {
-			root = env
-		} else if env := os.Getenv("VIVECHAK_DEFAULT_ROOT"); env != "" && !strings.HasPrefix(env, "${") {
-			root = env
-		} else if env := os.Getenv("VCK_DEFAULT_ROOT"); env != "" && !strings.HasPrefix(env, "${") {
-			root = env
-		} else if env := os.Getenv("WORKSPACE"); env != "" && !strings.HasPrefix(env, "${") {
-			root = env
-		} else if env := os.Getenv("PROJECT_ROOT"); env != "" && !strings.HasPrefix(env, "${") {
-			root = env
-		} else {
-			// Walk up from CWD checking for existing research/ or project anchors
-			if resolved, err := core.ResolveWorkspace(""); err == nil {
-				root = resolved
-			} else {
-				cwd, err := os.Getwd()
-				if err != nil {
-					return ErrorResult(tool, fmt.Errorf("E-ROOT-UNRESOLVED: cannot determine working directory: %w", err),
-						"Pass project_root explicitly with your target project directory path.")
-				}
-				root = cwd
-			}
-		}
-	}
-
-	absRoot, err := filepath.Abs(root)
+	root, rule, err := core.ResolveWorkspaceWithRoots(ctx, in.ProjectRoot, getClientRoots(ctx, req))
 	if err != nil {
-		return ErrorResult(tool, fmt.Errorf("invalid path %q: %w", root, err),
-			"Provide a valid absolute or relative path as project_root.")
-	}
-
-	// Guard against initializing at a filesystem root
-	cleanAbs := filepath.Clean(absRoot)
-	vol := filepath.VolumeName(cleanAbs)
-	isDriveRoot := vol != "" && (cleanAbs == vol || cleanAbs == vol+"\\" || cleanAbs == vol+"/")
-	if cleanAbs == "/" || cleanAbs == "\\" || filepath.Dir(absRoot) == absRoot || isDriveRoot {
-		return ErrorResult(tool, fmt.Errorf("project_root cannot be a filesystem root: %q", absRoot),
-			"Provide a project directory path, not a filesystem root.")
-	}
-
-	// Guard against unguided initialization directly in user's root home directory (F-05, MED-06)
-	if home, err := os.UserHomeDir(); err == nil && home != "" {
-		if absHome, err := filepath.Abs(home); err == nil && filepath.Clean(absRoot) == filepath.Clean(absHome) {
-			return ErrorResult(tool, fmt.Errorf("refusing to initialize workspace directly in user home directory %q", absRoot),
-				"Provide a dedicated project subdirectory path as project_root, not the root home directory.")
+		if in.ProjectRoot == "" {
+			if cwd, cwdErr := os.Getwd(); cwdErr == nil && core.SafeRoot(cwd) == nil && !core.IsSystemOrAppDir(cwd) {
+				root = cwd
+				rule = "cwd"
+				core.SetLastResolvedWorkspace(cwd)
+			} else {
+				return ErrorResult(tool, err, "Pass project_root explicitly with your target project directory path.")
+			}
+		} else {
+			return ErrorResult(tool, err, "Pass a valid project_root directory path.")
 		}
 	}
-
-	// Guard against unguided initialization in application or system directories (e.g. host IDE CWD inheritance)
-	if core.IsSystemOrAppDir(root) || core.IsSystemOrAppDir(absRoot) {
-		return ErrorResult(tool, fmt.Errorf("refusing to initialize workspace inside application or system directory %q", absRoot),
-			"The host IDE process spawned Vivechak without setting an active workspace directory. Call vivechak_start with 'project_root' explicitly set to your project folder path (e.g., 'project_root': 'd:/path/to/project').")
-	}
-
-	root = absRoot
 
 	question := strings.TrimSpace(in.Question)
 	if question == "" && strings.TrimSpace(in.Context) != "" {
@@ -145,12 +99,6 @@ func handleStart(_ context.Context, _ *sdkmcp.CallToolRequest, in StartInput) (*
 			"Provide 'scope': 'comparison' (comparing 2-5 options), 'decision' (single decision/ADR), or 'project' (full research pipeline).")
 	}
 
-	// Ensure root directory exists
-	if err := os.MkdirAll(root, 0o755); err != nil {
-		return ErrorResult(tool, fmt.Errorf("creating directory %q: %w", root, err),
-			"Check filesystem permissions.")
-	}
-
 	ws, err := store.OpenWorkspace(root)
 	if err != nil {
 		return ErrorResult(tool, fmt.Errorf("opening workspace %q: %w", root, err),
@@ -160,7 +108,7 @@ func handleStart(_ context.Context, _ *sdkmcp.CallToolRequest, in StartInput) (*
 
 	core.SetLastResolvedWorkspace(root)
 
-	// Initialize workspace directory structure and copy scope templates
+	// Initialize workspace directory structure
 	dirs := []string{
 		core.ResearchDir,
 		core.SessionsDir,
@@ -177,8 +125,8 @@ func handleStart(_ context.Context, _ *sdkmcp.CallToolRequest, in StartInput) (*
 	for _, tmpl := range core.TemplatesForScope(scope) {
 		relPath := filepath.Join(core.TemplatesDir, tmpl)
 		if !ws.FileExists(relPath) {
-			if data, err := vembed.ReadTemplate(tmpl); err == nil {
-				_ = store.WriteFileAtomic(ws.Root(), relPath, data, 0o644)
+			if tmplBytes, err := vembed.ReadTemplate(tmpl); err == nil {
+				_ = store.WriteFileAtomic(ws.Root(), relPath, tmplBytes, 0o644)
 			}
 		}
 		tmplsCopied = append(tmplsCopied, tmpl)
@@ -186,11 +134,14 @@ func handleStart(_ context.Context, _ *sdkmcp.CallToolRequest, in StartInput) (*
 
 	gitignoreRel := filepath.Join(core.ResearchDir, ".gitignore")
 	if !ws.FileExists(gitignoreRel) {
-		_ = store.WriteFileAtomic(ws.Root(), gitignoreRel, []byte("# Vivechak operational files\n*.lock\n"), 0o644)
+		_ = store.WriteFileAtomic(ws.Root(), gitignoreRel, []byte("# Vivechak operational files\n*.lock\n.locks/\n.history/\n"), 0o644)
 	}
 
 	meta := core.WorkspaceMeta{
+		Schema:    1,
 		Scope:     scope,
+		CreatedBy: fmt.Sprintf("vivechak %s", "0.1.0"),
+		Counters:  map[string]int{"C": 0, "D": 0},
 		CreatedAt: time.Now().UTC().Format(time.RFC3339),
 	}
 	if ws.FileExists(core.MetadataFile) {
@@ -200,16 +151,22 @@ func handleStart(_ context.Context, _ *sdkmcp.CallToolRequest, in StartInput) (*
 				if existingMeta.CreatedAt != "" {
 					meta.CreatedAt = existingMeta.CreatedAt
 				}
-				meta.Schema = existingMeta.Schema
-				meta.Counters = existingMeta.Counters
+				if existingMeta.Counters != nil {
+					meta.Counters = existingMeta.Counters
+				}
+				meta.Schema = 1
 			}
 		}
 	}
-	if metaBytes, err := json.Marshal(meta); err == nil {
+	if metaBytes, err := json.MarshalIndent(meta, "", "  "); err == nil {
 		_ = store.WriteFileAtomic(ws.Root(), core.MetadataFile, metaBytes, 0o644)
 	}
 
 	data := map[string]any{
+		"workspace": map[string]any{
+			"root": root,
+			"rule": rule,
+		},
 		"workspace_root":   root,
 		"scope":            scope,
 		"initialized":      true,
@@ -342,7 +299,7 @@ func handleStart(_ context.Context, _ *sdkmcp.CallToolRequest, in StartInput) (*
 	case core.ScopeComparison:
 		cid, allocErr := store.AllocateID(ws, "C")
 		if allocErr != nil {
-			cid = "C-001"
+			return ErrorResult(tool, fmt.Errorf("allocating comparison ID: %w", allocErr), "Ensure research/.vivechak.json is accessible.")
 		}
 		data["id"] = cid
 
@@ -381,7 +338,7 @@ func handleStart(_ context.Context, _ *sdkmcp.CallToolRequest, in StartInput) (*
 	case core.ScopeDecision:
 		did, allocErr := store.AllocateID(ws, "D")
 		if allocErr != nil {
-			did = "D-001"
+			return ErrorResult(tool, fmt.Errorf("allocating decision ID: %w", allocErr), "Ensure research/.vivechak.json is accessible.")
 		}
 		data["id"] = did
 

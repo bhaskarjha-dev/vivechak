@@ -78,7 +78,7 @@ func registerResources(server *sdkmcp.Server) {
 			uri:         "vivechak://templates/gate",
 			name:        "template_gate",
 			title:       "Phase 0 Exit Gate Template",
-			description: "Two-track (Track A reversibility & Track B checks B1–B11) pre-codebase exit criteria template.",
+			description: "Two-track (Track A reversibility & Track B Rules G1–G12) pre-codebase exit criteria template.",
 			readFn: func() (string, error) {
 				b, err := vembed.ReadTemplate("PHASE-0-GATE.template.md")
 				return string(b), err

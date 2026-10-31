@@ -28,10 +28,12 @@ type ChallengePrompt struct {
 
 // ChallengeResult encapsulates the challenge prompts and parsed session context.
 type ChallengeResult struct {
-	SessionID string            `json:"session_id"`
-	Mode      ChallengeMode     `json:"mode"`
-	Prompts   []ChallengePrompt `json:"challenge_prompts"`
-	Context   map[string]any    `json:"context"`
+	SessionID    string            `json:"session_id"`
+	RecordID     string            `json:"record_id,omitempty"`
+	DecisionHash string            `json:"decision_hash,omitempty"`
+	Mode         ChallengeMode     `json:"mode"`
+	Prompts      []ChallengePrompt `json:"challenge_prompts"`
+	Context      map[string]any    `json:"context"`
 }
 
 var urlPattern = regexp.MustCompile(`https?://[^\s\)\]]+`)

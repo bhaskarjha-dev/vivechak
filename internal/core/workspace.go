@@ -1,6 +1,7 @@
 package core
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -89,6 +90,12 @@ func GetLastResolvedWorkspace() string      { return workspace.GetLastResolvedWo
 func ResetLastResolvedWorkspace()           { workspace.ResetLastResolvedWorkspace() }
 func ResolveWorkspace(explicit string) (string, error) {
 	return workspace.ResolveWorkspace(explicit)
+}
+func ResolveWorkspaceWithRule(explicit string) (string, string, error) {
+	return workspace.ResolveWorkspaceWithRule(explicit)
+}
+func ResolveWorkspaceWithRoots(ctx context.Context, explicit string, roots []string) (string, string, error) {
+	return workspace.ResolveWorkspaceWithRoots(ctx, explicit, roots)
 }
 func WorkspaceExists(root string) bool           { return workspace.WorkspaceExists(root) }
 func InspectWorkspace(root string) WorkspaceInfo { return workspace.InspectWorkspace(root) }

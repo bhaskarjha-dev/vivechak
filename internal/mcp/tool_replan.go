@@ -44,7 +44,7 @@ func registerReplan(server *sdkmcp.Server) {
 			Annotations: &sdkmcp.ToolAnnotations{
 				ReadOnlyHint:    false,
 				IdempotentHint:  false,
-				DestructiveHint: BoolPtr(false),
+				DestructiveHint: BoolPtr(true),
 				OpenWorldHint:   BoolPtr(false),
 			},
 		},

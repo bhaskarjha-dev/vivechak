@@ -40,7 +40,7 @@ func registerAmend(server *sdkmcp.Server) {
 			Annotations: &sdkmcp.ToolAnnotations{
 				ReadOnlyHint:    false,
 				IdempotentHint:  false,
-				DestructiveHint: BoolPtr(false),
+				DestructiveHint: BoolPtr(true),
 				OpenWorldHint:   BoolPtr(false),
 			},
 		},
@@ -105,11 +105,20 @@ func handleAmend(ctx context.Context, req *sdkmcp.CallToolRequest, in AmendInput
 	if core.IsSynthesisSession(targetID) {
 		relPath = core.FADFile
 	} else {
+		normID := core.NormalizeDecisionID(targetID)
+		matchesID := func(stem string) bool {
+			sLower := strings.ToLower(stem)
+			tLower := strings.ToLower(targetID)
+			nLower := strings.ToLower(normID)
+			return strings.EqualFold(stem, targetID) || strings.HasPrefix(sLower, tLower+"-") ||
+				strings.EqualFold(stem, normID) || strings.HasPrefix(sLower, nLower+"-")
+		}
+
 		// Look in sessions first
 		matches, _ := ws.ListDir(core.SessionsDir)
 		for _, m := range matches {
 			stem := strings.TrimSuffix(m.Name(), ".md")
-			if strings.EqualFold(stem, targetID) || strings.HasPrefix(strings.ToLower(stem), strings.ToLower(targetID)+"-") {
+			if matchesID(stem) {
 				relPath = filepath.Join(core.SessionsDir, m.Name())
 				break
 			}
@@ -120,7 +129,7 @@ func handleAmend(ctx context.Context, req *sdkmcp.CallToolRequest, in AmendInput
 			rootMatches, _ := ws.ListDir(core.ResearchDir)
 			for _, m := range rootMatches {
 				stem := strings.TrimSuffix(m.Name(), ".md")
-				if strings.EqualFold(stem, targetID) || strings.HasPrefix(strings.ToLower(stem), strings.ToLower(targetID)+"-") {
+				if matchesID(stem) {
 					relPath = filepath.Join(core.ResearchDir, m.Name())
 					break
 				}
@@ -132,7 +141,7 @@ func handleAmend(ctx context.Context, req *sdkmcp.CallToolRequest, in AmendInput
 			decMatches, _ := ws.ListDir(core.DecisionsDir)
 			for _, m := range decMatches {
 				stem := strings.TrimSuffix(m.Name(), ".md")
-				if strings.EqualFold(stem, targetID) || strings.HasPrefix(strings.ToLower(stem), strings.ToLower(targetID)+"-") {
+				if matchesID(stem) {
 					relPath = filepath.Join(core.DecisionsDir, m.Name())
 					break
 				}

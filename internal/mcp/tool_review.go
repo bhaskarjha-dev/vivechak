@@ -51,8 +51,8 @@ func registerReview(server *sdkmcp.Server) {
 				"Modes: 'validate' (runs 4-level quality ladder on content or entire workspace without saving), " +
 				"or 'challenge' (generates adversarial red-team critique prompts for One-Way Doors, premortems, and disconfirming search). Read-only.",
 			Annotations: &sdkmcp.ToolAnnotations{
-				ReadOnlyHint:    true,
-				IdempotentHint:  true,
+				ReadOnlyHint:    false,
+				IdempotentHint:  false,
 				DestructiveHint: BoolPtr(false),
 				OpenWorldHint:   BoolPtr(false),
 			},
@@ -116,6 +116,9 @@ func handleReviewChallenge(_ context.Context, in ReviewInput) (*sdkmcp.CallToolR
 				}
 				name := strings.TrimSuffix(e.Name(), ".md")
 				nameUpper := strings.ToUpper(name)
+				if strings.HasSuffix(nameUpper, "-PLAN") || reSessionOrReview.MatchString(nameUpper) || core.IsSpecialResearchFile(e.Name()) {
+					continue
+				}
 				if nameUpper == idUpper || strings.HasPrefix(nameUpper, idUpper+"-") || strings.HasPrefix(nameUpper, idUpper+"_") {
 					if dData, rErr := ws.ReadFile(filepath.Join(core.ResearchDir, e.Name())); rErr == nil && len(dData) > 0 {
 						sessionData = string(dData)
@@ -158,22 +161,40 @@ func handleReviewChallenge(_ context.Context, in ReviewInput) (*sdkmcp.CallToolR
 		return ErrorResult(tool, cErr, "Verify session content is non-empty and formatted correctly.")
 	}
 
-	// Persist challenge record into research/.challenges/
-	rec := core.ChallengeRecord{
-		TargetID:   target,
-		TargetHash: core.ComputeContentHash([]byte(sessionData)),
-		Timestamp:  time.Now().UTC().Format(time.RFC3339),
-		Mode:       string(core.ModeRedTeam),
-	}
+	var promptStrings []string
 	for _, p := range challengeResult.Prompts {
-		rec.Prompts = append(rec.Prompts, p.Prompt)
+		promptStrings = append(promptStrings, p.Prompt)
 	}
-	challengeRef, _ := core.SaveChallengeRecord(ws, rec)
+
+	var recordID string
+	var decHash string
+	if strings.HasPrefix(strings.ToUpper(target), "D-") {
+		recID, h, err := core.WriteDecisionChallengeRecord(ws, target, []byte(sessionData), promptStrings)
+		if err == nil {
+			recordID = recID
+			decHash = h
+		}
+	} else {
+		rec := core.ChallengeRecord{
+			TargetID:   target,
+			TargetHash: core.ComputeContentHash([]byte(sessionData)),
+			Timestamp:  time.Now().UTC().Format(time.RFC3339),
+			Mode:       string(core.ModeRedTeam),
+			Prompts:    promptStrings,
+		}
+		recordID, _ = core.SaveChallengeRecord(ws, rec)
+		decHash = rec.TargetHash
+	}
+
+	challengeResult.RecordID = recordID
+	challengeResult.DecisionHash = decHash
 	if challengeResult.Context == nil {
 		challengeResult.Context = make(map[string]any)
 	}
-	challengeResult.Context["challenge_ref"] = challengeRef
-	challengeResult.Context["target_hash"] = rec.TargetHash
+	challengeResult.Context["challenge_ref"] = recordID
+	challengeResult.Context["record_id"] = recordID
+	challengeResult.Context["target_hash"] = decHash
+	challengeResult.Context["decision_hash"] = decHash
 
 	next := &NextAction{
 		Tool: "vivechak_amend",
@@ -368,6 +389,9 @@ func handleWorkspaceValidate(tool string, projectRoot string) (*sdkmcp.CallToolR
 			if core.IsSpecialResearchFile(name) {
 				continue
 			}
+			if strings.HasSuffix(strings.ToLower(name), "-plan.md") || reSessionOrReview.MatchString(strings.ToUpper(name)) {
+				continue
+			}
 			isCandidate := strings.HasPrefix(strings.ToUpper(name), "D-")
 			relPath := filepath.Join(core.ResearchDir, name)
 			data, err := ws.ReadFile(relPath)
@@ -392,12 +416,15 @@ func handleWorkspaceValidate(tool string, projectRoot string) (*sdkmcp.CallToolR
 				}
 				if id != "" {
 					seenIDs[strings.ToUpper(id)] = true
+					seenIDs[strings.ToUpper(core.NormalizeDecisionID(id))] = true
 				}
 			}
 			baseName := strings.TrimSuffix(name, ".md")
 			seenIDs[strings.ToUpper(baseName)] = true
+			seenIDs[strings.ToUpper(core.NormalizeDecisionID(baseName))] = true
 			if m := regexp.MustCompile(`^(?i)(D-[A-Za-z0-9]+)`).FindStringSubmatch(baseName); len(m) > 1 {
 				seenIDs[strings.ToUpper(m[1])] = true
+				seenIDs[strings.ToUpper(core.NormalizeDecisionID(m[1]))] = true
 			}
 			if idx := strings.Index(baseName, "-"); idx != -1 {
 				if nextIdx := strings.Index(baseName[idx+1:], "-"); nextIdx != -1 {
@@ -431,10 +458,12 @@ func handleWorkspaceValidate(tool string, projectRoot string) (*sdkmcp.CallToolR
 			if !strings.EqualFold(id, closeID) {
 				continue
 			}
-			if seenIDs[strings.ToUpper(id)] {
+			normID := strings.ToUpper(core.NormalizeDecisionID(id))
+			if seenIDs[strings.ToUpper(id)] || seenIDs[normID] {
 				continue
 			}
 			seenIDs[strings.ToUpper(id)] = true
+			seenIDs[normID] = true
 			v := core.ValidateDecision(m[2])
 			if v.HasBlocking() {
 				decisionsErrors++
@@ -470,8 +499,9 @@ func handleWorkspaceValidate(tool string, projectRoot string) (*sdkmcp.CallToolR
 					}
 				}
 			}
-			if id != "" && !seenIDs[strings.ToUpper(id)] && !strings.HasPrefix(strings.ToUpper(id), "CHK-") {
+			if id != "" && !seenIDs[strings.ToUpper(id)] && !seenIDs[strings.ToUpper(core.NormalizeDecisionID(id))] && !strings.HasPrefix(strings.ToUpper(id), "CHK-") {
 				seenIDs[strings.ToUpper(id)] = true
+				seenIDs[strings.ToUpper(core.NormalizeDecisionID(id))] = true
 				v := core.ValidateDecision(block)
 				if v.HasBlocking() {
 					decisionsErrors++

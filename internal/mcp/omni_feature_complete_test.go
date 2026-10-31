@@ -161,10 +161,6 @@ func TestCompleteSolution_OmniFeature_EndToEnd(t *testing.T) {
 		testLadder := []string{
 			"VIVECHAK_PROJECT_ROOT",
 			"VCK_PROJECT_ROOT",
-			"VIVECHAK_DEFAULT_ROOT",
-			"VCK_DEFAULT_ROOT",
-			"WORKSPACE",
-			"PROJECT_ROOT",
 		}
 		for _, envVar := range testLadder {
 			t.Run(envVar, func(t *testing.T) {
@@ -191,6 +187,26 @@ func TestCompleteSolution_OmniFeature_EndToEnd(t *testing.T) {
 				}
 			})
 		}
+
+		// Verify unnamespaced and default env vars are ignored (Principle P1.1 / CRIT-07)
+		t.Run("ignores_unnamespaced_and_default_env_vars", func(t *testing.T) {
+			isolatedDir := t.TempDir()
+			t.Chdir(isolatedDir)
+			unsupported := []string{"VIVECHAK_DEFAULT_ROOT", "VCK_DEFAULT_ROOT", "WORKSPACE", "PROJECT_ROOT"}
+			for _, envVar := range unsupported {
+				tmpDir := t.TempDir()
+				t.Setenv("VIVECHAK_PROJECT_ROOT", "")
+				t.Setenv("VCK_PROJECT_ROOT", "")
+				t.Setenv(envVar, tmpDir)
+				_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
+					Name:      "vivechak_start",
+					Arguments: map[string]any{},
+				})
+				if core.WorkspaceExists(tmpDir) {
+					t.Errorf("unsupported env var %s should not have created workspace in %s", envVar, tmpDir)
+				}
+			}
+		})
 
 		// 2.2 Safety Guard: Unexpanded editor macro (${workspaceFolder})
 		t.Run("rejects_unexpanded_macro", func(t *testing.T) {
@@ -298,6 +314,7 @@ Pino is recommended for high throughput.
 			Name: "vivechak_save",
 			Arguments: map[string]any{
 				"project_root": compDir,
+				"kind":         "comparison",
 				"scope":        "comparison",
 				"decision_id":  "C-01",
 				"slug":         "pino-vs-winston",
@@ -313,7 +330,12 @@ Pino is recommended for high throughput.
 		}
 
 		// Verify comparison file exists and template was auto-copied
-		compFile := filepath.Join(compDir, "research", "C-01-cmp-pino-vs-winston.md")
+		saveData, _ := saveEnv.Data.(map[string]any)
+		compRelPath, _ := saveData["file_path"].(string)
+		if compRelPath == "" {
+			compRelPath = "research/C-001-cmp-pino-vs-winston.md"
+		}
+		compFile := filepath.Join(compDir, filepath.FromSlash(compRelPath))
 		if _, err := os.Stat(compFile); err != nil {
 			t.Fatalf("expected comparison file %s to exist", compFile)
 		}
@@ -406,6 +428,7 @@ Migrate primary datastore from PostgreSQL to ClickHouse for analytics event stor
 			Name: "vivechak_save",
 			Arguments: map[string]any{
 				"project_root": decDir,
+				"kind":         "plan",
 				"scope":        "decision",
 				"decision_id":  "D-01",
 				"slug":         "db-migration",
@@ -454,6 +477,7 @@ Reversal trigger: If event volume drops below 500k events/day, revert to Postgre
 			Name: "vivechak_save",
 			Arguments: map[string]any{
 				"project_root": decDir,
+				"kind":         "session",
 				"session_id":   "S-01",
 				"content":      s01Content,
 			},
@@ -500,9 +524,15 @@ Reversal trigger: If event volume drops below 500k events/day, revert to Postgre
 		if !recEnv.Success {
 			t.Fatalf("record_decision failed: %s", recEnv.Message)
 		}
+		t.Logf("record_decision Data: %v", recEnv.Data)
 
-		// Verify canonical ADR D-01-decision.md exists and DECISIONS.md was compiled
-		adrFile := filepath.Join(decDir, "research", "D-01-decision.md")
+		// Verify canonical ADR D-001-decision.md exists and DECISIONS.md was compiled
+		recData, _ := recEnv.Data.(map[string]any)
+		adrRelPath, _ := recData["file_path"].(string)
+		if adrRelPath == "" {
+			adrRelPath = "research/D-001-decision.md"
+		}
+		adrFile := filepath.Join(decDir, filepath.FromSlash(adrRelPath))
 		if _, err := os.Stat(adrFile); err != nil {
 			t.Fatalf("expected canonical ADR file %s to exist", adrFile)
 		}
@@ -516,7 +546,7 @@ Reversal trigger: If event volume drops below 500k events/day, revert to Postgre
 			Name: "vivechak_amend",
 			Arguments: map[string]any{
 				"project_root": decDir,
-				"session_id":   "D-01",
+				"session_id":   "D-001",
 				"content":      "Added note: verified compatibility with ClickHouse Cloud serverless tier.",
 				"reason":       "Cloud pricing update",
 			},
@@ -622,9 +652,10 @@ Investigate sharding topology.
 		savePipeRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
 			Name: "vivechak_save",
 			Arguments: map[string]any{
-				"project_root":     projDir,
-				"scope":            "project",
-				"pipeline_content": pipelineContent,
+				"project_root": projDir,
+				"kind":         "plan",
+				"scope":        "project",
+				"content":      pipelineContent,
 			},
 		})
 		if err != nil {
@@ -704,6 +735,7 @@ Monitor downstream TCP backpressure limits in session S-02.
 			Name: "vivechak_save",
 			Arguments: map[string]any{
 				"project_root": projDir,
+				"kind":         "session",
 				"session_id":   "S-01",
 				"content":      s01Output,
 			},
@@ -781,6 +813,7 @@ Reversal trigger: If cluster size never exceeds 3 nodes after 6 months, collapse
 			Name: "vivechak_save",
 			Arguments: map[string]any{
 				"project_root": projDir,
+				"kind":         "session",
 				"session_id":   "S-02",
 				"content":      s02Output,
 			},
@@ -828,6 +861,27 @@ Reversal trigger: If cluster size never exceeds 3 nodes after 6 months, collapse
 			t.Fatalf("record D-02 failed: %s", recD02Env.Message)
 		}
 
+		fadContent := `# Founding Architecture Document
+## Executive Summary
+Distributed event fabric architecture.
+
+## Locked Decision Registry
+| ID | Title | Status |
+|---|---|---|
+| D-002 | Ingestion Sharding | proposed |
+
+## Risk Register
+| Risk | Mitigation |
+| Buffer overflow | Backpressure |
+
+## Traceability Matrix
+| Req | ADR |
+| Ingestion | D-002 |
+`
+		if err := os.WriteFile(filepath.Join(projDir, "research", "FAD.md"), []byte(fadContent), 0o644); err != nil {
+			t.Fatalf("write FAD.md: %v", err)
+		}
+
 		// 5.8 Run Phase 0 Exit Gate (Two-Track clearance)
 		gateRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
 			Name: "vivechak_gate",
@@ -844,6 +898,7 @@ Reversal trigger: If cluster size never exceeds 3 nodes after 6 months, collapse
 			t.Fatalf("run_gate failed: %s", gateEnv.Message)
 		}
 		gateData := gateEnv.Data.(map[string]any)
+		t.Logf("gate msg: %s, rules: %v", gateEnv.Message, gateData["rules"])
 		if gateData["track_a_result"] != "PASS" {
 			t.Errorf("expected Track A PASS, got: %v", gateData["track_a_result"])
 		}
@@ -900,6 +955,7 @@ Sufficient concurrency resilience verified under worker %d.
 					Name: "vivechak_save",
 					Arguments: map[string]any{
 						"project_root": concDir,
+						"kind":         "session",
 						"session_id":   sessID,
 						"content":      content,
 					},
@@ -915,21 +971,22 @@ Sufficient concurrency resilience verified under worker %d.
 				}
 
 				// Concurrently record decision
+				decID := fmt.Sprintf("D-%03d", workerID)
 				decContent := fmt.Sprintf(`---
-decision_id: D-%02d
+decision_id: %s
 title: Concurrent Decision %d
 door_type: two-way
 status: accepted
 ---
-# D-%02d: Concurrent Decision %d
+# %s: Concurrent Decision %d
 Decision content for worker %d
-`, workerID, workerID, workerID, workerID, workerID)
+`, decID, workerID, decID, workerID, workerID)
 
 				recRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
 					Name: "vivechak_record_decision",
 					Arguments: map[string]any{
 						"project_root": concDir,
-						"decision_id":  fmt.Sprintf("D-%02d", workerID),
+						"decision_id":  decID,
 						"content":      decContent,
 					},
 				})
@@ -958,7 +1015,7 @@ Decision content for worker %d
 			if _, err := os.Stat(sFile); err != nil {
 				t.Errorf("missing concurrent session file: %s", sFile)
 			}
-			dFile := filepath.Join(concDir, "research", fmt.Sprintf("D-%02d-decision.md", i))
+			dFile := filepath.Join(concDir, "research", fmt.Sprintf("D-%03d-decision.md", i))
 			if _, err := os.Stat(dFile); err != nil {
 				t.Errorf("missing concurrent decision file: %s", dFile)
 			}
@@ -971,7 +1028,7 @@ Decision content for worker %d
 		}
 		regStr := string(regData)
 		for i := 0; i < numWorkers; i++ {
-			dMarker := fmt.Sprintf("D-%02d", i)
+			dMarker := fmt.Sprintf("D-%03d", i)
 			if !strings.Contains(regStr, dMarker) {
 				t.Errorf("compiled DECISIONS.md missing %s", dMarker)
 			}

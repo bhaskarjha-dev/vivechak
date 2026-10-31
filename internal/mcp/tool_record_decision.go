@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -25,6 +26,7 @@ type RecordDecisionInput struct {
 	Content       string `json:"content,omitempty"         jsonschema:"decision record or conflict resolution content (Markdown with YAML frontmatter); omit with auto_draft_from to generate a draft"`
 	AutoDraftFrom string `json:"auto_draft_from,omitempty" jsonschema:"session ID to auto-draft decision from (e.g. R-01); omit content to get a draft for review"`
 	AutoSave      bool   `json:"auto_save,omitempty"       jsonschema:"if true with auto_draft_from, automatically validate and save the drafted decision in one step"`
+	Revise        bool   `json:"revise,omitempty"          jsonschema:"force revision of existing ADR with history archiving"`
 	Supersedes    string `json:"supersedes,omitempty"      jsonschema:"decision ID being superseded by this decision (e.g. D-003)"`
 }
 
@@ -44,8 +46,8 @@ func registerRecordDecision(server *sdkmcp.Server) {
 				"link the records, and detect stale session references.",
 			Annotations: &sdkmcp.ToolAnnotations{
 				ReadOnlyHint:    false,
-				IdempotentHint:  true,
-				DestructiveHint: BoolPtr(false),
+				IdempotentHint:  false,
+				DestructiveHint: BoolPtr(true),
 				OpenWorldHint:   BoolPtr(false),
 			},
 		},
@@ -56,19 +58,54 @@ func registerRecordDecision(server *sdkmcp.Server) {
 func handleRecordDecision(ctx context.Context, _ *sdkmcp.CallToolRequest, in RecordDecisionInput) (*sdkmcp.CallToolResult, Envelope, error) {
 	const tool = "vivechak_record_decision"
 
-	root, err := core.ResolveWorkspace(in.ProjectRoot)
+	root, rule, err := core.ResolveWorkspaceWithRule(in.ProjectRoot)
 	if err != nil {
 		return ErrorResult(tool, err,
 			"Initialize a workspace first with vivechak_start.")
 	}
 
+	ws, err := store.OpenWorkspace(root)
+	if err != nil {
+		return ErrorResult(tool, fmt.Errorf("opening workspace: %w", err), "Provide a valid workspace.")
+	}
+	defer ws.Close()
+
 	if strings.TrimSpace(in.DecisionID) == "" && strings.TrimSpace(in.ID) != "" {
 		in.DecisionID = strings.TrimSpace(in.ID)
 	}
+	in.DecisionID = strings.TrimSpace(in.DecisionID)
 
-	if strings.TrimSpace(in.DecisionID) == "" {
+	if in.DecisionID == "" && in.Content != "" {
+		if fm, _, pErr := core.ParseFrontmatter([]byte(in.Content)); pErr == nil && fm != nil {
+			if id := fm.GetString("id"); id != "" {
+				in.DecisionID = id
+			} else if id := fm.GetString("decision_id"); id != "" {
+				in.DecisionID = id
+			}
+		}
+	}
+
+	if in.DecisionID == "" {
 		return ErrorResult(tool, fmt.Errorf("decision_id is required"),
 			"Provide a decision identifier like 'D-015'.")
+	}
+
+	if strings.EqualFold(in.DecisionID, "D-NEW") {
+		allocated, aErr := store.AllocateID(ws, "D")
+		if aErr != nil {
+			return ErrorResult(tool, fmt.Errorf("allocating decision ID: %w", aErr), "Check workspace health.")
+		}
+		in.DecisionID = allocated
+		if in.Content != "" {
+			in.Content = regexp.MustCompile(`\bD-NEW\b`).ReplaceAllString(in.Content, allocated)
+		}
+	} else if m := regexp.MustCompile(`^(?i)d-(\d+)$`).FindStringSubmatch(in.DecisionID); len(m) > 1 {
+		num, _ := strconv.Atoi(m[1])
+		normalized := fmt.Sprintf("D-%03d", num)
+		if in.Content != "" {
+			in.Content = regexp.MustCompile(`(?i)\b`+regexp.QuoteMeta(in.DecisionID)+`\b`).ReplaceAllString(in.Content, normalized)
+		}
+		in.DecisionID = normalized
 	}
 
 	// Validate decision ID format to prevent path traversal
@@ -107,12 +144,6 @@ func handleRecordDecision(ctx context.Context, _ *sdkmcp.CallToolRequest, in Rec
 
 	// Auto-draft mode: generate draft from session if auto_draft_from is set and content is empty
 	if strings.TrimSpace(in.Content) == "" && strings.TrimSpace(in.AutoDraftFrom) != "" {
-		ws, err := store.OpenWorkspace(root)
-		if err != nil {
-			return ErrorResult(tool, fmt.Errorf("opening workspace: %w", err), "Provide a valid workspace.")
-		}
-		defer ws.Close()
-
 		content, _, err := core.ReadSessionFileFS(ws, core.SessionsDir, in.AutoDraftFrom)
 		if err != nil {
 			return ErrorResult(tool, fmt.Errorf("reading session %s: %w", in.AutoDraftFrom, err),
@@ -133,6 +164,35 @@ func handleRecordDecision(ctx context.Context, _ *sdkmcp.CallToolRequest, in Rec
 				existingADR = d
 			} else if d, err := ws.ReadFile(filepath.Join(core.ResearchDir, existingFilename)); err == nil && len(d) > 0 {
 				existingADR = d
+			}
+		}
+
+		if len(existingADR) == 0 {
+			for _, planName := range []string{
+				fmt.Sprintf("%s-plan.md", in.DecisionID),
+				fmt.Sprintf("%s.plan.md", in.DecisionID),
+			} {
+				if pData, pErr := ws.ReadFile(filepath.Join(core.ResearchDir, planName)); pErr == nil && len(pData) > 0 {
+					existingADR = pData
+					break
+				}
+			}
+		} else {
+			if efm, _, _ := core.ParseFrontmatter(existingADR); efm == nil || efm.GetString("title") == "" || strings.HasPrefix(efm.GetString("title"), "[") {
+				for _, planName := range []string{
+					fmt.Sprintf("%s-plan.md", in.DecisionID),
+					fmt.Sprintf("%s.plan.md", in.DecisionID),
+				} {
+					if pData, pErr := ws.ReadFile(filepath.Join(core.ResearchDir, planName)); pErr == nil && len(pData) > 0 {
+						if m := regexp.MustCompile(`(?m)^#\s+(?:[A-Za-z0-9_-]+:\s*)?(.*)$`).FindStringSubmatch(string(pData)); len(m) > 1 {
+							hTitle := strings.TrimSpace(m[1])
+							if hTitle != "" && !strings.HasPrefix(hTitle, "[") {
+								existingADR = core.SetFrontmatterField(existingADR, "title", hTitle)
+							}
+						}
+						break
+					}
+				}
 			}
 		}
 
@@ -190,12 +250,6 @@ func handleRecordDecision(ctx context.Context, _ *sdkmcp.CallToolRequest, in Rec
 		return ErrorResult(tool, fmt.Errorf("invalid artifact_type %q", artifactType),
 			"Use 'decision' for ADRs or 'conflict-resolution' for ACH analysis.")
 	}
-
-	ws, err := store.OpenWorkspace(root)
-	if err != nil {
-		return ErrorResult(tool, fmt.Errorf("opening workspace: %w", err), "Provide a valid workspace.")
-	}
-	defer ws.Close()
 
 	// 1. Validate content first (BUG-12 fix: validate before modifying superseded ADR on disk)
 	var validation *core.ValidationResult
@@ -280,6 +334,20 @@ func handleRecordDecision(ctx context.Context, _ *sdkmcp.CallToolRequest, in Rec
 	// Save to research directory
 	relPath := filepath.Join(core.ResearchDir, filename)
 
+	// Guard against overwriting an existing file that belongs to a different ID
+	if existingData, readErr := ws.ReadFile(relPath); readErr == nil && len(existingData) > 0 {
+		if fm, _, pErr := core.ParseFrontmatter(existingData); pErr == nil && fm != nil {
+			exID := fm.GetString("id")
+			if exID == "" {
+				exID = fm.GetString("decision_id")
+			}
+			if exID != "" && !strings.EqualFold(exID, in.DecisionID) {
+				return ErrorResult(tool, fmt.Errorf("E-ID-CONFLICT: file %s already exists with different id %s (cannot overwrite with %s)", filename, exID, in.DecisionID),
+					"Use a unique decision ID or correct filename slug.")
+			}
+		}
+	}
+
 	// Acquire decisions registry lock for ADR decisions to serialize write + registry compilation
 	var decUnlock func() error
 	if artifactType == "decision" {
@@ -301,9 +369,9 @@ func handleRecordDecision(ctx context.Context, _ *sdkmcp.CallToolRequest, in Rec
 	}
 	defer func() { _ = unlock() }()
 
-	if err := store.WriteFileAtomic(ws.Root(), relPath, []byte(in.Content), 0o644); err != nil {
+	if err := ws.WriteArtifact(relPath, []byte(in.Content), 0o644, in.Revise); err != nil {
 		return ErrorResult(tool, fmt.Errorf("writing %s: %w", filename, err),
-			"Check filesystem permissions.")
+			"Check filesystem permissions or pass revise=true to overwrite an existing ADR.")
 	}
 
 	var warnings []string
@@ -352,7 +420,9 @@ func handleRecordDecision(ctx context.Context, _ *sdkmcp.CallToolRequest, in Rec
 
 	dataMap := map[string]any{
 		"workspace_root": root,
+		"workspace":      map[string]any{"root": root, "rule": rule},
 		"decision_id":    in.DecisionID,
+		"id":             in.DecisionID,
 		"artifact_type":  artifactType,
 		"file_path":      filepath.ToSlash(filepath.Join(core.ResearchDir, filename)),
 		"status":         validation.Status,
@@ -410,22 +480,39 @@ func handleRecordDecision(ctx context.Context, _ *sdkmcp.CallToolRequest, in Rec
 }
 
 // compileDecisionsRegistry compiles DECISIONS.md from all individual ADR files in research/,
-// while preserving planned/unmaterialized decisions already registered in DECISIONS.md.
+// while preserving planned/unmaterialized decisions already registered in DECISIONS.md
+// and preserving any human notes outside the generated region.
 func compileDecisionsRegistry(ctx context.Context, ws *store.Workspace, root string) error {
 	decRelPath := core.DecisionsFile
 	existingByID := make(map[string]string)
 	var preamble string
+	var postamble string
 
-	// 1. Read existing DECISIONS.md to preserve planned decisions and preamble
+	// 1. Read existing DECISIONS.md to preserve planned decisions, preamble, and human notes
 	if existingData, err := ws.ReadFile(decRelPath); err == nil && len(existingData) > 0 {
+		str := string(existingData)
+		beginMarker := "<!-- vivechak:begin -->"
+		endMarker := "<!-- vivechak:end -->"
+		beginIdx := strings.Index(str, beginMarker)
+		endIdx := strings.Index(str, endMarker)
+
+		if beginIdx != -1 && endIdx != -1 && endIdx > beginIdx {
+			preamble = str[:beginIdx]
+			postamble = str[endIdx+len(endMarker):]
+		}
+
 		anchoredRe := regexp.MustCompile(`(?s)<!-- DECISION:\s*([A-Za-z0-9_-]+)\s*-->\s*(.*?)\s*<!-- /DECISION:\s*[A-Za-z0-9_-]+\s*-->`)
 		matches := anchoredRe.FindAllSubmatchIndex(existingData, -1)
 
 		earliestDecisionStart := -1
+		latestDecisionEnd := -1
 
 		for _, loc := range matches {
 			if earliestDecisionStart == -1 || loc[0] < earliestDecisionStart {
 				earliestDecisionStart = loc[0]
+			}
+			if loc[1] > latestDecisionEnd {
+				latestDecisionEnd = loc[1]
 			}
 			id := string(existingData[loc[2]:loc[3]])
 			body := string(existingData[loc[4]:loc[5]])
@@ -458,26 +545,34 @@ func compileDecisionsRegistry(ctx context.Context, ws *store.Workspace, root str
 						earliestDecisionStart = loc[0]
 					}
 					// Find end of this unanchored decision: next anchor or next unanchored fm block or EOF
-					endIdx := len(existingData)
+					endIdxU := len(existingData)
 					for _, aLoc := range matches {
-						if aLoc[0] > loc[0] && aLoc[0] < endIdx {
-							endIdx = aLoc[0]
+						if aLoc[0] > loc[0] && aLoc[0] < endIdxU {
+							endIdxU = aLoc[0]
 						}
 					}
 					for _, otherFm := range fmMatches {
-						if otherFm[0] > loc[0] && otherFm[0] < endIdx && !isInsideAnchors(otherFm[0], otherFm[1]) {
-							endIdx = otherFm[0]
+						if otherFm[0] > loc[0] && otherFm[0] < endIdxU && !isInsideAnchors(otherFm[0], otherFm[1]) {
+							endIdxU = otherFm[0]
 						}
 					}
-					existingByID[id] = string(existingData[loc[0]:endIdx])
+					if endIdxU > latestDecisionEnd {
+						latestDecisionEnd = endIdxU
+					}
+					existingByID[id] = string(existingData[loc[0]:endIdxU])
 				}
 			}
 		}
 
-		if earliestDecisionStart > 0 {
-			preamble = string(existingData[:earliestDecisionStart])
-		} else if earliestDecisionStart == -1 {
-			preamble = string(existingData)
+		if beginIdx == -1 || endIdx == -1 {
+			if earliestDecisionStart > 0 {
+				preamble = string(existingData[:earliestDecisionStart])
+			} else if earliestDecisionStart == -1 {
+				preamble = string(existingData)
+			}
+			if latestDecisionEnd != -1 && latestDecisionEnd < len(existingData) {
+				postamble = string(existingData[latestDecisionEnd:])
+			}
 		}
 	}
 
@@ -489,16 +584,15 @@ func compileDecisionsRegistry(ctx context.Context, ws *store.Workspace, root str
 
 	for _, e := range entries {
 		name := e.Name()
-		if e.IsDir() || !strings.HasSuffix(name, ".md") {
+		if e.IsDir() || !strings.HasSuffix(strings.ToLower(name), ".md") {
 			continue
 		}
 		if core.IsSpecialResearchFile(name) {
 			continue
 		}
-		if strings.HasPrefix(strings.ToUpper(name), "C-") || strings.Contains(strings.ToLower(name), "-cmp-") {
+		if strings.HasPrefix(strings.ToUpper(name), "C-") {
 			continue
 		}
-		// Whitelist: D-* files or files with door_type in frontmatter
 		isCandidate := strings.HasPrefix(strings.ToUpper(name), "D-")
 		var data []byte
 		var readErr error
@@ -516,7 +610,11 @@ func compileDecisionsRegistry(ctx context.Context, ws *store.Workspace, root str
 		if err != nil || fm == nil {
 			continue
 		}
-		if !isCandidate && !fm.Has("door_type") {
+		isDecision := fm.GetString("type") == "decision" || fm.Has("door_type") || fm.Has("door") || isCandidate
+		if !isDecision {
+			continue
+		}
+		if fm.GetString("type") == "plan" || fm.GetString("type") == "challenge" || strings.HasSuffix(strings.ToLower(name), "-plan.md") || strings.Contains(strings.ToUpper(name), "-R") {
 			continue
 		}
 		id := fm.GetString("id")
@@ -550,11 +648,12 @@ func compileDecisionsRegistry(ctx context.Context, ws *store.Workspace, root str
 	var b strings.Builder
 	trimmedPreamble := strings.TrimSpace(preamble)
 	if trimmedPreamble != "" {
-		b.WriteString(trimmedPreamble)
+		b.WriteString(strings.TrimRight(preamble, "\r\n"))
 		b.WriteString("\n\n")
 	} else {
 		b.WriteString("# Architectural Decisions\n\n")
 	}
+	b.WriteString("<!-- vivechak:begin -->\n")
 	for i, d := range decisions {
 		wrapped := wrapFrontmatterForRegistry(d.content)
 		fmt.Fprintf(&b, "<!-- DECISION: %s -->\n%s\n<!-- /DECISION: %s -->\n", d.id, wrapped, d.id)
@@ -562,8 +661,14 @@ func compileDecisionsRegistry(ctx context.Context, ws *store.Workspace, root str
 			b.WriteString("\n---\n\n")
 		}
 	}
+	b.WriteString("<!-- vivechak:end -->\n")
 
-	return store.WriteFileAtomic(ws.Root(), decRelPath, []byte(b.String()), 0o644)
+	if strings.TrimSpace(postamble) != "" {
+		b.WriteString("\n")
+		b.WriteString(strings.TrimLeft(postamble, "\r\n"))
+	}
+
+	return ws.WriteArtifact(decRelPath, []byte(b.String()), 0o644, true)
 }
 
 
@@ -718,6 +823,8 @@ func naturalDecisionIDLess(a, b string) bool {
 	return a < b
 }
 
+var reSessionOrReview = regexp.MustCompile(`(?i)-[RS]\d+`)
+
 // resolveDecisionFilename determines the target filename for a decision artifact.
 // It prioritizes explicit slugs, then matches existing [ID]-*.md files in the research directory,
 // and falls back to [ID]-decision.md.
@@ -734,6 +841,9 @@ func resolveDecisionFilename(ws *store.Workspace, decisionID string, slug string
 					continue
 				}
 				nameUpper := strings.ToUpper(name)
+				if strings.HasSuffix(nameUpper, "-PLAN.MD") || reSessionOrReview.MatchString(nameUpper) {
+					continue
+				}
 				if nameUpper == idUpper+".MD" ||
 					strings.HasPrefix(nameUpper, idUpper+"-") ||
 					strings.HasPrefix(nameUpper, idUpper+"_") {

@@ -24,7 +24,21 @@ func RenderComparisonMermaid(data []byte) string {
 	rec = strings.ReplaceAll(rec, "\"", "'")
 	rec = strings.ReplaceAll(rec, "\n", " ")
 
-	options := extractComparisonOptions(content)
+	var options []string
+	if fm != nil && fm.Has("options") {
+		if rawOpts, ok := fm["options"].([]any); ok {
+			for _, o := range rawOpts {
+				if s, ok := o.(string); ok && strings.TrimSpace(s) != "" {
+					options = append(options, strings.TrimSpace(s))
+				}
+			}
+		} else if strList := fm.GetStringSlice("options"); len(strList) > 0 {
+			options = strList
+		}
+	}
+	if len(options) == 0 {
+		options = extractComparisonOptions(content)
+	}
 
 	var sb strings.Builder
 	sb.WriteString("graph TD\n")
@@ -55,6 +69,7 @@ func RenderComparisonMermaid(data []byte) string {
 
 // RenderComparisonTable generates a markdown status table from comparison data.
 func RenderComparisonTable(data []byte) string {
+	fm, _, _ := ParseFrontmatter(data)
 	content := string(data)
 	lines := strings.Split(content, "\n")
 	var tableLines []string
@@ -72,7 +87,21 @@ func RenderComparisonTable(data []byte) string {
 		return strings.Join(tableLines, "\n")
 	}
 
-	options := extractComparisonOptions(content)
+	var options []string
+	if fm != nil && fm.Has("options") {
+		if rawOpts, ok := fm["options"].([]any); ok {
+			for _, o := range rawOpts {
+				if s, ok := o.(string); ok && strings.TrimSpace(s) != "" {
+					options = append(options, strings.TrimSpace(s))
+				}
+			}
+		} else if strList := fm.GetStringSlice("options"); len(strList) > 0 {
+			options = strList
+		}
+	}
+	if len(options) == 0 {
+		options = extractComparisonOptions(content)
+	}
 	if len(options) == 0 {
 		return "| Option | Status |\n|---|---|\n| - | No options identified |\n"
 	}
@@ -90,6 +119,12 @@ func RenderComparisonTable(data []byte) string {
 
 func extractComparisonOptions(content string) []string {
 	var options []string
+	ignoreCols := map[string]bool{
+		"criterion": true, "criteria": true, "weight": true,
+		"rationale": true, "evidence": true, "notes": true,
+		"source": true, "sources": true, "score": true, "scores": true,
+	}
+
 	lines := strings.Split(content, "\n")
 	for _, l := range lines {
 		trimmed := strings.TrimSpace(l)
@@ -97,8 +132,34 @@ func extractComparisonOptions(content string) []string {
 			parts := strings.Split(trimmed, "|")
 			for _, p := range parts {
 				cand := strings.TrimSpace(p)
-				if cand != "" && !strings.EqualFold(cand, "Criterion") && !strings.EqualFold(cand, "Criteria") && !strings.EqualFold(cand, "Weight") && !strings.EqualFold(cand, "Rationale") {
-					options = append(options, cand)
+				lower := strings.ToLower(cand)
+				if cand == "" || ignoreCols[lower] ||
+					strings.Contains(lower, "evidence") ||
+					strings.Contains(lower, "provenance") ||
+					strings.Contains(lower, "grade") ||
+					strings.Contains(lower, "rationale") ||
+					strings.Contains(lower, "notes") ||
+					strings.Contains(lower, "source") ||
+					strings.Contains(lower, "justification") {
+					continue
+				}
+				optName := cand
+				for _, suffix := range []string{" Score (1-5)", " Score (1-10)", " Score", " (1-5)", " (1-10)"} {
+					if strings.HasSuffix(strings.ToLower(optName), strings.ToLower(suffix)) {
+						optName = strings.TrimSpace(optName[:len(optName)-len(suffix)])
+						break
+					}
+				}
+				lowerOpt := strings.ToLower(optName)
+				if optName != "" && !ignoreCols[lowerOpt] &&
+					!strings.Contains(lowerOpt, "evidence") &&
+					!strings.Contains(lowerOpt, "provenance") &&
+					!strings.Contains(lowerOpt, "grade") &&
+					!strings.Contains(lowerOpt, "rationale") &&
+					!strings.Contains(lowerOpt, "notes") &&
+					!strings.Contains(lowerOpt, "source") &&
+					!strings.Contains(lowerOpt, "justification") {
+					options = append(options, optName)
 				}
 			}
 			if len(options) > 0 {

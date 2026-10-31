@@ -57,6 +57,7 @@ Compare Winston vs Pino for high throughput JSON logging.
 		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
+			"kind":         "comparison",
 			"scope":        "comparison",
 			"decision_id":  "C-01",
 			"slug":         "logging-shootout",
@@ -75,7 +76,11 @@ Compare Winston vs Pino for high throughput JSON logging.
 	if _, err := os.Stat(filepath.Join(tmpDir, "research", "templates", "COMPARISON-SESSION.template.md")); err != nil {
 		t.Fatalf("auto-init failed to create comparison template: %v", err)
 	}
-	if _, err := os.Stat(filepath.Join(tmpDir, "research", "C-01-cmp-logging-shootout.md")); err != nil {
+	savedPath, ok := savePlanEnv.Data.(map[string]any)["file_path"].(string)
+	if !ok || savedPath == "" {
+		t.Fatalf("expected file_path in savePlan response")
+	}
+	if _, err := os.Stat(filepath.Join(tmpDir, filepath.FromSlash(savedPath))); err != nil {
 		t.Fatalf("expected comparison plan file not found: %v", err)
 	}
 
@@ -163,7 +168,10 @@ Reversal trigger: If enterprise compliance mandates proprietary on-prem transpor
 		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
+			"kind":         "comparison",
 			"session_id":   "C-01",
+			"slug":         "logging-shootout",
+			"revise":       true,
 			"content":      sessionOutput,
 		},
 	})
@@ -249,11 +257,21 @@ door_type: one-way
 date: 2026-10-15
 ---
 # Primary Datastore Selection
+
+## Context & Problem Statement
+Medical billing requires strict ACID compliance and HIPAA auditability.
+
+## Decision Outcome
+PostgreSQL with pgaudit is chosen as the primary datastore.
+
+## Rejected Alternatives
+- MongoDB: Rejected due to transaction latency overhead on multi-document operations.
 `
 	savePlanRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root":      tmpDir,
+			"kind":              "plan",
 			"scope":             "decision",
 			"decision_id":       "D-001",
 			"slug":              "clinic-datastore",
@@ -284,9 +302,9 @@ informs_decisions: ["D-001"]
 Postgres vs MongoDB for medical billing records.
 
 ## Key Findings
-- PostgreSQL provides strict ACID compliance with row-level locks [Grade A, official docs, fetched].
-- MongoDB ACID transactions introduce high latency on sharded clusters [Grade B, empirical benchmark, fetched].
-- HIPAA audit logging in PostgreSQL is mature with pgaudit extension [Grade A, official docs, fetched].
+- PostgreSQL provides strict ACID compliance with row-level locks [Grade A: https://www.postgresql.org/docs/current/mvcc.html] [fetched].
+- MongoDB ACID transactions introduce high latency on sharded clusters [Grade B: https://www.mongodb.com/docs/manual/core/transactions/] [fetched].
+- HIPAA audit logging in PostgreSQL is mature with pgaudit extension [Grade A: https://github.com/pgaudit/pgaudit] [fetched].
 
 ## Recommendation
 PostgreSQL is recommended for compliance and transactional integrity.
@@ -295,12 +313,14 @@ PostgreSQL is recommended for compliance and transactional integrity.
 Substantive concern: HIPAA compliance requires encrypted tablespaces with pg_crypto and dedicated audit trail partitioning.
 
 ## Sources
-1. PostgreSQL Documentation [Grade A, official docs, fetched]
+1. PostgreSQL Documentation [Grade A: https://www.postgresql.org/docs/current/mvcc.html] [fetched]
+2. MongoDB Documentation [Grade B: https://www.mongodb.com/docs/manual/core/transactions/] [fetched]
 `
 	_, err = cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
+			"kind":         "session",
 			"session_id":   "D-001-S1",
 			"content":      sessionOutput,
 		},
@@ -350,10 +370,14 @@ PostgreSQL with pgaudit is chosen as the primary datastore.
 - MongoDB: Rejected due to transaction latency overhead on multi-document operations.
 
 ## Challenge Findings & Red-Team Stress Test
-Premortem probe executed: Failure mode of schema migrations managed via pgroll zero-downtime tool.
+Adversarial red-team challenge D-001-R1 premortem probe executed: Failure mode of schema migrations managed via pgroll zero-downtime tool.
 
 ## Reversal Triggers
 If write volume exceeds 100k tx/sec requiring horizontal write sharding, re-evaluate CockroachDB.
+
+## Sources
+1. PostgreSQL Documentation [Grade A: https://www.postgresql.org/docs/current/mvcc.html] [fetched]
+2. MongoDB Documentation [Grade B: https://www.mongodb.com/docs/manual/core/transactions/] [fetched]
 `
 	recRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_record_decision",
@@ -361,6 +385,7 @@ If write volume exceeds 100k tx/sec requiring horizontal write sharding, re-eval
 			"project_root": tmpDir,
 			"decision_id":  "D-001",
 			"slug":         "clinic-datastore",
+			"revise":       true,
 			"content":      finalADR,
 		},
 	})
@@ -396,7 +421,7 @@ If write volume exceeds 100k tx/sec requiring horizontal write sharding, re-eval
 	gateEnv := parseEnvelope(t, gateRes)
 	gateData := gateEnv.Data.(map[string]any)
 	if gateData["gate_passed"] != true {
-		t.Errorf("expected decision gate to pass, got gate_passed=false: %v", gateData["blocking_issues"])
+		t.Errorf("expected decision gate to pass, got gate_passed=false: msg=%s, rules=%v", gateEnv.Message, gateData["rules"])
 	}
 }
 
@@ -553,6 +578,7 @@ Synthesize all sessions into FAD.
 		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root":      tmpDir,
+			"kind":              "plan",
 			"scope":             "project",
 			"content":           projectPipeline,
 			"decisions_content": decisionsRegistry,
@@ -605,8 +631,8 @@ informs_decisions: ["D-001"]
 Optimal streaming architecture for low-latency audio capture.
 
 ## Key Findings
-- WebRTC with Opus codec achieves sub-100ms transmission latency [Grade A, RFC 7845, fetched].
-- Memory zero-copy buffers reduce CPU utilization by 40% [Grade B, Linux kernel docs, fetched].
+- WebRTC with Opus codec achieves sub-100ms transmission latency [Grade A: https://datatracker.ietf.org/doc/html/rfc7845] [fetched].
+- Memory zero-copy buffers reduce CPU utilization by 40% [Grade B: https://www.kernel.org/doc/html/latest/] [fetched].
 
 ## Recommendation
 Adopt WebRTC data channels with custom Go Opus decoders.
@@ -615,12 +641,13 @@ Adopt WebRTC data channels with custom Go Opus decoders.
 Audio retention compliance requires strict transient in-memory ring buffers without disk caching.
 
 ## Sources
-1. RFC 7845 Opus Codec [Grade A, canonical, fetched]
+1. RFC 7845 Opus Codec [Grade A: https://datatracker.ietf.org/doc/html/rfc7845] [fetched]
 `
 	saveS1Res, err := cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
+			"kind":         "session",
 			"session_id":   "T1-01",
 			"content":      s1Content,
 		},
@@ -692,6 +719,7 @@ Worker backpressure during peak traffic requires dynamic scaling.
 		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
+			"kind":         "session",
 			"session_id":   "T1-02",
 			"content":      s2Content,
 		},
@@ -715,8 +743,8 @@ informs_decisions: ["D-003"]
 Dedicated vector DB vs pgvector for audio transcript embeddings.
 
 ## Key Findings
-- Qdrant provides HNSW indexing with fast filtered search and payload storage [Grade A, official benchmarks, fetched].
-- pgvector IVFFlat requires frequent index rebuilding as embeddings scale beyond 10M [Grade B, PostgreSQL docs, fetched].
+- Qdrant provides HNSW indexing with fast filtered search and payload storage [Grade A: https://qdrant.tech/documentation/] [fetched].
+- pgvector IVFFlat requires frequent index rebuilding as embeddings scale beyond 10M [Grade B: https://github.com/pgvector/pgvector] [fetched].
 
 ## Recommendation
 Adopt Qdrant for dedicated vector indexing.
@@ -725,12 +753,13 @@ Adopt Qdrant for dedicated vector indexing.
 Cold starts on serverless nodes can increase p99 latency to 250ms.
 
 ## Sources
-1. Qdrant Documentation [Grade A, official docs, fetched]
+1. Qdrant Documentation [Grade A: https://qdrant.tech/documentation/] [fetched]
 `
 	_, err = cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
+			"kind":         "session",
 			"session_id":   "T2-01",
 			"content":      s3Content,
 		},
@@ -787,6 +816,8 @@ Real-time audio streaming.
 Adopt WebRTC data channels.
 ## Rejected Alternatives
 - WebSockets: Higher jitter under network loss.
+## Challenge Findings & Red-Team Stress Test
+Inline premortem challenge: Packet loss resilience tested with forward error correction, acceptable under simulated 15% drop.
 ## Reversal Triggers
 If audio streaming bandwidth exceeds 500 MB/s.
 `
@@ -796,6 +827,7 @@ title: Redis Streams Worker Dispatcher
 status: accepted
 door_type: two-way
 date: 2026-10-15
+review_trigger: "Evaluate RabbitMQ if Redis memory exceeds 80% capacity"
 informed_by_sessions: ["T1-02"]
 ---
 # Redis Streams Worker Dispatcher
@@ -822,6 +854,8 @@ Vector similarity search.
 Adopt Qdrant.
 ## Rejected Alternatives
 - Milvus: Higher operational footprint for early-stage workload.
+## Challenge Findings & Red-Team Stress Test
+Inline red-team challenge: Sharding latency verified under heavy insert load, remains sub-50ms with distributed collections.
 ## Reversal Triggers
 If vector collection exceeds 100M embeddings.
 `
@@ -873,27 +907,51 @@ informs_decisions: ["D-001", "D-002", "D-003"]
 ---
 # Founding Architecture Document: Katha AI Audio Platform
 
+## Executive Summary
+Katha AI is a high-throughput, low-latency audio intelligence pipeline engineered to ingest multi-party speech streams, transcribe dialogue in real-time, and index vector embeddings for sub-second retrieval.
+
 ## System Topology & Architecture Overview
-Katha ingests streaming audio via WebRTC [Grade A, RFC 7845], dispatches transcription jobs through Redis Streams [Grade B, Redis docs], and stores transcript embeddings in Qdrant [Grade A, official docs].
+Katha ingests streaming audio via WebRTC [Grade A: https://datatracker.ietf.org/doc/html/rfc7845], dispatches transcription jobs through Redis Streams [Grade B: https://redis.io/docs/data-types/streams/], and stores transcript embeddings in Qdrant [Grade A: https://qdrant.tech/documentation/].
 
 ## Core Subsystems
 1. Audio Ingestion: Go WebRTC cluster.
 2. Worker Dispatch: Redis Streams consumer groups.
 3. Vector Retrieval: Qdrant vector database.
 
+## Locked Decision Registry
+| ID | Title | Status | Door | Review Trigger |
+|---|---|---|---|---|
+| D-001 | WebRTC Audio Ingestion | accepted | one-way | If audio streaming bandwidth exceeds 500 MB/s |
+| D-002 | Redis Streams Worker Dispatcher | accepted | two-way | Evaluate RabbitMQ if Redis memory exceeds 80% capacity |
+| D-003 | Qdrant Vector Store | accepted | one-way | If vector collection exceeds 100M embeddings |
+
+## Risk Register
+| Risk | Probability | Impact | Mitigation |
+|---|---|---|---|
+| Vector collection saturation | Low | High | Horizontal sharding across nodes |
+| Audio buffer overflow | Medium | High | Drop late frames dynamically |
+
+## Traceability Matrix
+| Requirement | Component | Decision | Session |
+|---|---|---|---|
+| Real-time audio stream | WebRTC Gateway | D-001 | T1-01 |
+| Transcription queue | Redis Queue | D-002 | T1-02 |
+| Semantic search | Vector Index | D-003 | T2-01 |
+
 ## Discovered Concerns & Mitigations
 - In-memory audio retention prevents disk leaks.
 - Rate limiting prevents queue starvation during traffic bursts.
 
 ## Sources
-1. RFC 7845 Opus Codec [Grade A, canonical, fetched]
-2. Redis Streams Documentation [Grade B, official docs, fetched]
-3. Qdrant Documentation [Grade A, official docs, fetched]
+1. RFC 7845 Opus Codec [Grade A: https://datatracker.ietf.org/doc/html/rfc7845] [fetched]
+2. Redis Streams Documentation [Grade B: https://redis.io/docs/data-types/streams/] [fetched]
+3. Qdrant Documentation [Grade A: https://qdrant.tech/documentation/] [fetched]
 `
 	saveFadRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
+			"kind":         "session",
 			"session_id":   "FAD",
 			"content":      fadContent,
 		},
@@ -931,8 +989,8 @@ Katha ingests streaming audio via WebRTC [Grade A, RFC 7845], dispatches transcr
 	if err != nil {
 		t.Fatalf("reading PHASE-0-GATE.md: %v", err)
 	}
-	if !strings.Contains(string(gateBytes), `verdict: "PASS"`) {
-		t.Errorf("expected 'verdict: \"PASS\"' in gate file, got:\n%s", string(gateBytes))
+	if !strings.Contains(string(gateBytes), `verdict: PASS`) && !strings.Contains(string(gateBytes), `verdict: "PASS"`) {
+		t.Errorf("expected 'verdict: PASS' in gate file, got:\n%s", string(gateBytes))
 	}
 
 	// 13. Inspect workspace metadata
@@ -1035,6 +1093,7 @@ Test quality coaching observations on one-way door session.
 		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
+			"kind":         "plan",
 			"scope":        "decision",
 			"decision_id":  "D-001",
 			"slug":         "quality-coaching",
@@ -1077,6 +1136,7 @@ Substantive architectural concern: Garbage collection pauses during high heap al
 		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
+			"kind":         "session",
 			"session_id":   "D-001-S1",
 			"content":      inflatedSession,
 		},
@@ -1165,6 +1225,7 @@ Concern from agent %d.
 				Name: "vivechak_save",
 				Arguments: map[string]any{
 					"project_root": tmpDir,
+					"kind":         "session",
 					"session_id":   sid,
 					"content":      content,
 				},

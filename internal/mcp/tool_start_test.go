@@ -225,8 +225,8 @@ func TestStart_FilesystemRootAndHomeGuards(t *testing.T) {
 	if envRoot.Success {
 		t.Errorf("expected failure for filesystem root '/', got success")
 	}
-	if !strings.Contains(envRoot.Message, "cannot be a filesystem root") {
-		t.Errorf("expected 'cannot be a filesystem root', got: %s", envRoot.Message)
+	if !strings.Contains(envRoot.Message, "cannot be used as workspace root") {
+		t.Errorf("expected 'cannot be used as workspace root', got: %s", envRoot.Message)
 	}
 
 	// 2. User home directory
@@ -246,7 +246,7 @@ func TestStart_FilesystemRootAndHomeGuards(t *testing.T) {
 		if envHome.Success {
 			t.Errorf("expected failure for user home dir %q, got success", home)
 		}
-		if !strings.Contains(envHome.Message, "refusing to initialize workspace directly in user home directory") {
+		if !strings.Contains(envHome.Message, "user home directory") {
 			t.Errorf("expected home directory refusal message, got: %s", envHome.Message)
 		}
 	}

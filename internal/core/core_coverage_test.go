@@ -139,6 +139,7 @@ func TestResolveWorkspace_And_Exists(t *testing.T) {
 	if err := os.MkdirAll(resDir, 0755); err != nil {
 		t.Fatal(err)
 	}
+	_ = os.WriteFile(filepath.Join(tmpDir, MetadataFile), []byte(`{"schema":1}`), 0644)
 
 	if !WorkspaceExists(tmpDir) {
 		t.Errorf("expected WorkspaceExists to be true after research dir created")

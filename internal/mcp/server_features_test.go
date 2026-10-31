@@ -194,7 +194,7 @@ func TestNextSession_QualityBarLanguage(t *testing.T) {
 
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
 		Name:      "vivechak_save",
-		Arguments: map[string]any{"project_root": tmpDir, "content": pipeline},
+		Arguments: map[string]any{"project_root": tmpDir, "kind": "plan", "content": pipeline},
 	})
 
 	// Get next session (T1-01 - research session)
@@ -242,7 +242,7 @@ func TestNextSession_SynthesisLanguage(t *testing.T) {
 
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
 		Name:      "vivechak_save",
-		Arguments: map[string]any{"project_root": tmpDir, "content": pipeline},
+		Arguments: map[string]any{"project_root": tmpDir, "kind": "plan", "content": pipeline},
 	})
 
 	// Complete T1-01
@@ -250,6 +250,7 @@ func TestNextSession_SynthesisLanguage(t *testing.T) {
 		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
+			"kind":         "session",
 			"session_id":   "T1-01",
 			"content": `---
 session_id: T1-01
@@ -312,7 +313,7 @@ func TestNextSession_BlockedSessionsData(t *testing.T) {
 
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
 		Name:      "vivechak_save",
-		Arguments: map[string]any{"project_root": tmpDir, "content": pipeline},
+		Arguments: map[string]any{"project_root": tmpDir, "kind": "plan", "content": pipeline},
 	})
 
 	// Get T1-01 — T2-01 and SYN-01 should be blocked
@@ -388,7 +389,7 @@ func TestNextSession_ParallelSessionCount(t *testing.T) {
 
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
 		Name:      "vivechak_save",
-		Arguments: map[string]any{"project_root": tmpDir, "content": pipeline},
+		Arguments: map[string]any{"project_root": tmpDir, "kind": "plan", "content": pipeline},
 	})
 
 	result, _ := cs.CallTool(ctx, &mcp.CallToolParams{
@@ -646,7 +647,7 @@ func TestNoWebSearchEnabledInAnyNextStep(t *testing.T) {
 
 	res, _ = cs.CallTool(ctx, &mcp.CallToolParams{
 		Name:      "vivechak_save",
-		Arguments: map[string]any{"project_root": tmpDir, "content": pipeline},
+		Arguments: map[string]any{"project_root": tmpDir, "kind": "plan", "content": pipeline},
 	})
 	env = parseEnvelope(t, res)
 	if strings.Contains(env.NextStep, "web search enabled") {
@@ -917,6 +918,7 @@ func TestRunGate_ScopeAwareTemplateCount(t *testing.T) {
 		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
+			"kind":         "session",
 			"session_id":   "S1-01",
 			"content": `---
 session_id: S1-01
@@ -925,7 +927,12 @@ date: 2026-09-29
 status: complete
 ---
 # Research
-Found X. Grade A (docs)
+
+## Key Findings
+Found X. Grade A (https://docs.example.com) [fetched]
+
+## Sources & Evidence Ledger
+- https://docs.example.com
 `,
 		},
 	})
@@ -942,11 +949,12 @@ decision_id: D-001
 title: Test Decision
 status: accepted
 door_type: two-way
+review_trigger: "> 500 req/s"
 ---
 # Context
 Need X.
 # Decision
-Use Y. Grade A (docs)
+Use Y. Grade A (https://docs.example.com) [fetched]
 # Consequences
 None significant.
 `,
@@ -1001,6 +1009,7 @@ Compare Kafka vs RabbitMQ. A (benchmark)
 		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
+			"kind":         "comparison",
 			"scope":        "comparison",
 			"decision_id":  "D-001",
 			"slug":         "queue",
@@ -1073,6 +1082,7 @@ Compare Winston vs Pino. Evidence Grade A (official docs).
 		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
+			"kind":         "comparison",
 			"scope":        "comparison",
 			"decision_id":  "C-01",
 			"slug":         "logging",
@@ -1091,7 +1101,14 @@ Compare Winston vs Pino. Evidence Grade A (official docs).
 	if _, err := os.Stat(filepath.Join(tmpDir, "research", "templates", "COMPARISON-SESSION.template.md")); err != nil {
 		t.Errorf("auto-init failed to copy comparison template: %v", err)
 	}
-	if _, err := os.Stat(filepath.Join(tmpDir, "research", "C-01-cmp-logging.md")); err != nil {
+	var savedPath string
+	if dataMap, ok := env.Data.(map[string]any); ok {
+		savedPath, _ = dataMap["file_path"].(string)
+	}
+	if savedPath == "" {
+		savedPath = filepath.Join("research", "C-001-cmp-logging.md")
+	}
+	if _, err := os.Stat(filepath.Join(tmpDir, filepath.FromSlash(savedPath))); err != nil {
 		t.Errorf("comparison plan file not found: %v", err)
 	}
 }
@@ -1257,6 +1274,7 @@ func TestSaveSession_CustomOutputFileFromDAG(t *testing.T) {
 		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
+			"kind":         "plan",
 			"scope":        "project",
 			"content":      pipelineContent,
 		},
@@ -1281,6 +1299,7 @@ status: complete
 		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
+			"kind":         "session",
 			"session_id":   "T1-01",
 			"content":      sessionContent,
 		},
@@ -1310,6 +1329,7 @@ status: complete
 		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
+			"kind":         "session",
 			"session_id":   "T1-02",
 			"content":      sessionContent,
 		},

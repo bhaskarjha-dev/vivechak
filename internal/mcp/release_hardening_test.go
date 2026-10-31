@@ -20,6 +20,7 @@ func TestSavePlanComparisonTerminalNextStep(t *testing.T) {
 		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
+			"kind":         "comparison",
 			"scope":        "comparison",
 			"decision_id":  "C-01",
 			"content":      "# Weighted Evaluation Protocol\n\n| Option | Score |\n|---|---|\n| Pino | 8.5 [A] (pino.dev) |\n| Winston | 7.0 [B] (github.com) |\n",
@@ -49,6 +50,7 @@ func TestSavePlanAutoInitGitignore(t *testing.T) {
 		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
+			"kind":         "plan",
 			"scope":        "decision",
 			"decision_id":  "D-01",
 			"content":      "# Decision Plan\n\n## S1: Landscape\n## S2: Comparison\n",
@@ -227,6 +229,7 @@ func TestStatusMultiScopeNextStep(t *testing.T) {
 		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": cmpDir,
+			"kind":         "comparison",
 			"scope":        "comparison",
 			"decision_id":  "C-01",
 			"content":      "# Weighted Evaluation Protocol\n\n| Option | Score |\n|---|---|\n| Pino | 8.5 [A] |\n",
@@ -291,6 +294,7 @@ func TestComparisonScopeSessionCountingAndGate(t *testing.T) {
 		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": cmpDir,
+			"kind":         "comparison",
 			"scope":        "comparison",
 			"decision_id":  "C-01",
 			"content":      "# Weighted Evaluation Protocol\n\n| Option | Score |\n|---|---|\n| Pino | 8.5 [Grade: A] (https://github.com/pinojs/pino) |\n| Winston | 7.0 [Grade: B] (https://github.com/winstonjs/winston) |\n",
@@ -460,6 +464,7 @@ func TestAmendNonADRDoesNotRecompileRegistry(t *testing.T) {
 		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
+			"kind":         "session",
 			"session_id":   "T1-01",
 			"content":      sessContent,
 		},
