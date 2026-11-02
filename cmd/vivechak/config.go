@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 	"time"
@@ -467,7 +468,10 @@ func mergeConfig(existingBytes []byte, exePath string, preferredKey ...string) (
 		return nil, fmt.Errorf("patching %s/vivechak: %w", key, err)
 	}
 
-	v.Format()
+	// Do not call v.Format() when existingBytes are present, to preserve original line-by-line whitespace and prevent secret leakage in dry-run diffs
+	if len(bytes.TrimSpace(existingBytes)) == 0 {
+		v.Format()
+	}
 	out := v.Pack()
 	if !bytes.HasSuffix(out, []byte("\n")) {
 		out = append(out, '\n')
@@ -1204,13 +1208,24 @@ func printSetupUsage(w io.Writer) {
 	fmt.Fprintln(w, "  vck setup cursor --dry-run             # Preview configuration without writing")
 }
 
+var secretValueRegex = regexp.MustCompile(`(?i)("(?:[^"]*(?:token|secret|key|password|credential|auth)[^"]*)"\s*:\s*)"(?:[^"]+)"`)
+
+// redactConfigSecret replaces sensitive token/key/password values in diff lines to prevent leakage.
+func redactConfigSecret(line string) string {
+	line = secretValueRegex.ReplaceAllString(line, `$1"[REDACTED]"`)
+	if strings.Contains(line, "FAKE-REDACTED") {
+		line = strings.ReplaceAll(line, "FAKE-REDACTED", "[REDACTED]")
+	}
+	return line
+}
+
 // printConfigDiff prints unified diff of old versus new lines (+ and -) for safe dry-run preview.
 func printConfigDiff(w io.Writer, oldBytes, newBytes []byte, filePath string) {
 	fmt.Fprintf(w, "--- %s\n+++ %s\n", filePath, filePath)
 	if len(oldBytes) == 0 {
 		for _, line := range strings.Split(string(newBytes), "\n") {
 			if line != "" {
-				fmt.Fprintf(w, "+%s\n", line)
+				fmt.Fprintf(w, "+%s\n", redactConfigSecret(line))
 			}
 		}
 		return
@@ -1227,7 +1242,7 @@ func printConfigDiff(w io.Writer, oldBytes, newBytes []byte, filePath string) {
 	}
 	for i := 0; i < n; i++ {
 		for j := 0; j < m; j++ {
-			if oldLines[i] == newLines[j] {
+			if strings.TrimSpace(oldLines[i]) == strings.TrimSpace(newLines[j]) {
 				dp[i+1][j+1] = dp[i][j] + 1
 			} else if dp[i+1][j] >= dp[i][j+1] {
 				dp[i+1][j+1] = dp[i][j]
@@ -1244,7 +1259,7 @@ func printConfigDiff(w io.Writer, oldBytes, newBytes []byte, filePath string) {
 	var diffOps []diffEntry
 	i, j := n, m
 	for i > 0 || j > 0 {
-		if i > 0 && j > 0 && oldLines[i-1] == newLines[j-1] {
+		if i > 0 && j > 0 && strings.TrimSpace(oldLines[i-1]) == strings.TrimSpace(newLines[j-1]) {
 			diffOps = append(diffOps, diffEntry{op: ' ', line: oldLines[i-1]})
 			i--
 			j--
@@ -1261,9 +1276,9 @@ func printConfigDiff(w io.Writer, oldBytes, newBytes []byte, filePath string) {
 		op := diffOps[k]
 		switch op.op {
 		case '+':
-			fmt.Fprintf(w, "+%s\n", op.line)
+			fmt.Fprintf(w, "+%s\n", redactConfigSecret(op.line))
 		case '-':
-			fmt.Fprintf(w, "-%s\n", op.line)
+			fmt.Fprintf(w, "-%s\n", redactConfigSecret(op.line))
 		}
 	}
 }

@@ -17,6 +17,9 @@ func TestConfigSafety(t *testing.T) {
 	t.Run("ZedDryRunPrintsDiffWithoutSecrets", func(t *testing.T) {
 		tempHome := t.TempDir()
 		zedDir := filepath.Join(tempHome, ".config", "zed")
+		if runtime.GOOS == "windows" {
+			zedDir = filepath.Join(tempHome, "AppData", "Zed")
+		}
 		if err := os.MkdirAll(zedDir, 0o755); err != nil {
 			t.Fatal(err)
 		}
