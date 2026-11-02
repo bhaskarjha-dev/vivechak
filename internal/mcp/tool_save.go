@@ -77,7 +77,11 @@ func registerSave(server *sdkmcp.Server) {
 func handleSave(ctx context.Context, req *sdkmcp.CallToolRequest, in SaveInput) (*sdkmcp.CallToolResult, Envelope, error) {
 	const tool = "vivechak_save"
 
-	root, rule, err := core.ResolveWorkspaceWithRoots(ctx, in.ProjectRoot, getClientRoots(ctx, req))
+	var roots []string
+	if strings.TrimSpace(in.ProjectRoot) == "" {
+		roots = getClientRoots(ctx, req)
+	}
+	root, rule, err := core.ResolveWorkspaceWithRoots(ctx, in.ProjectRoot, roots)
 	if err != nil {
 		return ErrorResult(tool, err, "Initialize a workspace first with vivechak_start or pass project_root.")
 	}

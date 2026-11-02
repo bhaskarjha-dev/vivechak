@@ -71,6 +71,8 @@ export class DirectMcpAdapter extends BaseHarnessAdapter {
         }
       };
 
+      proc.stderr.on("data", () => {});
+
       proc.stdout.on("data", (chunk) => {
         buffer += chunk.toString();
         const lines = buffer.split("\n");

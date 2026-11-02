@@ -65,7 +65,11 @@ func registerStart(server *sdkmcp.Server) {
 func handleStart(ctx context.Context, req *sdkmcp.CallToolRequest, in StartInput) (*sdkmcp.CallToolResult, Envelope, error) {
 	const tool = "vivechak_start"
 
-	root, rule, err := core.ResolveWorkspaceWithRoots(ctx, in.ProjectRoot, getClientRoots(ctx, req))
+	var roots []string
+	if strings.TrimSpace(in.ProjectRoot) == "" {
+		roots = getClientRoots(ctx, req)
+	}
+	root, rule, err := core.ResolveWorkspaceWithRoots(ctx, in.ProjectRoot, roots)
 	if err != nil {
 		if in.ProjectRoot == "" {
 			if cwd, cwdErr := os.Getwd(); cwdErr == nil && core.SafeRoot(cwd) == nil && !core.IsSystemOrAppDir(cwd) {

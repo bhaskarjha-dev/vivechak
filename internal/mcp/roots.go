@@ -2,6 +2,7 @@ package mcputil
 
 import (
 	"context"
+	"time"
 
 	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
 )
@@ -11,8 +12,11 @@ func getClientRoots(ctx context.Context, req *sdkmcp.CallToolRequest) []string {
 	if req == nil || req.Session == nil {
 		return nil
 	}
+	timeoutCtx, cancel := context.WithTimeout(ctx, 200*time.Millisecond)
+	defer cancel()
+
 	//nolint:staticcheck // SA1019: ListRoots is functional during 12-month deprecation window (SEP-2577)
-	res, err := req.Session.ListRoots(ctx, nil)
+	res, err := req.Session.ListRoots(timeoutCtx, nil)
 	if err != nil || res == nil {
 		return nil
 	}
