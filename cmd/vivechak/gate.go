@@ -104,19 +104,20 @@ func runGateWithArgs(args []string, stdout, stderr io.Writer) int {
 	}
 
 	passed := true
-	if track == "track_a" {
+	switch track {
+	case "track_a":
 		for _, r := range gateResult.Rules {
 			if r.ID == "G12" && r.Status == "FAIL" {
 				passed = false
 			}
 		}
-	} else if track == "track_b" {
+	case "track_b":
 		for _, r := range gateResult.Rules {
 			if r.ID != "G12" && r.Status == "FAIL" {
 				passed = false
 			}
 		}
-	} else {
+	default:
 		passed = (gateResult.Verdict == "PASS" || gateResult.Verdict == "not_applicable")
 	}
 

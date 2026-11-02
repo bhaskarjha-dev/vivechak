@@ -1259,9 +1259,10 @@ func printConfigDiff(w io.Writer, oldBytes, newBytes []byte, filePath string) {
 
 	for k := len(diffOps) - 1; k >= 0; k-- {
 		op := diffOps[k]
-		if op.op == '+' {
+		switch op.op {
+		case '+':
 			fmt.Fprintf(w, "+%s\n", op.line)
-		} else if op.op == '-' {
+		case '-':
 			fmt.Fprintf(w, "-%s\n", op.line)
 		}
 	}

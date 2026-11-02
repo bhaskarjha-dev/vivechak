@@ -80,14 +80,15 @@ func handleGate(_ context.Context, _ *sdkmcp.CallToolRequest, in GateInput) (*sd
 
 	pass := gateResult.Passed
 	verdict := gateResult.Verdict
-	if trackFilter == "track_a" {
+	switch trackFilter {
+	case "track_a":
 		pass = gateResult.TrackAChecks.Passed
 		if pass {
 			verdict = "PASS"
 		} else {
 			verdict = "FAIL"
 		}
-	} else if trackFilter == "track_b" {
+	case "track_b":
 		pass = gateResult.TrackBChecks.Passed
 		if pass {
 			verdict = "PASS"
@@ -128,15 +129,9 @@ func handleGate(_ context.Context, _ *sdkmcp.CallToolRequest, in GateInput) (*sd
 	}
 
 	warnings := gateResult.Warnings
-	for _, adv := range gateResult.Advisories {
-		warnings = append(warnings, adv)
-	}
-	for _, issue := range gateResult.TrackBChecks.Issues {
-		warnings = append(warnings, issue)
-	}
-	for _, issue := range gateResult.StructuralChecks.Issues {
-		warnings = append(warnings, issue)
-	}
+	warnings = append(warnings, gateResult.Advisories...)
+	warnings = append(warnings, gateResult.TrackBChecks.Issues...)
+	warnings = append(warnings, gateResult.StructuralChecks.Issues...)
 	if gateResult.Verdict == "not_applicable" || info.Scope == core.ScopeComparison {
 		warnings = append(warnings, "Comparison scope: zero gate requirements. Proceed to implementation.")
 	}
@@ -168,9 +163,10 @@ func handleGate(_ context.Context, _ *sdkmcp.CallToolRequest, in GateInput) (*sd
 		}
 		issueCount := len(failingRules)
 		msg := fmt.Sprintf("❌ PHASE 0 GATE FAILED (%d failing rule%s). Implementation is strictly prohibited until resolved.", issueCount, plural(issueCount))
-		if trackFilter == "track_a" {
+		switch trackFilter {
+		case "track_a":
 			msg = fmt.Sprintf("❌ Phase 0 Gate: Track A requirements not met (%d failing rule%s). Implementation is strictly prohibited until resolved.", issueCount, plural(issueCount))
-		} else if trackFilter == "track_b" {
+		case "track_b":
 			msg = fmt.Sprintf("❌ Phase 0 Gate: Track B requirements not met (%d failing rule%s). Implementation is strictly prohibited until resolved.", issueCount, plural(issueCount))
 		}
 		nextStep := "⛔ DO NOT PROCEED TO CODE. Phase 0 Gate failed: resolve all failing rules above before beginning implementation."

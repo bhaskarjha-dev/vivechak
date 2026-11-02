@@ -11,6 +11,7 @@ func getClientRoots(ctx context.Context, req *sdkmcp.CallToolRequest) []string {
 	if req == nil || req.Session == nil {
 		return nil
 	}
+	//nolint:staticcheck // SA1019: ListRoots is functional during 12-month deprecation window (SEP-2577)
 	res, err := req.Session.ListRoots(ctx, nil)
 	if err != nil || res == nil {
 		return nil
