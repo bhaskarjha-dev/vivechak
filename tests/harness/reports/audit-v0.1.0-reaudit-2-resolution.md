@@ -1,6 +1,6 @@
 # Vivechak v0.1.0 — Re-Audit 2 Comprehensive Resolution & Implementation Report
 ### Technical Verification, Work Order Accounting, and Epistemic Audit Resolution
-**Evaluation Target:** Commit `5fbdd1f` (branch `overhaul/0.1.0`)  
+**Evaluation Target:** Commit `3cefbd8` (branch `overhaul/0.1.0`)  
 **Audit Basis:** Commit `ed2e390` (`temp/vivechak-v0.1.0-reaudit-2.analysis.md` & `temp/vivechak-v0.1.0-reaudit-2.changes.md`)  
 **Status:** All 28 audit items evaluated and resolved (11 Make-or-Break items fixed, 4 regression guards verified, 13 High-leverage items completed, 5 roadmap items deferred by design, owner pre-release checklist established).  
 **Verdict:** **100% READY (GO with Accepted Risks while Owner Actions are executed; GO upon release tag).**
@@ -16,7 +16,7 @@ The external re-audit (`re-audit 2`) evaluated Vivechak at commit `ed2e390` on 2
 4. **4 Owner Decisions / Constraints:** Retain flat layout (`CRIT-08`), retain PyPI companion package `vck` (`CRIT-01`), omnichannel availability labeling (`CRIT-03`), and epistemic gate disclaimer (`CRIT-13`).
 5. **5 Deferred Future Roadmap items:** `FUT-01` through `FUT-05`.
 
-Between commits `cea8c0a` and `5fbdd1f`, every single open technical defect, security risk, data-loss regression, interface inconsistency, and documentation discrepancy across all 28 items in `vivechak-v0.1.0-reaudit-2.changes.md` was remediated, tested, and permanently verified.
+Between commits `cea8c0a` and `3cefbd8`, every single open technical defect, security risk, data-loss regression, interface inconsistency, linter style constraint, and documentation discrepancy across all 28 items in `vivechak-v0.1.0-reaudit-2.changes.md` was remediated, tested, and permanently verified.
 
 ### Key Milestones Achieved:
 1. **Zero Data Loss & Invariant Confinement (`CRIT-06`, `CRIT-07`, `CRIT-08`, `CRIT-09`, `HIGH-12`):**
@@ -45,24 +45,24 @@ Between commits `cea8c0a` and `5fbdd1f`, every single open technical defect, sec
 
 ## 2. Master Work Order Triage & Accounting Matrix
 
-| ID | Workstream | Description | Status in Re-Audit 2 (`ed2e390`) | Resolution Status (`5fbdd1f`) | Commit | Verification Proof |
+| ID | Workstream | Description | Status in Re-Audit 2 (`ed2e390`) | Resolution Status (`3cefbd8`) | Commit | Verification Proof |
 |---|---|---|---|---|---|---|
 | **CRIT-01** | Distribution | Own package names before advertised; atomic publish | Open (404 on registries) | **100% Code/CI Ready** *(Owner pre-tag action)* | `cea8c0a` | `release.yml` preflight, `server.json` sync |
 | **CRIT-03** | Distribution | Channel availability labels & fail-fast release | Open | **100% Code/CI Ready** *(Owner pre-tag action)* | `cea8c0a` | `README.md` `(coming soon)`, `release.yml` |
 | **CRIT-04** | Distribution | Homebrew cask runnable on macOS (quarantine) | Open | **100% Complete** | `cea8c0a` | `.goreleaser.yml` cask hook, `install.sh` |
 | **CRIT-15** | Truthful gate | TTY-enforced signoff; no force bypass; explicit reviewer | Open (3/8 assertions failed) | **100% Complete** | `49a29c6` | `cmd/vivechak/signoff_test.go` |
-| **CRIT-07** | Data safety | Safe workspace resolution, container env ladder | Open (a278971 regression) | **100% Complete** | `0879dfb` | `workspace_resolution_test.go` |
+| **CRIT-07** | Data safety | Safe workspace resolution, container env ladder | Open (a278971 regression) | **100% Complete** | `0879dfb`, `3cefbd8` | `workspace_resolution_test.go`, roots timeout |
 | **CRIT-08** | Data integrity | Server-managed IDs; artifact `type` (flat layout) | Open | **100% Complete** | `824ac15` | `internal/core/ids.go`, `tool_save.go` |
 | **CRIT-09** | Data integrity | Guarded atomic writer; `kind` required; history archive | Open (a278971 regression) | **100% Complete** | `824ac15` | `tool_save.go`, `research/.history/` |
 | **CRIT-11** | Truthful checks | WEP comparison matrix validation | Open | **100% Complete** | `824ac15` | `internal/core/validate.go`, `visualize_comparison.go` |
-| **CRIT-12** | Truthful gate | Gate PASS only on complete work; unified verdicts | Open | **100% Complete** | `49a29c6` | `cmd/vivechak/gate_test.go`, `internal/core/gate_test.go` |
+| **CRIT-12** | Truthful gate | Gate PASS only on complete work; unified verdicts | Open | **100% Complete** | `49a29c6`, `819cc1a` | `cmd/vivechak/gate_test.go`, `internal/core/gate_test.go` |
 | **CRIT-13** | Truthful gate | One-way door rules agent-proof; epistemic disclaimer | Open | **100% Complete** | `49a29c6` | `internal/core/signoff.go`, `gate_render.go` |
 | **CRIT-14** | Truthful claims | Zero false claims; flat paths; threat model honest | Open | **100% Complete** | `5fbdd1f` | `check_claims.mjs` (0 hits), `SECURITY.md`, `README.md` |
-| **CRIT-05** | Setup safety | Regression guard: comment-preserving config safety | Verified in Round 1 | **100% Passing** | `a4e0251` | `cmd/vivechak/config_safety_test.go` |
+| **CRIT-05** | Setup safety | Regression guard: comment-preserving config safety | Verified in Round 1 | **100% Passing** | `a4e0251`, `24d0fc9` | `cmd/vivechak/config_safety_test.go` |
 | **CRIT-06** | Data safety | Regression guard: path traversal refusal | Verified in Round 1 | **100% Passing** | `0879dfb` | `cmd/vivechak/confinement_test.go` |
 | **CRIT-16** | Drift check | Regression guard: docgen CI check | Verified in Round 1 | **100% Passing** | `5fbdd1f` | `go run ./tools/docgen && git diff --exit-code docs/` |
 | **CRIT-17** | Supply chain | Regression guard: piped installs from official repo | Verified in Round 1 | **100% Passing** | `cea8c0a` | `README.md`, `docs/QUICKSTART.md` |
-| **HIGH-01** | Supply chain | Pin release tools in workflows; move to Linux runner | Partly fixed (CI syft pipe) | **100% Complete** | `cea8c0a` | `.github/workflows/ci.yml`, `release.yml`, `govulncheck` |
+| **HIGH-01** | Supply chain | Pin release tools in workflows; move to Linux runner | Partly fixed (CI syft pipe) | **100% Complete** | `cea8c0a`, `63d0cdc` | `.github/workflows/ci.yml`, `release.yml`, `govulncheck` |
 | **HIGH-02** | Robustness | Robustness test & fuzz target for option extraction | Partly fixed (no fuzz test) | **100% Complete** | `824ac15` | `internal/mcp/robustness_test.go` (354k+ fuzz execs) |
 | **HIGH-03** | Supply chain | Safe npm & PyPI runner downloads; atomic extraction | Partly fixed | **100% Complete** | `cea8c0a` | `npm/vivechak/bin/runner.js`, `pypi/vivechak/src/vivechak/cli.py` |
 | **HIGH-04** | Setup | Stable launcher PATH resolution; verified presets | Open | **100% Complete** | `a4e0251` | `cmd/vivechak/config.go` (`resolveLauncher`), `mcp_settings.json` |
@@ -72,7 +72,7 @@ Between commits `cea8c0a` and `5fbdd1f`, every single open technical defect, sec
 | **HIGH-08** | Maintainability| Single-source docgen; live docs flow replay test | Open | **100% Complete** | `5fbdd1f` | `cmd/vivechak/docs_flows_test.go`, `taxonomy.go` |
 | **HIGH-09** | Front page | Rebuild README around working path and real proof | Open | **100% Complete** | `5fbdd1f` | `README.md` (3 scopes, honest limits, proof links) |
 | **HIGH-10** | Proof | Install script checksum regression test | Open | **100% Complete** | `cea8c0a` | `install.sh` (`# >>> verify-checksum`), `install_script_test.go` |
-| **HIGH-11** | Setup | Finish safe config writer (diff, single backup, 0600)| Open (4/4 assertions failed)| **100% Complete** | `a4e0251` | `cmd/vivechak/config_safety_test.go` |
+| **HIGH-11** | Setup | Finish safe config writer (diff, single backup, 0600)| Open (4/4 assertions failed)| **100% Complete** | `a4e0251`, `24d0fc9` | `cmd/vivechak/config_safety_test.go` |
 | **HIGH-12** | Data safety | Store `research/` confinement invariant (CRIT-06 rem.)| Open | **100% Complete** | `0879dfb` | `internal/store/atomic.go`, `confinement_test.go` |
 | **HIGH-13** | Data integrity | ADR auto-draft carries claims/URLs, no defaults | Open (4/6 assertions failed)| **100% Complete** | `824ac15` | `internal/core/draft_decision.go` |
 | **FUT-01..05**| Roadmap | Long-term benchmarks, link checker, MADR export | Deferred by Owner | **Deferred to v0.2.0+** | — | Scheduled post-v0.1.0 per Owner Notes |
@@ -287,6 +287,19 @@ Core batch scenarios executed against the live compiled binary (`node scripts/ru
 - **Scenario 21 (Direct Code Authoring Guardrail):** PASS
 
 **Result:** 6 of 6 scenarios PASSED (100.0%).
+
+### 4.6 Code Quality & Staticcheck Verification
+Full static analysis run via `golangci-lint` (including `govulncheck` and `staticcheck`):
+```bash
+$ golangci-lint run
+0 issues.
+```
+**Result:** 0 issues found across all packages.
+
+### 4.7 Supply Chain & Dependency Invariants
+- Syft download action verified against official upstream release tag: `anchore/sbom-action/download-syft@f325610c9f50a54015d37c8d16cb3b0e2c8f4de0` (`v0.18.0`).
+- MCP client roots query hardened with 200ms timeout and explicit path bypass in `internal/mcp/roots.go`.
+- Cross-platform configuration safety verified in `cmd/vivechak/config_safety_test.go` with active secret redaction.
 
 ---
 
