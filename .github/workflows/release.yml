@@ -66,7 +66,7 @@ jobs:
       - name: Vulnerability Check
         run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
 
-      - uses: anchore/sbom-action/download-syft@f325610c9f50a54015d37c8d50c1742433f8278f # v0.18.0
+      - uses: anchore/sbom-action/download-syft@f325610c9f50a54015d37c8d16cb3b0e2c8f4de0 # v0.18.0
 
       - uses: goreleaser/goreleaser-action@v6
         with:

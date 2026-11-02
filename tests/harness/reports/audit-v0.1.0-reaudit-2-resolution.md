@@ -31,7 +31,7 @@ Between commits `cea8c0a` and `5fbdd1f`, every single open technical defect, sec
    - `vivechak_record_decision` rejects setting `human_reviewed` over MCP with `E-HUMAN-ONLY-FIELD`.
    - Gate evaluates rules G1–G12 strictly: fails on stubs or incomplete sessions, returns `not_applicable` with exit code 0 for comparison-only workspaces, and includes the mandatory epistemic disclaimer on PASS.
 3. **Supply Chain & Runner Hardening (`CRIT-01`, `CRIT-03`, `CRIT-04`, `HIGH-01`, `HIGH-03`, `HIGH-10`):**
-   - CI and Release workflows pinned `anchore/sbom-action/download-syft@f325610c9f50a54015d37c8d50c1742433f8278f`, moved release jobs to `ubuntu-latest`, and integrated `govulncheck`.
+   - CI and Release workflows pinned `anchore/sbom-action/download-syft@f325610c9f50a54015d37c8d16cb3b0e2c8f4de0`, moved release jobs to `ubuntu-latest`, and integrated `govulncheck`.
    - Homebrew cask quarantine removal hook added in `.goreleaser.yml` and `install.sh`.
    - npm and PyPI runners hardened with `VIVECHAK_DOWNLOAD_BASE` mirror override (HTTP restricted to `127.0.0.1`/`localhost`), redirect limits (max 5), downgrade blocking (HTTPS to HTTP prohibited), atomic extraction into `.tmp-<pid>-<random>/`, `engines.node >= 18`, and complete removal of development `go build` fallbacks.
 4. **Documentation, Schemas & Live Replay Testing (`CRIT-14`, `CRIT-16`, `HIGH-02`, `HIGH-04`, `HIGH-05`, `HIGH-06`, `HIGH-08`, `HIGH-09`, `HIGH-11`, `HIGH-13`):**
@@ -187,7 +187,7 @@ Between commits `cea8c0a` and `5fbdd1f`, every single open technical defect, sec
 ### 3.2 High-Leverage Items (`HIGH-01` through `HIGH-13`)
 
 - **`HIGH-01` (Supply Chain Hardening & Linux Release Runner):**
-  - Replaced unpinned `curl | sh` pipes in `.github/workflows/ci.yml` and `.github/workflows/release.yml` with `anchore/sbom-action/download-syft@f325610c9f50a54015d37c8d50c1742433f8278f`.
+  - Replaced unpinned `curl | sh` pipes in `.github/workflows/ci.yml` and `.github/workflows/release.yml` with `anchore/sbom-action/download-syft@f325610c9f50a54015d37c8d16cb3b0e2c8f4de0`.
   - Moved GoReleaser job to `ubuntu-latest` and added automated `govulncheck`.
   - Updated `docs/QUICKSTART.md:66` for Go 1.26.10 / `GOTOOLCHAIN=auto`.
 - **`HIGH-02` (Option Extraction Robustness & Fuzz Target):**
