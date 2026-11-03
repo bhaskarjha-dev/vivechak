@@ -13,7 +13,7 @@ RUN go mod download
 
 COPY . .
 RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
-    go build -trimpath -ldflags="-s -w -X main.version=${VERSION}" -o /build/vivechak ./cmd/vivechak && \
+    go build -trimpath -ldflags="-s -w -X github.com/bhaskarjha-dev/vivechak/internal/version.Version=${VERSION} -X github.com/bhaskarjha-dev/vivechak/internal/version.Commit=$(git rev-parse --short HEAD 2>/dev/null || echo unknown) -X github.com/bhaskarjha-dev/vivechak/internal/version.Date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" -o /build/vivechak ./cmd/vivechak && \
     ln -s /build/vivechak /build/vck
 
 # Stage 2: Minimal runtime container

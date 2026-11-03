@@ -71,7 +71,7 @@ cd vivechak
 make build                                    # builds production-optimized vck and vivechak binaries (-s -w stripped)
 
 # Or manually:
-# go build -trimpath -ldflags="-s -w -X main.version=0.1.0" -o vck ./cmd/vivechak/
+# go build -trimpath -ldflags="-s -w -X github.com/bhaskarjha-dev/vivechak/internal/version.Version=0.1.0" -o vck ./cmd/vivechak/
 
 # Optional: Install to PATH or run directly
 ./vck version                                 # (or .\vck.exe on Windows)

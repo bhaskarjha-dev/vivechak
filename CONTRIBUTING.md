@@ -37,8 +37,8 @@ Vivechak was created by applying its own methodology to itself — 11 meta-resea
 make build
 
 # Or manual production build:
-go build -trimpath -ldflags="-s -w -X main.version=0.1.0" -o vck ./cmd/vivechak/
-go build -trimpath -ldflags="-s -w -X main.version=0.1.0" -o vivechak ./cmd/vivechak/
+go build -trimpath -ldflags="-s -w -X github.com/bhaskarjha-dev/vivechak/internal/version.Version=0.1.0" -o vck ./cmd/vivechak/
+go build -trimpath -ldflags="-s -w -X github.com/bhaskarjha-dev/vivechak/internal/version.Version=0.1.0" -o vivechak ./cmd/vivechak/
 ```
 
 ### Running Tests
@@ -83,7 +83,7 @@ make release-check # Run vet, lint, test, embed-sync
 
 When releasing a new version, update ALL of the following references:
 
-- [ ] `cmd/vivechak/main.go` — bump `var version = "..."`
+- [ ] `internal/version/version.go` — bump `Version = "..."`
 - [ ] `CHANGELOG.md` — add new release entry
 - [ ] `README.md` — header version, tree diagram version, roadmap table
 - [ ] `AGENTS.md` — header version

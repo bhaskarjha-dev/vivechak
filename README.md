@@ -9,7 +9,7 @@
 ### Evidence-Grounded Research for Architectural & Technical Decisions
 
 [![Release](https://img.shields.io/badge/release-v0.1.0-blue.svg?style=flat-square)](https://github.com/bhaskarjha-dev/vivechak/releases)
-[![Go Version](https://img.shields.io/badge/go-1.25+-00ADD8.svg?style=flat-square&logo=go&logoColor=white)](https://golang.org)
+[![Go Version](https://img.shields.io/badge/go-1.26+-00ADD8.svg?style=flat-square&logo=go&logoColor=white)](https://golang.org)
 [![MCP Protocol](https://img.shields.io/badge/MCP-2024--11--05-8A2BE2.svg?style=flat-square)](https://modelcontextprotocol.io)
 [![Test Suite](https://github.com/bhaskarjha-dev/vivechak/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/bhaskarjha-dev/vivechak/actions)
 [![Zero Telemetry](https://img.shields.io/badge/telemetry-zero%20(100%25%20local)-success.svg?style=flat-square)](#when-not-to-use-vivechak)

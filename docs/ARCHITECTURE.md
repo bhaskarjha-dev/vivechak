@@ -23,7 +23,9 @@ vivechak/
 ├── cmd/
 │   └── vivechak/           # CLI entry points and host configurations
 │       ├── main.go         # Command dispatcher, stdio server startup, slog routing (vck alias)
-│       ├── config.go       # "setup" and "mcp-config" host configuration & 21 presets
+│       ├── config.go       # "mcp-config" JSON generation, launcher resolution, config merging & atomic write
+│       ├── presets.go      # Supported AI editor/harness host presets & path resolution (21 presets)
+│       ├── setup.go        # "setup" / "install" CLI, workspace auto-detection, diffs & secret redaction
 │       ├── doctor.go       # "doctor" workspace integrity verification and detected scope diagnostics
 │       ├── gate.go         # "gate" headless Phase 0 exit gate evaluation (CI-ready)
 │       └── signoff.go      # "signoff" interactive human architectural review sign-off
@@ -502,8 +504,8 @@ To build the server executable:
 make build
 
 # Or manual production build:
-go build -trimpath -ldflags="-s -w -X main.version=0.1.0" -o vck ./cmd/vivechak
-go build -trimpath -ldflags="-s -w -X main.version=0.1.0" -o vivechak ./cmd/vivechak
+go build -trimpath -ldflags="-s -w -X github.com/bhaskarjha-dev/vivechak/internal/version.Version=0.1.0" -o vck ./cmd/vivechak
+go build -trimpath -ldflags="-s -w -X github.com/bhaskarjha-dev/vivechak/internal/version.Version=0.1.0" -o vivechak ./cmd/vivechak
 ```
 
 ### Running Tests

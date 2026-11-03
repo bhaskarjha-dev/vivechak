@@ -26,9 +26,6 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-// version is maintained in internal/version and injected at build time.
-var version = versionPkg.Version
-
 func getVersion() string {
 	v := versionPkg.Version
 	if v == "dev" || v == "" {

@@ -20,8 +20,8 @@ func TestRunCLI_Version(t *testing.T) {
 		if code != 0 {
 			t.Errorf("expected exit code 0 for %s, got %d", arg, code)
 		}
-		if !strings.Contains(stdout.String(), version) {
-			t.Errorf("expected version output for %s to contain %q, got %q", arg, version, stdout.String())
+		if !strings.Contains(stdout.String(), getVersion()) {
+			t.Errorf("expected version output for %s to contain %q, got %q", arg, getVersion(), stdout.String())
 		}
 	}
 }
@@ -288,7 +288,7 @@ func TestRunCLI_SetupAndInstall(t *testing.T) {
 	if code != 0 {
 		t.Errorf("expected exit code 0 for vck version, got %d", code)
 	}
-	if !strings.Contains(stdout.String(), version) {
+	if !strings.Contains(stdout.String(), getVersion()) {
 		t.Errorf("expected version output for vck, got %q", stdout.String())
 	}
 }
@@ -337,7 +337,7 @@ func TestVersionParityAcrossEcosystem(t *testing.T) {
 		return
 	}
 
-	expected := version
+	expected := getVersion()
 
 	// 2. npm/vivechak/package.json
 	vivPkgPath := filepath.Join(root, "npm", "vivechak", "package.json")
@@ -478,6 +478,3 @@ func TestRepositoryReleaseReadiness(t *testing.T) {
 		t.Errorf("reading README.md: %v", err)
 	}
 }
-
-
-

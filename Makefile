@@ -4,7 +4,7 @@ VERSION ?= 0.1.0
 COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo "dev")
 DATE ?= $(shell date -u +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || echo "unknown")
 PKG := github.com/bhaskarjha-dev/vivechak/internal/version
-LDFLAGS ?= -s -w -X $(PKG).Version=$(VERSION) -X $(PKG).Commit=$(COMMIT) -X $(PKG).Date=$(DATE) -X main.version=$(VERSION)
+LDFLAGS ?= -s -w -X $(PKG).Version=$(VERSION) -X $(PKG).Commit=$(COMMIT) -X $(PKG).Date=$(DATE)
 export CGO_ENABLED ?= 0
 
 ifeq ($(OS),Windows_NT)

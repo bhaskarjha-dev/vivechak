@@ -19,7 +19,6 @@ builds:
     flags: [-trimpath]
     ldflags:
       - -s -w
-      - -X main.version={{.Version}}
       - -X github.com/bhaskarjha-dev/vivechak/internal/version.Version={{.Version}}
       - -X github.com/bhaskarjha-dev/vivechak/internal/version.Commit={{.Commit}}
       - -X github.com/bhaskarjha-dev/vivechak/internal/version.Date={{.Date}}
@@ -34,7 +33,6 @@ builds:
     flags: [-trimpath]
     ldflags:
       - -s -w
-      - -X main.version={{.Version}}
       - -X github.com/bhaskarjha-dev/vivechak/internal/version.Version={{.Version}}
       - -X github.com/bhaskarjha-dev/vivechak/internal/version.Commit={{.Commit}}
       - -X github.com/bhaskarjha-dev/vivechak/internal/version.Date={{.Date}}
@@ -49,7 +47,6 @@ builds:
     flags: [-trimpath]
     ldflags:
       - -s -w
-      - -X main.version={{.Version}}
       - -X github.com/bhaskarjha-dev/vivechak/internal/version.Version={{.Version}}
       - -X github.com/bhaskarjha-dev/vivechak/internal/version.Commit={{.Commit}}
       - -X github.com/bhaskarjha-dev/vivechak/internal/version.Date={{.Date}}
@@ -64,7 +61,6 @@ builds:
     flags: [-trimpath]
     ldflags:
       - -s -w
-      - -X main.version={{.Version}}
       - -X github.com/bhaskarjha-dev/vivechak/internal/version.Version={{.Version}}
       - -X github.com/bhaskarjha-dev/vivechak/internal/version.Commit={{.Commit}}
       - -X github.com/bhaskarjha-dev/vivechak/internal/version.Date={{.Date}}
@@ -79,7 +75,6 @@ builds:
     flags: [-trimpath]
     ldflags:
       - -s -w
-      - -X main.version={{.Version}}
       - -X github.com/bhaskarjha-dev/vivechak/internal/version.Version={{.Version}}
       - -X github.com/bhaskarjha-dev/vivechak/internal/version.Commit={{.Commit}}
       - -X github.com/bhaskarjha-dev/vivechak/internal/version.Date={{.Date}}
@@ -94,7 +89,6 @@ builds:
     flags: [-trimpath]
     ldflags:
       - -s -w
-      - -X main.version={{.Version}}
       - -X github.com/bhaskarjha-dev/vivechak/internal/version.Version={{.Version}}
       - -X github.com/bhaskarjha-dev/vivechak/internal/version.Commit={{.Commit}}
       - -X github.com/bhaskarjha-dev/vivechak/internal/version.Date={{.Date}}
@@ -109,7 +103,6 @@ builds:
     flags: [-trimpath]
     ldflags:
       - -s -w
-      - -X main.version={{.Version}}
       - -X github.com/bhaskarjha-dev/vivechak/internal/version.Version={{.Version}}
       - -X github.com/bhaskarjha-dev/vivechak/internal/version.Commit={{.Commit}}
       - -X github.com/bhaskarjha-dev/vivechak/internal/version.Date={{.Date}}
@@ -124,7 +117,6 @@ builds:
     flags: [-trimpath]
     ldflags:
       - -s -w
-      - -X main.version={{.Version}}
       - -X github.com/bhaskarjha-dev/vivechak/internal/version.Version={{.Version}}
       - -X github.com/bhaskarjha-dev/vivechak/internal/version.Commit={{.Commit}}
       - -X github.com/bhaskarjha-dev/vivechak/internal/version.Date={{.Date}}
@@ -139,7 +131,6 @@ builds:
     flags: [-trimpath]
     ldflags:
       - -s -w
-      - -X main.version={{.Version}}
       - -X github.com/bhaskarjha-dev/vivechak/internal/version.Version={{.Version}}
       - -X github.com/bhaskarjha-dev/vivechak/internal/version.Commit={{.Commit}}
       - -X github.com/bhaskarjha-dev/vivechak/internal/version.Date={{.Date}}
@@ -154,7 +145,6 @@ builds:
     flags: [-trimpath]
     ldflags:
       - -s -w
-      - -X main.version={{.Version}}
       - -X github.com/bhaskarjha-dev/vivechak/internal/version.Version={{.Version}}
       - -X github.com/bhaskarjha-dev/vivechak/internal/version.Commit={{.Commit}}
       - -X github.com/bhaskarjha-dev/vivechak/internal/version.Date={{.Date}}
