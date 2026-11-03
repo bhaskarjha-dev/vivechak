@@ -48,10 +48,14 @@ func registerGate(server *sdkmcp.Server) {
 	)
 }
 
-func handleGate(_ context.Context, _ *sdkmcp.CallToolRequest, in GateInput) (*sdkmcp.CallToolResult, Envelope, error) {
+func handleGate(ctx context.Context, req *sdkmcp.CallToolRequest, in GateInput) (*sdkmcp.CallToolResult, Envelope, error) {
 	const tool = "vivechak_gate"
 
-	root, err := core.ResolveWorkspace(in.ProjectRoot)
+	var roots []string
+	if strings.TrimSpace(in.ProjectRoot) == "" {
+		roots = getClientRoots(ctx, req)
+	}
+	root, _, err := core.ResolveWorkspaceWithRoots(ctx, in.ProjectRoot, roots)
 	if err != nil {
 		return ErrorResult(tool, err, "Initialize a workspace first with vivechak_start.")
 	}

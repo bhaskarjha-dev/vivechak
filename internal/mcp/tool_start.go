@@ -13,6 +13,7 @@ import (
 	"github.com/bhaskarjha-dev/vivechak/internal/core"
 	vembed "github.com/bhaskarjha-dev/vivechak/internal/embed"
 	"github.com/bhaskarjha-dev/vivechak/internal/store"
+	versionPkg "github.com/bhaskarjha-dev/vivechak/internal/version"
 	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -144,7 +145,7 @@ func handleStart(ctx context.Context, req *sdkmcp.CallToolRequest, in StartInput
 	meta := core.WorkspaceMeta{
 		Schema:    1,
 		Scope:     scope,
-		CreatedBy: fmt.Sprintf("vivechak %s", "0.1.0"),
+		CreatedBy: fmt.Sprintf("vivechak %s", versionPkg.Version),
 		Counters:  map[string]int{"C": 0, "D": 0},
 		CreatedAt: time.Now().UTC().Format(time.RFC3339),
 	}
@@ -229,8 +230,7 @@ func handleStart(ctx context.Context, req *sdkmcp.CallToolRequest, in StartInput
 							if strings.Contains(newBlock, placeholderDecision) {
 								newBlock = strings.Replace(newBlock, placeholderDecision, "DECISION: "+question, 1)
 							} else if strings.Contains(newBlock, "DECISION:") {
-								re := regexp.MustCompile(`(?m)^DECISION:.*$`)
-								newBlock = re.ReplaceAllString(newBlock, "DECISION: "+question)
+								newBlock = reDecisionLine.ReplaceAllString(newBlock, "DECISION: "+question)
 							}
 						case core.ScopeComparison:
 							if strings.Contains(newBlock, placeholderOptions) {
@@ -249,8 +249,7 @@ func handleStart(ctx context.Context, req *sdkmcp.CallToolRequest, in StartInput
 						} else if strings.Contains(newBlock, placeholderContextComparison) {
 							newBlock = strings.Replace(newBlock, placeholderContextComparison, "CONTEXT: "+question, 1)
 						} else if strings.Contains(newBlock, "CONTEXT:") {
-							re := regexp.MustCompile(`(?m)^CONTEXT:.*$`)
-							newBlock = re.ReplaceAllString(newBlock, "CONTEXT: "+question)
+							newBlock = reContextLine.ReplaceAllString(newBlock, "CONTEXT: "+question)
 						}
 						newBlock = strings.Replace(newBlock, "[today]", today, 1)
 						genPrompt = genPrompt[:afterStart] + newBlock + genPrompt[endIdx:]
@@ -425,6 +424,8 @@ var (
 	comparisonPrefixRe = regexp.MustCompile(`(?i)^(?:compare|evaluate|benchmark|choose between|decide between|which one is better:|which is better,|which is better:)\s+`)
 	comparisonSuffixRe = regexp.MustCompile(`(?i)\s+(?:for|in|with|when|under|on|as|to|across|over|within)\s+.*$`)
 	comparisonMidRe    = regexp.MustCompile(`(?i)\s+(?:vs\.?|versus|or)\s+`)
+	reDecisionLine     = regexp.MustCompile(`(?m)^DECISION:.*$`)
+	reContextLine      = regexp.MustCompile(`(?m)^CONTEXT:.*$`)
 )
 
 func extractComparisonOptions(ctx string) string {

@@ -23,6 +23,11 @@ type NextInput struct {
 // NextSessionInput provides backward compatibility for unit tests calling handleNextSession.
 type NextSessionInput = NextInput
 
+var (
+	reCompTableID      = regexp.MustCompile(`(?m)^\|\s*(?:\*\*)?ID(?:\*\*)?\s*\|\s*([A-Za-z0-9_-]+)\s*\|`)
+	reRecalledCitation = regexp.MustCompile(`(?i)(?:\[[^\]\n]*\b(?:recalled|parametric)\b[^\]\n]*\]|\([^)\n]*\b(?:recalled|parametric)\b[^)\n]*\)|\brecalled\s+memory\b|\|\s*recalled\s*\|)`)
+)
+
 func registerNext(server *sdkmcp.Server) {
 	sdkmcp.AddTool(server,
 		&sdkmcp.Tool{
@@ -43,14 +48,18 @@ func registerNext(server *sdkmcp.Server) {
 	)
 }
 
-func handleNext(_ context.Context, _ *sdkmcp.CallToolRequest, in NextInput) (*sdkmcp.CallToolResult, Envelope, error) {
+func handleNext(ctx context.Context, req *sdkmcp.CallToolRequest, in NextInput) (*sdkmcp.CallToolResult, Envelope, error) {
 	const tool = "vivechak_next"
 
 	if strings.TrimSpace(in.SessionID) == "" && strings.TrimSpace(in.ID) != "" {
 		in.SessionID = strings.TrimSpace(in.ID)
 	}
 
-	root, err := core.ResolveWorkspace(in.ProjectRoot)
+	var roots []string
+	if strings.TrimSpace(in.ProjectRoot) == "" {
+		roots = getClientRoots(ctx, req)
+	}
+	root, _, err := core.ResolveWorkspaceWithRoots(ctx, in.ProjectRoot, roots)
 	if err != nil {
 		return ErrorResult(tool, err, "Initialize a workspace first with vivechak_start.")
 	}
@@ -84,7 +93,7 @@ func handleNext(_ context.Context, _ *sdkmcp.CallToolRequest, in NextInput) (*sd
 		compSessionID := core.SessionPrefix(info.Scope) + "01"
 		if strings.Contains(compFile, "CMP-") || strings.Contains(string(compContent), "CMP-01") || strings.Contains(compFile, "COMP-") {
 			compSessionID = "CMP-01"
-		} else if idMatch := regexp.MustCompile(`(?m)^\|\s*(?:\*\*)?ID(?:\*\*)?\s*\|\s*([A-Za-z0-9_-]+)\s*\|`).FindSubmatch(compContent); len(idMatch) > 1 {
+		} else if idMatch := reCompTableID.FindSubmatch(compContent); len(idMatch) > 1 {
 			compSessionID = string(idMatch[1])
 		}
 
@@ -99,6 +108,39 @@ func handleNext(_ context.Context, _ *sdkmcp.CallToolRequest, in NextInput) (*sd
 		}
 		if compFile != "" {
 			dataMap["source_file"] = compFile
+		}
+
+		isCompletedComparison := false
+		if compFile != "" && len(compContent) > 0 {
+			if fm, _, err := core.ParseFrontmatter(compContent); err == nil && fm != nil {
+				status := strings.ToLower(fm.GetString("status"))
+				if status == "complete" || status == "draft" || status == "drafted" {
+					isCompletedComparison = true
+				}
+			}
+			if strings.Contains(string(compContent), "| Weight |") || strings.Contains(string(compContent), "| Criteria |") || strings.Contains(string(compContent), "## Weighted Evaluation") || strings.Contains(string(compContent), "## Executive Summary") {
+				isCompletedComparison = true
+			}
+		}
+
+		if isCompletedComparison {
+			msg := "Comparison research is complete."
+			env := Envelope{
+				Ok:      true,
+				Success: true,
+				Message: msg,
+				Data: map[string]any{
+					"workspace_root": root,
+					"scope":          info.Scope,
+					"session_id":     compSessionID,
+					"source_file":    compFile,
+					"status":         "complete",
+				},
+				Next:     &NextAction{Tool: "vivechak_review", Args: map[string]any{"target": compSessionID}, Why: "Review the completed comparison for quality and evidence grades."},
+				NextStep: "Comparison research is complete. Review verifiable evidence quality and grades using vivechak_review, or start a new scope.",
+				Meta:     NewMeta(tool),
+			}
+			return env.ToResult()
 		}
 
 		msg := "Comparison scope research prompt ready."
@@ -204,9 +246,9 @@ func handleNext(_ context.Context, _ *sdkmcp.CallToolRequest, in NextInput) (*sd
 				Why:  "All research sessions are complete. Run Phase 0 Gate via vivechak_gate to verify pre-coding criteria.",
 			}
 			env := Envelope{
-				Ok:       true,
-				Success:  true,
-				Message:  fmt.Sprintf("All %d sessions complete!", len(dag.Sessions)),
+				Ok:      true,
+				Success: true,
+				Message: fmt.Sprintf("All %d sessions complete!", len(dag.Sessions)),
 				Data: map[string]any{
 					"workspace_root":     root,
 					"total_sessions":     len(dag.Sessions),
@@ -238,9 +280,9 @@ func handleNext(_ context.Context, _ *sdkmcp.CallToolRequest, in NextInput) (*sd
 		}
 
 		env := Envelope{
-			Ok:       true,
-			Success:  true,
-			Message:  fmt.Sprintf("%d sessions remaining but all blocked by dependencies", len(dag.Sessions)-completedCount),
+			Ok:      true,
+			Success: true,
+			Message: fmt.Sprintf("%d sessions remaining but all blocked by dependencies", len(dag.Sessions)-completedCount),
 			Data: map[string]any{
 				"workspace_root":     root,
 				"total_sessions":     len(dag.Sessions),
@@ -329,13 +371,11 @@ func checkPreSynthesisAdvisory(dag *core.DAG, completedIDs map[string]bool, ws c
 		return ""
 	}
 	var owdIssues []string
-	recalledCitationRe := regexp.MustCompile(`(?i)(?:\[[^\]\n]*\b(?:recalled|parametric)\b[^\]\n]*\]|\([^)\n]*\b(?:recalled|parametric)\b[^)\n]*\)|\brecalled\s+memory\b|\|\s*recalled\s*\|)`)
-
 	for _, s := range dag.Sessions {
 		if strings.EqualFold(s.DoorType, "one-way") && completedIDs[s.ID] {
 			if sData, _, err := core.ReadSessionFileFS(ws, core.SessionsDir, s.ID); err == nil && sData != "" {
 				rec := core.ExtractSection(sData, "recommend", "verdict", "decision")
-				if len(rec) >= 20 && recalledCitationRe.MatchString(rec) {
+				if len(rec) >= 20 && reRecalledCitation.MatchString(rec) {
 					owdIssues = append(owdIssues, fmt.Sprintf("%s (recommendation relies on Grade D recalled claims)", s.ID))
 				}
 				lower := strings.ToLower(sData)

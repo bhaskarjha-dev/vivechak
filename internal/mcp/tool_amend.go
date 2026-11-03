@@ -51,7 +51,11 @@ func registerAmend(server *sdkmcp.Server) {
 func handleAmend(ctx context.Context, req *sdkmcp.CallToolRequest, in AmendInput) (*sdkmcp.CallToolResult, Envelope, error) {
 	const tool = "vivechak_amend"
 
-	root, err := core.ResolveWorkspace(in.ProjectRoot)
+	var roots []string
+	if strings.TrimSpace(in.ProjectRoot) == "" {
+		roots = getClientRoots(ctx, req)
+	}
+	root, _, err := core.ResolveWorkspaceWithRoots(ctx, in.ProjectRoot, roots)
 	if err != nil {
 		return ErrorResult(tool, err, "Initialize a workspace first with vivechak_start.")
 	}

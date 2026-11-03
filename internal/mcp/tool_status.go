@@ -45,10 +45,14 @@ func registerStatus(server *sdkmcp.Server) {
 	)
 }
 
-func handleStatus(_ context.Context, _ *sdkmcp.CallToolRequest, in StatusInput) (*sdkmcp.CallToolResult, Envelope, error) {
+func handleStatus(ctx context.Context, req *sdkmcp.CallToolRequest, in StatusInput) (*sdkmcp.CallToolResult, Envelope, error) {
 	const tool = "vivechak_status"
 
-	root, err := core.ResolveWorkspace(in.ProjectRoot)
+	var roots []string
+	if strings.TrimSpace(in.ProjectRoot) == "" {
+		roots = getClientRoots(ctx, req)
+	}
+	root, _, err := core.ResolveWorkspaceWithRoots(ctx, in.ProjectRoot, roots)
 	if err != nil {
 		env := Envelope{
 			Ok:      true,

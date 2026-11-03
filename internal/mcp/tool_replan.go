@@ -52,10 +52,14 @@ func registerReplan(server *sdkmcp.Server) {
 	)
 }
 
-func handleReplan(ctx context.Context, _ *sdkmcp.CallToolRequest, in ReplanInput) (*sdkmcp.CallToolResult, Envelope, error) {
+func handleReplan(ctx context.Context, req *sdkmcp.CallToolRequest, in ReplanInput) (*sdkmcp.CallToolResult, Envelope, error) {
 	const tool = "vivechak_replan"
 
-	root, err := core.ResolveWorkspace(in.ProjectRoot)
+	var roots []string
+	if strings.TrimSpace(in.ProjectRoot) == "" {
+		roots = getClientRoots(ctx, req)
+	}
+	root, _, err := core.ResolveWorkspaceWithRoots(ctx, in.ProjectRoot, roots)
 	if err != nil {
 		return ErrorResult(tool, err, "Initialize a workspace first with vivechak_start.")
 	}
