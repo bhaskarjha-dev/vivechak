@@ -176,4 +176,3 @@ func InferScope(contextText string) Scope {
 
 	return ScopeProject
 }
-

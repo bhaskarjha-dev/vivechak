@@ -1009,15 +1009,17 @@ Varying Throughput weight keeps Fastify ahead.
 
 // TestComprehensive_TrackBArithmeticAndAdversarialChallenge verifies:
 // 1. In Project Scope, Track B has 4 indicators (B3, B4, B5, B10).
-//    - When all pass, Score is "4/4", Count=4, Total=4, Passed=true.
-//    - When B5 (rejected alternatives) is missing, Count=3, Total=4, Score="3/4", Passed=false (Count < Total).
-//    - When B3 (evidence grade) is weak, Count=3, Total=4, Score="3/4", Passed=false (Count < Total).
+//   - When all pass, Score is "4/4", Count=4, Total=4, Passed=true.
+//   - When B5 (rejected alternatives) is missing, Count=3, Total=4, Score="3/4", Passed=false (Count < Total).
+//   - When B3 (evidence grade) is weak, Count=3, Total=4, Score="3/4", Passed=false (Count < Total).
+//
 // 2. In Decision Scope, Track B has 3 indicators (B3, B4, B5).
-//    - When all pass, Score is "3/3", Count=3, Total=3.
-//    - When B3 is weak, Count=2, Total=3, Score="2/3", Passed=false (Count < Total).
+//   - When all pass, Score is "3/3", Count=3, Total=3.
+//   - When B3 is weak, Count=2, Total=3, Score="2/3", Passed=false (Count < Total).
+//
 // 3. Adversarial Red-Team Challenge (B11):
-//    - Emits W-OWD-NO-CHALLENGE advisory when a One-Way Door has not undergone challenge.
-//    - Advisory is cleared when the One-Way Door ADR includes red-team challenge sections.
+//   - Emits W-OWD-NO-CHALLENGE advisory when a One-Way Door has not undergone challenge.
+//   - Advisory is cleared when the One-Way Door ADR includes red-team challenge sections.
 func TestComprehensive_TrackBArithmeticAndAdversarialChallenge(t *testing.T) {
 	ctx := context.Background()
 
@@ -3503,38 +3505,38 @@ func TestComprehensive_AuditRemediations_ZeroTrust_FullLifecycle(t *testing.T) {
 | **Dependencies** | none |
 
 ` + "````prompt\n" +
-`# T0-01: Foundation
+		`# T0-01: Foundation
 Baseline architecture.
 ` + "````\n\n" +
-`### Session T1-01: Event Broker Engine
+		`### Session T1-01: Event Broker Engine
 | **Field** | **Value** |
 |---|---|
 | **ID** | T1-01 |
 | **Dependencies** | T0-01 |
 
 ` + "````prompt\n" +
-`# T1-01: Research Prompt
+		`# T1-01: Research Prompt
 Evaluate messaging brokers against payload throughput.
 Example usage:
 ` + "```\n" +
-`func BenchmarkBroker() {
+		`func BenchmarkBroker() {
     // Broker benchmark
 }
 ` + "```\n" +
-`Ensure throughput > 50k msg/sec.
+		`Ensure throughput > 50k msg/sec.
 ` + "````\n\n" +
-`### Session T1-02: Analytics Database
+		`### Session T1-02: Analytics Database
 | **Field** | **Value** |
 |---|---|
 | **ID** | T1-02 |
 | **Dependencies** | T1-01 |
 
 ` + "````prompt\n" +
-`# T1-02: Analytics Prompt
+		`# T1-02: Analytics Prompt
 Evaluate ClickHouse vs DuckDB.
 ` + "````\n\n" +
-"```yaml vivechak-plan\n" +
-`sessions:
+		"```yaml vivechak-plan\n" +
+		`sessions:
   - id: T0-01
     title: Architecture Foundation
     door: two-way
@@ -4369,12 +4371,3 @@ This architecture forms the core high-throughput backbone satisfying strict SLA 
 		t.Errorf("expected Track B gate to PASS, got gate_passed=%v, warnings=%v", gateData["gate_passed"], envGate.Warnings)
 	}
 }
-
-
-
-
-
-
-
-
-

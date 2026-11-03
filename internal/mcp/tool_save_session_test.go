@@ -283,5 +283,3 @@ Base architecture content with Grade A (canonical docs: https://example.com).
 		t.Errorf("expected FOUNDING-ARCHITECTURE.md in root to NOT exist, but stat returned: %v", err)
 	}
 }
-
-

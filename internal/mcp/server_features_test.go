@@ -1345,5 +1345,3 @@ status: complete
 		t.Errorf("file_path for T1-02 = %q; want %q", filePath2, expectedDefaultPath)
 	}
 }
-
-

@@ -21,8 +21,8 @@ const (
 
 // ChallengePrompt represents an actionable adversarial prompt for the agent to execute.
 type ChallengePrompt struct {
-	Type      string `json:"type"`       // disconfirming_search, assumption_audit, steel_man_alternative, premortem, etc.
-	Prompt    string `json:"prompt"`     // The adversarial prompt text
+	Type      string `json:"type"`      // disconfirming_search, assumption_audit, steel_man_alternative, premortem, etc.
+	Prompt    string `json:"prompt"`    // The adversarial prompt text
 	Rationale string `json:"rationale"` // Why this challenge matters (cites P8, P3, etc.)
 }
 
@@ -75,11 +75,11 @@ func GenerateChallenges(sessionContent []byte, sessionID string, mode ChallengeM
 		Mode:      mode,
 		Prompts:   make([]ChallengePrompt, 0),
 		Context: map[string]any{
-			"recommendation":    rec,
-			"door_type":         doorType,
-			"rejected_alts":     rejectedAlts,
-			"evidence_grades":   gradeCounts,
-			"total_sessions":    len(allSessions),
+			"recommendation":  rec,
+			"door_type":       doorType,
+			"rejected_alts":   rejectedAlts,
+			"evidence_grades": gradeCounts,
+			"total_sessions":  len(allSessions),
 		},
 	}
 
@@ -306,8 +306,8 @@ func generateEvidenceAuditPrompts(body string) []ChallengePrompt {
 
 	if len(prompts) == 0 {
 		prompts = append(prompts, ChallengePrompt{
-			Type: "systematic_evidence_audit",
-			Prompt: "Audit all factual statements in this session. Ensure every substantive technical claim carries an inline evidence grade [Grade A–E], modifiers (corroborated, fresh), and verification method (fetched with URL, cached, recalled).",
+			Type:      "systematic_evidence_audit",
+			Prompt:    "Audit all factual statements in this session. Ensure every substantive technical claim carries an inline evidence grade [Grade A–E], modifiers (corroborated, fresh), and verification method (fetched with URL, cached, recalled).",
 			Rationale: "Principle P3: Every technical claim must be explicitly graded.",
 		})
 	}

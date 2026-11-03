@@ -3699,8 +3699,3 @@ func TestMCPProtocolTriumvirate_ListingAndExecution(t *testing.T) {
 		t.Errorf("vivechak_start tool invocation failed: %s", env.Message)
 	}
 }
-
-
-
-
-

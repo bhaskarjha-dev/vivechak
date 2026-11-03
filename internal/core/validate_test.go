@@ -556,7 +556,6 @@ Short accepted body.
 	}
 }
 
-
 func TestValidateConflictResolution_EvidentiaryGrounding(t *testing.T) {
 	// Missing evidence grades should produce W-NO-EVIDENCE-GRADES
 	noGrades := `---
@@ -1330,5 +1329,3 @@ Kafka vs NATS JetStream.
 		t.Errorf("block 2 leaked other decisions:\n%s", b2)
 	}
 }
-
-

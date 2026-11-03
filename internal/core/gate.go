@@ -47,18 +47,18 @@ type GateResult struct {
 
 // ADRRecord holds parsed ADR data for gate verification.
 type adrRecord struct {
-	ID             string
-	Title          string
-	DoorType       string
-	Status         string
-	ReviewTrigger  string
-	HumanReviewed  bool
-	ReviewedBy     string
-	ReviewedAt     string
-	ReviewedHash   string
-	InformedBy     []string
-	RawData        []byte
-	File           string
+	ID            string
+	Title         string
+	DoorType      string
+	Status        string
+	ReviewTrigger string
+	HumanReviewed bool
+	ReviewedBy    string
+	ReviewedAt    string
+	ReviewedHash  string
+	InformedBy    []string
+	RawData       []byte
+	File          string
 }
 
 // EvaluateGate mechanically evaluates Phase 0 exit rules G1–G12 across the workspace.

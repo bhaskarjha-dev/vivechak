@@ -125,7 +125,7 @@ func ObserveSessionQuality(content []byte) []QualityObservation {
 		missing := unanchoredGradeA - totalAnchors
 		observations = append(observations, QualityObservation{
 			Category: "evidence",
-			Message: fmt.Sprintf("%d Grade A claim(s) lack canonical URL or RFC provenance anchors in claim bullets or Sources Ledger. Primary evidence requires verifiable sources.", missing),
+			Message:  fmt.Sprintf("%d Grade A claim(s) lack canonical URL or RFC provenance anchors in claim bullets or Sources Ledger. Primary evidence requires verifiable sources.", missing),
 			Severity: "consideration",
 		})
 	}

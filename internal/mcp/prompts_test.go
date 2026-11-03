@@ -391,4 +391,3 @@ func TestPromptGet_SpecialCharactersAndMultiline(t *testing.T) {
 		t.Errorf("project context not preserved")
 	}
 }
-

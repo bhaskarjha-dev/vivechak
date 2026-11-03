@@ -117,4 +117,3 @@ func TruncateRunes(s string, maxRunes int) string {
 	}
 	return string(runes[:maxRunes-3]) + "..."
 }
-

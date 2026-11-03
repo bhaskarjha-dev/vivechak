@@ -561,4 +561,3 @@ func TestCheckWorkspace_CorruptedDecisionsDir(t *testing.T) {
 		t.Errorf("expected Corrupted UTF-8 in D-001.md, got %v", errs)
 	}
 }
-

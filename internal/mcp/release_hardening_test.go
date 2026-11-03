@@ -507,4 +507,3 @@ func TestInspectWorkspaceMultipleComparisonFiles(t *testing.T) {
 		t.Errorf("expected SessionCount == 2 for two comparison files, got: %d", info.SessionCount)
 	}
 }
-

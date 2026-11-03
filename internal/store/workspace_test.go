@@ -8,7 +8,7 @@ import (
 
 func TestWorkspace(t *testing.T) {
 	tmpDir := t.TempDir()
-	
+
 	// Create some files
 	err := os.WriteFile(filepath.Join(tmpDir, "test.txt"), []byte("hello"), 0644)
 	if err != nil {

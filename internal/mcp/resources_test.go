@@ -167,4 +167,3 @@ func TestResourceRead_PathTraversalAndMalformed(t *testing.T) {
 		}
 	}
 }
-

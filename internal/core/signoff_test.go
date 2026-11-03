@@ -229,5 +229,3 @@ API protocol.
 		t.Errorf("expected details block to contain reviewed_by, got:\n%s", regStr)
 	}
 }
-
-

@@ -717,4 +717,3 @@ Grade B (informal blog) for latency.
 		t.Error("expected Grade distribution skew observation when Grade A > 70%")
 	}
 }
-

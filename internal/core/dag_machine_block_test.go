@@ -253,4 +253,3 @@ func TestReplanInPlace_DollarSignImmunity(t *testing.T) {
 		t.Errorf("expected dependencies with dollar signs preserved literally, got:\n%s", res2Str)
 	}
 }
-

@@ -1416,7 +1416,6 @@ Adopt Solution X. Grade A (https://solutionx.org/docs | fetched)
 	}
 }
 
-
 // TestNextSession_SingleReadySession_NoParallelHint verifies that a single ready session has no parallelism_hint
 func TestNextSession_SingleReadySession_NoParallelHint(t *testing.T) {
 	cs := testServer(t)
@@ -1857,8 +1856,3 @@ None.
 		t.Errorf("expected B-DECISION-STUB advisory for < 200 char body, got warnings: %v", env.Warnings)
 	}
 }
-
-
-
-
-

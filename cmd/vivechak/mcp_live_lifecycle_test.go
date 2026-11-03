@@ -1028,11 +1028,11 @@ Proposed.
 | **Dependencies** | none |
 
 ` + "````prompt\n" +
-`# T1-01: Ingestion
+			`# T1-01: Ingestion
 Baseline throughput.
 ` + "````\n\n" +
-"```yaml vivechak-plan\n" +
-`sessions:
+			"```yaml vivechak-plan\n" +
+			`sessions:
   - id: T1-01
     title: Ingestion Tier
     door: two-way
@@ -1058,7 +1058,7 @@ Baseline throughput.
 			"new_prompt":   dollarPrompt,
 			"reason":       "Set $100/month budget over live wire",
 			"impact":       "Refines requirements",
-		},)
+		})
 		if !replanEnv.Success {
 			t.Fatalf("live replan failed: %s", replanEnv.Message)
 		}
@@ -1426,4 +1426,3 @@ Synthesizes decision D-001 based on empirical benchmarks.
 		}
 	})
 }
-

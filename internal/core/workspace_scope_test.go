@@ -71,9 +71,9 @@ func TestTemplatesForScope_ProjectEqualsAll(t *testing.T) {
 func TestTemplatesForScope_DecisionExcludes(t *testing.T) {
 	decision := TemplatesForScope(ScopeDecision)
 	excluded := map[string]bool{
-		"COMPARISON-SESSION.template.md":      true,
-		"FOUNDING-ARCHITECTURE.template.md":   true,
-		"PHASE-0-GATE.template.md":            true,
+		"COMPARISON-SESSION.template.md":    true,
+		"FOUNDING-ARCHITECTURE.template.md": true,
+		"PHASE-0-GATE.template.md":          true,
 	}
 	for _, tmpl := range decision {
 		if excluded[tmpl] {
@@ -471,4 +471,3 @@ func TestInspectWorkspace_EmptyDecisionsBoilerplate(t *testing.T) {
 		t.Errorf("expected HasDecisions = true after adding decision row, got false")
 	}
 }
-

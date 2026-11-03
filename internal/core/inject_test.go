@@ -971,9 +971,9 @@ func TestSafeTruncateUTF8(t *testing.T) {
 		{"ascii exact", "hello", 5},
 		{"ascii truncate", "hello world", 5},
 		{"devanagari exact", "विवेचक", 21},
-		{"devanagari truncate mid-rune", "विवेचक", 4},  // each Devanagari letter is 3 bytes; 4 bytes shouldn't split second rune
+		{"devanagari truncate mid-rune", "विवेचक", 4}, // each Devanagari letter is 3 bytes; 4 bytes shouldn't split second rune
 		{"emoji exact", "⚡🚀", 8},
-		{"emoji truncate mid-rune", "⚡🚀", 5},      // ⚡ is 3 bytes, 🚀 is 4 bytes; at 5 bytes only ⚡ should remain
+		{"emoji truncate mid-rune", "⚡🚀", 5},               // ⚡ is 3 bytes, 🚀 is 4 bytes; at 5 bytes only ⚡ should remain
 		{"mixed text with em-dash", "Prefix — Suffix", 10}, // '—' is 3 bytes
 	}
 
@@ -1097,9 +1097,3 @@ func (m *mockFileInfo) Mode() os.FileMode  { return 0o644 }
 func (m *mockFileInfo) ModTime() time.Time { return time.Now() }
 func (m *mockFileInfo) IsDir() bool        { return false }
 func (m *mockFileInfo) Sys() any           { return nil }
-
-
-
-
-
-

@@ -108,4 +108,3 @@ Done.`
 		t.Fatalf("ExtractSection bled past tilde fence section, got:\n%s", gotTilde)
 	}
 }
-

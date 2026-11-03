@@ -767,25 +767,25 @@ func TestRunSetupWithArgs_InvalidTarget(t *testing.T) {
 
 func TestFormatHostName(t *testing.T) {
 	tests := map[string]string{
-		"cursor":          "Cursor",
-		"vscode":          "VS Code",
-		"code":            "VS Code",
-		"claude-desktop":  "Claude Desktop",
-		"claude":          "Claude Desktop",
-		"claude-code":     "Claude Code CLI",
-		"mcp":             "Universal Portable (.mcp.json)",
-		"opencode":        "OpenCode",
-		"copilot":         "GitHub Copilot",
-		"void":            "Void Editor",
-		"continue":        "Continue.dev",
-		"goose":           "Block Goose",
-		"antigravity":     "Google Antigravity",
-		"agy":             "Google Antigravity",
-		"zed":             "Zed",
-		"kiro":            "AWS Kiro",
-		"trae":            "ByteDance Trae",
-		"omp":             "Oh My Pi (OMP)",
-		"unknown":         "unknown",
+		"cursor":         "Cursor",
+		"vscode":         "VS Code",
+		"code":           "VS Code",
+		"claude-desktop": "Claude Desktop",
+		"claude":         "Claude Desktop",
+		"claude-code":    "Claude Code CLI",
+		"mcp":            "Universal Portable (.mcp.json)",
+		"opencode":       "OpenCode",
+		"copilot":        "GitHub Copilot",
+		"void":           "Void Editor",
+		"continue":       "Continue.dev",
+		"goose":          "Block Goose",
+		"antigravity":    "Google Antigravity",
+		"agy":            "Google Antigravity",
+		"zed":            "Zed",
+		"kiro":           "AWS Kiro",
+		"trae":           "ByteDance Trae",
+		"omp":            "Oh My Pi (OMP)",
+		"unknown":        "unknown",
 	}
 	for in, want := range tests {
 		if got := formatHostName(in); got != want {
@@ -853,7 +853,7 @@ func TestRunMCPConfigWithArgs_CorruptConfigFailsFastWithoutOverwrite(t *testing.
 
 func TestResolveLauncher_Uvx(t *testing.T) {
 	cases := []struct {
-		path string
+		path    string
 		wantCmd string
 	}{
 		{"/home/user/.cache/uv/archive-v0/xyz/vivechak", "uvx"},
@@ -875,7 +875,6 @@ func TestResolveLauncher_Uvx(t *testing.T) {
 		}
 	}
 }
-
 
 func TestResolveConfigPath_ExpandedHarnesses(t *testing.T) {
 	homeDir := "/home/testuser"
@@ -1368,6 +1367,3 @@ func findBakFile(dir, base string) string {
 	}
 	return ""
 }
-
-
-

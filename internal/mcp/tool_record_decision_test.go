@@ -1082,6 +1082,3 @@ We select NATS.
 		t.Fatalf("handleAmend with ID alias failed: err=%v, env=%+v", err, envAmend)
 	}
 }
-
-
-

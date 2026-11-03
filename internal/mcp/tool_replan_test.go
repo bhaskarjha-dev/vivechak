@@ -344,4 +344,3 @@ func TestHandleReplan_SynchronizesTopologyTable(t *testing.T) {
 		t.Errorf("expected topology table row for T2-01 to be removed, got:\n%s", pDelStr)
 	}
 }
-

@@ -1430,4 +1430,3 @@ date: 2026-10-15
 		t.Errorf("expected manual ADR D-001 to be detected by gate, got decisions: %v", decisionsRaw)
 	}
 }
-

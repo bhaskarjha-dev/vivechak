@@ -568,9 +568,9 @@ func TestMassive_SandboxesAndEnterprisePaths_LiveMCPMatrix(t *testing.T) {
 	t.Cleanup(func() { cs.Close() })
 
 	testCases := []struct {
-		name     string
-		relPath  string
-		scope    string
+		name    string
+		relPath string
+		scope   string
 	}{
 		{"SWE-bench Docker sandbox", "testbed/my-repo", "project"},
 		{"OpenHands container workspace", "workspace/agent-task", "decision"},

@@ -260,7 +260,6 @@ func TestParseDependencies(t *testing.T) {
 		{"* R-01\r\n* R-02", []string{"R-01", "R-02"}},
 	}
 
-
 	for _, tc := range tests {
 		got := parseDependencies(tc.input)
 		if len(got) != len(tc.want) {
@@ -1663,6 +1662,3 @@ Synthesize founding architecture.
 		t.Fatalf("ValidateDAG failed: %v", err)
 	}
 }
-
-
-

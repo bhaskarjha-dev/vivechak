@@ -1091,7 +1091,3 @@ func TestNormalizeDecisionRegistry_TempDecisionsFile(t *testing.T) {
 		t.Errorf("expected normalized temp/decisions.md to have 0 blocking errors: %v", val.Issues)
 	}
 }
-
-
-
-

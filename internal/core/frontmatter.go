@@ -995,4 +995,3 @@ func NormalizeDecisionRegistry(content []byte) []byte {
 	}
 	return []byte(normalized)
 }
-

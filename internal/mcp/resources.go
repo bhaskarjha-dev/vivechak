@@ -8,7 +8,6 @@ import (
 	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-
 const corePrinciplesDoc = `# Vivechak Core Principles (P1–P8)
 
 The 8 foundational tenets governing epistemic research in Vivechak:

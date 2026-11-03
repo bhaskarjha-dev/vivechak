@@ -327,7 +327,6 @@ func DraftDecisionFromSessionWithExisting(existingADR []byte, sessionContent []b
 	return b.String(), nil
 }
 
-
 func extractEvidenceGrades(body string) []string {
 	lines := strings.Split(body, "\n")
 	seen := make(map[string]bool)
