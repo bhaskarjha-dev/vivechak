@@ -94,9 +94,8 @@ func InjectContextFS(session Session, ws WorkspaceFS, sessionsRelDir string, com
 	return result, nil
 }
 
-// InjectContext takes a session and fills its prompt with findings from
-// completed upstream sessions. Preserved for backwards compatibility with
-// callers providing filesystem directory paths.
+// InjectContext is deprecated: use InjectContextFS with a WorkspaceFS (e.g. store.Workspace) instead.
+// Preserved for backwards compatibility with callers providing filesystem directory paths.
 func InjectContext(session Session, sessionsDir string, completedSessions map[string]bool) (*InjectedSession, error) {
 	return InjectContextFS(session, DirFS(sessionsDir), "", completedSessions)
 }
@@ -335,7 +334,6 @@ func gatherAllFindingsFS(ws WorkspaceFS, sessionsRelDir string, completedSession
 	return result, sessionIDs, totalBytes, nil
 }
 
-
 // extractDeltaSection extracts the content under a ## Delta heading from session body.
 // Returns the delta content (without the heading itself), or empty string if not found.
 // Headings inside code blocks are ignored.
@@ -536,7 +534,6 @@ func readSessionFileFS(ws WorkspaceFS, sessionsRelDir string, sessionID string) 
 	// Not an error — session file simply doesn't exist yet
 	return "", "", nil
 }
-
 
 // extractFindings creates a compact context excerpt from a session body.
 // Focuses on headings, recommendations, and evidence-graded claims.
@@ -855,4 +852,3 @@ func countLeadingBackticks(s string) int {
 	}
 	return count
 }
-

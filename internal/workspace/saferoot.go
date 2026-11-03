@@ -54,7 +54,6 @@ func SafeRoot(dirPath string) error {
 
 	// Unix root-level directories (/etc, /bin, /usr, /sys, /proc, /dev, /root, /home)
 	if runtime.GOOS != "windows" {
-		topLevel := cleanAbs
 		parts := strings.Split(cleanAbs, string(filepath.Separator))
 		if len(parts) >= 2 && parts[1] != "" {
 			switch parts[1] {
@@ -64,7 +63,6 @@ func SafeRoot(dirPath string) error {
 				}
 			}
 		}
-		_ = topLevel
 	}
 
 	return nil

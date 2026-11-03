@@ -112,7 +112,6 @@ func IsSynthesisSession(id string) bool {
 	return synthesisIDRe.MatchString(upper)
 }
 
-
 var validSessionIDRe = regexp.MustCompile(`^[A-Za-z0-9]+(?:[-_][A-Za-z0-9]+)*$`)
 
 // ValidateDAG checks the pipeline graph for cycles, unknown dependencies, and duplicates.
@@ -127,7 +126,6 @@ func (d *DAG) ValidateDAG() error {
 			return fmt.Errorf("duplicate session ID: %s", s.ID)
 		}
 		ids[upperID] = true
-		ids[s.ID] = true
 	}
 
 	// Verify session IDs have valid identifier format
@@ -291,7 +289,6 @@ var (
 	// Matches metadata table rows like: | **ID** | T1-01 | or | ID | T1-01 |
 	metaFieldRe = regexp.MustCompile(`\|\s*(?:\*\*)?([^*|\s][^*|]*?)(?:\*\*)?\s*\|\s*([^|]+?)\s*\|`)
 
-
 	// Matches words matching session ID pattern inside a brief header
 	briefIDRe = regexp.MustCompile(`[A-Za-z0-9]+(?:[-_][A-Za-z0-9]+)*`)
 
@@ -371,9 +368,7 @@ func parseSessionHeader(trimmed string) (string, string, bool) {
 	}
 
 	// Check if prefixed by "Session" (e.g. "### Session T1-01: ...")
-	hasSessionPrefix := false
 	if strings.HasPrefix(lowerContent, "session ") {
-		hasSessionPrefix = true
 		content = strings.TrimSpace(content[len("session "):])
 	}
 
@@ -433,7 +428,6 @@ func parseSessionHeader(trimmed string) (string, string, bool) {
 		return "", "", false
 	}
 
-	_ = hasSessionPrefix
 	return cleanID, title, true
 }
 
@@ -442,7 +436,6 @@ func isSessionHeader(trimmed string) bool {
 	_, _, ok := parseSessionHeader(trimmed)
 	return ok
 }
-
 
 var planMachineBlockRe = regexp.MustCompile("(?s)(?:```|~~~)(?:yaml\\s+vivechak-plan|vivechak-plan)\\s*\\r?\\n(.*?)\\r?\\n(?:```|~~~)")
 
@@ -457,6 +450,60 @@ func ParsePlanMachineBlock(data []byte) (*PlanMachineBlock, error) {
 		return nil, err
 	}
 	return &block, nil
+}
+
+// promptFenceResult represents the outcome of checking a fence delimiter inside a prompt block.
+type promptFenceResult struct {
+	isClosingFence bool
+	inInnerBlock   bool
+}
+
+// checkPromptFence determines whether a line inside a prompt block is a closing fence.
+// It handles nested code fences (e.g. inner ```json or ```go blocks) and boundary heuristics.
+func checkPromptFence(trimmed string, outerFenceLen int, inInnerBlock bool, lines []string, currentLine int) promptFenceResult {
+	numBackticks := 0
+	for j := 0; j < len(trimmed) && trimmed[j] == '`'; j++ {
+		numBackticks++
+	}
+
+	if outerFenceLen >= 4 {
+		if numBackticks >= outerFenceLen && len(strings.TrimSpace(trimmed[numBackticks:])) == 0 {
+			return promptFenceResult{isClosingFence: true, inInnerBlock: inInnerBlock}
+		}
+		return promptFenceResult{isClosingFence: false, inInnerBlock: inInnerBlock}
+	}
+
+	if numBackticks >= 3 {
+		afterTicks := strings.TrimSpace(trimmed[numBackticks:])
+		if afterTicks != "" {
+			return promptFenceResult{isClosingFence: false, inInnerBlock: !inInnerBlock}
+		}
+		if inInnerBlock {
+			return promptFenceResult{isClosingFence: false, inInnerBlock: false}
+		}
+		nextIsBoundary := true
+		for k := currentLine + 1; k < len(lines); k++ {
+			kTrim := strings.TrimSpace(lines[k])
+			if kTrim == "" {
+				continue
+			}
+			if strings.HasPrefix(kTrim, "---") ||
+				strings.HasPrefix(kTrim, "###") ||
+				strings.HasPrefix(kTrim, "##") ||
+				promptStartRe.MatchString(kTrim) {
+				nextIsBoundary = true
+			} else {
+				nextIsBoundary = false
+			}
+			break
+		}
+		if nextIsBoundary {
+			return promptFenceResult{isClosingFence: true, inInnerBlock: false}
+		}
+		return promptFenceResult{isClosingFence: false, inInnerBlock: true}
+	}
+
+	return promptFenceResult{isClosingFence: false, inInnerBlock: inInnerBlock}
 }
 
 func parsePipelineFromMachineBlock(data []byte, block *PlanMachineBlock) (*DAG, error) {
@@ -523,51 +570,9 @@ func parsePipelineFromMachineBlock(data []byte, block *PlanMachineBlock) (*DAG, 
 		trimmed := strings.TrimSpace(line)
 
 		if inPrompt {
-			numBackticks := 0
-			for j := 0; j < len(trimmed) && trimmed[j] == '`'; j++ {
-				numBackticks++
-			}
-			isClosingFence := false
-			if outerFenceLen >= 4 {
-				if numBackticks >= outerFenceLen && len(strings.TrimSpace(trimmed[numBackticks:])) == 0 {
-					isClosingFence = true
-				}
-			} else {
-				if numBackticks >= 3 {
-					afterTicks := strings.TrimSpace(trimmed[numBackticks:])
-					if afterTicks != "" {
-						inInnerBlock = !inInnerBlock
-					} else {
-						if inInnerBlock {
-							inInnerBlock = false
-						} else {
-							nextIsBoundary := true
-							for k := i + 1; k < len(lines); k++ {
-								kTrim := strings.TrimSpace(lines[k])
-								if kTrim == "" {
-									continue
-								}
-								if strings.HasPrefix(kTrim, "---") ||
-									strings.HasPrefix(kTrim, "###") ||
-									strings.HasPrefix(kTrim, "##") ||
-									promptStartRe.MatchString(kTrim) {
-									nextIsBoundary = true
-								} else {
-									nextIsBoundary = false
-								}
-								break
-							}
-							if nextIsBoundary {
-								isClosingFence = true
-							} else {
-								inInnerBlock = true
-							}
-						}
-					}
-				}
-			}
-
-			if isClosingFence {
+			res := checkPromptFence(trimmed, outerFenceLen, inInnerBlock, lines, i)
+			inInnerBlock = res.inInnerBlock
+			if res.isClosingFence {
 				inPrompt = false
 				lastPromptEndLine = i
 				if currentSess != nil {
@@ -681,52 +686,9 @@ func ParsePipeline(data []byte) (*DAG, error) {
 
 		// Collect prompt block if inside prompt
 		if inPrompt {
-			numBackticks := 0
-			for j := 0; j < len(trimmed) && trimmed[j] == '`'; j++ {
-				numBackticks++
-			}
-
-			isClosingFence := false
-			if outerFenceLen >= 4 {
-				if numBackticks >= outerFenceLen && len(strings.TrimSpace(trimmed[numBackticks:])) == 0 {
-					isClosingFence = true
-				}
-			} else {
-				if numBackticks >= 3 {
-					afterTicks := strings.TrimSpace(trimmed[numBackticks:])
-					if afterTicks != "" {
-						inInnerBlock = !inInnerBlock
-					} else {
-						if inInnerBlock {
-							inInnerBlock = false
-						} else {
-							nextIsBoundary := true
-							for k := i + 1; k < len(lines); k++ {
-								kTrim := strings.TrimSpace(lines[k])
-								if kTrim == "" {
-									continue
-								}
-								if strings.HasPrefix(kTrim, "---") ||
-									strings.HasPrefix(kTrim, "###") ||
-									strings.HasPrefix(kTrim, "##") ||
-									promptStartRe.MatchString(kTrim) {
-									nextIsBoundary = true
-								} else {
-									nextIsBoundary = false
-								}
-								break
-							}
-							if nextIsBoundary {
-								isClosingFence = true
-							} else {
-								inInnerBlock = true
-							}
-						}
-					}
-				}
-			}
-
-			if isClosingFence {
+			res := checkPromptFence(trimmed, outerFenceLen, inInnerBlock, lines, i)
+			inInnerBlock = res.inInnerBlock
+			if res.isClosingFence {
 				lastPromptEndLine = i
 				inPrompt = false
 				assignPromptToSession(promptLines, currentSession, sessionsByID, sessionOrder)
@@ -1356,7 +1318,10 @@ func (d *DAG) GeneratePlanMachineBlock() string {
 			OutputFile: s.OutputFile,
 		})
 	}
-	yamlBytes, _ := yaml.Marshal(block)
+	yamlBytes, err := yaml.Marshal(block)
+	if err != nil {
+		return ""
+	}
 	return fmt.Sprintf("```yaml vivechak-plan\n%s```\n", string(yamlBytes))
 }
 
@@ -1511,7 +1476,10 @@ func ReplanInPlace(pipelineData []byte, op string, p ReplanParams) ([]byte, erro
 		return nil, fmt.Errorf("unsupported replan operation %q", op)
 	}
 
-	newBlockYAML, _ := yaml.Marshal(block)
+	newBlockYAML, err := yaml.Marshal(block)
+	if err != nil {
+		return nil, fmt.Errorf("marshaling updated machine block: %w", err)
+	}
 	newBlockStr := fmt.Sprintf("```yaml vivechak-plan\n%s```", string(newBlockYAML))
 	if loc := planMachineBlockRe.FindStringIndex(content); len(loc) >= 2 {
 		content = content[:loc[0]] + newBlockStr + content[loc[1]:]

@@ -36,14 +36,23 @@ func (d dirFS) resolve(relPath string) string {
 }
 
 func (d dirFS) ReadFile(relPath string) ([]byte, error) {
+	if relPath != "" && relPath != "." && !filepath.IsLocal(relPath) {
+		return nil, fmt.Errorf("path escapes workspace: %s", relPath)
+	}
 	return os.ReadFile(d.resolve(relPath))
 }
 
 func (d dirFS) ListDir(relPath string) ([]os.DirEntry, error) {
+	if relPath != "" && relPath != "." && !filepath.IsLocal(relPath) {
+		return nil, fmt.Errorf("path escapes workspace: %s", relPath)
+	}
 	return os.ReadDir(d.resolve(relPath))
 }
 
 func (d dirFS) Stat(relPath string) (os.FileInfo, error) {
+	if relPath != "" && relPath != "." && !filepath.IsLocal(relPath) {
+		return nil, fmt.Errorf("path escapes workspace: %s", relPath)
+	}
 	return os.Stat(d.resolve(relPath))
 }
 
@@ -83,11 +92,11 @@ var TemplatesToCopy = workspace.TemplatesToCopy
 
 func TemplatesForScope(scope Scope) []string { return workspace.TemplatesForScope(scope) }
 func IsSpecialResearchFile(name string) bool { return workspace.IsSpecialResearchFile(name) }
-func SafeRoot(dirPath string) error         { return workspace.SafeRoot(dirPath) }
-func IsSystemOrAppDir(dirPath string) bool  { return workspace.IsSystemOrAppDir(dirPath) }
-func SetLastResolvedWorkspace(ws string)    { workspace.SetLastResolvedWorkspace(ws) }
-func GetLastResolvedWorkspace() string      { return workspace.GetLastResolvedWorkspace() }
-func ResetLastResolvedWorkspace()           { workspace.ResetLastResolvedWorkspace() }
+func SafeRoot(dirPath string) error          { return workspace.SafeRoot(dirPath) }
+func IsSystemOrAppDir(dirPath string) bool   { return workspace.IsSystemOrAppDir(dirPath) }
+func SetLastResolvedWorkspace(ws string)     { workspace.SetLastResolvedWorkspace(ws) }
+func GetLastResolvedWorkspace() string       { return workspace.GetLastResolvedWorkspace() }
+func ResetLastResolvedWorkspace()            { workspace.ResetLastResolvedWorkspace() }
 func ResolveWorkspace(explicit string) (string, error) {
 	return workspace.ResolveWorkspace(explicit)
 }

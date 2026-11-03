@@ -3,6 +3,7 @@ package core
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -446,6 +447,18 @@ func TestDirFS_ResolveAndOperations(t *testing.T) {
 	if !fiCurr.IsDir() {
 		t.Errorf("expected current dir to be directory")
 	}
+
+	// 6. Path escape rejection (H-06 path containment)
+	escapePath := filepath.Join("..", "outside.txt")
+	if _, err := fs.ReadFile(escapePath); err == nil || !strings.Contains(err.Error(), "path escapes workspace") {
+		t.Errorf("expected path escape error on ReadFile, got %v", err)
+	}
+	if _, err := fs.ListDir(escapePath); err == nil || !strings.Contains(err.Error(), "path escapes workspace") {
+		t.Errorf("expected path escape error on ListDir, got %v", err)
+	}
+	if _, err := fs.Stat(escapePath); err == nil || !strings.Contains(err.Error(), "path escapes workspace") {
+		t.Errorf("expected path escape error on Stat, got %v", err)
+	}
 }
 
 func TestScanCompletedSessions_SluggedFrontmatterID(t *testing.T) {
@@ -521,5 +534,3 @@ status: draft
 		t.Errorf("expected T1-04 draft to NOT be marked complete, got true")
 	}
 }
-
-
