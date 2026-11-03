@@ -36,6 +36,7 @@ Every Vivechak tool returns a unified JSON envelope defined by [`Envelope`](../i
 
 | Field | Type | Description |
 |---|---|---|
+| `ok` | `boolean` | Indicates whether the operation completed without errors (v0.1.0 standard). Synchronized with `success`. |
 | `success` | `boolean` | Indicates whether the tool operation completed without unhandled fatal errors. |
 | `message` | `string` | Human-readable operational summary describing the outcome. |
 | `data` | `object` | Tool-specific payload (varies by tool; omitted on certain error states). |

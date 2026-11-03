@@ -119,8 +119,19 @@ func (r *ValidationResult) WarningCount() int {
 	return count
 }
 
-// ErrorCount returns the number of L2 blocking issues.
+// ErrorCount returns the number of blocking issues (L2Block or L4Gate).
 func (r *ValidationResult) ErrorCount() int {
+	count := 0
+	for _, issue := range r.Issues {
+		if issue.Level == L2Block || issue.Level == L4Gate {
+			count++
+		}
+	}
+	return count
+}
+
+// L2BlockCount returns the number of L2 blocking issues specifically.
+func (r *ValidationResult) L2BlockCount() int {
 	count := 0
 	for _, issue := range r.Issues {
 		if issue.Level == L2Block {

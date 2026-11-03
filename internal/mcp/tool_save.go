@@ -13,6 +13,7 @@ import (
 	"github.com/bhaskarjha-dev/vivechak/internal/core"
 	vembed "github.com/bhaskarjha-dev/vivechak/internal/embed"
 	store "github.com/bhaskarjha-dev/vivechak/internal/store"
+	versionPkg "github.com/bhaskarjha-dev/vivechak/internal/version"
 	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -51,6 +52,14 @@ type SaveSessionInput struct {
 	Content     string `json:"content"`
 	Revise      bool   `json:"revise,omitempty"`
 }
+
+var (
+	reSaveTableRow  = regexp.MustCompile(`(?m)^\|\s*(?:\*\*)?(?:ID|Decision|Decision ID|Comparison ID)(?:\*\*)?\s*\|\s*([A-Za-z0-9_-]+)\s*\|`)
+	reSaveHeadingID = regexp.MustCompile(`(?m)^#+\s*(?:Session\s+)?([A-Za-z]+-\d+[A-Za-z0-9_-]*)`)
+	reSaveDec       = regexp.MustCompile(`\b(D-\d{1,4})\b`)
+	reSaveDNew      = regexp.MustCompile(`\bD-NEW\b`)
+	reSaveDNewDash  = regexp.MustCompile(`\bD-NEW-`)
+)
 
 func registerSave(server *sdkmcp.Server) {
 	sdkmcp.AddTool(server,
@@ -107,34 +116,34 @@ func handleSave(ctx context.Context, req *sdkmcp.CallToolRequest, in SaveInput) 
 		}
 	}
 
-	if !core.WorkspaceExists(root) {
-		_ = os.MkdirAll(filepath.Join(root, core.ResearchDir), 0o755)
-		_ = os.MkdirAll(filepath.Join(root, core.SessionsDir), 0o755)
-
-		gitignorePath := filepath.Join(root, core.ResearchDir, ".gitignore")
-		if _, err := os.Stat(gitignorePath); os.IsNotExist(err) {
-			_ = os.WriteFile(gitignorePath, []byte("# Vivechak operational files\n*.lock\n.locks/\n.history/\n"), 0o644)
-		}
-
-		metaPath := filepath.Join(root, core.MetadataFile)
-		if _, err := os.Stat(metaPath); os.IsNotExist(err) {
-			meta := map[string]any{
-				"schema":     1,
-				"created_by": fmt.Sprintf("vivechak %s", "0.1.0"),
-				"counters":   map[string]int{"C": 0, "D": 0},
-				"created_at": time.Now().UTC().Format(time.RFC3339),
-			}
-			if metaBytes, err := json.MarshalIndent(meta, "", "  "); err == nil {
-				_ = os.WriteFile(metaPath, metaBytes, 0o644)
-			}
-		}
-	}
-
+	_ = os.MkdirAll(root, 0o755)
 	ws, err := store.OpenWorkspace(root)
 	if err != nil {
 		return ErrorResult(tool, err, "Ensure workspace directory exists and is accessible.")
 	}
 	defer ws.Close()
+
+	if !core.WorkspaceExists(root) {
+		_ = ws.MkdirAll(core.ResearchDir, 0o755)
+		_ = ws.MkdirAll(core.SessionsDir, 0o755)
+
+		gitignoreRel := filepath.Join(core.ResearchDir, ".gitignore")
+		if !ws.FileExists(gitignoreRel) {
+			_ = store.WriteFileAtomic(ws.Root(), gitignoreRel, []byte("# Vivechak operational files\n*.lock\n.locks/\n.history/\n"), 0o644)
+		}
+
+		if !ws.FileExists(core.MetadataFile) {
+			meta := map[string]any{
+				"schema":     1,
+				"created_by": fmt.Sprintf("vivechak %s", versionPkg.Version),
+				"counters":   map[string]int{"C": 0, "D": 0},
+				"created_at": time.Now().UTC().Format(time.RFC3339),
+			}
+			if metaBytes, err := json.MarshalIndent(meta, "", "  "); err == nil {
+				_ = store.WriteFileAtomic(ws.Root(), core.MetadataFile, metaBytes, 0o644)
+			}
+		}
+	}
 
 	if in.ID == "" {
 		if in.SessionID != "" {
@@ -255,16 +264,14 @@ func handleSavePlanKind(ctx context.Context, ws *store.Workspace, root, rule str
 			decID = in.DecisionID
 		}
 		if decID == "" {
-			reTableRow := regexp.MustCompile(`(?m)^\|\s*(?:\*\*)?(?:ID|Decision|Decision ID|Comparison ID)(?:\*\*)?\s*\|\s*([A-Za-z0-9_-]+)\s*\|`)
-			if m := reTableRow.FindStringSubmatch(in.Content); len(m) > 1 {
+			if m := reSaveTableRow.FindStringSubmatch(in.Content); len(m) > 1 {
 				val := strings.TrimSpace(m[1])
 				if val != "D-NEW" && val != "C-NEW" && val != "" {
 					decID = val
 				}
 			}
 			if decID == "" {
-				reHeadingID := regexp.MustCompile(`(?m)^#+\s*(?:Session\s+)?([A-Za-z]+-\d+[A-Za-z0-9_-]*)`)
-				if m := reHeadingID.FindStringSubmatch(in.Content); len(m) > 1 {
+				if m := reSaveHeadingID.FindStringSubmatch(in.Content); len(m) > 1 {
 					val := strings.TrimSpace(m[1])
 					if strings.Contains(val, "-S") {
 						parts := strings.Split(val, "-S")
@@ -275,8 +282,7 @@ func handleSavePlanKind(ctx context.Context, ws *store.Workspace, root, rule str
 				}
 			}
 			if decID == "" {
-				reDec := regexp.MustCompile(`\b(D-\d{1,4})\b`)
-				if m := reDec.FindStringSubmatch(in.Content); len(m) > 1 && m[1] != "D-NEW" {
+				if m := reSaveDec.FindStringSubmatch(in.Content); len(m) > 1 && m[1] != "D-NEW" {
 					decID = m[1]
 				}
 			}
@@ -299,8 +305,8 @@ func handleSavePlanKind(ctx context.Context, ws *store.Workspace, root, rule str
 		planID = decID
 		if isAllocated {
 			warnings = append(warnings, fmt.Sprintf("W-ID-ALLOCATED: allocated decision ID %s", planID))
-			in.Content = regexp.MustCompile(`\bD-NEW\b`).ReplaceAllString(in.Content, planID)
-			in.Content = regexp.MustCompile(`\bD-NEW-`).ReplaceAllString(in.Content, planID+"-")
+			in.Content = reSaveDNew.ReplaceAllString(in.Content, planID)
+			in.Content = reSaveDNewDash.ReplaceAllString(in.Content, planID+"-")
 		}
 
 		filename := fmt.Sprintf("%s-plan.md", planID)

@@ -30,6 +30,17 @@ type RecordDecisionInput struct {
 	Supersedes    string `json:"supersedes,omitempty"      jsonschema:"decision ID being superseded by this decision (e.g. D-003)"`
 }
 
+var (
+	reDNew                = regexp.MustCompile(`\bD-NEW\b`)
+	reDNum                = regexp.MustCompile(`^(?i)d-(\d+)$`)
+	reHeaderTitle         = regexp.MustCompile(`(?m)^#\s+(?:[A-Za-z0-9_-]+:\s*)?(.*)$`)
+	reAnchoredDecision    = regexp.MustCompile(`(?s)<!-- DECISION:\s*([A-Za-z0-9_-]+)\s*-->\s*(.*?)\s*<!-- /DECISION:\s*[A-Za-z0-9_-]+\s*-->`)
+	reFrontmatterFence    = regexp.MustCompile(`(?ms)^---\s*\n(.*?)\n---\s*`)
+	reHeadingWithDecision = regexp.MustCompile(`(?m)^#{1,4}\s+.*?\b(D-\d+|D-[A-Za-z0-9_-]+)\b`)
+	reDetailsBlock        = regexp.MustCompile(`(?ms)^<details(?:\s+[^>]*)?>\s*\n(.*?)\n</details>\s*`)
+	reSectionBoundary     = regexp.MustCompile(`(?m)(?:^<!-- DECISION:|^---\s*\n|^<details(?:\s+[^>]*)?>|^#{1,4}\s+.*?\b(?:D-\d+|D-[A-Za-z0-9_-]+)\b)`)
+)
+
 func registerRecordDecision(server *sdkmcp.Server) {
 	sdkmcp.AddTool(server,
 		&sdkmcp.Tool{
@@ -55,10 +66,14 @@ func registerRecordDecision(server *sdkmcp.Server) {
 	)
 }
 
-func handleRecordDecision(ctx context.Context, _ *sdkmcp.CallToolRequest, in RecordDecisionInput) (*sdkmcp.CallToolResult, Envelope, error) {
+func handleRecordDecision(ctx context.Context, req *sdkmcp.CallToolRequest, in RecordDecisionInput) (*sdkmcp.CallToolResult, Envelope, error) {
 	const tool = "vivechak_record_decision"
 
-	root, rule, err := core.ResolveWorkspaceWithRule(in.ProjectRoot)
+	var roots []string
+	if strings.TrimSpace(in.ProjectRoot) == "" {
+		roots = getClientRoots(ctx, req)
+	}
+	root, rule, err := core.ResolveWorkspaceWithRoots(ctx, in.ProjectRoot, roots)
 	if err != nil {
 		return ErrorResult(tool, err,
 			"Initialize a workspace first with vivechak_start.")
@@ -97,9 +112,9 @@ func handleRecordDecision(ctx context.Context, _ *sdkmcp.CallToolRequest, in Rec
 		}
 		in.DecisionID = allocated
 		if in.Content != "" {
-			in.Content = regexp.MustCompile(`\bD-NEW\b`).ReplaceAllString(in.Content, allocated)
+			in.Content = reDNew.ReplaceAllString(in.Content, allocated)
 		}
-	} else if m := regexp.MustCompile(`^(?i)d-(\d+)$`).FindStringSubmatch(in.DecisionID); len(m) > 1 {
+	} else if m := reDNum.FindStringSubmatch(in.DecisionID); len(m) > 1 {
 		num, _ := strconv.Atoi(m[1])
 		normalized := fmt.Sprintf("D-%03d", num)
 		if in.Content != "" {
@@ -184,7 +199,7 @@ func handleRecordDecision(ctx context.Context, _ *sdkmcp.CallToolRequest, in Rec
 					fmt.Sprintf("%s.plan.md", in.DecisionID),
 				} {
 					if pData, pErr := ws.ReadFile(filepath.Join(core.ResearchDir, planName)); pErr == nil && len(pData) > 0 {
-						if m := regexp.MustCompile(`(?m)^#\s+(?:[A-Za-z0-9_-]+:\s*)?(.*)$`).FindStringSubmatch(string(pData)); len(m) > 1 {
+						if m := reHeaderTitle.FindStringSubmatch(string(pData)); len(m) > 1 {
 							hTitle := strings.TrimSpace(m[1])
 							if hTitle != "" && !strings.HasPrefix(hTitle, "[") {
 								existingADR = core.SetFrontmatterField(existingADR, "title", hTitle)
@@ -387,7 +402,6 @@ func handleRecordDecision(ctx context.Context, _ *sdkmcp.CallToolRequest, in Rec
 		}
 	}
 
-
 	// Warn if content contains unexpected or nested decision boundary markers that could confuse the registry
 	startMarker := fmt.Sprintf("<!-- DECISION: %s -->", in.DecisionID)
 	endMarker := fmt.Sprintf("<!-- /DECISION: %s -->", in.DecisionID)
@@ -501,8 +515,7 @@ func compileDecisionsRegistry(ctx context.Context, ws *store.Workspace, root str
 			postamble = str[endIdx+len(endMarker):]
 		}
 
-		anchoredRe := regexp.MustCompile(`(?s)<!-- DECISION:\s*([A-Za-z0-9_-]+)\s*-->\s*(.*?)\s*<!-- /DECISION:\s*[A-Za-z0-9_-]+\s*-->`)
-		matches := anchoredRe.FindAllSubmatchIndex(existingData, -1)
+		matches := reAnchoredDecision.FindAllSubmatchIndex(existingData, -1)
 
 		earliestDecisionStart := -1
 		latestDecisionEnd := -1
@@ -529,8 +542,7 @@ func compileDecisionsRegistry(ctx context.Context, ws *store.Workspace, root str
 		}
 
 		// Also check for any unanchored frontmatter blocks (whether or not anchored blocks exist)
-		fmRegex := regexp.MustCompile(`(?ms)^---\s*\n(.*?)\n---\s*`)
-		fmMatches := fmRegex.FindAllSubmatchIndex(existingData, -1)
+		fmMatches := reFrontmatterFence.FindAllSubmatchIndex(existingData, -1)
 		for _, loc := range fmMatches {
 			if isInsideAnchors(loc[0], loc[1]) {
 				continue
@@ -671,7 +683,6 @@ func compileDecisionsRegistry(ctx context.Context, ws *store.Workspace, root str
 	return ws.WriteArtifact(decRelPath, []byte(b.String()), 0o644, true)
 }
 
-
 // updateOrAppendDecision updates or appends a decision entry into DECISIONS.md.
 func updateOrAppendDecision(existing []byte, decisionID string, content string) []byte {
 	startMarker := fmt.Sprintf("<!-- DECISION: %s -->", decisionID)
@@ -725,8 +736,7 @@ func wrapFrontmatterForRegistry(content string) string {
 func findUnanchoredDecision(content string, decisionID string) (int, int, bool) {
 	// 1. Look for a YAML frontmatter block for this decision.
 	// Find pairs of '---' delimiters where the enclosed block contains id / decision_id.
-	fmRegex := regexp.MustCompile(`(?ms)^---\s*\n(.*?)\n---\s*`)
-	matches := fmRegex.FindAllStringSubmatchIndex(content, -1)
+	matches := reFrontmatterFence.FindAllStringSubmatchIndex(content, -1)
 
 	idPattern := fmt.Sprintf(`(?m)^(?:id|decision_id):\s*["']?%s["']?\s*$`, regexp.QuoteMeta(decisionID))
 	idRe := regexp.MustCompile(idPattern)
@@ -753,8 +763,7 @@ func findUnanchoredDecision(content string, decisionID string) (int, int, bool) 
 
 			// If this is the last frontmatter block, check if a header for a DIFFERENT decision follows
 			if i == len(matches)-1 {
-				hdrRegex := regexp.MustCompile(`(?m)^#{1,4}\s+.*?\b(D-\d+|D-[A-Za-z0-9_-]+)\b`)
-				for _, hLoc := range hdrRegex.FindAllStringSubmatchIndex(content[idxs[1]:endIdx], -1) {
+				for _, hLoc := range reHeadingWithDecision.FindAllStringSubmatchIndex(content[idxs[1]:endIdx], -1) {
 					hdrID := content[idxs[1]+hLoc[2] : idxs[1]+hLoc[3]]
 					if !strings.EqualFold(hdrID, decisionID) {
 						endIdx = idxs[1] + hLoc[0]
@@ -768,8 +777,7 @@ func findUnanchoredDecision(content string, decisionID string) (int, int, bool) 
 	}
 
 	// 2. Look for an unanchored <details> block for this decision
-	detailsRegex := regexp.MustCompile(`(?ms)^<details(?:\s+[^>]*)?>\s*\n(.*?)\n</details>\s*`)
-	detailsMatches := detailsRegex.FindAllStringSubmatchIndex(content, -1)
+	detailsMatches := reDetailsBlock.FindAllStringSubmatchIndex(content, -1)
 	summaryPattern := fmt.Sprintf(`(?i)<summary>.*?\b%s\b`, regexp.QuoteMeta(decisionID))
 	summaryRe := regexp.MustCompile(summaryPattern)
 
@@ -784,8 +792,7 @@ func findUnanchoredDecision(content string, decisionID string) (int, int, bool) 
 			}
 
 			// If an anchored decision or boundary appears before endIdx, that terminates this entry
-			boundaryRegex := regexp.MustCompile(`(?m)(?:^<!-- DECISION:|^---\s*\n|^<details(?:\s+[^>]*)?>|^#{1,4}\s+.*?\b(?:D-\d+|D-[A-Za-z0-9_-]+)\b)`)
-			if nextLoc := boundaryRegex.FindStringIndex(content[idxs[1]:endIdx]); nextLoc != nil {
+			if nextLoc := reSectionBoundary.FindStringIndex(content[idxs[1]:endIdx]); nextLoc != nil {
 				endIdx = idxs[1] + nextLoc[0]
 			}
 
@@ -803,8 +810,7 @@ func findUnanchoredDecision(content string, decisionID string) (int, int, bool) 
 
 	startIdx := loc[0]
 	rest := content[loc[1]:]
-	boundaryRegex := regexp.MustCompile(`(?m)(?:^<!-- DECISION:|^---\s*\n|^<details(?:\s+[^>]*)?>|^#{1,4}\s+.*?\b(?:D-\d+|D-[A-Za-z0-9_-]+)\b)`)
-	if nextLoc := boundaryRegex.FindStringIndex(rest); nextLoc != nil {
+	if nextLoc := reSectionBoundary.FindStringIndex(rest); nextLoc != nil {
 		return startIdx, loc[1] + nextLoc[0], true
 	}
 	return startIdx, len(content), true

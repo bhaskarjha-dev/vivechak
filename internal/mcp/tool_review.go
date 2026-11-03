@@ -42,6 +42,11 @@ type ChallengeInput struct {
 	ChallengeType string `json:"challenge_type,omitempty"`
 }
 
+var (
+	reDecisionBaseName = regexp.MustCompile(`^(?i)(D-[A-Za-z0-9]+)`)
+	reDecisionAnchored = regexp.MustCompile(`(?s)<!--\s*DECISION:\s*([A-Za-z0-9_-]+)\s*-->\s*(.*?)\s*<!--\s*/DECISION:\s*([A-Za-z0-9_-]+)\s*-->`)
+)
+
 func registerReview(server *sdkmcp.Server) {
 	sdkmcp.AddTool(server,
 		&sdkmcp.Tool{
@@ -69,17 +74,21 @@ func handleReview(ctx context.Context, req *sdkmcp.CallToolRequest, in ReviewInp
 		mode = "challenge"
 	}
 	if mode == "challenge" || mode == "red_team" || mode == "audit" || mode == "premortem" {
-		return handleReviewChallenge(ctx, in)
+		return handleReviewChallenge(ctx, req, in)
 	}
 
 	// Default to validate
-	return handleReviewValidate(tool, in)
+	return handleReviewValidate(ctx, req, tool, in)
 }
 
-func handleReviewChallenge(_ context.Context, in ReviewInput) (*sdkmcp.CallToolResult, Envelope, error) {
+func handleReviewChallenge(ctx context.Context, req *sdkmcp.CallToolRequest, in ReviewInput) (*sdkmcp.CallToolResult, Envelope, error) {
 	const tool = "vivechak_review"
 
-	root, err := core.ResolveWorkspace(in.ProjectRoot)
+	var roots []string
+	if strings.TrimSpace(in.ProjectRoot) == "" {
+		roots = getClientRoots(ctx, req)
+	}
+	root, _, err := core.ResolveWorkspaceWithRoots(ctx, in.ProjectRoot, roots)
 	if err != nil {
 		return ErrorResult(tool, err, "Initialize a workspace first with vivechak_start.")
 	}
@@ -214,9 +223,9 @@ func handleReviewChallenge(_ context.Context, in ReviewInput) (*sdkmcp.CallToolR
 	return env.ToResult()
 }
 
-func handleReviewValidate(tool string, in ReviewInput) (*sdkmcp.CallToolResult, Envelope, error) {
+func handleReviewValidate(ctx context.Context, req *sdkmcp.CallToolRequest, tool string, in ReviewInput) (*sdkmcp.CallToolResult, Envelope, error) {
 	if strings.TrimSpace(in.Content) == "" {
-		return handleWorkspaceValidate(tool, in.ProjectRoot)
+		return handleWorkspaceValidate(ctx, req, tool, in.ProjectRoot)
 	}
 
 	artifactType := in.ArtifactType
@@ -300,8 +309,12 @@ func handleReviewValidate(tool string, in ReviewInput) (*sdkmcp.CallToolResult, 
 	return env.ToResult()
 }
 
-func handleWorkspaceValidate(tool string, projectRoot string) (*sdkmcp.CallToolResult, Envelope, error) {
-	root, err := core.ResolveWorkspace(projectRoot)
+func handleWorkspaceValidate(ctx context.Context, req *sdkmcp.CallToolRequest, tool string, projectRoot string) (*sdkmcp.CallToolResult, Envelope, error) {
+	var roots []string
+	if strings.TrimSpace(projectRoot) == "" {
+		roots = getClientRoots(ctx, req)
+	}
+	root, _, err := core.ResolveWorkspaceWithRoots(ctx, projectRoot, roots)
 	if err != nil {
 		return ErrorResult(tool, err, "Initialize a workspace first with vivechak_start.")
 	}
@@ -422,7 +435,7 @@ func handleWorkspaceValidate(tool string, projectRoot string) (*sdkmcp.CallToolR
 			baseName := strings.TrimSuffix(name, ".md")
 			seenIDs[strings.ToUpper(baseName)] = true
 			seenIDs[strings.ToUpper(core.NormalizeDecisionID(baseName))] = true
-			if m := regexp.MustCompile(`^(?i)(D-[A-Za-z0-9]+)`).FindStringSubmatch(baseName); len(m) > 1 {
+			if m := reDecisionBaseName.FindStringSubmatch(baseName); len(m) > 1 {
 				seenIDs[strings.ToUpper(m[1])] = true
 				seenIDs[strings.ToUpper(core.NormalizeDecisionID(m[1]))] = true
 			}
@@ -449,9 +462,7 @@ func handleWorkspaceValidate(tool string, projectRoot string) (*sdkmcp.CallToolR
 
 	// Also validate decisions in consolidated DECISIONS.md (deduplicating already validated IDs)
 	if data, err := ws.ReadFile(core.DecisionsFile); err == nil && len(data) > 0 {
-		anchoredRe := regexp.MustCompile(`(?s)<!--\s*DECISION:\s*([A-Za-z0-9_-]+)\s*-->\s*(.*?)\s*<!--\s*/DECISION:\s*([A-Za-z0-9_-]+)\s*-->`)
-
-		matches := anchoredRe.FindAllSubmatch(data, -1)
+		matches := reDecisionAnchored.FindAllSubmatch(data, -1)
 		for _, m := range matches {
 			id := string(m[1])
 			closeID := string(m[3])
