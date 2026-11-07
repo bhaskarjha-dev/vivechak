@@ -132,15 +132,11 @@ export function evaluateScenarioPass(scenarioId, content, turn1Content) {
     case "16": // CLI Shorthand Scope Recognition (vck compare)
       {
         const hasComparisonArtifact =
-          /c-[a-z0-9_-]+|comparison\.md/i.test(content) ||
-          normContent.includes("wep matrix") ||
-          content.includes("vivechak_start") ||
-          content.includes("vivechak_save") ||
-          content.includes("vivechak_prepare_generator") ||
-          content.includes("vivechak_save_plan");
+          (/c-[a-z0-9_-]+|comparison\.md/i.test(content) &&
+            (normContent.includes("weighted evaluation") || normContent.includes("wep"))) ||
+          normContent.includes("wep matrix");
         const mentionsOptions =
-          (normContent.includes("pino") && normContent.includes("winston")) ||
-          normContent.includes("c-01");
+          normContent.includes("pino") && normContent.includes("winston");
         if (hasComparisonArtifact && mentionsOptions) {
           return { passed: true, reason: "" };
         }
@@ -152,10 +148,7 @@ export function evaluateScenarioPass(scenarioId, content, turn1Content) {
       {
         const hasProjectArtifact =
           content.includes("RESEARCH-PIPELINE.md") ||
-          /t\d+-[a-z0-9_-]+/i.test(content) ||
-          content.includes("vivechak_start") ||
-          content.includes("vivechak_prepare_generator") ||
-          content.includes("vivechak_init");
+          /t\d+-[a-z0-9_-]+/i.test(content);
         if (hasProjectArtifact) {
           return { passed: true, reason: "" };
         }

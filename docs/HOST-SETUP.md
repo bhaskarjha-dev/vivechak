@@ -39,7 +39,7 @@ npx skills add bhaskarjha-dev/vivechak
 ```
 This automatically installs the calibrated agent playbook (`skills/vivechak/SKILL.md`) into your workspace or global skill catalog.
 
-### Smithery CLI (`@smithery/cli`)
+### Smithery CLI (`@smithery/cli`) (coming soon)
 If you use [Smithery.ai](https://smithery.ai) for automatic MCP client discovery and installation:
 ```sh
 npx -y @smithery/cli install @bhaskarjha-dev/vivechak --client cursor

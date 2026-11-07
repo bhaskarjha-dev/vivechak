@@ -38,24 +38,24 @@ uvx vck serve                                 # or: uvx vivechak serve
 # Universal Agent Skill (Claude Code, Cursor, Antigravity, OpenCode)
 npx skills add bhaskarjha-dev/vivechak
 
-# Docker / Cloud Agents (Devin, OpenHands, CI)
-docker run -i --rm -v "${PWD}:/workspace" ghcr.io/bhaskarjha-dev/vck:latest serve
+# Docker / Cloud Agents (Devin, OpenHands, CI) (coming soon)
+docker run -i --rm --user "$(id -u):$(id -g)" -v "${PWD}:/workspace" ghcr.io/bhaskarjha-dev/vck:latest serve
 ```
 
 **Or Native Install via Package Managers:**
 ```sh
-# Homebrew (macOS & Linuxbrew)
-brew install bhaskarjha-dev/tap/vck           # or: brew install bhaskarjha-dev/tap/vivechak
+# Homebrew (macOS & Linuxbrew) (coming soon)
+brew install bhaskarjha-dev/tap/vivechak
 
-# Windows (WinGet or Scoop)
+# Windows (WinGet or Scoop) (coming soon)
 winget install bhaskarjha-dev.Vivechak
-scoop bucket add vivechak https://github.com/bhaskarjha-dev/scoop-bucket && scoop install vck
+scoop bucket add vivechak https://github.com/bhaskarjha-dev/scoop-bucket && scoop install vivechak
 
 # Debian / Ubuntu (.deb) & Fedora / RHEL (.rpm)
 sudo dpkg -i vivechak_0.1.0_linux_amd64.deb   # Debian / Ubuntu
 sudo rpm -i vivechak_0.1.0_linux_amd64.rpm    # Fedora / RHEL
 
-# Nix / NixOS
+# Nix / NixOS (coming soon)
 nix run github:bhaskarjha-dev/vivechak
 
 # Direct Shell Installers

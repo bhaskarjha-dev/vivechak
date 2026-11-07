@@ -462,12 +462,16 @@ Adopt InfluxDB.
 
 	t.Run("One-Way Door with Grade A evidence and rejected alternatives PASSES", func(t *testing.T) {
 		sessionRec := `## Recommendation
-We adopt SQLite WAL mode based on Grade A (https://sqlite.org/wal.html) and RFC 9000 [Grade A: https://tools.ietf.org/html/rfc9000].
+We adopt SQLite WAL mode based on:
+- [Grade A: https://sqlite.org/wal.html | fetched]
+- RFC 9000 [Grade A: https://tools.ietf.org/html/rfc9000 | fetched]
 `
 		adrBody := `# Context
 Storage requirements for transactional records.
 ## Decision Outcome
-Adopt SQLite with WAL mode backed by [Grade A: https://sqlite.org/wal.html] and [Grade A: https://tools.ietf.org/html/rfc9000].
+Adopt SQLite with WAL mode backed by:
+- [Grade A: https://sqlite.org/wal.html | fetched]
+- [Grade A: https://tools.ietf.org/html/rfc9000 | fetched]
 ## Rejected Alternatives
 - PostgreSQL: rejected due to daemon resource footprint.
 ## Red-Team Stress Test
@@ -1161,8 +1165,8 @@ review_trigger: "Data exceeds 100 GB"
 # Context
 High performance embedded transactional store.
 # Decision Outcome
-Adopt SQLite with WAL mode. Grade A (https://sqlite.org/wal.html)
-High concurrent throughput verified. Grade A (https://sqlite.org/benchmark.html)
+Adopt SQLite with WAL mode backed by verified docs: Grade A (https://sqlite.org/wal.html | fetched)
+High concurrent throughput verified. Grade A (https://sqlite.org/benchmark.html | fetched)
 ## Rejected Alternatives
 - PostgreSQL: rejected due to operational daemon footprint and excessive RAM usage for edge devices.
 ## Challenge Findings
@@ -1670,7 +1674,9 @@ review_trigger: "Data > 100 GB"
 # Context
 Storage choice.
 ## Decision Outcome
-Adopt SQLite backed by [Grade A: https://sqlite.org] and [Grade A: https://quicwg.org].
+Adopt SQLite backed by:
+- [Grade A: https://sqlite.org | fetched]
+- [Grade A: https://quicwg.org | fetched]
 ## Rejected Alternatives
 - PostgreSQL: rejected due to daemon resource footprint and high operational complexity.
 ## Red-Team Stress Test
@@ -3221,14 +3227,15 @@ date: 2026-10-25
 ---
 # Context
 Primary datastore selection for entity records.
-# Decision
+## Decision Outcome
 [Grade A: https://postgresql.org] PostgreSQL selected [fetched].
 [Grade B: https://postgresql.org/docs] High concurrency tested [fetched].
 ## Rejected Alternatives
 - MySQL: lacked required JSONB indexing performance.
 - MongoDB: lacks relational consistency model required.
-## Challenge Findings & Red-Team Stress Test
-Adversarial red-team probe confirms concurrency limits and serialization failure rates.
+## Red-Team Stress Test
+### Challenge Findings
+Evaluated D-002-R1 write concurrency limits and serialization failure rates under 100 writers.
 `
 		d3 := `---
 decision_id: D-003
@@ -3242,14 +3249,15 @@ date: 2026-10-25
 ---
 # Context
 Distributed consensus protocol selection.
-# Decision
+## Decision Outcome
 [Grade A: https://raft.github.io] Raft selected [fetched].
 [Grade B: https://raft.github.io/raft.pdf] Formal verification checked [fetched].
 ## Rejected Alternatives
 - Paxos: rejected due to implementation complexity and edge cases.
 - Gossip: insufficient linearizable consistency guarantees.
-## Challenge Findings & Red-Team Stress Test
-Adversarial red-team probe confirms quorum loss behavior and leader re-election timing.
+## Red-Team Stress Test
+### Challenge Findings
+Evaluated D-003-R1 quorum loss behavior and leader re-election timing under partition.
 `
 		for _, dec := range []struct {
 			id      string
@@ -3271,6 +3279,26 @@ Adversarial red-team probe confirms quorum loss behavior and leader re-election 
 				t.Fatalf("record %s failed: %v", dec.id, err)
 			}
 		}
+
+		ch2 := fmt.Sprintf(`---
+decision_id: D-002
+decision_hash: %s
+date: 2026-10-25
+---
+# Red Team Challenge D-002-R1
+Evaluated write concurrency limits under 100 writers.
+`, core.ComputeDecisionOutcomeHash([]byte(d2)))
+		_ = os.WriteFile(filepath.Join(tmpDir, core.ResearchDir, "D-002-R1.md"), []byte(ch2), 0o644)
+
+		ch3 := fmt.Sprintf(`---
+decision_id: D-003
+decision_hash: %s
+date: 2026-10-25
+---
+# Red Team Challenge D-003-R1
+Evaluated quorum loss behavior and leader re-election timing.
+`, core.ComputeDecisionOutcomeHash([]byte(d3)))
+		_ = os.WriteFile(filepath.Join(tmpDir, core.ResearchDir, "D-003-R1.md"), []byte(ch3), 0o644)
 
 		// 4.3 Gate must FAIL Track B because D-002 and D-003 lack human review
 		gateRes1, err := cs.CallTool(ctx, &mcp.CallToolParams{

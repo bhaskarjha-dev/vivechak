@@ -47,8 +47,8 @@ func TestRunGateCLI_JSONFormat(t *testing.T) {
 	if err := json.Unmarshal(stdout.Bytes(), &res); err != nil {
 		t.Fatalf("failed to parse JSON gate output: %v", err)
 	}
-	if res["status"] != "PASS" {
-		t.Errorf("expected status PASS, got %v", res["status"])
+	if res["status"] != "NOT_APPLICABLE" {
+		t.Errorf("expected status NOT_APPLICABLE, got %v", res["status"])
 	}
 	if res["scope"] != "comparison" {
 		t.Errorf("expected scope comparison, got %v", res["scope"])
@@ -195,8 +195,8 @@ Use slog. Grade A (https://golang.org)
 	stdout.Reset()
 	stderr.Reset()
 	codeProjA := runGateWithArgs([]string{"--track", "track_a", projDir}, &stdout, &stderr)
-	if codeProjA != 0 {
-		t.Errorf("expected exit code 0 for track_a on project workspace, got %d", codeProjA)
+	if codeProjA != 1 {
+		t.Errorf("expected exit code 1 for track_a on failing project workspace, got %d", codeProjA)
 	}
 
 	stdout.Reset()

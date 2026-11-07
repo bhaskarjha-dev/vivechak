@@ -16,6 +16,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"strings"
 
 	"github.com/bhaskarjha-dev/vivechak/internal/store"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -33,7 +34,15 @@ func validateContentSize(content string) error {
 }
 
 func isValidID(id string) bool {
-	return len(id) <= 128 && validIDPattern.MatchString(id) && !store.IsReservedWindowsName(id)
+	if len(id) > 128 || !validIDPattern.MatchString(id) || store.IsReservedWindowsName(id) {
+		return false
+	}
+	lower := strings.ToLower(strings.TrimSpace(id))
+	if lower == "d-nnn" || lower == "c-nnn" || lower == "d-tbd" || lower == "c-tbd" ||
+		lower == "tbd" || lower == "todo" || strings.Contains(lower, "nnn") || strings.Contains(lower, "tbd") {
+		return false
+	}
+	return true
 }
 
 // NextAction specifies the structured recommended next step for an agent (AX-04).

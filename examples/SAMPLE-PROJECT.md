@@ -194,7 +194,12 @@ After completing all sessions, synthesizing the FAD via `vivechak_save(kind="fad
 }
 ```
 
-With the Phase 0 Gate passed, the agent uses the sealed FAD as the architectural source of truth and seamlessly transitions into writing the actual Katha application code.
+For any One-Way Door decisions, human architectural review is required before implementation:
+```sh
+vck signoff D-001 --reviewer "Lead Architect"
+```
+
+Once the Phase 0 Gate passes and required sign-offs are granted, the team uses the sealed FAD as the architectural source of truth to begin writing production code.
 
 ---
 

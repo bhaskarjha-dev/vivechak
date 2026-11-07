@@ -75,7 +75,8 @@ func handleNext(ctx context.Context, req *sdkmcp.CallToolRequest, in NextInput) 
 	defer ws.Close()
 
 	info := core.InspectWorkspace(root)
-	if info.Scope == core.ScopeComparison {
+	hasPipelineFile := ws.FileExists(core.PipelineFile)
+	if !hasPipelineFile && info.Scope == core.ScopeComparison {
 		var compFile string
 		var compContent []byte
 		if entries, lErr := ws.ListDir(core.ResearchDir); lErr == nil {

@@ -159,6 +159,10 @@ func handleStart(ctx context.Context, req *sdkmcp.CallToolRequest, in StartInput
 				if existingMeta.Counters != nil {
 					meta.Counters = existingMeta.Counters
 				}
+				// Preserve existing Project or Decision scope if a comparison is started in an active workspace (CRIT-12)
+				if existingMeta.Scope == core.ScopeProject || existingMeta.Scope == core.ScopeDecision {
+					meta.Scope = existingMeta.Scope
+				}
 				meta.Schema = 1
 			}
 		}
@@ -306,6 +310,20 @@ func handleStart(ctx context.Context, req *sdkmcp.CallToolRequest, in StartInput
 		}
 		data["id"] = cid
 
+		// Format comparison brief for direct execution (HIGH-05)
+		metaInstruction := "From the context block, output a SCOPE CHECK line, then ONE research prompt in a `prompt` code fence: fill {slots} ({a | b} = pick one; {filename} = {ID}-cmp-{slug}.md), keep the rest verbatim. No plan, ADR, personas, search queries or search-count minimums."
+		directInstruction := "Execute this evidence-calibrated research brief with live web search to compare the options below and produce the Weighted Evaluation Protocol (WEP) matrix. Do not output a prompt template; execute the comparison research directly."
+		if strings.Contains(activeBrief, metaInstruction) {
+			activeBrief = strings.Replace(activeBrief, metaInstruction, directInstruction, 1)
+		} else {
+			reMeta := regexp.MustCompile(`(?m)^From the context block, output a SCOPE CHECK line.*$`)
+			activeBrief = reMeta.ReplaceAllString(activeBrief, directInstruction)
+		}
+		activeBrief = strings.Replace(activeBrief, "ID: [optional; default C-01]", fmt.Sprintf("ID: %s (persisted to research/%s-comparison.md)", cid, cid), 1)
+		activeBrief = strings.Replace(activeBrief, "{filename} = {ID}-cmp-{slug}.md", fmt.Sprintf("filename = research/%s-comparison.md", cid), 1)
+		data["brief"] = activeBrief
+		data["prompt"] = activeBrief
+
 		options := in.Options
 		if len(options) == 0 && question != "" {
 			extracted := extractComparisonOptions(question)
@@ -344,6 +362,11 @@ func handleStart(ctx context.Context, req *sdkmcp.CallToolRequest, in StartInput
 			return ErrorResult(tool, fmt.Errorf("allocating decision ID: %w", allocErr), "Ensure research/.vivechak.json is accessible.")
 		}
 		data["id"] = did
+
+		// Format decision brief with allocated ID (HIGH-15)
+		activeBrief = strings.Replace(activeBrief, "IDS: [optional: decision ID (default D-NEW), session prefix]", fmt.Sprintf("IDS: %s (session prefix %s-S)", did, did), 1)
+		data["brief"] = activeBrief
+		data["prompt"] = activeBrief
 
 		topic := question
 		if topic == "" {

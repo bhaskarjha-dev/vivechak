@@ -298,34 +298,35 @@ Create `research/PHASE-0-GATE.md` and audit every decision:
 flowchart TD
     D[Evaluate Decision] --> Check{Door Type?}
     Check -->|Two-Way Door| TrackA[Track A: Fast-Track Gate]
-    Check -->|One-Way Door| TrackB[Track B: Rigorous 11-Step Gate]
+    Check -->|One-Way Door| TrackB[Track B: Rigorous Gate (Rules G1–G11)]
     TrackA --> PassA{Reversible & Corroborated?}
     PassA -->|Yes| GatePass[Gate PASS]
     PassA -->|No| FixA[Fix ADR]
-    TrackB --> PassB{All 11 Steps Satisfied?}
+    TrackB --> PassB{G1–G11 Satisfied?}
     PassB -->|Yes| GatePass
     PassB -->|No| FixB[Resolve Blockers]
 ```
 
 #### Track A: Fast-Track Gate (Two-Way Doors)
-Check three conditions:
+Check two-way door conditions (Rule G12):
 - [x] Logged in ADR with `door_type: two-way`.
 - [x] Reversibility confirmed (can be swapped without major refactoring).
 - [x] At least one corroborated source supports the choice.
 
-#### Track B: Rigorous 11-Step Gate (One-Way Doors)
-Every irreversible architectural pillar must satisfy all 11 criteria:
-- **B1. DAG Closure:** All dependent research sessions completed in `status: final`.
-- **B2. Contradiction Resolution:** No unresolved conflicting evidence or contested claims.
-- **B3. Evidentiary Threshold:** Zero uncorroborated Grade C/D/E claims under pinning pillars; critical claims backed by Grade A or B (≥60%).
-- **B4. Verification Integrity:** 100% of critical citations verified as `fetched` or `cached` with qualified provenance (zero `recalled` LLM memory citations).
-- **B5. Rejected Alternatives Documented:** Causal, evidence-backed rationale for every rejected option.
-- **B6. Decay Triggers Assigned:** Concrete, measurable `review_trigger` condition and date.
-- **B7. Premortem Protocol:** Gary Klein 12-month failure exercise completed with top 3 failure modes and mitigations logged.
-- **B8. Human Architect Review:** Explicit sign-off by a named human engineer (`human_reviewed: true`).
-- **B9. Founding Architecture Document Sealed:** `FAD.md` completed and committed to git.
-- **B10. Substantive ADR Content:** Decision record contains substantive causal rationale, evaluated options, and failure modes (no placeholder stubs).
-- **B11. Adversarial Red-Team Challenge:** Mandatory challenge findings, red-team probe, or disconfirming evidence search for One-Way Doors before commitment.
+#### Track B: Canonical Gate Rules (G1–G12)
+Evaluates mechanical structural integrity and rigor across both doors:
+- **G1. DAG Topology:** Project pipeline DAG is structurally valid with a synthesis session.
+- **G2. Session Completion:** All planned sessions completed with validated empirical findings.
+- **G3. FAD Completeness:** Founding Architecture Document (`FAD.md`) is complete and covers all accepted ADRs.
+- **G4. Decision Registration:** All referenced decisions have corresponding ADRs.
+- **G5. Target Resolution:** All target ADRs are accepted or resolved.
+- **G6. Evidentiary Threshold:** One-Way Door decisions have >=2 Grade A/B evidence citations with URLs.
+- **G7. Verification Provenance:** One-Way Door evidence claims carry verified provenance (>=2 fetched/human labels as reported).
+- **G8. No Placeholders & Alternatives:** One-Way Door ADRs contain no unexpanded placeholders or default template text, with substantive rejected alternatives.
+- **G9. Reversal Trigger:** One-Way Door ADRs have specific, measurable reversal triggers.
+- **G10. Adversarial Red-Team Challenge:** One-Way Door decisions have current, cited adversarial challenge records (`D-NNN-R1.md`) with matching outcome hashes.
+- **G11. Human Architect Sign-off:** All One-Way Door decisions have verified human sign-off (`human_reviewed: true` via `vck signoff`).
+- **G12. Fast-Track Exit:** Two-Way Door decisions meet fast-track exit criteria.
 
 ### Step 10: What "Passing the Gate" Means
 

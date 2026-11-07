@@ -83,7 +83,7 @@ jobs:
           go run ./cmd/vivechak version
           go run ./cmd/vivechak doctor --help
           go run ./cmd/vivechak gate --help
-          go run ./cmd/vivechak gate --track all
+          go run ./cmd/vivechak gate --track all examples/dogfood
           go run ./cmd/vivechak mcp-config
 
   release-dryrun:

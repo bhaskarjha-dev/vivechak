@@ -269,6 +269,13 @@ homebrew_casks:
     homepage: https://github.com/bhaskarjha-dev/vivechak
     description: Evidence-grounded research for technical decisions — MCP server
     license: MIT
+    hooks:
+      post:
+        install_steps: |
+          on_macos do
+            run "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/vivechak"]
+            run "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/vck"]
+          end
     caveats: |
       To use on macOS, you may need to remove quarantine:
         xattr -dr com.apple.quarantine "$(brew --prefix)/Caskroom/vivechak"

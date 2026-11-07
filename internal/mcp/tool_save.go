@@ -54,7 +54,7 @@ type SaveSessionInput struct {
 }
 
 var (
-	reSaveTableRow  = regexp.MustCompile(`(?m)^\|\s*(?:\*\*)?(?:ID|Decision|Decision ID|Comparison ID)(?:\*\*)?\s*\|\s*([A-Za-z0-9_-]+)\s*\|`)
+	reSaveTableRow  = regexp.MustCompile(`(?m)^\|\s*(?:\*\*)?(?:ID|Decision|Decision ID|Comparison ID)(?:\*\*)?\s*\|\s*(D-\d+|C-\d+|[A-Za-z]+-\d+)\s*\|`)
 	reSaveHeadingID = regexp.MustCompile(`(?m)^#+\s*(?:Session\s+)?([A-Za-z]+-\d+[A-Za-z0-9_-]*)`)
 	reSaveDec       = regexp.MustCompile(`\b(D-\d{1,4})\b`)
 	reSaveDNew      = regexp.MustCompile(`\bD-NEW\b`)
@@ -214,20 +214,23 @@ func handleSavePlanKind(ctx context.Context, ws *store.Workspace, root, rule str
 			"Provide the RESEARCH-PIPELINE.md content.")
 	}
 
+	info := core.InspectWorkspace(root)
 	scope := strings.ToLower(strings.TrimSpace(in.Scope))
-	if scope == "comparison" {
-		return handleSaveComparisonKind(ctx, ws, root, rule, in)
-	}
 	if scope == "" {
-		if in.DecisionID != "" || (in.ID != "" && strings.HasPrefix(strings.ToUpper(in.ID), "D-")) {
+		if info.Scope == core.ScopeComparison || (in.ID != "" && strings.HasPrefix(strings.ToUpper(in.ID), "C-")) {
+			scope = "comparison"
+		} else if in.DecisionID != "" || (in.ID != "" && strings.HasPrefix(strings.ToUpper(in.ID), "D-")) {
 			scope = "decision"
 		} else {
 			scope = "project"
 		}
 	}
-	if scope != "project" && scope != "decision" {
-		return ErrorResult(tool, fmt.Errorf("invalid plan scope %q: use 'project' or 'decision'", in.Scope),
-			"Provide 'scope': 'project' or 'decision'.")
+	if scope == "comparison" {
+		return handleSaveComparisonKind(ctx, ws, root, rule, in)
+	}
+	if scope != "project" && scope != "decision" && scope != "comparison" {
+		return ErrorResult(tool, fmt.Errorf("invalid plan scope %q: use 'project', 'decision', or 'comparison'", in.Scope),
+			"Provide 'scope': 'project', 'decision', or 'comparison'.")
 	}
 
 	ensureWorkspaceTemplates(ws, core.Scope(scope))
@@ -258,7 +261,21 @@ func handleSavePlanKind(ctx context.Context, ws *store.Workspace, root, rule str
 
 	pipelinePath := core.PipelineFile
 	planID := ""
-	if scope == "decision" {
+	if scope == "comparison" {
+		compID := in.ID
+		if compID == "" {
+			compID = in.DecisionID
+		}
+		if compID == "" {
+			compID = "C-001"
+		}
+		filename := fmt.Sprintf("%s-comparison.md", compID)
+		if in.Slug != "" {
+			filename = fmt.Sprintf("%s-cmp-%s.md", compID, in.Slug)
+		}
+		pipelinePath = filepath.Join(core.ResearchDir, filename)
+		planID = compID
+	} else if scope == "decision" {
 		decID := in.ID
 		if decID == "" {
 			decID = in.DecisionID
@@ -266,7 +283,10 @@ func handleSavePlanKind(ctx context.Context, ws *store.Workspace, root, rule str
 		if decID == "" {
 			if m := reSaveTableRow.FindStringSubmatch(in.Content); len(m) > 1 {
 				val := strings.TrimSpace(m[1])
-				if val != "D-NEW" && val != "C-NEW" && val != "" {
+				lower := strings.ToLower(val)
+				if val != "D-NEW" && val != "C-NEW" && val != "" &&
+					lower != "role" && lower != "depends" && lower != "filename" &&
+					lower != "topic" && lower != "description" && lower != "status" && lower != "title" {
 					decID = val
 				}
 			}

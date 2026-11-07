@@ -200,6 +200,9 @@ func ExtractDeclaredSessionIDs(content string) []string {
 		upper := strings.ToUpper(m)
 		// Normalize underscores to hyphens for Mermaid-friendly node IDs (e.g., T0_01 -> T0-01)
 		normalized := strings.ReplaceAll(upper, "_", "-")
+		if strings.HasSuffix(normalized, "-PLAN") || strings.HasSuffix(normalized, ".PLAN") {
+			continue
+		}
 		if !seen[normalized] {
 			seen[normalized] = true
 			declared = append(declared, normalized)

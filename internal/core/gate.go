@@ -89,7 +89,11 @@ func EvaluateGateWithTarget(ws WorkspaceFS, info WorkspaceInfo, root string, tar
 				name := e.Name()
 				lower := strings.ToLower(name)
 				if strings.HasSuffix(lower, "-plan.md") {
-					planFiles = append(planFiles, name)
+					if info.Scope == ScopeComparison || strings.HasPrefix(lower, "c-") || strings.HasPrefix(lower, "cmp-") || strings.Contains(lower, "-cmp-") || strings.Contains(lower, "comparison") {
+						compFiles = append(compFiles, name)
+					} else {
+						planFiles = append(planFiles, name)
+					}
 				} else if strings.HasPrefix(strings.ToUpper(name), "C-") || strings.EqualFold(name, "COMPARISON.md") || strings.HasSuffix(lower, "-comparison.md") || strings.Contains(lower, "-cmp-") {
 					compFiles = append(compFiles, name)
 				}
@@ -101,29 +105,31 @@ func EvaluateGateWithTarget(ws WorkspaceFS, info WorkspaceInfo, root string, tar
 	allADRs := scanAllADRs(ws)
 
 	// If scope is comparison (or no pipeline, no decision target, no ADRs, but comparisons exist):
-	if info.Scope == ScopeComparison || (targetDecision == "" && !hasPipeline && len(allADRs) == 0 && len(planFiles) == 0 && len(compFiles) > 0) {
-		return &GateResult{
-			Verdict:          "not_applicable",
-			Target:           "comparison",
-			Rules:            []GateRuleResult{},
-			Status:           "PASS",
-			Passed:           true,
-			NextStep:         "Comparison scope complete. WEP matrix generated. Proceed to implementation.",
-			StructuralChecks: TrackResult{Label: "Structural Completeness", Passed: true, Score: "1/1", Count: 1, Total: 1},
-			TrackAChecks:     TrackResult{Label: "Track A: Two-Way Doors", Passed: true, Score: "1/1", Count: 1, Total: 1},
-			TrackBChecks:     TrackResult{Label: "Quality Indicators (Mechanical)", Passed: true, Score: "1/1", Count: 1, Total: 1},
-			QualityChecks:    TrackResult{Label: "Quality Indicators (Mechanical)", Passed: true, Score: "1/1", Count: 1, Total: 1},
+	if targetDecision == "" && !hasPipeline && len(allADRs) == 0 && len(planFiles) == 0 {
+		if len(compFiles) > 0 || info.Scope == ScopeComparison {
+			return &GateResult{
+				Verdict:          "not_applicable",
+				Target:           "comparison",
+				Rules:            []GateRuleResult{},
+				Status:           "PASS",
+				Passed:           true,
+				NextStep:         "Comparison scope complete. WEP matrix generated. Proceed to implementation.",
+				StructuralChecks: TrackResult{Label: "Structural Completeness", Passed: true, Score: "1/1", Count: 1, Total: 1},
+				TrackAChecks:     TrackResult{Label: "Track A: Two-Way Doors", Passed: true, Score: "1/1", Count: 1, Total: 1},
+				TrackBChecks:     TrackResult{Label: "Quality Indicators (Mechanical)", Passed: true, Score: "1/1", Count: 1, Total: 1},
+				QualityChecks:    TrackResult{Label: "Quality Indicators (Mechanical)", Passed: true, Score: "1/1", Count: 1, Total: 1},
+			}
 		}
 	}
 
 	target := "project"
 	if targetDecision != "" {
 		target = targetDecision
-	} else if info.Scope == ScopeProject {
+	} else if hasPipeline || info.Scope == ScopeProject || (ws != nil && FileExistsFS(ws, FADFile)) {
 		target = "project"
-	} else if !hasPipeline && len(planFiles) > 0 {
+	} else if len(planFiles) > 0 {
 		target = strings.TrimSuffix(planFiles[0], "-plan.md")
-	} else if !hasPipeline && len(allADRs) > 0 {
+	} else if len(allADRs) > 0 {
 		target = allADRs[0].ID
 	}
 
@@ -500,7 +506,11 @@ func EvaluateGateWithTarget(ws WorkspaceFS, info WorkspaceInfo, root string, tar
 		for _, adr := range acceptedOneWay {
 			count := countGradeABClaimsWithURLs(ws, adr)
 			if count < 2 {
-				g6Failing = append(g6Failing, fmt.Sprintf("%s (found %d Grade A/B claims with URLs, want >=2)", adr.ID, count))
+				if len(adr.InformedBy) == 0 {
+					g6Failing = append(g6Failing, fmt.Sprintf("%s (no sessions linked to %s via informed_by_sessions or informs_decisions)", adr.ID, adr.ID))
+				} else {
+					g6Failing = append(g6Failing, fmt.Sprintf("%s (found %d Grade A/B claims with URLs, want >=2)", adr.ID, count))
+				}
 			}
 		}
 		if len(g6Failing) > 0 {
@@ -528,11 +538,30 @@ func EvaluateGateWithTarget(ws WorkspaceFS, info WorkspaceInfo, root string, tar
 			Reason: "No One-Way Door decisions in target.",
 		})
 	} else {
-		rules = append(rules, GateRuleResult{
-			ID:     "G7",
-			Status: "PASS",
-			Reason: "One-Way Door evidence claims carry verified provenance (labels as reported; sources not fetched or verified).",
-		})
+		var g7Failing []string
+		for _, adr := range acceptedOneWay {
+			verifiedCount := countVerifiedClaimsForADR(ws, adr)
+			if verifiedCount < 2 {
+				if len(adr.InformedBy) == 0 {
+					g7Failing = append(g7Failing, fmt.Sprintf("%s (no sessions linked to %s via informed_by_sessions or informs_decisions)", adr.ID, adr.ID))
+				} else {
+					g7Failing = append(g7Failing, fmt.Sprintf("%s has %d verified (fetched/human) Grade A/B claims (want >=2)", adr.ID, verifiedCount))
+				}
+			}
+		}
+		if len(g7Failing) > 0 {
+			rules = append(rules, GateRuleResult{
+				ID:     "G7",
+				Status: "FAIL",
+				Reason: fmt.Sprintf("One-Way Door evidence provenance unverified: %s (labels as reported; sources not fetched or verified)", strings.Join(g7Failing, "; ")),
+			})
+		} else {
+			rules = append(rules, GateRuleResult{
+				ID:     "G7",
+				Status: "PASS",
+				Reason: "One-Way Door evidence claims carry verified provenance (>=2 fetched/human labels as reported).",
+			})
+		}
 	}
 
 	// -------------------------------------------------------------------------
@@ -627,19 +656,13 @@ func EvaluateGateWithTarget(ws WorkspaceFS, info WorkspaceInfo, root string, tar
 		for _, adr := range acceptedOneWay {
 			chID, chHash := findLatestChallengeRecord(ws, adr.ID)
 			if chID == "" {
-				bodyStr := string(adr.RawData)
-				chSec := ExtractSection(bodyStr, "challenge findings", "red-team", "stress test")
-				chSecTrimmed := strings.TrimSpace(chSec)
-				if len(chSecTrimmed) >= 50 && !strings.Contains(chSecTrimmed, "[Document") {
-					continue
-				}
-				g10Failing = append(g10Failing, fmt.Sprintf("%s lacks an adversarial red-team challenge record (%s-R1.md)", adr.ID, adr.ID))
-				advisories = append(advisories, fmt.Sprintf("W-OWD-NO-CHALLENGE: One-Way Door %s lacks an adversarial red-team challenge record (%s-R1.md)", adr.ID, adr.ID))
+				g10Failing = append(g10Failing, fmt.Sprintf("%s lacks an adversarial red-team challenge record (%s-R1.md); run vivechak_review(mode=\"red_team\", target=\"%s\")", adr.ID, adr.ID, adr.ID))
+				advisories = append(advisories, fmt.Sprintf("W-OWD-NO-CHALLENGE: One-Way Door %s lacks an adversarial challenge record", adr.ID))
 				continue
 			}
 			currOutcomeHash := ComputeDecisionOutcomeHash(adr.RawData)
-			if chHash != "" && chHash != currOutcomeHash {
-				g10Failing = append(g10Failing, fmt.Sprintf("%s has stale challenge record (%s); run vivechak_review(mode=red_team) again", adr.ID, chID))
+			if chHash == "" || chHash != currOutcomeHash {
+				g10Failing = append(g10Failing, fmt.Sprintf("%s has stale challenge record (%s); re-run red-team challenge", adr.ID, chID))
 				continue
 			}
 			bodyStr := string(adr.RawData)
@@ -825,7 +848,12 @@ func computeStructuralChecks(ws WorkspaceFS, info WorkspaceInfo, rules []GateRul
 	passed := 0
 	total := 0
 
-	switch info.Scope {
+	effectiveScope := info.Scope
+	if ws != nil && (FileExistsFS(ws, PipelineFile) || FileExistsFS(ws, FADFile)) {
+		effectiveScope = ScopeProject
+	}
+
+	switch effectiveScope {
 	case ScopeDecision:
 		total = 2
 		if info.SessionCount > 0 {
@@ -908,7 +936,12 @@ func computeStructuralChecks(ws WorkspaceFS, info WorkspaceInfo, rules []GateRul
 }
 
 func computeTrackBChecks(ws WorkspaceFS, info WorkspaceInfo, targetADRs []adrRecord, rules []GateRuleResult) TrackResult {
-	if info.Scope == ScopeComparison {
+	effectiveScope := info.Scope
+	if ws != nil && (FileExistsFS(ws, PipelineFile) || FileExistsFS(ws, FADFile)) {
+		effectiveScope = ScopeProject
+	}
+
+	if effectiveScope == ScopeComparison && len(targetADRs) == 0 {
 		return TrackResult{
 			Label:  "Quality Indicators (Mechanical)",
 			Passed: true,
@@ -965,7 +998,7 @@ func computeTrackBChecks(ws WorkspaceFS, info WorkspaceInfo, targetADRs []adrRec
 			}
 		}
 
-		if info.Scope == ScopeProject {
+		if effectiveScope == ScopeProject {
 			if info.SessionCount < 3 {
 				issues = append(issues, fmt.Sprintf("Only %d sessions — minimum 3 recommended for project scope", info.SessionCount))
 			}
@@ -1230,6 +1263,7 @@ func scanAllADRs(ws WorkspaceFS) []adrRecord {
 		}
 	}
 
+	resolveBidirectionalInformingSessions(ws, records)
 	return records
 }
 
@@ -1312,6 +1346,115 @@ func countGradeABClaimsWithURLs(ws WorkspaceFS, adr adrRecord) int {
 		}
 	}
 	return count
+}
+
+func countVerifiedClaimsForADR(ws WorkspaceFS, adr adrRecord) int {
+	count := 0
+	gradeRe := regexp.MustCompile(`(?i)(?:\[(?:Grade\s+[AB]|E-[AB]|[AB])\b|\bGrade\s+[AB]\b)`)
+	checkText := func(text string) {
+		lines := strings.Split(text, "\n")
+		for _, l := range lines {
+			if !gradeRe.MatchString(l) {
+				continue
+			}
+			lower := strings.ToLower(l)
+			// Must NOT be unverified / recalled / parametric memory
+			if strings.Contains(lower, "recalled") || strings.Contains(lower, "parametric") || strings.Contains(lower, "model memory") || strings.Contains(lower, "ai memory") {
+				continue
+			}
+			// Must have verified provenance label: fetched, verified, or human (human-provided, etc.)
+			if strings.Contains(lower, "fetched") || strings.Contains(lower, "verified") || strings.Contains(lower, "human") {
+				count++
+			}
+		}
+	}
+
+	checkText(string(adr.RawData))
+	if ws != nil {
+		for _, sid := range adr.InformedBy {
+			if sData, _, err := ReadSessionFileFS(ws, SessionsDir, sid); err == nil {
+				checkText(sData)
+			}
+		}
+	}
+	return count
+}
+
+func resolveBidirectionalInformingSessions(ws WorkspaceFS, records []adrRecord) {
+	if ws == nil {
+		return
+	}
+	sessionInforms := make(map[string][]string)
+	var allSessionIDs []string
+	if entries, err := ws.ListDir(SessionsDir); err == nil {
+		for _, e := range entries {
+			if e.IsDir() || !strings.HasSuffix(e.Name(), ".md") {
+				continue
+			}
+			sID := strings.TrimSuffix(e.Name(), ".md")
+			allSessionIDs = append(allSessionIDs, sID)
+			relPath := filepath.Join(SessionsDir, e.Name())
+			if sData, err := ws.ReadFile(relPath); err == nil {
+				if fm, _, err := ParseFrontmatter(sData); err == nil && fm != nil {
+					if id := fm.GetString("session_id"); id != "" {
+						sID = id
+					} else if id := fm.GetString("id"); id != "" {
+						sID = id
+					}
+					var informsSlice []string
+					informsSlice = append(informsSlice, fm.GetStringSlice("informs_decisions")...)
+					informsSlice = append(informsSlice, fm.GetStringSlice("informs")...)
+					if singleInforms := fm.GetString("informs"); singleInforms != "" {
+						informsSlice = append(informsSlice, singleInforms)
+					}
+					if singleInformsDec := fm.GetString("informs_decisions"); singleInformsDec != "" {
+						informsSlice = append(informsSlice, singleInformsDec)
+					}
+					for _, did := range informsSlice {
+						upperDID := strings.ToUpper(strings.TrimSpace(did))
+						if upperDID != "" {
+							sessionInforms[upperDID] = append(sessionInforms[upperDID], sID)
+						}
+					}
+				}
+			}
+		}
+	}
+
+	for i := range records {
+		adr := &records[i]
+		seen := make(map[string]bool)
+		var merged []string
+		add := func(s string) {
+			s = strings.TrimSpace(s)
+			if s == "" {
+				return
+			}
+			upper := strings.ToUpper(s)
+			if !seen[upper] {
+				seen[upper] = true
+				merged = append(merged, s)
+			}
+		}
+
+		for _, s := range adr.InformedBy {
+			add(s)
+		}
+		upperID := strings.ToUpper(adr.ID)
+		for _, s := range sessionInforms[upperID] {
+			add(s)
+		}
+		for _, s := range findDecisionTargetSessions(ws, adr.ID) {
+			add(s)
+		}
+		prefix := upperID + "-S"
+		for _, s := range allSessionIDs {
+			if strings.HasPrefix(strings.ToUpper(s), prefix) {
+				add(s)
+			}
+		}
+		adr.InformedBy = merged
+	}
 }
 
 func findLatestChallengeRecord(ws WorkspaceFS, did string) (string, string) {

@@ -100,7 +100,7 @@ Defined in [`internal/core/scope.go`](../internal/core/scope.go#L8-L22), [`Scope
 ### Workspace & Resolution Chain
 Defined in [`internal/core/workspace.go`](../internal/core/workspace.go), [`ResolveWorkspace`](../internal/core/workspace.go) evaluates a deterministic 5-step resolution chain:
 1. **Explicit argument**: `project_root` passed directly in the MCP tool call or CLI command.
-2. **Environment variables**: Namespaced environment variables evaluated in order (`VIVECHAK_PROJECT_ROOT`, `VCK_PROJECT_ROOT`, `VIVECHAK_DEFAULT_ROOT`, `VCK_DEFAULT_ROOT`), safely ignoring unexpanded editor macros (e.g. `${workspaceFolder}`) and unnamespaced variables to protect container isolation.
+2. **Environment variables**: Namespaced environment variables evaluated in order (`VIVECHAK_PROJECT_ROOT`, `VCK_PROJECT_ROOT`), safely ignoring unexpanded editor macros (e.g. `${workspaceFolder}`) and unnamespaced variables to protect container isolation.
 3. **CWD Directory Traversal**: Walks upwards from the current working directory searching for an existing `research/` directory (safely skipping host IDE application program directories).
 4. **In-process session memory**: Fallback to the last successfully resolved workspace with existing `research/` within the current server process, eliminating repetitive parameter passing in long agent sessions.
 5. **Fallback error**: Clear diagnostic error instructing the caller to start a research session in their AI editor (e.g. `/compare` or `/project`) or pass `project_root` explicitly.
@@ -149,7 +149,7 @@ Defined in [`internal/core/validate.go`](../internal/core/validate.go), `Observe
 ### Phase 0 Gate Engine & Auto-Persistence (`mcputil.handleGate`)
 Defined in [`internal/mcp/tool_gate.go`](../internal/mcp/tool_gate.go), `vivechak_gate` evaluates decoupled Track A and Track B criteria and automatically renders and persists `research/PHASE-0-GATE.md`:
 - **Track A (Two-Way Doors):** Fast-track reversibility validation (A1–A3). Reversible decisions pass without blocking deep checks. Workspaces with zero two-way doors are marked as `PASS (0 two-way doors)`, eliminating false-pass anomalies.
-- **Track B (One-Way Doors):** Comprehensive mechanical verification across exit criteria (Rules G1–G12): DAG closure (G1), contradiction resolution, evidentiary threshold requiring ≥60% Grade A/B evidence (G7), verification integrity with qualified provenance (G8), documented rejected alternatives (G9), concrete decay/reversal triggers, premortem protocol, human architect review sign-off (G11), sealed FAD (G3), substantive decision content detecting ADR stubs/placeholders, and adversarial red-team challenge verification (`vivechak_review` challenge mode or disconfirming evidence search) before commitment (G10). Strict promotion enforces blocking failures on One-Way Doors.
+- **Track B (One-Way Doors):** Comprehensive mechanical verification across exit criteria (Rules G1–G12): DAG closure (G1), session completion (G2), sealed FAD (G3), decision traceability (G4), locked ADR status (G5), evidentiary threshold requiring Grade A/B evidence with URLs (G6), verification integrity with qualified provenance (G7), documented rejected alternatives and no placeholders (G8), concrete decay/reversal triggers (G9), adversarial red-team challenge verification before commitment (G10), and human architect review sign-off (G11). Strict promotion enforces blocking failures on One-Way Doors.
 - **Decoupled Decision Scope Evaluation:** In `ScopeDecision`, purely Two-Way Door decisions pass on Track A reversibility confirmation alone, and Track B checks remain non-blocking advisories. If an irreversible One-Way Door is present, full Track B checks are strictly enforced.
 
 ### Response Envelope (`mcputil.Envelope`)
@@ -495,7 +495,7 @@ In [`internal/mcp/server_test.go`](../internal/mcp/server_test.go):
 ## 8. Build, Test & Run
 
 ### Prerequisites
-- **Go 1.25+** (Uses standard library `os.Root` path confinement; project specifies `go 1.25.0` in [`go.mod`](../go.mod#L3)).
+- **Go 1.26+** (Uses standard library `os.Root` path confinement; project specifies `go 1.26.10` in [`go.mod`](../go.mod#L3)).
 
 ### Compiling the Binary
 To build the server executable:

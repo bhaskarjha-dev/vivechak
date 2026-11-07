@@ -224,6 +224,7 @@ func handleRecordDecision(ctx context.Context, req *sdkmcp.CallToolRequest, in R
 
 		if in.AutoSave {
 			in.Content = draft
+			in.Revise = true
 		} else {
 			env := Envelope{
 				Success: true,
@@ -384,7 +385,8 @@ func handleRecordDecision(ctx context.Context, req *sdkmcp.CallToolRequest, in R
 	}
 	defer func() { _ = unlock() }()
 
-	if err := ws.WriteArtifact(relPath, []byte(in.Content), 0o644, in.Revise); err != nil {
+	revise := in.Revise || in.AutoSave
+	if err := ws.WriteArtifact(relPath, []byte(in.Content), 0o644, revise); err != nil {
 		return ErrorResult(tool, fmt.Errorf("writing %s: %w", filename, err),
 			"Check filesystem permissions or pass revise=true to overwrite an existing ADR.")
 	}
@@ -432,15 +434,29 @@ func handleRecordDecision(ctx context.Context, req *sdkmcp.CallToolRequest, in R
 		}
 	}
 
+	phs := core.ScanPlaceholders([]byte(in.Content))
+	hasPlaceholders := len(phs) > 0
+
+	statusStr := validation.Status
+	msg := fmt.Sprintf("Saved %s %s as %s", artifactType, in.DecisionID, validation.Status)
+	if hasPlaceholders {
+		statusStr = "draft"
+		msg = fmt.Sprintf("Saved draft ADR %s (proposed; %d placeholder lines to refine)", in.DecisionID, len(phs))
+	}
+
 	dataMap := map[string]any{
-		"workspace_root": root,
-		"workspace":      map[string]any{"root": root, "rule": rule},
-		"decision_id":    in.DecisionID,
-		"id":             in.DecisionID,
-		"artifact_type":  artifactType,
-		"file_path":      filepath.ToSlash(filepath.Join(core.ResearchDir, filename)),
-		"status":         validation.Status,
-		"validation":     validation,
+		"workspace_root":   root,
+		"workspace":        map[string]any{"root": root, "rule": rule},
+		"decision_id":      in.DecisionID,
+		"id":               in.DecisionID,
+		"artifact_type":    artifactType,
+		"file_path":        filepath.ToSlash(filepath.Join(core.ResearchDir, filename)),
+		"status":           statusStr,
+		"has_placeholders": hasPlaceholders,
+		"validation":       validation,
+	}
+	if hasPlaceholders {
+		dataMap["placeholders"] = phs
 	}
 	if in.Status != "" {
 		dataMap["decision_status"] = strings.ToLower(strings.TrimSpace(in.Status))
@@ -484,7 +500,7 @@ func handleRecordDecision(ctx context.Context, req *sdkmcp.CallToolRequest, in R
 
 	env := Envelope{
 		Success:  true,
-		Message:  fmt.Sprintf("Saved %s %s as %s", artifactType, in.DecisionID, validation.Status),
+		Message:  msg,
 		Data:     dataMap,
 		Warnings: warnings,
 		NextStep: nextStep,

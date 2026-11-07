@@ -52,21 +52,22 @@ func InspectWorkspace(root string) WorkspaceInfo {
 		return info
 	}
 
-	// Check for pipeline
+	// Check for pipeline (RESEARCH-PIPELINE.md strictly defines project pipeline presence)
+	hasProjectPipeline := false
 	if _, err := os.Stat(filepath.Join(root, PipelineFile)); err == nil {
 		info.HasPipeline = true
+		hasProjectPipeline = true
 	}
 
-	// Detect scope from metadata file first
-	hasMetadataScope := false
+	// Detect scope from metadata file (as fallback if no artifacts exist on disk)
+	var metadataScope Scope
 	if metaData, err := os.ReadFile(filepath.Join(root, MetadataFile)); err == nil {
 		var meta WorkspaceMeta
 		if std, sErr := hujson.Standardize(metaData); sErr == nil {
 			metaData = std
 		}
 		if json.Unmarshal(metaData, &meta) == nil && ValidScope(meta.Scope) {
-			info.Scope = meta.Scope
-			hasMetadataScope = true
+			metadataScope = meta.Scope
 		}
 	}
 
@@ -76,10 +77,16 @@ func InspectWorkspace(root string) WorkspaceInfo {
 	for _, e := range researchEntries {
 		name := e.Name()
 		if !e.IsDir() && strings.HasSuffix(name, ".md") {
-			if strings.HasSuffix(name, "-plan.md") {
-				hasDecisionPlan = true
-				info.HasPipeline = true
-			} else if strings.HasSuffix(name, "-comparison.md") || strings.Contains(name, "-cmp-") {
+			lower := strings.ToLower(name)
+			if strings.HasSuffix(lower, "-plan.md") {
+				if strings.Contains(lower, "cmp") || strings.Contains(lower, "comparison") {
+					hasComparisonPlan = true
+					info.HasPipeline = true
+				} else {
+					hasDecisionPlan = true
+					info.HasPipeline = true
+				}
+			} else if strings.HasSuffix(lower, "-comparison.md") || strings.Contains(lower, "-cmp-") || strings.EqualFold(name, "COMPARISON.md") {
 				hasComparisonPlan = true
 				info.HasPipeline = true
 			}
@@ -95,36 +102,43 @@ func InspectWorkspace(root string) WorkspaceInfo {
 		hasComparisonPlan = true
 	}
 
-	// If metadata did not provide a scope, infer scope
-	if !hasMetadataScope {
-		if hasDecisionPlan {
-			info.Scope = ScopeDecision
-		} else if hasComparisonPlan {
-			info.Scope = ScopeComparison
-		} else if info.HasPipeline {
-			info.Scope = ScopeProject
-		} else {
-			if sEntries, err := os.ReadDir(filepath.Join(root, SessionsDir)); err == nil {
-				for _, se := range sEntries {
-					sName := se.Name()
-					if strings.HasPrefix(sName, "S1-") || strings.HasPrefix(sName, "D-") {
-						info.Scope = ScopeDecision
-						break
-					} else if strings.HasPrefix(sName, "C-") || strings.HasPrefix(sName, "C1-") || strings.HasPrefix(sName, "CMP-") || strings.HasPrefix(sName, "COMP-") {
-						info.Scope = ScopeComparison
-						break
-					}
+	// Derive scope from disk artifacts first (facts on disk override metadata)
+	hasFAD := false
+	if _, err := os.Stat(filepath.Join(root, FADFile)); err == nil {
+		hasFAD = true
+	}
+
+	if hasProjectPipeline || hasFAD || (metadataScope == ScopeProject && (hasDecisionPlan || hasComparisonPlan)) {
+		info.Scope = ScopeProject
+	} else if hasDecisionPlan {
+		info.Scope = ScopeDecision
+	} else if hasComparisonPlan {
+		info.Scope = ScopeComparison
+	} else {
+		if sEntries, err := os.ReadDir(filepath.Join(root, SessionsDir)); err == nil {
+			for _, se := range sEntries {
+				sName := se.Name()
+				if strings.HasPrefix(sName, "S1-") || strings.HasPrefix(sName, "D-") {
+					info.Scope = ScopeDecision
+					break
+				} else if strings.HasPrefix(sName, "C-") || strings.HasPrefix(sName, "C1-") || strings.HasPrefix(sName, "CMP-") || strings.HasPrefix(sName, "COMP-") {
+					info.Scope = ScopeComparison
+					break
 				}
 			}
-			if info.Scope == "" {
-				for _, e := range researchEntries {
-					name := e.Name()
-					if !e.IsDir() && strings.HasSuffix(name, "-decision.md") {
-						info.Scope = ScopeDecision
-						break
-					}
+		}
+		if info.Scope == "" {
+			for _, e := range researchEntries {
+				name := e.Name()
+				if !e.IsDir() && strings.HasSuffix(name, "-decision.md") {
+					info.Scope = ScopeDecision
+					break
 				}
 			}
+		}
+		// Fallback to metadata scope only if no disk artifacts exist
+		if info.Scope == "" && metadataScope != "" {
+			info.Scope = metadataScope
 		}
 	}
 

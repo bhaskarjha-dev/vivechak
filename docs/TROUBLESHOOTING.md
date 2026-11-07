@@ -80,7 +80,7 @@ Vivechak employs a 4-level validation ladder (**L1–L4**). Below are the common
 - **Cause:** An Architectural Decision Record (`research/D-*.md`) or Founding Architecture Document (`research/FAD.md`) contains unexpanded bracketed template tokens or auto-draft prompts (e.g. `[Auto-drafted — review and refine...]`, `[Extract...]`, `[Review session findings...]`, `[Document...]`, `[TODO: ...]`).
 - **Behavior & Calibration:**
   - When saving an initial ADR skeleton with `status: proposed` (e.g. via `vivechak_record_decision(auto_draft_from="...", auto_save=true)`), Vivechak emits an advisory warning (`W-PLACEHOLDER-REMAINS`), allowing agents to persist draft skeletons without interruption.
-  - When locking an ADR with `status: accepted` or evaluating Phase 0 Gate Rule G9, unexpanded placeholders are strictly blocked with error `E-PLACEHOLDER-REMAINS`.
+  - When locking an ADR with `status: accepted` or evaluating Phase 0 Gate Rule G8, unexpanded placeholders are strictly blocked with error `E-PLACEHOLDER-REMAINS`.
 - **Resolution:** Replace all bracketed template instructions with actual empirical research findings, specific project context, and canonical citations before locking the ADR. *(Note: Legitimate markdown inline links `[Text](url)` and reference links `[Text][ref]` are permitted and will not trigger placeholder errors).*
 
 ### Session File Size Guard (`MaxSessionReadBytes` Safety Limit)
@@ -154,13 +154,15 @@ Issues:
 ```
 
 > **Decoupled Two-Track Evaluation in Decision Scope:** When running exit gate evaluation for pure Two-Way Door decisions, Track A reversibility confirmation alone passes the gate and authorizes immediate implementation, while Track B quality checks serve as non-blocking advisories. If an irreversible One-Way Door decision is present, full Track B exit criteria (Rules G1–G12) are strictly enforced.
+>
+> **Architectural Disclaimer:** The gate is necessary, not sufficient: it checks structure and the agent's own labels, not the truth of the sources. The sign-off is a typed attestation by the named reviewer; it raises the bar but is not a security boundary.
 
 ### Remediation for Track B Failures:
-1. **Evidentiary Threshold (Rule G7):** Ensure One-Way Door decisions cite at least one Grade A source with a canonical URL (`https://...`) or formal standard (`RFC ...`), or reproducible Grade B benchmark.
-2. **Verification Method (Rule G8):** Ensure factual claims are marked as `fetched` or `cached`. Model parametric memory (`recalled`) is capped at Grade D and cannot anchor irreversible decisions.
-3. **Rejected Alternatives (Rule G9):** Ensure the ADR includes a `## Rejected Alternatives & Tradeoffs` section explaining why candidates were dismissed, with at least 200 characters of substantive rationale.
-4. **Reversal Triggers:** Ensure frontmatter defines a measurable `review_trigger` (e.g. `"Throughput exceeds 50k req/sec or p99 latency > 200ms"`) and scheduled `review_date`.
-5. **Adversarial Red-Team Challenge (Rule G10):** Run `vivechak_review(target="...", mode="challenge")` on the informing session to stress-test your conclusions. Document the disconfirming search results, edge case probes, and mitigations in a dedicated `## Challenge Findings & Red-Team Stress Test` section in the ADR.
+1. **Evidentiary Threshold (Rule G6):** Ensure One-Way Door decisions cite at least two Grade A/B sources with canonical URLs (`https://...`) or formal standards (`RFC ...`), or reproducible Grade B benchmarks.
+2. **Verification Provenance (Rule G7):** Ensure evidence claims carry verified provenance (`fetched`, `verified`, or `human`). Model parametric memory (`recalled`) is capped at Grade D and cannot anchor irreversible decisions.
+3. **No Placeholders & Substantive Alternatives (Rule G8):** Ensure the ADR includes a `## Rejected Alternatives` section explaining why candidates were dismissed with substantive rationale, and contains no unexpanded bracketed placeholders or default template text.
+4. **Reversal Triggers (Rule G9):** Ensure frontmatter defines a measurable `review_trigger` (e.g. `"Throughput exceeds 50k req/sec or p99 latency > 200ms"`) and specific thresholds.
+5. **Adversarial Red-Team Challenge (Rule G10):** Run `vivechak_review(target="...", mode="challenge")` on the informing session to stress-test your conclusions. Ensure a matching challenge record (`D-NNN-R1.md`) exists with valid decision outcome hash, and cite it in the ADR's `## Red-Team Stress Test` or `### Challenge Findings` section with >= 50 characters of substantive findings.
 6. **Human-in-the-Loop Sign-off (Rule G11):** One-Way Doors require verified human sign-off (`human_reviewed: true`). Run `vck signoff <decision-id>` in an interactive terminal to record human approval. Autonomous agents cannot self-sign One-Way Doors.
 
 ### Direct Terminal Evaluation via `vck gate`:

@@ -28,7 +28,7 @@ Vivechak was created by applying its own methodology to itself — 11 meta-resea
 ## Development Setup
 
 ### Prerequisites
-- **Go 1.25+** (uses standard library `os.Root` APIs).
+- **Go 1.26+** (uses standard library `os.Root` APIs).
 - Git.
 
 ### Building

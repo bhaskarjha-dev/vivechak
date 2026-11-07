@@ -19,6 +19,8 @@ RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
 # Stage 2: Minimal runtime container
 FROM alpine:3.20
 
+LABEL io.modelcontextprotocol.server.name="vivechak"
+
 COPY --from=builder /build/vivechak /usr/local/bin/vivechak
 COPY --from=builder /build/vck /usr/local/bin/vck
 

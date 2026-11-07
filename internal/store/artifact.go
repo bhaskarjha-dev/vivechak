@@ -112,6 +112,11 @@ func (w *Workspace) WriteArtifact(relPath string, data []byte, perm os.FileMode,
 		existing, err := w.ReadFile(relPath)
 		if err == nil && len(existing) > 0 {
 			if bytes.Equal(existing, normalized) {
+				if revise {
+					if err := ArchiveRevision(w, relPath, existing); err != nil {
+						return fmt.Errorf("archiving prior version: %w", err)
+					}
+				}
 				return nil
 			}
 			oldID := ExtractFrontmatterID(existing)

@@ -7,7 +7,8 @@ import (
 	"strings"
 )
 
-const desktopShortcutsList = "cursor, vscode, claude-desktop (or claude), claude-code, mcp (or portable), opencode, copilot, void, continue, goose, windsurf, antigravity (or agy), zed, kiro, trae, omp, openhands, droid, cline, roo, devin"
+const verifiedPresetsList = "claude-code, claude-desktop (or claude), cursor, vscode, windsurf, zed, cline, roo, goose, agy (or antigravity), opencode"
+const desktopShortcutsList = "claude-code, claude-desktop (or claude), cursor, vscode, windsurf, zed, cline, roo, goose, agy (or antigravity), opencode"
 
 // HostPreset represents a supported desktop or harness MCP configuration preset.
 type HostPreset struct {

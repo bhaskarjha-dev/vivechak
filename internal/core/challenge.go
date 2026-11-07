@@ -97,6 +97,20 @@ func GenerateChallenges(sessionContent []byte, sessionID string, mode ChallengeM
 	return res, nil
 }
 
+var (
+	stripGradeTagRe     = regexp.MustCompile(`(?i)\[\s*(?:Grade\s+[A-E]|[A-E])\b[^\]]*\](?:\([^\)]*\))?`)
+	stripURLRe          = regexp.MustCompile(`https?://[^\s\)\]]+`)
+	stripMarkdownLinkRe = regexp.MustCompile(`\[([^\]]+)\]\([^\)]+\)`)
+)
+
+func stripGradesAndURLs(s string) string {
+	s = stripGradeTagRe.ReplaceAllString(s, "")
+	s = stripMarkdownLinkRe.ReplaceAllString(s, "$1")
+	s = stripURLRe.ReplaceAllString(s, "")
+	s = regexp.MustCompile(`\s{2,}`).ReplaceAllString(s, " ")
+	return strings.TrimSpace(s)
+}
+
 func extractRecommendationSnippet(body string) string {
 	lines := strings.Split(body, "\n")
 	inRec := false
@@ -114,14 +128,15 @@ func extractRecommendationSnippet(body string) string {
 			}
 		}
 		if inRec && trimmed != "" && !strings.HasPrefix(trimmed, "|") && !strings.HasPrefix(trimmed, "```") {
+			cleaned := stripGradesAndURLs(trimmed)
 			// Extract first sentence or up to 120 chars
-			if idx := strings.Index(trimmed, "."); idx > 0 && idx < 150 {
-				return strings.TrimSpace(trimmed[:idx])
+			if idx := strings.Index(cleaned, "."); idx > 0 && idx < 150 {
+				return strings.TrimSpace(cleaned[:idx])
 			}
-			if len([]rune(trimmed)) > 120 {
-				return TruncateRunes(strings.TrimSpace(trimmed), 120)
+			if len([]rune(cleaned)) > 120 {
+				return TruncateRunes(strings.TrimSpace(cleaned), 120)
 			}
-			return trimmed
+			return cleaned
 		}
 	}
 	return ""
@@ -375,6 +390,7 @@ func generateCrossSessionPrompts(currentSessionID, currentRec string, allSession
 
 func cleanSnippetForPrompt(s string) string {
 	s = strings.ReplaceAll(s, "\n", " ")
+	s = stripGradesAndURLs(s)
 	s = strings.TrimSpace(s)
 	return TruncateRunes(s, 80)
 }

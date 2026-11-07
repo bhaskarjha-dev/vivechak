@@ -1,6 +1,6 @@
 # vck — Shorthand CLI for Vivechak (विवेचक)
 
-<!-- mcp-name: io.github.bhaskarjha-dev/vck -->
+<!-- mcp-name: io.github.bhaskarjha-dev/vivechak -->
 
 > **Evidence-grounded research for technical decisions — Autonomous Model Context Protocol (MCP) server.**
 

@@ -121,7 +121,7 @@ The agent formalizes the ADR with **explicit reversal triggers** and **rejected 
     "door_type": "one-way",
     "status": "accepted"
   },
-  "next_step": "Decision D-001 is locked! The canonical ADR is saved in research/D-001-decision.md and registry research/DECISIONS.md is up to date. You can now proceed to implement the Vector buffer and ClickHouse schema."
+  "next_step": "Decision D-001 is recorded as a One-Way Door. Human architectural sign-off is required before implementation: run 'vck signoff D-001 --reviewer \"<name>\"' or execute 'vivechak_gate' to audit pre-coding criteria."
 }
 ```
 

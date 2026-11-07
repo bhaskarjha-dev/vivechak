@@ -325,8 +325,8 @@ func TestRunCLI_Gate(t *testing.T) {
 	if code != 0 {
 		t.Errorf("expected exit code 0 on comparison workspace, got %d", code)
 	}
-	if !strings.Contains(stdout.String(), `"status": "PASS"`) {
-		t.Errorf("expected status PASS in stdout, got: %s", stdout.String())
+	if !strings.Contains(stdout.String(), `"status": "NOT_APPLICABLE"`) {
+		t.Errorf("expected status NOT_APPLICABLE in stdout, got: %s", stdout.String())
 	}
 }
 

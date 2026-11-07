@@ -103,27 +103,28 @@ func runGateWithArgs(args []string, stdout, stderr io.Writer) int {
 		}
 	}
 
-	passed := true
-	switch track {
-	case "track_a":
-		for _, r := range gateResult.Rules {
-			if r.ID == "G12" && r.Status == "FAIL" {
-				passed = false
-			}
-		}
-	case "track_b":
-		for _, r := range gateResult.Rules {
-			if r.ID != "G12" && r.Status == "FAIL" {
-				passed = false
-			}
-		}
-	default:
-		passed = (gateResult.Verdict == "PASS" || gateResult.Verdict == "not_applicable")
-	}
-
+	passed := (gateResult.Verdict == "PASS" || gateResult.Verdict == "not_applicable")
 	gateStatus := "PASS"
 	if !passed {
 		gateStatus = "FAIL"
+	} else if gateResult.Verdict == "not_applicable" {
+		gateStatus = "NOT_APPLICABLE"
+	}
+
+	var filteredRules []core.GateRuleResult
+	for _, r := range gateResult.Rules {
+		switch track {
+		case "track_a":
+			if r.ID == "G12" {
+				filteredRules = append(filteredRules, r)
+			}
+		case "track_b":
+			if r.ID != "G12" {
+				filteredRules = append(filteredRules, r)
+			}
+		default:
+			filteredRules = append(filteredRules, r)
+		}
 	}
 
 	if jsonFlag || format == "json" {
@@ -135,7 +136,7 @@ func runGateWithArgs(args []string, stdout, stderr io.Writer) int {
 			"passed":     passed,
 			"verdict":    gateResult.Verdict,
 			"target":     gateResult.Target,
-			"rules":      gateResult.Rules,
+			"rules":      filteredRules,
 			"advisories": gateResult.Advisories,
 			"warnings":   gateResult.Warnings,
 			"next_step":  gateResult.NextStep,
@@ -144,7 +145,7 @@ func runGateWithArgs(args []string, stdout, stderr io.Writer) int {
 		enc.SetIndent("", "  ")
 		_ = enc.Encode(outMap)
 	} else {
-		fmt.Fprintf(stdout, "Phase 0 Gate: %s\n", strings.ToUpper(gateResult.Verdict))
+		fmt.Fprintf(stdout, "Phase 0 Gate: %s\n", gateStatus)
 		trackAStatus := "PASS"
 		trackBStatus := "PASS"
 		for _, r := range gateResult.Rules {
@@ -164,7 +165,7 @@ func runGateWithArgs(args []string, stdout, stderr io.Writer) int {
 		if track == "track_b" || track == "all" {
 			fmt.Fprintf(stdout, "  • Track B (One-Way Doors): %s\n", trackBStatus)
 		}
-		for _, r := range gateResult.Rules {
+		for _, r := range filteredRules {
 			fmt.Fprintf(stdout, "  • %s: %s - %s\n", r.ID, r.Status, r.Reason)
 		}
 

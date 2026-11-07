@@ -85,7 +85,7 @@ Open risks and reversal triggers; if a decisive unknown depends on the requester
 Discovered Concerns, including any stronger unlisted option (omit if none).
 <!-- CORE:BEGIN — shared methodology kernel (must stay identical across GENERATOR-PROJECT.md, GENERATOR-DECISION.md, GENERATOR-COMPARISON.md) -->
 For evidence grading, every factual claim should carry:
-- Base grade: A (official docs/RFCs/peer-reviewed studies) | B (empirical/benchmarks) | C (vendor claims) | D (blog/tutorial/AI recall) | E (unverifiable)
+- Base grade: A (official specifications, canonical source code, RFCs, primary documentation with explicit URL anchor) | B (peer-reviewed papers, reproducible third-party benchmarks, published postmortems, corroborated engineering reports) | C (vendor claims) | D (blog/tutorial/AI recall) | E (unverifiable)
 - Modifiers: corroboration (single/corroborated/contested), recency (fresh/aging/stale), directness (direct/indirect)
 - Verification: fetched | cached | recalled | secondhand | human-provided (recalled claims capped at Grade D regardless of apparent source)
 <!-- CORE:END -->

@@ -51,7 +51,7 @@ Use when designing a brand-new system or greenfield platform architecture from s
 3. **Session Loop:** Loop through DAG sessions:
    - `vivechak_next` → research → `vivechak_save(kind="session", id="<session_id>", content=...)` → `vivechak_record_decision(decision_id="D-NNN", auto_draft_from="<session_id>", auto_save=true)`.
 4. **Synthesize FAD:** Compile grand synthesis session `SYN-01` into `research/FAD.md` via `vivechak_save(kind="fad", id="SYN-01", content=...)`.
-5. **Phase 0 Exit Gate & Human Sign-Off:** Run `vivechak_gate(track="all")` or CLI `vck gate` to verify Track A (reversibility) and Track B (rigor G1–G12). One-way decisions need the user's sign-off (`vck signoff <D-id>`); never set `human_reviewed` yourself. Once the gate passes and sign-offs are granted, begin implementation.
+5. **Phase 0 Exit Gate & Human Sign-Off:** Run `vivechak_gate(track="all")` or CLI `vck gate` to verify Track A (reversibility) and Track B (rigor G1–G12). One-way decisions need the user's sign-off (`vck signoff <D-id>`); never set `human_reviewed` yourself. Once the gate passes and sign-offs are granted, begin implementation. *(The gate is necessary, not sufficient: it checks structure and the agent's own labels, not the truth of the sources. The sign-off is a typed attestation by the named reviewer; it raises the bar but is not a security boundary.)*
 
 ---
 

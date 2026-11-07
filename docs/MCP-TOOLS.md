@@ -79,7 +79,7 @@ Every tool that interacts with the filesystem resolves the workspace root direct
 
 1. **Explicit argument**: `project_root` parameter passed directly to the tool call.
 2. **MCP client roots**: Workspace roots provided by the MCP client via `roots/list`.
-3. **Environment variables**: Namespaced variables (`VIVECHAK_PROJECT_ROOT` -> `VCK_PROJECT_ROOT` -> `VIVECHAK_DEFAULT_ROOT` -> `VCK_DEFAULT_ROOT`), safely ignoring unexpanded `${workspaceFolder}` macros and generic unnamespaced variables like `WORKSPACE` or `PROJECT_ROOT` to protect container isolation per Principle P1.1.
+3. **Environment variables**: Namespaced variables (`VIVECHAK_PROJECT_ROOT` -> `VCK_PROJECT_ROOT`), safely ignoring unexpanded `${workspaceFolder}` macros and generic unnamespaced variables like `WORKSPACE` or `PROJECT_ROOT` to protect container isolation per Principle P1.1.
 4. **In-process session memory**: Retains the last successfully resolved workspace within the current server process, anchoring subsequent tool calls to the active project session.
 5. **Marker walk-up from CWD**: Traversing upward from the current working directory (`CWD`) searching for `research/.vivechak.json` or an existing `research/` directory (skipping host IDE application folders).
 6. **Guarded CWD**: Root project manifest anchor detection in the CWD (e.g. `package.json`, `go.mod`, `Cargo.toml`, `.git`).
@@ -93,7 +93,9 @@ Vivechak operates across three distinct research scope levels defined in [`Scope
 
 ### 1. Project Scope (Full Research Pipeline &rarr; FAD)
 *Duration:* 4–30 sessions.  
-*Outcome:* Full `RESEARCH-PIPELINE.md`, individual session outputs, architectural decisions, and a final Founding Architecture Document (`FAD.md`).```mermaid
+*Outcome:* Full `RESEARCH-PIPELINE.md`, individual session outputs, architectural decisions, and a final Founding Architecture Document (`FAD.md`).
+
+```mermaid
 flowchart TD
     S["vivechak_status"] --> ST["vivechak_start (scope: 'project')"]
     ST --> R1["Host Agent Runs Generator with Web Search"]
@@ -831,18 +833,18 @@ Mechanically evaluate Phase 0 pre-coding exit criteria across Track A (Two-Way D
 Performs automated verification of exit criteria before coding starts:
 - **Track A (Two-Way Doors):** Fast-track reversibility confirmation. Two-Way Door decisions pass on Track A reversibility confirmation alone, authorizing immediate implementation without blocking on unrelated One-Way Door reviews.
 - **Track B (One-Way Doors):** Deep evidentiary and structural verification across rules G1–G12:
-  - G1: Pipeline file (`RESEARCH-PIPELINE.md`) exists.
-  - G2: Synthesis document (`FAD.md`) exists.
-  - G3: Operational templates present.
-  - G4: Pipeline significance (minimum 3 completed sessions for project scope).
-  - G5: Canonical ADR registry (`DECISIONS.md`) non-empty.
-  - G6: Reversal triggers specified for all One-Way Doors.
-  - G7: All decisions in final state (`accepted` or `rejected`).
-  - G8: Evidentiary backing (Grade A/B evidence required for One-Way Doors).
-  - G9: Verification method qualified (fetched or cached sources, model recall capped at Grade D).
-  - G10: Rejected alternatives documented (minimum 30 characters).
-  - G11: Adversarial red-team challenge conducted before commitment.
-  - G12: Premortem and failure post-mortem documented.
+  - G1: DAG Topology (Pipeline DAG is valid with no cycles or orphaned dependencies).
+  - G2: Session Completion (All planned sessions completed with validated empirical findings).
+  - G3: FAD Completeness (Founding Architecture Document complete and covers all accepted ADRs).
+  - G4: Decision Registration (All referenced decisions have corresponding ADRs).
+  - G5: Target Resolution (No ADRs remain in proposed status; all locked in accepted or superseded).
+  - G6: Evidentiary Threshold (One-Way Door decisions have ≥2 Grade A/B evidence citations with URLs).
+  - G7: Verification Provenance (Evidence citations carry verified provenance, ≥2 fetched/human labels as reported).
+  - G8: No Placeholders & Alternatives (One-Way Door ADRs contain no unexpanded placeholders and substantive rejected alternatives).
+  - G9: Reversal Trigger (One-Way Door ADRs have specific, measurable reversal triggers).
+  - G10: Adversarial Red-Team Challenge (One-Way Door decisions have current, cited adversarial challenge records `D-NNN-R1.md`).
+  - G11: Human Architect Sign-off (One-Way Door decisions have valid human sign-off `human_reviewed: true` via `vck signoff`).
+  - G12: Two-Way Door Fast-Track Exit (Two-Way Door decisions meet fast-track exit criteria).
 - **Auto-Persistence:** Automatically generates or updates `research/PHASE-0-GATE.md`, preserving interactive human sign-offs recorded via CLI (`vck signoff`).
 
 #### Input Parameters

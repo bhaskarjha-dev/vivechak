@@ -16,7 +16,7 @@ Vivechak delivers a unified, evidence-grounded research methodology powered by a
 | **9 Consolidated MCP Tools** | Built (unreleased) | Full lifecycle support: `vivechak_start`, `vivechak_save`, `vivechak_record_decision`, `vivechak_next`, `vivechak_status`, `vivechak_review`, `vivechak_amend`, `vivechak_replan`, and `vivechak_gate` |
 | **Multi-Scope Generators** | Built (unreleased) | `GENERATOR-PROJECT.md` (Project), `GENERATOR-DECISION.md` (Decision), `GENERATOR-COMPARISON.md` (Comparison) with synchronized `CORE:BEGIN/END` methodology kernels, Research Depth Mandates, and token-optimized execution guidance |
 | **Unified AST-Aware Markdown Parser** | Built (unreleased) | CommonMark heading-level and code-fence-aware extraction for recommendations, alternatives, and frontmatters; eliminates sibling truncation, code comment false positives, and parser fragility |
-| **Strict Decoupled Phase 0 Exit Gate** | Built (unreleased) | Non-negotiable blocking on One-Way Door evidentiary defects (B3), verification gaps (B4), and missing alternatives (B5), preventing Potemkin passes while preserving fast spikes for Two-Way Doors |
+| **Strict Decoupled Phase 0 Exit Gate** | Built (unreleased) | Non-negotiable blocking on One-Way Door evidentiary defects (G6), verification gaps (G7), and missing alternatives (G8), preventing Potemkin passes while preserving fast spikes for Two-Way Doors |
 | **Permissive Frontmatter & ADR Supersession** | Built (unreleased) | Zero-crash frontmatter extraction for documents starting with `# Heading` or blank lines; robust non-destructive ADR supersession |
 | **Eager Concurrency Locks** | Built (unreleased) | Mutual exclusion across mid-flight replans (anti-TOCTOU) and workspace root FAD mirror synthesis |
 | **Namespaces & Protocols** | Built (unreleased) | `C-NNN` comparison namespace, `T-NNN` project tasks, `D-NNN` ADRs; ADR supersession protocol with transitive stale-reference detection |
@@ -211,7 +211,7 @@ In future releases, an optional **BYOK (Bring-Your-Own-Key) LLM Bridge** may be 
 │  - Workspace resolution & OS confinement (os.Root)     │
 │  - DAG dependency resolution & topological sorting     │
 │  - Frontmatter parsing & template validation           │
-│  - Evidentiary grounding & B1–B11 Phase 0 exit gate    │
+│  - Evidentiary grounding & G1–G12 Phase 0 exit gate    │
 └──────────────────────────┬─────────────────────────────┘
                            │ (Optional BYOK Hook)
 ┌──────────────────────────▼─────────────────────────────┐

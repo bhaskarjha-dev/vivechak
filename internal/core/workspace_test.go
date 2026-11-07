@@ -8,7 +8,7 @@ import (
 )
 
 func TestInspectWorkspace_ScopePrecedence(t *testing.T) {
-	t.Run("valid metadata scope takes precedence over pipeline presence", func(t *testing.T) {
+	t.Run("pipeline presence on disk takes precedence over stored metadata scope [CRIT-12]", func(t *testing.T) {
 		tmpDir := t.TempDir()
 		researchDir := filepath.Join(tmpDir, ResearchDir)
 		if err := os.MkdirAll(researchDir, 0o755); err != nil {
@@ -21,14 +21,14 @@ func TestInspectWorkspace_ScopePrecedence(t *testing.T) {
 			t.Fatalf("write metadata: %v", err)
 		}
 
-		// Also create RESEARCH-PIPELINE.md (which previously would override metadata)
+		// Also create RESEARCH-PIPELINE.md (facts on disk strictly take precedence per CRIT-12)
 		if err := os.WriteFile(filepath.Join(tmpDir, PipelineFile), []byte("# Pipeline"), 0o644); err != nil {
 			t.Fatalf("write pipeline: %v", err)
 		}
 
 		info := InspectWorkspace(tmpDir)
-		if info.Scope != ScopeDecision {
-			t.Errorf("expected ScopeDecision from metadata, got %q", info.Scope)
+		if info.Scope != ScopeProject {
+			t.Errorf("expected ScopeProject from pipeline presence overriding metadata, got %q", info.Scope)
 		}
 		if !info.HasPipeline {
 			t.Error("expected HasPipeline=true")

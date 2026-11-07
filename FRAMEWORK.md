@@ -75,7 +75,7 @@ PROJECT VISION
 ┌─────────────────────────────────────────────────────┐
 │  TWO-TRACK PHASE 0 GATE                             │
 │  Track A: Fast-track for Two-Way Doors              │
-│  Track B: 11-step gate + premortem for One-Way Doors │
+│  Track B: Rules G1–G11 gate + premortem for One-Way Doors │
 └───────────────────────┬─────────────────────────────┘
                         │
                         ▼
@@ -646,21 +646,21 @@ For any session that evaluates 2+ competing options:
 | Track | Applies To | Requirements | Speed |
 |---|---|---|---|
 | **Track A: Fast-Track** | Two-Way Door decisions | Decision logged, reversibility confirmed, single corroborated source | Minutes |
-| **Track B: Rigorous Gate** | One-Way Door decisions | Full 11-step checklist below + Gary Klein Premortem | Hours–Days |
+| **Track B: Rigorous Gate** | One-Way Door decisions | Pre-codebase exit gate (Rules G1–G11) + Gary Klein Premortem | Hours–Days |
 
-### 7.2 Track B: 11-Step Pre-Codebase Exit Checklist
+### 7.2 Track B: Pre-Codebase Exit Checklist (Rules G1–G11)
 
-1. **DAG Closure** — All required dependency paths terminated in `status: final`
+1. **DAG Closure (G1/G2)** — All planned dependency sessions terminated in `status: complete`
 2. **Contradiction Resolution** — All divergences explicitly resolved
-3. **Evidentiary Threshold** — Zero uncorroborated Grade C/D/E claims underpin irreversible pillars
-4. **Verification Integrity** — 100% of critical citations carry `fetched` or `cached` with qualified provenance
-5. **Rejected Alternatives Documented** — Every ADR includes evaluated and rejected options
-6. **Decay Triggers Assigned** — Every ADR contains explicit `review_trigger`
-7. **Premortem Protocol** — Gary Klein prospective hindsight: *"Assume catastrophic failure in 12 months. What caused it?"*
-8. **Human Review** — Named Principal Architect signature on all One-Way Door ADRs (`human_reviewed: true`)
-9. **FAD Sealed** — Founding Architecture Document compiled, committed, ready for scaffolding
-10. **Substantive ADR Content** — Decision record contains substantive causal rationale, evaluated options, and failure modes (no placeholder stubs)
-11. **Adversarial Red-Team Challenge** — One-Way Door sessions subjected to adversarial stress testing (`vivechak_review` challenge mode or disconfirming evidence search) before commitment
+3. **Evidentiary Threshold (G6)** — Zero uncorroborated Grade C/D/E claims underpin irreversible pillars (≥2 Grade A/B citations with URLs)
+4. **Verification Integrity (G7)** — 100% of critical citations carry `fetched` or `cached` with qualified provenance (never unverified recall)
+5. **No Placeholders & Alternatives Documented (G8)** — Every ADR includes evaluated and rejected options with substantive tradeoffs and zero placeholder stubs
+6. **Decay Triggers Assigned (G9)** — Every ADR contains explicit, measurable `review_trigger`
+7. **Adversarial Red-Team Challenge (G10)** — One-Way Door decisions subjected to adversarial stress testing with cited challenge record (`D-NNN-R1.md`) before commitment
+8. **Human Review (G11)** — Named Principal Architect signature on all One-Way Door ADRs (`human_reviewed: true` via `vck signoff`)
+9. **FAD Sealed (G3)** — Founding Architecture Document compiled, committed, ready for scaffolding
+10. **Decision Traceability & Locked Status (G4/G5)** — All referenced decisions have corresponding ADRs locked in accepted or superseded status
+11. **Premortem Protocol** — Gary Klein prospective hindsight: *"Assume catastrophic failure in 12 months. What caused it?"*
 
 ---
 

@@ -18,10 +18,10 @@ build:
 	go build -trimpath -ldflags "$(LDFLAGS)" -o vivechak$(EXE) ./cmd/vivechak/
 
 doctor:
-	go run ./cmd/vivechak doctor
+	go run ./cmd/vivechak doctor examples/dogfood
 
 gate:
-	go run ./cmd/vivechak gate --track all
+	go run ./cmd/vivechak gate --track all examples/dogfood
 
 test:
 	go test -count=1 ./...

@@ -94,13 +94,37 @@ func DraftDecisionFromSessionWithExisting(existingADR []byte, sessionContent []b
 	if existFM != nil && !isPlaceholder(existFM.GetString("title")) {
 		title = existFM.GetString("title")
 	} else if title == "" || isPlaceholder(title) {
-		if existBodyStr != "" {
-			if m := regexp.MustCompile(`(?m)^#\s+(?:[A-Za-z0-9_-]+:\s*)?(.*)$`).FindStringSubmatch(existBodyStr); len(m) > 1 {
-				hTitle := strings.TrimSpace(m[1])
-				if !isPlaceholder(hTitle) && hTitle != "" {
-					title = hTitle
+		extractHeadingTitle := func(text string) string {
+			if text == "" {
+				return ""
+			}
+			// First try explicit plan or ID prefixes like # D-001-PLAN: <title> or # D-001: <title>
+			rePlan := regexp.MustCompile(`(?m)^#\s+(?:[A-Za-z0-9_-]+-PLAN|[A-Za-z0-9_-]+):\s*(.*)$`)
+			for _, m := range rePlan.FindAllStringSubmatch(text, -1) {
+				if len(m) > 1 {
+					h := strings.TrimSpace(m[1])
+					if h != "" && !isPlaceholder(h) {
+						return h
+					}
 				}
 			}
+			// Next try generic top-level heading # <title>
+			reAny := regexp.MustCompile(`(?m)^#\s+(.*)$`)
+			for _, m := range reAny.FindAllStringSubmatch(text, -1) {
+				if len(m) > 1 {
+					h := strings.TrimSpace(m[1])
+					if h != "" && !isPlaceholder(h) {
+						return h
+					}
+				}
+			}
+			return ""
+		}
+		if existBodyStr != "" {
+			title = extractHeadingTitle(existBodyStr)
+		}
+		if (title == "" || isPlaceholder(title)) && bodyStr != "" {
+			title = extractHeadingTitle(bodyStr)
 		}
 		if title == "" || isPlaceholder(title) {
 			title = "[Decision Title]"
@@ -108,7 +132,7 @@ func DraftDecisionFromSessionWithExisting(existingADR []byte, sessionContent []b
 	}
 
 	status := "proposed"
-	if existFM != nil && !isPlaceholder(existFM.GetString("status")) {
+	if existFM != nil && existFM.GetString("type") != "plan" && !isPlaceholder(existFM.GetString("status")) {
 		status = existFM.GetString("status")
 	}
 
@@ -134,7 +158,7 @@ func DraftDecisionFromSessionWithExisting(existingADR []byte, sessionContent []b
 		confidence = existFM.GetString("confidence")
 	}
 
-	reviewTrigger := "Production deployment milestone or scheduled quarterly review"
+	reviewTrigger := "[Condition or date for mandatory re-evaluation]"
 	if existFM != nil && !isPlaceholder(existFM.GetString("review_trigger")) {
 		reviewTrigger = existFM.GetString("review_trigger")
 	}
@@ -210,7 +234,7 @@ func DraftDecisionFromSessionWithExisting(existingADR []byte, sessionContent []b
 		escapedTrigger := strings.ReplaceAll(strings.ReplaceAll(reviewTrigger, `\`, `\\`), `"`, `\"`)
 		fmt.Fprintf(&b, "review_trigger: \"%s\"\n", escapedTrigger)
 	} else {
-		b.WriteString("review_trigger: \"Production deployment milestone or scheduled quarterly review\"\n")
+		b.WriteString("review_trigger: \"[Condition or date for mandatory re-evaluation]\"\n")
 	}
 	b.WriteString("review_date: null\n")
 	b.WriteString("prediction: null\n")

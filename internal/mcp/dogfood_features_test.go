@@ -660,10 +660,11 @@ func TestRunGate_OneWayHumanReviewedAdvisory(t *testing.T) {
 	})
 
 	// Save required decision session
-	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
+	saveRes, saveErr := cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
+			"kind":         "session",
 			"session_id":   "S1-01",
 			"content": `---
 session_id: S1-01
@@ -676,6 +677,9 @@ Raft protocol chosen. Grade A (formal proof)
 `,
 		},
 	})
+	if saveErr != nil || saveRes.IsError {
+		t.Fatalf("vivechak_save session failed: err=%v, res=%+v", saveErr, saveRes)
+	}
 
 	// 1. One-way door with human_reviewed: false
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
@@ -896,13 +900,14 @@ func TestGate_WhitelistScanning(t *testing.T) {
 	})
 
 	// Save decision plan
-	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
+	planRes, planErr := cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
+			"kind":         "plan",
 			"scope":        "decision",
 			"decision_id":  "D-001",
-			"pipeline_content": `# Decision Plan: D-001
+			"content": `# Decision Plan: D-001
 | Field | Value |
 |---|---|
 | **Decision** | D-001 |
@@ -911,12 +916,22 @@ func TestGate_WhitelistScanning(t *testing.T) {
 ` + "```prompt\n# Brief\n```\n",
 		},
 	})
+	if planErr != nil || planRes.IsError {
+		text := ""
+		if len(planRes.Content) > 0 {
+			if tc, ok := planRes.Content[0].(*mcp.TextContent); ok {
+				text = tc.Text
+			}
+		}
+		t.Fatalf("vivechak_save plan failed: err=%v, text=%s", planErr, text)
+	}
 
 	// Save session S1-storage
-	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
+	sessRes, sessErr := cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
+			"kind":         "session",
 			"session_id":   "S1-storage",
 			"content": `---
 session_id: S1-storage
@@ -929,6 +944,9 @@ Recommendation: SQLite with WAL. Grade A (official documentation)
 `,
 		},
 	})
+	if sessErr != nil || sessRes.IsError {
+		t.Fatalf("vivechak_save session failed: err=%v, res=%+v", sessErr, sessRes)
+	}
 
 	// Record valid accepted ADR
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
@@ -993,13 +1011,14 @@ func TestGate_DiagnosticErrors(t *testing.T) {
 	})
 
 	// Save decision plan
-	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
+	dPlanRes, dPlanErr := cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
+			"kind":         "plan",
 			"scope":        "decision",
 			"decision_id":  "D-001",
-			"pipeline_content": `# Decision Plan: D-001
+			"content": `# Decision Plan: D-001
 | Field | Value |
 |---|---|
 | **Decision** | D-001 |
@@ -1008,6 +1027,9 @@ func TestGate_DiagnosticErrors(t *testing.T) {
 ` + "```prompt\n# Brief\n```\n",
 		},
 	})
+	if dPlanErr != nil || dPlanRes.IsError {
+		t.Fatalf("vivechak_save plan failed: err=%v, res=%+v", dPlanErr, dPlanRes)
+	}
 
 	// Record ADR with status 'proposed' (not accepted)
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
@@ -1211,8 +1233,8 @@ informing_sessions: [S1-01]
 We need a secure authentication architecture for the platform.
 
 ## Decision Outcome
-We select OAuth2 with PKCE for native and SPA clients. Grade A (https://tools.ietf.org/html/rfc7636 | direct spec)
-PKCE prevents code injection attacks. Grade A (https://oauth.net/2/pkce/ | official doc)
+We select OAuth2 with PKCE for native and SPA clients. [Grade A: https://tools.ietf.org/html/rfc7636 | fetched]
+PKCE prevents code injection attacks. [Grade A: https://oauth.net/2/pkce/ | fetched]
 
 ## Rejected Alternatives
 We evaluated API keys and session cookies; rejected due to lack of PKCE security for mobile clients.

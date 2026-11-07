@@ -3,6 +3,7 @@ package mcputil
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log/slog"
 	"os"
@@ -2095,7 +2096,7 @@ Use SQLite in WAL mode. [Grade A: https://sqlite.org] [fetched]
 We evaluated DuckDB and PostgreSQL; rejected due to client-side embedded deployment requirements.
 
 ## Challenge Findings & Red-Team Stress Test
-Adversarial red-team probe confirms single-writer lock contention during bulk transaction processing.
+Evaluated D-001-R1 adversarial red-team probe confirms single-writer lock contention during bulk transaction processing.
 <!-- /DECISION: D-001 -->
 `
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
@@ -2108,6 +2109,17 @@ Adversarial red-team probe confirms single-writer lock contention during bulk tr
 			"revise":        true,
 		},
 	})
+
+	chHash := core.ComputeDecisionOutcomeHash([]byte(triggeredADR))
+	chContent := fmt.Sprintf(`---
+decision_id: D-001
+decision_hash: %s
+date: 2026-10-24
+---
+# Adversarial Challenge D-001-R1
+Substantive challenge findings for D-001.
+`, chHash)
+	_ = os.WriteFile(filepath.Join(tmpDir, "research", "D-001-R1.md"), []byte(chContent), 0o644)
 
 	// Perform human signoff on D-001
 	wsSign, err := store.OpenWorkspace(tmpDir)
@@ -2265,15 +2277,15 @@ review_trigger: 6 months or major breaking RFC change
 ## Context
 We need a robust, secure authentication mechanism for client-facing identity federation across multi-tenant cloud environments.
 
-## Recommendation
+## Decision Outcome
 [Grade A: https://auth0.com] Accepted OAuth2 with PKCE [fetched].
 [Grade B: https://oauth.net] Verified token exchange semantics [fetched].
 
-## Evaluated Alternatives
+## Rejected Alternatives
 We evaluated basic auth and API tokens; rejected due to security considerations.
 
 ## Challenge Findings & Red-Team Stress Test
-Adversarial red-team probe confirms token leakage vectors mitigated with PKCE code challenges.
+Evaluated D-001-R1 adversarial red-team probe confirms token leakage vectors mitigated with PKCE code challenges.
 `
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_record_decision",
@@ -2285,6 +2297,17 @@ Adversarial red-team probe confirms token leakage vectors mitigated with PKCE co
 			"revise":        true,
 		},
 	})
+
+	chHash := core.ComputeDecisionOutcomeHash([]byte(validOneWay))
+	chContent := fmt.Sprintf(`---
+decision_id: D-001
+decision_hash: %s
+date: 2026-10-24
+---
+# Adversarial Challenge D-001-R1
+Substantive challenge findings for D-001.
+`, chHash)
+	_ = os.WriteFile(filepath.Join(tmpDir, "research", "D-001-R1.md"), []byte(chContent), 0o644)
 
 	// Perform human signoff on D-001
 	wsSign, err := store.OpenWorkspace(tmpDir)
@@ -2775,16 +2798,30 @@ func TestRunGate_EnvelopeKeyParity(t *testing.T) {
 
 	requiredKeys := []string{
 		"structural_checks",
-		"quality_checks",
-		"structural_completeness",
-		"mechanical_quality",
+		"rules",
 		"track_a",
-		"track_b",
+		"track_filter",
 		"scope_note",
+		"verdict",
+		"gate_passed",
 	}
 	for _, key := range requiredKeys {
 		if data[key] == nil {
 			t.Errorf("expected gate data key %q to be present", key)
+		}
+	}
+
+	// Verify no duplicate track keys (HIGH-17)
+	forbiddenKeys := []string{
+		"quality_checks",
+		"structural_completeness",
+		"mechanical_quality",
+		"track_b",
+		"track_b_checks",
+	}
+	for _, key := range forbiddenKeys {
+		if data[key] != nil {
+			t.Errorf("duplicate gate data key %q must not be present (HIGH-17)", key)
 		}
 	}
 }
@@ -3518,7 +3555,7 @@ We select SQLite. Grade A (https://sqlite.org)
 ## Rejected Alternatives & Tradeoffs
 - DuckDB: Rejected due to OLTP transaction locks.
 ## Challenge Findings & Red-Team Stress Test
-Adversarial red-team probe confirms concurrency limit at 1 writer per database file.
+Evaluated D-001-R1 adversarial probe confirms concurrency limit at 1 writer per database file.
 ## Failure Modes & Reversal Triggers
 Review if write transactions exceed 500 ops/sec.
 `
@@ -3533,6 +3570,17 @@ Review if write transactions exceed 500 ops/sec.
 	if err != nil {
 		t.Fatalf("record_decision: %v", err)
 	}
+
+	hash := core.ComputeDecisionOutcomeHash([]byte(adrWithChallenge))
+	chContent := fmt.Sprintf(`---
+decision_id: D-001
+decision_hash: %s
+date: 2026-10-24
+---
+# Adversarial Challenge D-001-R1
+Substantive challenge findings for D-001.
+`, hash)
+	_ = os.WriteFile(filepath.Join(tmpDir, "research", "D-001-R1.md"), []byte(chContent), 0o644)
 
 	// Run gate: W-OWD-NO-CHALLENGE should NOT be emitted
 	resGate, err := cs.CallTool(ctx, &mcp.CallToolParams{

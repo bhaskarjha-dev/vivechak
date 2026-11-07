@@ -142,25 +142,24 @@ func TestUnicodeTruncation_RuneBoundaries(t *testing.T) {
 	}
 }
 
-func TestGate_G1_Through_G12_Corpus(t *testing.T) {
-	// Helper to create passing base workspace
-	setupPassingBase := func(t *testing.T) (string, *testWorkspaceFS) {
-		dir := t.TempDir()
-		ws := &testWorkspaceFS{root: dir}
-		_ = os.MkdirAll(filepath.Join(dir, ResearchDir, "templates"), 0o755)
-		_ = os.MkdirAll(filepath.Join(dir, ResearchDir, "sessions"), 0o755)
-		_ = os.MkdirAll(filepath.Join(dir, ResearchDir, "decisions"), 0o755)
+// Helper to create passing base workspace
+func setupPassingBase(t *testing.T) (string, *testWorkspaceFS) {
+	dir := t.TempDir()
+	ws := &testWorkspaceFS{root: dir}
+	_ = os.MkdirAll(filepath.Join(dir, ResearchDir, "templates"), 0o755)
+	_ = os.MkdirAll(filepath.Join(dir, ResearchDir, "sessions"), 0o755)
+	_ = os.MkdirAll(filepath.Join(dir, ResearchDir, "decisions"), 0o755)
 
-		// 6 templates (G3)
-		for _, tmpl := range TemplatesToCopy {
-			_ = os.WriteFile(filepath.Join(dir, TemplatesDir, tmpl), []byte("# Template"), 0o644)
-		}
+	// 6 templates (G3)
+	for _, tmpl := range TemplatesToCopy {
+		_ = os.WriteFile(filepath.Join(dir, TemplatesDir, tmpl), []byte("# Template"), 0o644)
+	}
 
-		// Metadata
-		_ = os.WriteFile(filepath.Join(dir, MetadataFile), []byte(`{"scope":"project"}`), 0o644)
+	// Metadata
+	_ = os.WriteFile(filepath.Join(dir, MetadataFile), []byte(`{"scope":"project"}`), 0o644)
 
-		// Pipeline (G1)
-		pipeline := `# Pipeline
+	// Pipeline (G1)
+	pipeline := `# Pipeline
 ### T0-01: Foundation
 Dependencies: none
 ` + "```prompt\nResearch\n```\n" + `
@@ -173,29 +172,29 @@ Dependencies: [T0-01]
 ### SYN-01: Synthesis
 Dependencies: [T1-01, T2-01]
 ` + "```prompt\nSynthesize\n```\n"
-		_ = os.WriteFile(filepath.Join(dir, PipelineFile), []byte(pipeline), 0o644)
+	_ = os.WriteFile(filepath.Join(dir, PipelineFile), []byte(pipeline), 0o644)
 
-		// Sessions T0-01, T1-01, T2-01 (G2)
-		s1 := `---
+	// Sessions T0-01, T1-01, T2-01 (G2)
+	s1 := `---
 session_id: T0-01
 status: complete
 informs_decisions: ["D-001", "D-002"]
 ---
 # Foundation
 ## Key Findings
-- PostgreSQL is best suited for durable ACID multi-table transactions [Grade A: https://www.postgresql.org/docs/].
-- Redis handles high-throughput in-memory caching [Grade B: https://redis.io/benchmarks].
+- PostgreSQL is best suited for durable ACID multi-table transactions [Grade A: https://www.postgresql.org/docs/ | fetched].
+- Redis handles high-throughput in-memory caching [Grade B: https://redis.io/benchmarks | fetched].
 
 ## Recommendation
-We select PostgreSQL [Grade A: https://www.postgresql.org/docs/] and Redis [Grade B: https://redis.io/benchmarks].
+We select PostgreSQL [Grade A: https://www.postgresql.org/docs/ | fetched] and Redis [Grade B: https://redis.io/benchmarks | fetched].
 
 ## Sources & Evidence Ledger
-- PostgreSQL official documentation: https://www.postgresql.org/docs/ [Grade A]
-- Redis benchmark results: https://redis.io/benchmarks [Grade B]
+- PostgreSQL official documentation: https://www.postgresql.org/docs/ [Grade A | fetched]
+- Redis benchmark results: https://redis.io/benchmarks [Grade B | fetched]
 `
-		_ = os.WriteFile(filepath.Join(dir, SessionsDir, "T0-01.md"), []byte(s1), 0o644)
+	_ = os.WriteFile(filepath.Join(dir, SessionsDir, "T0-01.md"), []byte(s1), 0o644)
 
-		s2 := `---
+	s2 := `---
 session_id: T1-01
 status: complete
 ---
@@ -209,9 +208,9 @@ Go microservices architecture backed by official specs [Grade A: https://go.dev]
 ## Sources & Evidence Ledger
 - Go documentation: https://go.dev [Grade A]
 `
-		_ = os.WriteFile(filepath.Join(dir, SessionsDir, "T1-01.md"), []byte(s2), 0o644)
+	_ = os.WriteFile(filepath.Join(dir, SessionsDir, "T1-01.md"), []byte(s2), 0o644)
 
-		s3 := `---
+	s3 := `---
 session_id: T2-01
 status: complete
 ---
@@ -225,10 +224,10 @@ Replication with read replicas verified against vendor specs [Grade A: https://a
 ## Sources & Evidence Ledger
 - AWS RDS documentation: https://aws.amazon.com/rds/ [Grade A]
 `
-		_ = os.WriteFile(filepath.Join(dir, SessionsDir, "T2-01.md"), []byte(s3), 0o644)
+	_ = os.WriteFile(filepath.Join(dir, SessionsDir, "T2-01.md"), []byte(s3), 0o644)
 
-		// FAD.md (G2 synthesis)
-		fad := `---
+	// FAD.md (G2 synthesis)
+	fad := `---
 id: FAD-001
 session_id: FAD
 title: Founding Architecture Document
@@ -258,10 +257,10 @@ System context diagram and boundary specifications for microservices and datasto
 - T1-01 -> Architecture
 - T2-01 -> Data Tier
 `
-		_ = os.WriteFile(filepath.Join(dir, FADFile), []byte(fad), 0o644)
+	_ = os.WriteFile(filepath.Join(dir, FADFile), []byte(fad), 0o644)
 
-		// ADR D-001 (One-Way Door: G5, G6, G7, G8, G9, G10, G11)
-		d1 := `---
+	// ADR D-001 (One-Way Door: G5, G6, G7, G8, G9, G10, G11)
+	d1 := `---
 id: D-001
 title: Primary Datastore Selection
 door_type: one-way
@@ -274,7 +273,7 @@ informed_by_sessions: ["T0-01"]
 We need a durable, transactional datastore.
 
 ## Decision Outcome
-We adopt PostgreSQL backed by official documentation [Grade A: https://www.postgresql.org/docs/] and empirical benchmark analysis [Grade B: https://tech.benchmarks.org/pg].
+We adopt PostgreSQL and Redis as researched in T0-01.
 
 ## Rejected Alternatives
 - MySQL: Viable option but lacks advanced JSONB indexing required for metadata.
@@ -284,10 +283,10 @@ We adopt PostgreSQL backed by official documentation [Grade A: https://www.postg
 ### Challenge Findings
 Evaluated D-001-R1 failover latency and split-brain risks under network partitions with Gary Klein premortem substantive findings.
 `
-		_ = os.WriteFile(filepath.Join(dir, DecisionsDir, "D-001.md"), []byte(d1), 0o644)
+	_ = os.WriteFile(filepath.Join(dir, DecisionsDir, "D-001.md"), []byte(d1), 0o644)
 
-		outcomeHash := ComputeDecisionOutcomeHash([]byte(d1))
-		chRecord := fmt.Sprintf(`---
+	outcomeHash := ComputeDecisionOutcomeHash([]byte(d1))
+	chRecord := fmt.Sprintf(`---
 decision_id: D-001
 decision_hash: %s
 date: 2026-10-24
@@ -295,14 +294,14 @@ date: 2026-10-24
 # Adversarial Challenge D-001-R1
 Substantive challenge findings for D-001.
 `, outcomeHash)
-		_ = os.WriteFile(filepath.Join(dir, ResearchDir, "D-001-R1.md"), []byte(chRecord), 0o644)
-		if storeWS, sErr := store.OpenWorkspace(dir); sErr == nil {
-			_, _ = SignoffDecision(storeWS, "D-001", "Principal Architect")
-			_ = storeWS.Close()
-		}
+	_ = os.WriteFile(filepath.Join(dir, ResearchDir, "D-001-R1.md"), []byte(chRecord), 0o644)
+	if storeWS, sErr := store.OpenWorkspace(dir); sErr == nil {
+		_, _ = SignoffDecision(storeWS, "D-001", "Principal Architect")
+		_ = storeWS.Close()
+	}
 
-		// ADR D-002 (Two-Way Door: G12)
-		d2 := `---
+	// ADR D-002 (Two-Way Door: G12)
+	d2 := `---
 id: D-002
 title: Caching Tier
 door_type: two-way
@@ -314,14 +313,15 @@ In-memory caching.
 ## Decision Outcome
 We use Redis.
 `
-		_ = os.WriteFile(filepath.Join(dir, DecisionsDir, "D-002.md"), []byte(d2), 0o644)
+	_ = os.WriteFile(filepath.Join(dir, DecisionsDir, "D-002.md"), []byte(d2), 0o644)
 
-		// Consolidated DECISIONS.md (G4)
-		_ = os.WriteFile(filepath.Join(dir, DecisionsFile), []byte("# Decisions\n| D-001 | Datastore |\n| D-002 | Cache |\n"), 0o644)
+	// Consolidated DECISIONS.md (G4)
+	_ = os.WriteFile(filepath.Join(dir, DecisionsFile), []byte("# Decisions\n| D-001 | Datastore |\n| D-002 | Cache |\n"), 0o644)
 
-		return dir, ws
-	}
+	return dir, ws
+}
 
+func TestGate_G1_Through_G12_Corpus(t *testing.T) {
 	// 1. Positive case: full pass
 	t.Run("Golden_Pass_FullProject", func(t *testing.T) {
 		dir, ws := setupPassingBase(t)
@@ -454,7 +454,7 @@ status: complete
 informs_decisions: ["D-001"]
 ---
 ## Recommendation
-Postgres chosen based on [Grade A | recalled memory].
+Postgres chosen based on [Grade A: https://www.postgresql.org/docs/ | recalled memory] and [Grade B: https://tech.benchmarks.org/pg | recalled memory].
 `
 		_ = os.WriteFile(filepath.Join(dir, SessionsDir, "T0-01.md"), []byte(s1), 0o644)
 		info := InspectWorkspace(dir)

@@ -55,7 +55,7 @@ func handleGate(ctx context.Context, req *sdkmcp.CallToolRequest, in GateInput) 
 	if strings.TrimSpace(in.ProjectRoot) == "" {
 		roots = getClientRoots(ctx, req)
 	}
-	root, _, err := core.ResolveWorkspaceWithRoots(ctx, in.ProjectRoot, roots)
+	root, rule, err := core.ResolveWorkspaceWithRoots(ctx, in.ProjectRoot, roots)
 	if err != nil {
 		return ErrorResult(tool, err, "Initialize a workspace first with vivechak_start.")
 	}
@@ -111,25 +111,25 @@ func handleGate(ctx context.Context, req *sdkmcp.CallToolRequest, in GateInput) 
 	}
 
 	data := map[string]any{
-		"workspace_root":          root,
-		"scope":                   info.Scope,
-		"verdict":                 verdict,
-		"target":                  gateResult.Target,
-		"rules":                   gateResult.Rules,
-		"advisories":              gateResult.Advisories,
-		"decisions":               gateResult.Decisions,
-		"gate_passed":             pass,
-		"gate_status":             verdict,
-		"track_filter":            trackFilter,
-		"track_a_result":          trackAResult,
-		"track_b_result":          trackBResult,
-		"track_a":                 gateResult.TrackAChecks,
-		"track_b":                 gateResult.TrackBChecks,
-		"structural_checks":       gateResult.StructuralChecks,
-		"quality_checks":          gateResult.QualityChecks,
-		"structural_completeness": gateResult.StructuralChecks,
-		"mechanical_quality":      gateResult.TrackBChecks,
-		"scope_note":              "Evidence grades and verification labels are as reported by the agent; Vivechak did not fetch or verify sources.",
+		"workspace": map[string]any{
+			"root": root,
+			"rule": rule,
+		},
+		"workspace_root":    root,
+		"scope":             info.Scope,
+		"verdict":           verdict,
+		"target":            gateResult.Target,
+		"rules":             gateResult.Rules,
+		"advisories":        gateResult.Advisories,
+		"decisions":         gateResult.Decisions,
+		"gate_passed":       pass,
+		"gate_status":       verdict,
+		"track_filter":      trackFilter,
+		"track_a_result":    trackAResult,
+		"track_b_result":    trackBResult,
+		"track_a":           gateResult.TrackAChecks,
+		"structural_checks": gateResult.StructuralChecks,
+		"scope_note":        "Evidence grades and verification labels are as reported by the agent; Vivechak did not fetch or verify sources.",
 	}
 
 	warnings := gateResult.Warnings

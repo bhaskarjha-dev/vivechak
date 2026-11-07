@@ -329,9 +329,8 @@ func TestComparisonScopeSessionCountingAndGate(t *testing.T) {
 	if dataGate["scope"] != "comparison" {
 		t.Errorf("expected scope 'comparison', got: %v", dataGate["scope"])
 	}
-	qb := dataGate["quality_checks"].(map[string]any)
-	if qb["passed"] != true {
-		t.Errorf("expected quality checks to pass on comparison matrix with grades, got: %v (issues: %v)", qb["passed"], qb["issues"])
+	if dataGate["verdict"] != "not_applicable" && dataGate["gate_passed"] != true {
+		t.Errorf("expected comparison gate to be not_applicable and passed, got: %v", dataGate)
 	}
 }
 

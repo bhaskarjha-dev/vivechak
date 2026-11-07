@@ -108,6 +108,8 @@ Every factual claim in Vivechak requires an inline evidentiary grade:
 *(See [Methodology Specification](FRAMEWORK.md) and [Sample Decision Walkthrough](examples/SAMPLE-DECISION.md) for illustrative examples with graded evidence).*
 
 > **Epistemic Notice:** Vivechak structures research workflows, enforces evidence hierarchies, and tracks provenance. Vivechak **does not fetch or verify** external sources itself; claims and evidence grades are authored by the AI agent using active **web search** and verified by human architects at exit gates.
+>
+> *The gate is necessary, not sufficient: it checks structure and the agent's own labels, not the truth of the sources. The sign-off is a typed attestation by the named reviewer; it raises the bar but is not a security boundary.*
 
 ## Positioning: What Vivechak Is vs. What Vivechak Is Not
 

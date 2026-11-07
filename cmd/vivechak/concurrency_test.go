@@ -318,8 +318,8 @@ review_date: 2026-12-01
 Distributed core domain requirements with audit trail.
 
 ## Decision Outcome
-We adopt event sourcing. [Grade A: formal proof](https://lamport.azurewebsites.net/tla/tla.html)
-RocksDB storage provides high throughput [Grade A: RocksDB architecture](https://rocksdb.org).
+We adopt event sourcing backed by verified formal proof. [Grade A: https://lamport.azurewebsites.net/tla/tla.html | fetched]
+RocksDB storage provides high throughput verified in architecture docs. [Grade A: https://rocksdb.org | fetched]
 
 ## Rejected Alternatives & Tradeoffs
 - CRUD State Mutation: Rejected due to inability to audit historic entity mutations.
@@ -944,8 +944,8 @@ review_date: 2026-12-01
 Multi-region SQL consistency requirements.
 
 ## Decision Outcome
-We adopt CockroachDB. [Grade A: benchmark](https://www.cockroachlabs.com/docs/)
-Spanner evaluation [Grade A: Spanner docs](https://cloud.google.com/spanner).
+We adopt CockroachDB backed by verified benchmarks. [Grade A: https://www.cockroachlabs.com/docs/ | fetched]
+Spanner evaluation verified in docs. [Grade A: https://cloud.google.com/spanner | fetched]
 
 ## Rejected Alternatives & Tradeoffs
 - Spanner: Rejected due to proprietary cloud lock-in constraints.

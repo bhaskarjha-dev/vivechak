@@ -234,7 +234,7 @@ use vivechak decide in-memory caching vs redis for dev spike... team is 2 junior
 
 ### Intent & Engineering Context
 User asks an innocent-sounding database or business question that involves high reversibility cost ($R=3$) or regulatory compliance (HIPAA/PHI, enterprise contracts).
-Tests that `core.InferScope` prioritizes explicit decision markers (e.g. `strategic decision:`, `business decision:`, `adr:`) over generic keywords, profiles the choice as a **One-Way Door ($R=3$)**, routes to **Deep Research (2–3 sessions: Landscape L, Comparison C, Falsification F)**, and mandates Phase 0 Gate **Track B** (B1–B11 checks + adversarial red-team challenge).
+Tests that `core.InferScope` prioritizes explicit decision markers (e.g. `strategic decision:`, `business decision:`, `adr:`) over generic keywords, profiles the choice as a **One-Way Door ($R=3$)**, routes to **Deep Research (2–3 sessions: Landscape L, Comparison C, Falsification F)**, and mandates Phase 0 Gate **Track B** (Rules G1–G11 checks + adversarial red-team challenge).
 
 ### 🧪 Test Prompt 5A: Healthcare Database Selection (Regulatory $X=3$)
 ```text
@@ -485,19 +485,19 @@ wait wait stop everything! boss said no postgres allowed, company has strict con
 ### Intent & Engineering Context
 Test `vivechak_gate` when the user asks to start writing code.
 The gate decouples validation into two distinct tracks:
-- **Track A (Two-Way Doors):** Fast verification of reversibility and review triggers.
-- **Track B (One-Way Doors):** Rigorous mechanical evaluation of 11 checks (B1–B11):
-  - B1: Status accepted
-  - B2: Valid door type
-  - B3: Grade A/B evidence threshold
-  - B4: Verification method present (fetched or cached; recalled capped at Grade D)
-  - B5: Rejected alternatives documented
-  - B6: Explicit reversal trigger (metric/event condition)
-  - B7: Schema version valid
-  - B8: Confidence level present
-  - B9: Informed by sessions referenced
-  - B10: Substantive content ($\ge 50$ chars)
-  - B11: Adversarial red-team challenge performed
+- **Track A (Two-Way Doors):** Fast verification of reversibility and review triggers (Rule G12).
+- **Track B (One-Way Doors):** Rigorous mechanical evaluation of Rules G1–G11:
+  - G1: DAG Topology
+  - G2: Session Completion
+  - G3: FAD Completeness
+  - G4: Decision Registration
+  - G5: Target Resolution
+  - G6: Evidentiary Threshold (≥2 Grade A/B evidence citations with URLs)
+  - G7: Verification Provenance (≥2 fetched/human labels as reported)
+  - G8: No Placeholders & Substantive Alternatives (≥20 chars rejected alternatives)
+  - G9: Reversal Trigger (specific, measurable review trigger)
+  - G10: Adversarial Red-Team Challenge (current cited challenge record D-NNN-R1.md)
+  - G11: Human Architect Sign-off (`human_reviewed: true` via `vck signoff`)
 Supports `track` parameter: `"track_a"`, `"track_b"`, or `"all"`.
 - **Active Track Filtering (E-40):** When filtering by `track="track_a"`, failing Track B criteria do not pollute the output or block Track A prototyping; blocking issues are scoped strictly to the selected track.
 - **Decoupled Clearance (E-42):** Track A explicitly passes and authorizes prototyping when all Two-Way Doors satisfy reversibility, even if Track B (One-Way Doors) is still pending or incomplete.

@@ -812,12 +812,13 @@ review_trigger: "If audio streaming bandwidth exceeds 500 MB/s"
 # WebRTC Audio Ingestion
 ## Context
 Real-time audio streaming.
-## Decision
+## Decision Outcome
 Adopt WebRTC data channels.
 ## Rejected Alternatives
 - WebSockets: Higher jitter under network loss.
-## Challenge Findings & Red-Team Stress Test
-Inline premortem challenge: Packet loss resilience tested with forward error correction, acceptable under simulated 15% drop.
+## Red-Team Stress Test
+### Challenge Findings
+Evaluated D-001-R1 packet loss resilience tested with forward error correction, acceptable under simulated 15% drop.
 ## Reversal Triggers
 If audio streaming bandwidth exceeds 500 MB/s.
 `
@@ -850,12 +851,13 @@ review_trigger: "If vector collection exceeds 100M embeddings"
 # Qdrant Vector Store
 ## Context
 Vector similarity search.
-## Decision
+## Decision Outcome
 Adopt Qdrant.
 ## Rejected Alternatives
 - Milvus: Higher operational footprint for early-stage workload.
-## Challenge Findings & Red-Team Stress Test
-Inline red-team challenge: Sharding latency verified under heavy insert load, remains sub-50ms with distributed collections.
+## Red-Team Stress Test
+### Challenge Findings
+Evaluated D-003-R1 sharding latency verified under heavy insert load, remains sub-50ms with distributed collections.
 ## Reversal Triggers
 If vector collection exceeds 100M embeddings.
 `
@@ -880,6 +882,26 @@ If vector collection exceeds 100M embeddings.
 			t.Fatalf("record_decision %s failed: %s", id, recEnv.Message)
 		}
 	}
+
+	ch1 := fmt.Sprintf(`---
+decision_id: D-001
+decision_hash: %s
+date: 2026-10-15
+---
+# Red Team Challenge D-001-R1
+Packet loss resilience tested with forward error correction.
+`, core.ComputeDecisionOutcomeHash([]byte(d1Content)))
+	_ = os.WriteFile(filepath.Join(tmpDir, "research", "D-001-R1.md"), []byte(ch1), 0o644)
+
+	ch3 := fmt.Sprintf(`---
+decision_id: D-003
+decision_hash: %s
+date: 2026-10-15
+---
+# Red Team Challenge D-003-R1
+Sharding latency verified under heavy insert load.
+`, core.ComputeDecisionOutcomeHash([]byte(d3Content)))
+	_ = os.WriteFile(filepath.Join(tmpDir, "research", "D-003-R1.md"), []byte(ch3), 0o644)
 
 	// Sign off one-way door decisions
 	wsProj, err := store.OpenWorkspace(tmpDir)

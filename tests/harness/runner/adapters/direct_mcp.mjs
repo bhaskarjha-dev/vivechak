@@ -220,10 +220,9 @@ export class DirectMcpAdapter extends BaseHarnessAdapter {
         name: "vivechak_record_decision",
         args: {
           decision_id: "D-001",
-          title: "Microservices with Kafka for 3-Person MVP",
           slug: "microservices-kafka-mvp",
           status: "accepted",
-          content: `# D-001: Microservices with Kafka\nWe chose microservices with kafka for 3-person team.`
+          content: `---\ndecision_id: D-001\ntitle: Microservices with Kafka for 3-Person MVP\ndoor_type: two-way\nstatus: accepted\n---\n# D-001: Microservices with Kafka\nWe chose microservices with kafka for 3-person team.`
         }
       });
       toolCalls.push({
@@ -256,11 +255,8 @@ export class DirectMcpAdapter extends BaseHarnessAdapter {
         name: "vivechak_record_decision",
         args: {
           decision_id: "D-01",
-          title: "Primary Database Selection",
-          door_type: "one-way",
           status: "accepted",
-          review_trigger: ">50k concurrent writes",
-          content: `# D-01: Primary Database Selection\nAccepted with postgres.`
+          content: `---\ndecision_id: D-01\ntitle: Primary Database Selection\ndoor_type: one-way\nstatus: accepted\nreview_trigger: ">50k concurrent writes"\n---\n# D-01: Primary Database Selection\nAccepted with postgres.`
         }
       });
     } else if (p.includes("oracle only") || p.includes("replan")) {
@@ -290,10 +286,8 @@ export class DirectMcpAdapter extends BaseHarnessAdapter {
         name: "vivechak_record_decision",
         args: {
           decision_id: "D-01",
-          title: "Standalone ADR",
-          door_type: "two-way",
           status: "accepted",
-          content: `# D-01: Standalone ADR`
+          content: `---\nid: D-01\ntitle: Standalone ADR\ndoor_type: two-way\nstatus: accepted\n---\n# D-01: Standalone ADR`
         }
       });
       toolCalls.push({

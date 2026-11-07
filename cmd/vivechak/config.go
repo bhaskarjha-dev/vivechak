@@ -8,12 +8,22 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 	"time"
 
 	"github.com/tailscale/hujson"
 )
+
+var testHomeDir string
+
+func getUserHome() (string, error) {
+	if testHomeDir != "" {
+		return testHomeDir, nil
+	}
+	return os.UserHomeDir()
+}
 
 func runMCPConfigWithArgs(args []string, stdout, stderr io.Writer) int {
 	var host string
@@ -33,8 +43,9 @@ func runMCPConfigWithArgs(args []string, stdout, stderr io.Writer) int {
 			fmt.Fprintln(stdout, "  --preset <shortcut>     Optional desktop path shortcut (e.g. cursor, vscode, zed)")
 			fmt.Fprintln(stdout, "  --client <shortcut>     Alias for --preset (backward compatible)")
 			fmt.Fprintln(stdout, "")
-			fmt.Fprintln(stdout, "Desktop Path Shortcuts:")
-			fmt.Fprintf(stdout, "  %s\n", desktopShortcutsList)
+			fmt.Fprintln(stdout, "Verified Desktop Path Shortcuts:")
+			fmt.Fprintf(stdout, "  %s\n", verifiedPresetsList)
+			fmt.Fprintln(stdout, "  (unverified hosts: use 'vck setup <path>')")
 			fmt.Fprintln(stdout, "")
 			fmt.Fprintln(stdout, "Examples:")
 			fmt.Fprintln(stdout, "  vck setup cursor                                        # Recommended: 1-second host setup")
@@ -91,10 +102,7 @@ func runMCPConfigWithArgs(args []string, stdout, stderr io.Writer) int {
 	// With --write, determine destination config path
 	var configPath string
 	cwd, _ := os.Getwd()
-	homeDir, _ := os.UserHomeDir()
-	if envHome := os.Getenv("HOME"); envHome != "" {
-		homeDir = envHome
-	}
+	homeDir, _ := getUserHome()
 	appData := os.Getenv("APPDATA")
 
 	if customPath != "" {
@@ -216,6 +224,35 @@ func determineServerKey(host, configPath string, existing map[string]any) string
 	return "mcpServers"
 }
 
+func isRunnerCachePath(clean string) bool {
+	var cacheDirs []string
+	if xdg := os.Getenv("XDG_CACHE_HOME"); xdg != "" {
+		cacheDirs = append(cacheDirs, strings.ToLower(filepath.ToSlash(filepath.Clean(xdg))))
+	}
+	if localAppData := os.Getenv("LOCALAPPDATA"); localAppData != "" {
+		cacheDirs = append(cacheDirs, strings.ToLower(filepath.ToSlash(filepath.Clean(localAppData))))
+	}
+	if appData := os.Getenv("APPDATA"); appData != "" {
+		cacheDirs = append(cacheDirs, strings.ToLower(filepath.ToSlash(filepath.Clean(appData))))
+	}
+	if home, err := os.UserHomeDir(); err == nil && home != "" {
+		cleanHome := strings.ToLower(filepath.ToSlash(filepath.Clean(home)))
+		cacheDirs = append(cacheDirs, cleanHome+"/.cache", cleanHome+"/.npm/_npx", cleanHome+"/.local/share/uv")
+	}
+
+	for _, cd := range cacheDirs {
+		if strings.HasPrefix(clean, cd) {
+			if strings.Contains(clean, "npx") || strings.Contains(clean, "node_modules") || regexp.MustCompile(`(?i)[/\\_]vivechak[/\\_]v?\d+`).MatchString(clean) {
+				return true
+			}
+		}
+	}
+	if strings.Contains(clean, "_npx") || strings.Contains(clean, "node_modules/.cache") || strings.Contains(clean, "cellar") || strings.Contains(clean, "caskroom") {
+		return true
+	}
+	return false
+}
+
 // resolveLauncher detects ephemeral execution wrappers (such as npx cache paths
 // or Homebrew Cellar temporary locations) and falls back to running via npx.
 func resolveLauncher(exePath string) (cmd string, args []string) {
@@ -251,10 +288,10 @@ func resolveLauncher(exePath string) (cmd string, args []string) {
 		}
 	}
 
-	if strings.Contains(clean, "/vivechak/v") || strings.Contains(clean, `\vivechak\v`) ||
-		strings.Contains(clean, "_npx") ||
-		strings.Contains(clean, "node_modules/.cache") ||
-		strings.Contains(clean, "cellar") || strings.Contains(clean, "caskroom") {
+	if isRunnerCachePath(clean) {
+		if os.Getenv("VIVECHAK_LAUNCHER") == "uvx" {
+			return "uvx", []string{"vivechak", "serve"}
+		}
 		return "npx", []string{"-y", "vivechak", "serve"}
 	}
 	if (strings.Contains(clean, "/uv/") || strings.Contains(clean, "\\uv\\")) &&

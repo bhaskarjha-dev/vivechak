@@ -2,6 +2,8 @@
 
 The Phase 0 Gate is Vivechak's mechanical pre-codebase exit audit. It verifies that technical decisions are grounded, reversible, and traceable before any production code is written.
 
+> **Architectural Disclaimer:** The gate is necessary, not sufficient: it checks structure and the agent's own labels, not the truth of the sources. The sign-off is a typed attestation by the named reviewer; it raises the bar but is not a security boundary.
+
 ## 1. Dual-Track Architecture
 
 | Track | Target Decisions | Governing Rules | Philosophy |

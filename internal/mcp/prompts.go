@@ -221,6 +221,7 @@ func handlePromptDecision(_ context.Context, req *sdkmcp.GetPromptRequest) (*sdk
 	promptText = strings.Replace(promptText, "DECISION: [the question, as you'd ask it]", "DECISION: "+dilemma, 1)
 	promptText = strings.Replace(promptText, "CONTEXT: [what's being built or decided; project/venture context, workload, team, constraints, what's already decided]", "CONTEXT: "+contextStr, 1)
 	promptText = strings.Replace(promptText, "DATE: [today]", "DATE: "+today, 1)
+	promptText = strings.Replace(promptText, "IDS: [optional: decision ID (default D-NEW), session prefix]", "IDS: D-001 (session prefix D-001-S)", 1)
 
 	promptText += "\n\n---\n**CRITICAL PERSISTENCE DIRECTIVE FOR AI AGENT:**\n" +
 		"Output the decision research plan and proposed ADR. Once drafted, call the MCP tool `vivechak_save` with `kind=\"plan\"` and `content` set to your output to save the plan, or invoke `vivechak_record_decision` to lock the final ADR."

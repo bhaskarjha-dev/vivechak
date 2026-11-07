@@ -19,7 +19,7 @@ Vivechak is built from the ground up to be **harness-agnostic**. It communicates
 │  - 8 canonical read-only MCP resources                 │
 │  - Universal Agent Skill & pre-packaged rules          │
 │  - Advisory file locking & atomic writes               │
-│  - Workspace isolation via Go 1.25+ os.Root            │
+│  - Workspace isolation via Go 1.26+ os.Root            │
 └──────────────────────────┬─────────────────────────────┘
                            │ Filesystem I/O
 ┌──────────────────────────▼─────────────────────────────┐

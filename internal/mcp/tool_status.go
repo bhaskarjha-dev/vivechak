@@ -52,7 +52,7 @@ func handleStatus(ctx context.Context, req *sdkmcp.CallToolRequest, in StatusInp
 	if strings.TrimSpace(in.ProjectRoot) == "" {
 		roots = getClientRoots(ctx, req)
 	}
-	root, _, err := core.ResolveWorkspaceWithRoots(ctx, in.ProjectRoot, roots)
+	root, rule, err := core.ResolveWorkspaceWithRoots(ctx, in.ProjectRoot, roots)
 	if err != nil {
 		env := Envelope{
 			Ok:      true,
@@ -92,6 +92,7 @@ func handleStatus(ctx context.Context, req *sdkmcp.CallToolRequest, in StatusInp
 
 	info := core.InspectWorkspace(root)
 	data := map[string]any{
+		"workspace":      map[string]any{"root": root, "rule": rule},
 		"workspace_root": root,
 		"root":           root,
 		"initialized":    info.Initialized,
