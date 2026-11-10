@@ -169,7 +169,7 @@ We choose PostgreSQL.
 		// Check every saved markdown artifact in research/ (excluding .history and DECISIONS.md)
 		// has id, type, title, date, status, and vivechak in frontmatter
 		var checkedCount int
-		filepath.Walk(researchDir, func(path string, info os.FileInfo, walkErr error) error {
+		if err := filepath.Walk(researchDir, func(path string, info os.FileInfo, walkErr error) error {
 			if walkErr != nil || info.IsDir() {
 				return nil
 			}
@@ -198,7 +198,9 @@ We choose PostgreSQL.
 			}
 			checkedCount++
 			return nil
-		})
+		}); err != nil {
+			t.Fatalf("walking %s: %v", researchDir, err)
+		}
 
 		if checkedCount < 3 {
 			t.Errorf("expected at least 3 checked artifacts, checked %d", checkedCount)
@@ -257,7 +259,7 @@ We choose PostgreSQL.
 
 		planEnv := parseTestEnvelope(t, planRes)
 		planID, _ := planEnv.Data["id"].(string)
-		if !(planID == allocID || (strings.Contains(brief, allocID) && !strings.Contains(brief, "D-NEW"))) {
+		if planID != allocID && (!strings.Contains(brief, allocID) || strings.Contains(brief, "D-NEW")) {
 			t.Errorf("expected D-NEW to receive allocated ID %s or brief to name it without D-NEW, got planID %q", allocID, planID)
 		}
 	})

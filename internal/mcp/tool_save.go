@@ -261,7 +261,8 @@ func handleSavePlanKind(ctx context.Context, ws *store.Workspace, root, rule str
 
 	pipelinePath := core.PipelineFile
 	planID := ""
-	if scope == "comparison" {
+	switch scope {
+	case "comparison":
 		compID := in.ID
 		if compID == "" {
 			compID = in.DecisionID
@@ -275,7 +276,7 @@ func handleSavePlanKind(ctx context.Context, ws *store.Workspace, root, rule str
 		}
 		pipelinePath = filepath.Join(core.ResearchDir, filename)
 		planID = compID
-	} else if scope == "decision" {
+	case "decision":
 		decID := in.ID
 		if decID == "" {
 			decID = in.DecisionID
@@ -334,7 +335,7 @@ func handleSavePlanKind(ctx context.Context, ws *store.Workspace, root, rule str
 			filename = fmt.Sprintf("%s-%s-plan.md", planID, in.Slug)
 		}
 		pipelinePath = filepath.Join(core.ResearchDir, filename)
-	} else {
+	default:
 		planID = "DAG"
 	}
 

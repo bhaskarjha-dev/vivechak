@@ -29,6 +29,7 @@ func startLiveMCPServerWithEnvAndRoots(t *testing.T, ctx context.Context, binPat
 		if !strings.HasPrefix(r, "/") && !strings.HasPrefix(fileURI, "file:///") {
 			fileURI = "file:///" + filepath.ToSlash(r)
 		}
+		//nolint:staticcheck // SA1019: AddRoots tested specifically for protocol 2024-11-05 compatibility
 		client.AddRoots(&mcp.Root{URI: fileURI})
 	}
 
