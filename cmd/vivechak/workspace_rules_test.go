@@ -44,6 +44,17 @@ func startLiveMCPServerWithEnvAndRoots(t *testing.T, ctx context.Context, binPat
 	return cs, cleanup
 }
 
+func sameWorkspacePath(a, b string) bool {
+	ca := filepath.Clean(a)
+	cb := filepath.Clean(b)
+	if strings.EqualFold(ca, cb) {
+		return true
+	}
+	ra, errA := filepath.EvalSymlinks(ca)
+	rb, errB := filepath.EvalSymlinks(cb)
+	return errA == nil && errB == nil && strings.EqualFold(filepath.Clean(ra), filepath.Clean(rb))
+}
+
 // TestWorkspaceRules_LiveSubprocess tests workspace resolution rules:
 // unnamespaced env vars ignored, unexpanded macros skipped, client roots used,
 // and fresh sessions resolving client roots across next/gate/review.
@@ -90,10 +101,9 @@ func TestWorkspaceRules_LiveSubprocess(t *testing.T) {
 		}
 
 		rootVal := wsMap["root"]
-		cleanRoot := filepath.Clean(strings.TrimPrefix(strings.TrimPrefix(rootVal.(string), "file:///"), "file://"))
-		cleanApp := filepath.Clean(app)
-		if !strings.EqualFold(cleanRoot, cleanApp) {
-			t.Errorf("expected workspace root %q, got %q", cleanApp, cleanRoot)
+		cleanRoot := strings.TrimPrefix(strings.TrimPrefix(rootVal.(string), "file:///"), "file://")
+		if !sameWorkspacePath(cleanRoot, app) {
+			t.Errorf("expected workspace root %q, got %q", app, cleanRoot)
 		}
 
 		otherEntries, _ := os.ReadDir(other)
@@ -141,10 +151,9 @@ func TestWorkspaceRules_LiveSubprocess(t *testing.T) {
 			t.Fatalf("data.workspace missing in status reply: %+v", env.Data)
 		}
 
-		cleanRoot := filepath.Clean(strings.TrimPrefix(strings.TrimPrefix(wsMap["root"].(string), "file:///"), "file://"))
-		cleanApp := filepath.Clean(app)
-		if !strings.EqualFold(cleanRoot, cleanApp) {
-			t.Errorf("expected workspace root %q, got %q", cleanApp, cleanRoot)
+		cleanRoot := strings.TrimPrefix(strings.TrimPrefix(wsMap["root"].(string), "file:///"), "file://")
+		if !sameWorkspacePath(cleanRoot, app) {
+			t.Errorf("expected workspace root %q, got %q", app, cleanRoot)
 		}
 		if wsMap["rule"] != "env" {
 			t.Errorf("expected workspace rule 'env', got %v", wsMap["rule"])
@@ -185,10 +194,9 @@ func TestWorkspaceRules_LiveSubprocess(t *testing.T) {
 			t.Fatalf("data.workspace missing in status reply: %+v", env.Data)
 		}
 
-		cleanRoot := filepath.Clean(strings.TrimPrefix(strings.TrimPrefix(wsMap["root"].(string), "file:///"), "file://"))
-		cleanApp := filepath.Clean(app)
-		if !strings.EqualFold(cleanRoot, cleanApp) {
-			t.Errorf("expected workspace root %q, got %q", cleanApp, cleanRoot)
+		cleanRoot := strings.TrimPrefix(strings.TrimPrefix(wsMap["root"].(string), "file:///"), "file://")
+		if !sameWorkspacePath(cleanRoot, app) {
+			t.Errorf("expected workspace root %q, got %q", app, cleanRoot)
 		}
 		if wsMap["rule"] != "roots" {
 			t.Errorf("expected workspace rule 'roots', got %v", wsMap["rule"])

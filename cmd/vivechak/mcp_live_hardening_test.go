@@ -194,7 +194,7 @@ status: complete
 			t.Fatalf("vivechak_status failed with session memory: %s", statEnv.Message)
 		}
 		resolvedRoot, _ := statEnv.Data["root"].(string)
-		if !strings.EqualFold(filepath.Clean(resolvedRoot), filepath.Clean(wsDir)) {
+		if !sameWorkspacePath(resolvedRoot, wsDir) {
 			t.Errorf("expected session memory to resolve %q, got %q", wsDir, resolvedRoot)
 		}
 	})
