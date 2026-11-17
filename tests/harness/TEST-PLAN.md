@@ -92,7 +92,7 @@ Based on your execution experience in this session, suggest all potential improv
 | **16** | All | `InferScope` via `vck` prefixes | CLI command prefixes (`vck compare`, `vck decide`, `vck plan`) route scope |
 | **17** | All | Dual-Source Decision Scanner | Scans both `D-*.md` and `DECISIONS.md` concurrently with ID deduplication |
 | **18** | Project | `core.ObserveSessionQuality` | Cross-references URLs in ledger tables, parses `[Grade: A]` colon syntax |
-| **19** | System | `vck setup` (21 presets) & `vck mcp-config` | Number-preserving JSON merge across 21 IDE/CLI presets |
+| **19** | System | `vck setup` (10 presets) & `vck mcp-config` | Number-preserving JSON merge across every host preset |
 | **20** | System | `vck doctor` | Audits workspace layout, frontmatter, orphan detection, and scope detection |
 | **21** | Boundary | Zero Tool Calls (Anti-Pattern Guardrail) | Directly writes code / diagnoses bugs without invoking Vivechak |
 

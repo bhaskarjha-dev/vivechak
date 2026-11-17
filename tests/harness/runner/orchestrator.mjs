@@ -123,6 +123,7 @@ export async function runOrchestration(scenarioId, harnessName = "direct_mcp", m
 * **Harness:** \`${harnessName}\`
 * **Model:** \`${model}\`
 * **Target Scope:** \`${scenario.scope}\`
+* **Tool Results:** \`${adapter.recordsToolResults ? "recorded" : "not recorded"}\`
 * **Sandbox Workspace:** \`${sandboxDir.replace(/\\/g, "/")}\`
 
 ---

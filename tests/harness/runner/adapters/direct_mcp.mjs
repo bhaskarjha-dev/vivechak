@@ -1,40 +1,132 @@
 import { spawn } from "node:child_process";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { resolveVckBinary } from "../types.mjs";
 import { execWithWatchdog } from "../watchdog.mjs";
 import { BaseHarnessAdapter } from "./base.mjs";
 
+const PROBE_TIMEOUT_MS = 10000;
+
+/**
+ * Environment for `vck setup`: HOME (and the per-OS config roots) point into the sandbox,
+ * so it writes the host config there instead of the real user's home.
+ */
+function sandboxHomeEnv(sandboxDir) {
+  return {
+    HOME: sandboxDir,
+    USERPROFILE: sandboxDir,
+    XDG_CONFIG_HOME: path.join(sandboxDir, ".config"),
+    APPDATA: path.join(sandboxDir, "AppData", "Roaming")
+  };
+}
+
+/** One recorded step of the trace, in the format triage.mjs parses. */
+function formatTraceStep(name, args, result) {
+  return `→ Call: ${name} ${JSON.stringify(args)}\n← Result: ${JSON.stringify(result)}`;
+}
+
 export class DirectMcpAdapter extends BaseHarnessAdapter {
   constructor() {
     super("direct_mcp", "Headless Direct MCP (vck serve)", "deterministic", "headless-mcp");
+    // runTurn prints every tool call and its full result as "→ Call:" / "← Result:" lines.
+    this.recordsToolResults = true;
   }
 
+  /**
+   * Ready only when `vck serve` completes an MCP initialize handshake.
+   */
   async probe() {
     const vckBin = resolveVckBinary();
-    return new Promise((resolve) => {
-      const proc = spawn(vckBin, ["doctor", "."], {
-        shell: false,
-        stdio: ["ignore", "pipe", "pipe"]
-      });
+    const probeDir = fs.mkdtempSync(path.join(os.tmpdir(), "vck-probe-"));
+    const cleanup = () => {
+      try {
+        fs.rmSync(probeDir, { recursive: true, force: true });
+      } catch (e) {
+        // ignore
+      }
+    };
 
-      let stdout = "";
-      proc.stdout.on("data", (d) => (stdout += d.toString()));
-      proc.on("close", (code) => {
-        resolve({
-          available: true,
-          version: "vck (local binary)",
-          model: this.defaultModel,
-          quotaState: "active"
-        });
+    return new Promise((resolve) => {
+      let settled = false;
+      let proc = null;
+      let timer = null;
+      const finish = (outcome) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        try {
+          proc?.kill();
+        } catch (e) {
+          // ignore
+        }
+        cleanup();
+        resolve(outcome);
+      };
+      const unavailable = (reason) =>
+        finish({ available: false, error: `${vckBin}: ${reason}`, quotaState: "unknown" });
+
+      try {
+        proc = spawn(vckBin, ["serve"], { cwd: probeDir, shell: false, stdio: ["pipe", "pipe", "pipe"] });
+      } catch (err) {
+        unavailable(`could not start 'serve': ${err.message}`);
+        return;
+      }
+
+      timer = setTimeout(
+        () => unavailable(`no MCP initialize response within ${PROBE_TIMEOUT_MS / 1000}s`),
+        PROBE_TIMEOUT_MS
+      );
+
+      let buffer = "";
+      let stderr = "";
+      proc.stdout.on("data", (chunk) => {
+        buffer += chunk.toString();
+        const lines = buffer.split("\n");
+        buffer = lines.pop();
+        for (const line of lines) {
+          let msg;
+          try {
+            msg = JSON.parse(line.trim());
+          } catch (e) {
+            continue;
+          }
+          if (msg?.id !== 1 || msg.method !== undefined) continue;
+          const info = msg.result?.serverInfo;
+          if (msg.result?.protocolVersion && info?.name) {
+            finish({
+              available: true,
+              version: `${info.name} ${info.version || ""}`.trim(),
+              model: this.defaultModel,
+              quotaState: "active"
+            });
+          } else {
+            unavailable(`invalid MCP initialize response: ${JSON.stringify(msg.error || msg.result).slice(0, 200)}`);
+          }
+        }
       });
-      proc.on("error", (err) => {
-        resolve({
-          available: false,
-          error: `vck binary not executable at ${vckBin}: ${err.message}`,
-          quotaState: "unknown"
-        });
-      });
+      proc.stderr.on("data", (d) => (stderr += d.toString()));
+      proc.stdin.on("error", () => {});
+      proc.on("error", (err) => unavailable(`could not start 'serve': ${err.message}`));
+      proc.on("exit", (code, signal) =>
+        unavailable(
+          `exited (${signal || `code ${code}`}) before completing the MCP initialize handshake` +
+            (stderr.trim() ? `: ${stderr.trim().slice(0, 200)}` : "")
+        )
+      );
+
+      proc.stdin.write(
+        JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "initialize",
+          params: {
+            protocolVersion: "2024-11-05",
+            capabilities: {},
+            clientInfo: { name: "direct-mcp-harness-probe", version: "0.1.0" }
+          }
+        }) + "\n"
+      );
     });
   }
 
@@ -64,6 +156,7 @@ export class DirectMcpAdapter extends BaseHarnessAdapter {
 
       const handleResponse = (res) => {
         if (!res.id) return; // Notification
+        if (res.method !== undefined) return; // Server-to-client request (e.g. roots/list), not a response
         const resolveCall = pending.get(res.id);
         if (resolveCall) {
           pending.delete(res.id);
@@ -118,7 +211,8 @@ export class DirectMcpAdapter extends BaseHarnessAdapter {
         for (const call of toolCalls) {
           const args = { project_root: sandboxDir, ...call.args };
           const res = await callTool(call.name, args);
-          trace.push({ type: "RESULT", name: call.name, result: res.result || res.error });
+          // Record the full tools/call result (or the JSON-RPC error) so triage can read isError.
+          trace.push({ type: "RESULT", name: call.name, result: res.result !== undefined ? res.result : { error: res.error ?? null } });
         }
 
         clearTimeout(timeout);
@@ -156,11 +250,28 @@ export class DirectMcpAdapter extends BaseHarnessAdapter {
     }
 
     // Scenario 19: Universal Host Auto-Configuration (CLI setup command)
-    if (p.includes("vck setup") || p.includes("setup cursor")) {
-      const vckBin = resolveVckBinary();
-      const res = await execWithWatchdog(vckBin, ["setup", "cursor", sandboxDir], { timeoutMs: 5000 });
+    // Scenario 20: Pre-Coding Workspace Integrity Check (CLI doctor command)
+    let cliArgv = null;
+    if (p.includes("vck setup") || p.includes("setup cursor")) cliArgv = ["setup", "cursor"];
+    else if (p.includes("vck doctor")) {
+      fs.mkdirSync(path.join(sandboxDir, "research", "sessions"), { recursive: true });
+      cliArgv = ["doctor", sandboxDir];
+    }
+    if (cliArgv) {
+      const res = await execWithWatchdog(resolveVckBinary(), cliArgv, {
+        cwd: sandboxDir,
+        timeoutMs: 5000,
+        // Only setup writes into HOME; doctor must keep the real HOME (it refuses a home dir as root).
+        env: cliArgv[0] === "setup" ? sandboxHomeEnv(sandboxDir) : undefined
+      });
+      const step = formatTraceStep("vck", { argv: cliArgv }, {
+        exitCode: res.exitCode,
+        timedOut: res.timedOut,
+        stdout: res.stdout,
+        stderr: res.stderr
+      });
       return {
-        stdout: `Executed CLI setup cursor command:\n${res.stdout || res.stderr || "Cursor MCP config created."}`,
+        stdout: `Headless Direct CLI Execution Trace:\n${step}`,
         stderr: res.stderr,
         exitCode: res.exitCode,
         timedOut: false,
@@ -168,18 +279,7 @@ export class DirectMcpAdapter extends BaseHarnessAdapter {
       };
     }
 
-    // Scenario 20: Pre-Coding Workspace Integrity Check (CLI doctor command)
-    if (p.includes("vck doctor")) {
-      const vckBin = resolveVckBinary();
-      const res = await execWithWatchdog(vckBin, ["doctor", sandboxDir], { timeoutMs: 5000 });
-      return {
-        stdout: `Executed CLI doctor command:\n${res.stdout || res.stderr || "Workspace clean."}`,
-        stderr: res.stderr,
-        exitCode: res.exitCode,
-        timedOut: false,
-        killed: false
-      };
-    }
+    const samplePipeline = `# Project Pipeline\n\n\`\`\`yaml vivechak-plan\nplan: PROJECT\nsessions:\n  - {id: T0-01, title: Database Evaluation, layer: 0, door: two-way, depends: []}\n  - {id: SYN-01, title: Synthesis, kind: synthesis, depends: [ALL]}\n\`\`\`\n\n## Sessions\n\n### T0-01: Database Evaluation\n\`\`\`prompt\nEvaluate PostgreSQL as the primary database.\n\`\`\`\n\n### SYN-01: Synthesis\n\`\`\`prompt\nSynthesize the findings. [ALL_SESSION_FINDINGS]\n\`\`\`\n`;
 
     // Determine tool sequence based on prompt intent
     const toolCalls = [];
@@ -189,6 +289,7 @@ export class DirectMcpAdapter extends BaseHarnessAdapter {
       toolCalls.push({
         name: "vivechak_save",
         args: {
+          kind: "comparison",
           scope: "comparison",
           id: "C-01",
           slug: "pino-vs-winston",
@@ -214,24 +315,24 @@ export class DirectMcpAdapter extends BaseHarnessAdapter {
       // Adversarial challenge (S-08)
       toolCalls.push({
         name: "vivechak_start",
-        args: { scope: "decision" }
+        args: { scope: "decision", question: prompt }
       });
       toolCalls.push({
         name: "vivechak_record_decision",
         args: {
-          decision_id: "D-001",
+          id: "D-001",
           slug: "microservices-kafka-mvp",
           status: "accepted",
-          content: `---\ndecision_id: D-001\ntitle: Microservices with Kafka for 3-Person MVP\ndoor_type: two-way\nstatus: accepted\n---\n# D-001: Microservices with Kafka\nWe chose microservices with kafka for 3-person team.`
+          content: `---\nid: D-001\ntitle: Microservices with Kafka for 3-Person MVP\ndoor_type: two-way\nstatus: accepted\n---\n# D-001: Microservices with Kafka\nWe chose microservices with kafka for 3-person team.`
         }
       });
       toolCalls.push({
         name: "vivechak_review",
-        args: { target: "D-001", mode: "challenge" }
+        args: { id: "D-001", mode: "red_team" }
       });
     } else if (p.includes("update session") || p.includes("amend")) {
       // Incremental amendment (S-09)
-      toolCalls.push({ name: "vivechak_start", args: { scope: "project" } });
+      toolCalls.push({ name: "vivechak_start", args: { scope: "project", question: prompt } });
       toolCalls.push({
         name: "vivechak_save",
         args: {
@@ -243,49 +344,49 @@ export class DirectMcpAdapter extends BaseHarnessAdapter {
       toolCalls.push({
         name: "vivechak_amend",
         args: {
-          session_id: "T0-01",
-          content: "pino latency is 12ms under load",
+          id: "T0-01",
+          note: "pino latency is 12ms under load",
           reason: "benchmark update"
         }
       });
     } else if (p.includes("lock decision") || p.includes("record decision")) {
       // Formal ADR recording (S-10)
-      toolCalls.push({ name: "vivechak_start", args: { scope: "decision" } });
+      toolCalls.push({ name: "vivechak_start", args: { scope: "decision", question: prompt } });
       toolCalls.push({
         name: "vivechak_record_decision",
         args: {
-          decision_id: "D-01",
+          id: "D-01",
           status: "accepted",
-          content: `---\ndecision_id: D-01\ntitle: Primary Database Selection\ndoor_type: one-way\nstatus: accepted\nreview_trigger: ">50k concurrent writes"\n---\n# D-01: Primary Database Selection\nAccepted with postgres.`
+          content: `---\nid: D-01\ntitle: Primary Database Selection\ndoor_type: one-way\nstatus: accepted\nreview_trigger: ">50k concurrent writes"\n---\n# D-01: Primary Database Selection\nAccepted with postgres.`
         }
       });
     } else if (p.includes("oracle only") || p.includes("replan")) {
       // Dynamic replanning (S-11)
-      toolCalls.push({ name: "vivechak_start", args: { scope: "project" } });
+      toolCalls.push({ name: "vivechak_start", args: { scope: "project", question: prompt } });
       toolCalls.push({
         name: "vivechak_save",
         args: {
           kind: "plan",
-          content: `# Project Pipeline\n| ID | Layer | Door Type | Dependencies |\n|---|---|---|---|\n| T0-01 | 0 | two-way | none |\n`
+          content: samplePipeline
         }
       });
       toolCalls.push({
         name: "vivechak_replan",
         args: {
-          operation: "update_prompt",
+          plan: "PROJECT",
+          op: "update_prompt",
           session_id: "T0-01",
-          new_prompt: "Evaluate Oracle DB for enterprise compliance",
-          reason: "boss said no postgres allowed, oracle only",
-          impact: "database layer"
+          prompt: "Evaluate Oracle DB for enterprise compliance",
+          reason: "boss said no postgres allowed, oracle only"
         }
       });
     } else if (p.includes("standalone d-01.md and registry decisions.md")) {
       // Dual-source decision resolution (S-17)
-      toolCalls.push({ name: "vivechak_start", args: { scope: "decision" } });
+      toolCalls.push({ name: "vivechak_start", args: { scope: "decision", question: prompt } });
       toolCalls.push({
         name: "vivechak_record_decision",
         args: {
-          decision_id: "D-01",
+          id: "D-01",
           status: "accepted",
           content: `---\nid: D-01\ntitle: Standalone ADR\ndoor_type: two-way\nstatus: accepted\n---\n# D-01: Standalone ADR`
         }
@@ -296,6 +397,8 @@ export class DirectMcpAdapter extends BaseHarnessAdapter {
       });
     } else if (p.includes("gate") || p.includes("coding the backend")) {
       // Mechanical Gate (S-12)
+      toolCalls.push({ name: "vivechak_start", args: { scope: "project", question: prompt } });
+      toolCalls.push({ name: "vivechak_save", args: { kind: "plan", content: samplePipeline } });
       toolCalls.push({
         name: "vivechak_gate",
         args: { track: "all" }
@@ -304,7 +407,7 @@ export class DirectMcpAdapter extends BaseHarnessAdapter {
       // Session save & quality coaching (S-07, S-15, S-18)
       toolCalls.push({
         name: "vivechak_start",
-        args: { scope: "project" }
+        args: { scope: "project", question: prompt }
       });
       toolCalls.push({
         name: "vivechak_save",
@@ -320,6 +423,7 @@ export class DirectMcpAdapter extends BaseHarnessAdapter {
       toolCalls.push({ name: "vivechak_status", args: { format: "mermaid" } });
     } else if (p.includes("validate")) {
       // Workspace audit (S-14)
+      toolCalls.push({ name: "vivechak_start", args: { scope: "comparison", question: "workspace check" } });
       toolCalls.push({ name: "vivechak_review", args: { mode: "validate" } });
     } else if (p.includes("decide:") || p.includes("mongo vs postgres") || p.includes("server actions")) {
       // Decision scope (S-04, S-05)
@@ -333,7 +437,7 @@ export class DirectMcpAdapter extends BaseHarnessAdapter {
           kind: "plan",
           id: "D-01",
           slug: "tech-choice",
-          content: `# D-01 Plan: Tech Choice\n1 session fast spike.`
+          content: `# D-NEW-PLAN: Tech Choice\n\n\`\`\`yaml vivechak-plan\nplan: D-NEW\nsessions:\n  - {id: D-NEW-S1, title: Fast Spike, role: C, door: two-way, informs: [D-NEW], depends: []}\n\`\`\`\n\n## Sessions\n\n### D-NEW-S1: Fast Spike\n\`\`\`prompt\n1 session fast spike: compare the candidates with graded evidence.\n\`\`\`\n`
         }
       });
     } else {
@@ -342,14 +446,29 @@ export class DirectMcpAdapter extends BaseHarnessAdapter {
         name: "vivechak_start",
         args: { scope: "project", question: prompt }
       });
+      toolCalls.push({
+        name: "vivechak_save",
+        args: {
+          kind: "plan",
+          id: "DAG",
+          content: samplePipeline
+        }
+      });
+      if (p.includes("url shortener") || p.includes("next step") || p.includes("continue")) {
+        toolCalls.push({
+          name: "vivechak_next",
+          args: {}
+        });
+      }
     }
 
     const { trace, timedOut } = await this._executeMcpClient(sandboxDir, toolCalls);
 
+    // Full call arguments and full results, one JSON document per line (parsed by triage.mjs).
     const formattedTrace = trace
       .map((t) => {
-        if (t.type === "CALL") return `→ Call: ${t.name}(${JSON.stringify(t.args)})`;
-        if (t.type === "RESULT") return `← Result: ${JSON.stringify(t.result).slice(0, 300)}...`;
+        if (t.type === "CALL") return `→ Call: ${t.name} ${JSON.stringify(t.args)}`;
+        if (t.type === "RESULT") return `← Result: ${JSON.stringify(t.result)}`;
         return `[${t.type}]`;
       })
       .join("\n");

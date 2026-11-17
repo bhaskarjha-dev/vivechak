@@ -1,6 +1,6 @@
 # Vivechak Harness Stress Test Scenarios for AI Agents & Small Models
 ### Human-Realistic Prompts with Typos, Slang, Vague Phrasings, Universal Domains & Ground-Truth Expectations
-**Updated for Vivechak v0.1.0** · Covers 9 Consolidated Tools + Legacy Aliases · Universal 4-Scope Mental Model · Out-of-Scope Guardrails · AST Code-Fence Immunity · Two-Tier Lookups · Track-Filtered Exit Gate · 21 AI Host Harnesses
+**Updated for Vivechak v0.1.0** · Covers 9 Consolidated Tools + Legacy Aliases · Universal 4-Scope Mental Model · Out-of-Scope Guardrails · AST Code-Fence Immunity · Two-Tier Lookups · Track-Filtered Exit Gate · 10 Verified Host Presets
 
 This test suite is designed to verify how **small models** (e.g. Claude 3.5 Haiku, Gemini 1.5/2.0 Flash, GPT-4o-mini, Qwen-2.5-Coder 7B/14B) running inside **Kiro IDE**, **Cursor**, **Windsurf**, **Cline**, **Claude Code**, or **Antigravity** interact with the Vivechak MCP server when prompted with realistic, messy, unpolished human requests across **technical, algorithmic, AI agent, and strategic business domains**.
 
@@ -15,7 +15,7 @@ This test suite is designed to verify how **small models** (e.g. Claude 3.5 Haik
 | **03** | **Sequential Guided Worker**<br>*(Context Injection & DAG Resolution)* | `ok do next step pls`<br>*(or simply `continue`)* | `vivechak_next`<br>Automated DAG traversal, upstream context injection, respects draft status |
 | **04** | **Fast Architectural Decision**<br>*(Two-Way Door Fast Spike)* | `bro shuld i use react 19 server actions or tanstack react query... team is 2 junior devs` | `vivechak_start(scope="decision")`<br>Two-Way Door ($R=1, N=1, B=1$), routes to 1-session Fast Spike or Confirm & Commit |
 | **05** | **High-Stakes One-Way Door**<br>*(Multi-Session Deep Research)* | `vivechak decide: mongo vs postgres for our clinic app... storing patient medical records and lab reports`<br>*(or strategic: `strategic decision: direct enterprise sales vs partner reseller`)* | `vivechak_start(scope="decision")`<br>Regulatory/HIPAA $X=3$ or $R=3$, priority of decision markers over project words, routes to Deep Research |
-| **06** | **Full Venture / Project Pipeline**<br>*(Multi-Tier Research DAG → FAD)* | `hey vivechak plan my new startup idea. its basically uber but for dog walkers. need gps and stripe`<br>*(or venture: `new venture: decentralized renewable energy peer-to-peer microgrid trading marketplace`)* | `vivechak_start(scope="project")`<br>Disentangles 2-col metadata tables from 4-col session tables, outputs `RESEARCH-PIPELINE.md` + initial `DECISIONS.md` |
+| **06** | **Full Venture / Project Pipeline**<br>*(Multi-Tier Research DAG → FAD)* | `hey vivechak plan my new startup idea. its basically uber but for dog walkers. need gps and stripe`<br>*(or venture: `new venture: decentralized renewable energy peer-to-peer microgrid trading marketplace`)* | `vivechak_start(scope="project")`<br>Reads sessions only from the `yaml vivechak-plan` block (tables are never parsed), outputs `RESEARCH-PIPELINE.md` + initial `DECISIONS.md` |
 | **07** | **Quality Coaching & 50-Char Gate**<br>*(Non-blocking `Q-*` Observations)* | `save this session output for T0-01: Gin is fastest framework [Grade A], zero memory, no downsides...` | `vivechak_save(kind="session")`<br>Surfaces `Q-GRADE-INFLATION`, `Q-MISSING-CONCERNS`, `Q-LOW-FINDINGS` in `next_step`, enforces $\ge 50$ char threshold |
 | **08** | **Adversarial Red-Team Challenge**<br>*(Two-Tier Lookup & Resilient Aliases)* | `bro can u roast my decision? we chose microservices with kafka for 3-person team. use vivechak challenge` | `vivechak_review(mode="challenge")`<br>Accepts `decision_id` and `challenge_type="premortem"` aliases, resolves `research/sessions/` and standalone `research/D-*.md` / `research/C-*.md` |
 | **09** | **Incremental Session / ADR Amendment**<br>*(Two-Tier Lookup & Auto-Registry Sync)* | `update session T0-01 with this benchmark finding: pino latency is 12ms under load`<br>*(or: amend standalone ADR `D-01` or comparison `C-01`)* | `vivechak_amend`<br>Accepts `content` and `reason` aliases, two-tier lookup patches files in `research/sessions/` or `research/`, auto-recompiles `DECISIONS.md` on ADR amendment (E-41) |
@@ -28,7 +28,7 @@ This test suite is designed to verify how **small models** (e.g. Claude 3.5 Haik
 | **16** | **CLI Shorthand Scope Recognition**<br>*(Command Prefix Detection E-34)* | `vck compare winston vs pino` or `vck decide: mongo vs postgres` or `vck plan new b2b saas` | `InferScope` via `vck setup` / `prepare_generator`<br>Instantly routes to comparison, decision, or project without regex ambiguity |
 | **17** | **Dual-Source Decision Resolution**<br>*(Zero Split-Brain E-29)* | `run gate on workspace with standalone D-01.md and registry DECISIONS.md` | `vivechak_gate` & `vivechak_review(mode="validate")`<br>Scans both standalone files and consolidated registry concurrently with ID deduplication |
 | **18** | **Evidence Ledger URL Cross-Referencing**<br>*(Quality Engine Provenance E-32)* | `save session citing CLAIM-01 with Grade A where URL is in Sources Ledger table` | `vivechak_save`<br>Cross-references ledger table anchors, excludes table rows from claim counts, 0 false alarms |
-| **19** | **Universal Host Auto-Configuration**<br>*(21 Desktop & CLI Harnesses)* | `vck setup cursor`, `vck setup claude-code`, `vck setup continue`, or `vck mcp-config` | `vck setup` / `vck mcp-config`<br>Zero-loss JSON merging, number preservation, and instant host configuration |
+| **19** | **Universal Host Auto-Configuration**<br>*(10 Verified Host Presets)* | `vck setup cursor`, `vck setup claude-code`, `vck setup goose`, or `vck mcp-config` | `vck setup` / `vck mcp-config`<br>Zero-loss JSON merging, number preservation, and instant host configuration |
 | **20** | **Pre-Coding Workspace Integrity Check**<br>*(Automated CLI Doctor)* | `vck doctor` or `vivechak doctor /path/to/project` | `vck doctor`<br>Workspace layout audit, frontmatter checks, orphan detection, and active scope diagnostics |
 | **21** | **Out-of-Scope Anti-Pattern Guardrail**<br>*(Direct Code Authoring & Bug Fixing)* | `Write a python function to compute HMAC-SHA256` or `Fix this typescript type error` | **Zero Tool Calls (Skip Vivechak)**<br>Agent directly answers/writes code without calling research tools |
 
@@ -268,7 +268,7 @@ strategic decision: direct enterprise sales vs partner reseller for our European
 ### Intent & Engineering Context
 User presents a broad product idea or comprehensive new system.
 Calls `vivechak_start(scope="project")`.
-Tests that Vivechak's DAG parser safely disentangles 2-column key-value metadata tables (`| Field | Value |`) from 4-column horizontal session tables (`| ID | Layer | Door Type | Dependencies |`) and guards against rubric tables, successfully producing `RESEARCH-PIPELINE.md` and initial `DECISIONS.md`.
+Tests that Vivechak reads the pipeline's sessions and dependencies only from its one `yaml vivechak-plan` block, so 2-column key-value metadata tables (`| Field | Value |`), 4-column session tables (`| ID | Layer | Door Type | Dependencies |`) and rubric tables never become sessions or dependencies, successfully producing `RESEARCH-PIPELINE.md` and initial `DECISIONS.md`.
 
 ### 🧪 Test Prompt 6A: Startup Product Pitch ("Uber for Dogs")
 ```text
@@ -282,18 +282,18 @@ new venture: decentralized renewable energy peer-to-peer microgrid trading marke
 
 ### Expected Agent Behavior
 1. **Tool Invocation:** Calls `vivechak_start` with `scope: "project"`.
-2. **Pipeline Generation:** Produces `RESEARCH-PIPELINE.md` containing:
+2. **Pipeline Generation:** Produces `RESEARCH-PIPELINE.md` whose `yaml vivechak-plan` block lists every session with its `depends`, and whose `## Sessions` section holds one `### <id>: <title>` heading and one `prompt` fence per session:
    - Layer 0: Foundational choices (Protocols / Tech stack).
    - Layer 1: Core engines (Matching / Real-time dispatch).
    - Layer 2: Supporting services (Payments, Auth, Notifications).
-   - Terminal Synthesis: `SYN-01` (`research/FAD.md`).
+   - Terminal Synthesis: `SYN-01` marked `kind: synthesis` (`research/FAD.md`).
 3. **Persist:** Calls `vivechak_save` writing `research/RESEARCH-PIPELINE.md` and `research/DECISIONS.md`.
 4. Returns total session count and points to `T0-01` via `next_step`.
 
 ### 🔍 Forensic Evaluation Checklist
 - [ ] Did the model output clean session IDs (`T0-01`, `T1-01`) without illegal prefixes?
 - [ ] Did `vivechak_save` pass validation with 0 blocking L2 errors?
-- [ ] Does the plan include the terminal synthesis session (`SYN-01` → `FAD.md`)?
+- [ ] Does the plan include the terminal synthesis session (`SYN-01`, marked `kind: synthesis` in the block → `FAD.md`)?
 
 ---
 
@@ -470,7 +470,7 @@ wait wait stop everything! boss said no postgres allowed, company has strict con
 1. Model calls `vivechak_replan`:
    - Either directly with `operation`: `"update_prompt"`, `session_id`: target session (e.g. `T0-01`), `new_prompt`: `"Evaluate Oracle DB..."`, `reason`: `"Company restriction: PostgreSQL disallowed, Oracle database mandatory"`, and `impact`: `"Updates database evaluation and ORM selection sessions"`.
    - Or in guided mode: omitting `operation` returns available operations (`["add_session", "remove_session", "update_deps", "update_prompt"]`), candidate uncompleted sessions, and guidance via `next_step` directing the agent to specify the operation and target session.
-2. Vivechak validates acyclicity, updates the DAG, and preserves unrelated completed sessions (e.g. auth, frontend).
+2. Vivechak validates acyclicity, edits the session's entry in the plan's `yaml vivechak-plan` block and its one prompt section in place (the rest of `RESEARCH-PIPELINE.md` stays byte-identical), and preserves unrelated completed sessions (e.g. auth, frontend).
 3. Informs the user which specific sessions were invalidated or scheduled for re-execution.
 
 ### 🔍 Forensic Evaluation Checklist
@@ -501,7 +501,7 @@ The gate decouples validation into two distinct tracks:
 Supports `track` parameter: `"track_a"`, `"track_b"`, or `"all"`.
 - **Active Track Filtering (E-40):** When filtering by `track="track_a"`, failing Track B criteria do not pollute the output or block Track A prototyping; blocking issues are scoped strictly to the selected track.
 - **Decoupled Clearance (E-42):** Track A explicitly passes and authorizes prototyping when all Two-Way Doors satisfy reversibility, even if Track B (One-Way Doors) is still pending or incomplete.
-Returns structured JSON fields: `track_filter: "track_a"|"track_b"|"all"`, `track_a_result: "PASS"|"FAIL"`, `track_b_result: "PASS"|"FAIL"`, and a `decisions` array. Automatically persists `research/PHASE-0-GATE.md`.
+Returns structured JSON fields: a single `verdict: "PASS"|"FAIL"|"not_applicable"` (for the selected track), the `rules` behind it (narrowed to the selected track: Track A lists G12, Track B lists G1–G11), `track_filter: "track_a"|"track_b"|"all"`, and a `decisions` array. Automatically persists `research/PHASE-0-GATE.md`.
 
 ### 🧪 Test Prompt 12A: General Exit Gate Check
 ```text
@@ -529,7 +529,7 @@ vck gate --track track_b --format json
 ### Expected Agent Behavior
 1. Model calls `vivechak_gate(track="all")` (or `track="track_a"` / `"track_b"`), or user runs `vck gate` from terminal or CI.
 2. Vivechak mechanically inspects all ADRs, sessions, and FAD against decoupled Track A and Track B criteria.
-3. For `track="track_a"`, if all Two-Way Doors pass, it returns `track_a_result: "PASS"` and issues no blocking failures from Track B, giving clearance for prototyping.
+3. For `track="track_a"`, if all Two-Way Doors pass, it returns `verdict: "PASS"` and issues no blocking failures from Track B, giving clearance for prototyping.
 4. If evaluated checks fail, returns binary punch list of blockers scoped to the active track (e.g. `[FAIL] B11: D-01 has no red-team challenge`).
 5. Persists `research/PHASE-0-GATE.md` with rendered gate status.
 6. Model reports exact pass/fail status per track to the user.
@@ -769,11 +769,11 @@ Adopt PostgreSQL 16 [Grade A: https://www.postgresql.org/docs/16/release-16.html
 
 ---
 
-## Scenario 19: Universal Host Auto-Configuration Across 21 AI Harnesses (`vck setup` & `vck mcp-config`)
+## Scenario 19: Universal Host Auto-Configuration Across the Verified Host Presets (`vck setup` & `vck mcp-config`)
 
 ### Intent & Engineering Context
 Users and agents configure their IDE or CLI agent using Vivechak's setup subcommands.
-`vck setup` supports 21 distinct presets (`cursor`, `vscode`, `claude-code`, `mcp`, `opencode`, `continue`, `goose`, `copilot`, `void`, `claude-desktop`, `windsurf`, `antigravity`, `kiro`, `trae`, `omp`, `openhands`, `droid`, `cline`, `roo`, `devin`, `zed`).
+`vck setup` supports 10 presets verified against each host's documentation (`cursor`, `vscode`, `claude-code`, `opencode`, `goose`, `claude-desktop`, `windsurf`, `antigravity`, `roo`, `zed`); any other host takes `vck setup <path>`.
 Uses number-preserving JSON decoding (`dec.UseNumber()`) to guarantee zero data loss in existing host configuration files (such as `~/.claude.json`).
 
 ### 🧪 Test Commands
@@ -781,8 +781,8 @@ Uses number-preserving JSON decoding (`dec.UseNumber()`) to guarantee zero data 
 # 1. Auto-configure specific host harnesses:
 vck setup cursor
 vck setup claude-code
-vck setup continue
-vck setup mcp
+vck setup goose
+vck setup ./path/to/mcp.json
 
 # 2. Output universal pipeable MCP configuration:
 vck mcp-config
@@ -883,7 +883,7 @@ Rename variable user_id to account_id in src/auth.ts and update references.
 | **#3** | `ok do next step pls` | `vivechak_next()` | Seamless sequential execution via `next_step`, respects draft status |
 | **#4** | `use vivechak decide react 19 vs react query...` | `vivechak_start(scope="decision")` | Profiles Two-Way Door, produces 1-session Fast Spike ADR |
 | **#5** | `vivechak decide: mongo vs postgres clinic app...` | `vivechak_start(scope="decision")` | Profiles One-Way Door ($X=3$), routes Deep Research (L, C, F) |
-| **#6** | `hey vivechak plan my startup... uber for dogs` | `vivechak_start(scope="project")` | Disentangles tables, outputs multi-tier DAG in `RESEARCH-PIPELINE.md` |
+| **#6** | `hey vivechak plan my startup... uber for dogs` | `vivechak_start(scope="project")` | Reads sessions only from the plan block, outputs multi-tier DAG in `RESEARCH-PIPELINE.md` |
 | **#7** | `save this session: Gin is fastest [Grade A]...` | `vivechak_save(kind="session", )` | Triggers `Q-*` coaching on ungrounded claims, sets `status: draft` |
 | **#8** | `bro roast my decision... use vivechak challenge` | `vivechak_review(mode="challenge", decision_id="D-01")` | Accepts `decision_id` & `premortem` aliases, two-tier lookup resolves ADR |
 | **#9** | `update session T0-01 with benchmark finding...` | `vivechak_amend(session_id="T0-01")` | Accepts `content` & `reason` aliases, two-tier lookup patches file, auto-recompiles `DECISIONS.md` on ADR amendments |
@@ -896,7 +896,7 @@ Rename variable user_id to account_id in src/auth.ts and update references.
 | **#16**| `vck compare winston vs pino` | `InferScope` via `prepare_generator` | Command shorthand triggers comparison scope immediately |
 | **#17**| `run gate with standalone D-01 and DECISIONS.md` | `vivechak_gate()` | Evaluates dual sources without omission, deduplicates IDs |
 | **#18**| `save session citing Grade A with URL in table` | `vivechak_save(kind="session", )` | Cross-references ledger table anchors, parses `[Grade: A]` colon syntax, 0 false alarms |
-| **#19**| `vck setup cursor` or `vck mcp-config` | CLI setup command | Number-preserving merge across 21 presets, valid JSON |
+| **#19**| `vck setup cursor` or `vck mcp-config` | CLI setup command | Number-preserving merge across all presets, valid JSON |
 | **#20**| `vck doctor` | CLI doctor command | Reports active scope, template layout, and frontmatter health |
 | **#21**| `Write a python function to compute HMAC...` | None (Direct Execution) | Agent directly writes code/fixes bug, 0 Vivechak tool calls |
 

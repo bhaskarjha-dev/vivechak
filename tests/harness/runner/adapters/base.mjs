@@ -16,6 +16,10 @@ export class BaseHarnessAdapter {
     this.defaultModel = defaultModel;
     this.candidateModels = candidateModels.length > 0 ? candidateModels : [defaultModel];
     this.type = type;
+    // True only when runTurn prints every tool call and its full result as
+    // "→ Call: <name> <json args>" / "← Result: <json result>" lines. triage.mjs passes a
+    // scenario only from those records, so runs of adapters that don't record them FAIL.
+    this.recordsToolResults = false;
   }
 
   /**

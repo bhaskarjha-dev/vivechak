@@ -117,240 +117,202 @@ export function triageRuns() {
     suggestions: categorizedSuggestions
   };
 }
- 
+
+// ---------------------------------------------------------------------------------------------
+// Verdicts come only from recorded evidence, never from words in the transcript:
+//   1. every key call of the scenario is recorded with a successful result (an MCP tools/call
+//      result with isError false; a CLI step with exit code 0), and
+//   2. where the scenario names a file, that file is in the run's sandbox inventory.
+// Adapters record a call as a "→ Call: <name> <json args>" line followed by a
+// "← Result: <json result>" line in Turn 1 (see DirectMcpAdapter); runs without such records
+// can't be verified and FAIL.
+// ---------------------------------------------------------------------------------------------
+
+const CALL_LINE = /^→ Call: ([A-Za-z0-9_.:/-]+)(?:\((.*)\)| (.*))?$/;
+const RESULT_LINE = /^← Result: (.*)$/;
+const CHALLENGE_MODES = new Set(["challenge", "red_team", "audit", "premortem"]);
+
+const tool = (name, desc = name, pred = () => true) => ({
+  desc,
+  match: (r) => r.name === name && pred(r.args || {})
+});
+const cli = (subcommand) => ({
+  desc: `vck ${subcommand}`,
+  match: (r) => r.name === "vck" && Array.isArray(r.args?.argv) && r.args.argv[0] === subcommand
+});
+const reviewMode = (args) => {
+  const mode = String(args.mode ?? "").trim().toLowerCase();
+  if (!mode && args.challenge_type) return "challenge";
+  return CHALLENGE_MODES.has(mode) ? "challenge" : "validate";
+};
+const file = (desc, test) => ({ desc, test });
+
+const COMPARISON_FILE = file("research/C-NNN-comparison.md", (f) => /^research\/C-\d+-(?:comparison|cmp-[^/]+)\.md$/.test(f));
+const DECISION_PLAN_FILE = file("research/D-NNN-plan.md", (f) => /^research\/D-\d+(?:-[^/]+)?-plan\.md$/.test(f));
+const PIPELINE_FILE = file("research/RESEARCH-PIPELINE.md", (f) => f === "research/RESEARCH-PIPELINE.md");
+const ADR_FILE = file(
+  "research/D-NNN ADR",
+  (f) => /^research\/D-\d+(?:-[^/]+)?\.md$/.test(f) && !/-(?:plan|R\d+|S\d+(?:-[^/]*)?)\.md$/.test(f)
+);
+const DECISIONS_FILE = file("research/DECISIONS.md", (f) => f === "research/DECISIONS.md");
+const GATE_FILE = file("research/PHASE-0-GATE.md", (f) => f === "research/PHASE-0-GATE.md");
+const CURSOR_CONFIG_FILE = file(".cursor/mcp.json", (f) => f === ".cursor/mcp.json");
+
+/**
+ * What each scenario must show in its recorded results (tests/harness/SCENARIOS.md):
+ * `calls` are the key calls, `files` the files the scenario names. Scenario 21 passes only when
+ * the run recorded its tool results and none of them is a Vivechak tool.
+ */
+export const SCENARIO_EXPECTATIONS = {
+  "01": { calls: [tool("vivechak_start"), tool("vivechak_save")], files: [COMPARISON_FILE] },
+  "02": { calls: [tool("vivechak_save")], files: [COMPARISON_FILE] },
+  "03": { calls: [tool("vivechak_save"), tool("vivechak_next")], files: [PIPELINE_FILE] },
+  "04": { calls: [tool("vivechak_start"), tool("vivechak_save")], files: [DECISION_PLAN_FILE] },
+  "05": { calls: [tool("vivechak_start"), tool("vivechak_save")], files: [DECISION_PLAN_FILE] },
+  "06": { calls: [tool("vivechak_start"), tool("vivechak_save")], files: [PIPELINE_FILE] },
+  "07": { calls: [tool("vivechak_save")] },
+  "08": { calls: [tool("vivechak_review", "vivechak_review (challenge)", (a) => reviewMode(a) === "challenge")] },
+  "09": { calls: [tool("vivechak_amend")] },
+  "10": { calls: [tool("vivechak_record_decision")], files: [ADR_FILE, DECISIONS_FILE] },
+  "11": { calls: [tool("vivechak_replan")] },
+  "12": { calls: [tool("vivechak_gate")], files: [GATE_FILE] },
+  "13": {
+    calls: [
+      tool("vivechak_status"),
+      tool("vivechak_status", "vivechak_status (format=mermaid or table)", (a) => ["mermaid", "table"].includes(String(a.format ?? "").toLowerCase()))
+    ]
+  },
+  "14": { calls: [tool("vivechak_review", "vivechak_review (validate)", (a) => reviewMode(a) === "validate")] },
+  "15": { calls: [tool("vivechak_save")] },
+  "16": { calls: [tool("vivechak_start")] },
+  "17": { calls: [tool("vivechak_gate")], files: [GATE_FILE] },
+  "18": { calls: [tool("vivechak_save")] },
+  "19": { calls: [cli("setup")], files: [CURSOR_CONFIG_FILE] },
+  "20": { calls: [cli("doctor")] },
+  "21": { forbiddenCall: /vivechak_/, forbiddenFile: /^research\// }
+};
+
+/**
+ * Parses the recorded tool trace: each "→ Call:" line opens a record and the next
+ * "← Result:" line holds its result (undefined when none was recorded, { unparsed } when the
+ * line is not JSON).
+ * @returns {Array<{ name: string, args: object, result: any }>}
+ */
+export function parseToolTrace(text) {
+  const records = [];
+  for (const raw of (text || "").split(/\r?\n/)) {
+    const line = raw.trimEnd();
+    const call = line.match(CALL_LINE);
+    if (call) {
+      const argsText = (call[2] ?? call[3] ?? "").trim();
+      let args = {};
+      if (argsText) {
+        try {
+          args = JSON.parse(argsText);
+        } catch (e) {
+          args = { unparsed: argsText };
+        }
+      }
+      records.push({ name: call[1], args, result: undefined });
+      continue;
+    }
+    const result = line.match(RESULT_LINE);
+    if (result && records.length > 0 && records[records.length - 1].result === undefined) {
+      try {
+        records[records.length - 1].result = JSON.parse(result[1]);
+      } catch (e) {
+        records[records.length - 1].result = { unparsed: result[1].slice(0, 200) };
+      }
+    }
+  }
+  return records;
+}
+
+/** True for an MCP tools/call result with isError false, or a CLI step that exited 0. */
+export function stepSucceeded(result) {
+  if (!result || typeof result !== "object" || Array.isArray(result) || result.unparsed !== undefined) return false;
+  if ("exitCode" in result) return result.exitCode === 0 && result.timedOut !== true;
+  return Array.isArray(result.content) && result.isError !== true;
+}
+
+function clip(text) {
+  return String(text).replace(/\s+/g, " ").trim().slice(0, 160).replace(/\|/g, "\\|");
+}
+
+function describeFailure(result) {
+  if (result === undefined) return "no result was recorded";
+  if (!result || typeof result !== "object" || Array.isArray(result)) return "the result is not a JSON object";
+  if (result.unparsed !== undefined) return "the recorded result is not valid JSON";
+  if ("exitCode" in result) return `exit code ${result.exitCode}${result.timedOut ? " (timed out)" : ""}`;
+  if (result.error) return `JSON-RPC error: ${clip(result.error.message || JSON.stringify(result.error))}`;
+  if (result.isError === true) {
+    const text = (result.content || []).find((c) => c?.type === "text")?.text || "";
+    let message = text;
+    try {
+      message = JSON.parse(text).message || text;
+    } catch (e) {
+      // plain-text error
+    }
+    return `isError: true (${clip(message)})`;
+  }
+  return "the result has no content";
+}
+
+function parseSandboxInventory(content) {
+  const start = content.indexOf("## 5. Sandbox Filesystem Inventory");
+  if (start === -1) return null;
+  const block = content.slice(start).match(/```text\r?\n([\s\S]*?)\r?\n```/);
+  if (!block) return null;
+  return block[1]
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter((l) => l && l !== "(No files created in sandbox)");
+}
+
+function toolResultsFlag(content) {
+  const m = content.match(/^\* \*\*Tool Results:\*\* `([^`]*)`/m);
+  return m ? m[1] : null;
+}
+
+const fail = (reason) => ({ passed: false, reason });
+
 export function evaluateScenarioPass(scenarioId, content, turn1Content) {
-  if (content.includes("PREFLIGHT_FAIL") || content.includes("TURN1_FAIL") || content.includes("(Skipped: Turn 1 did not complete successfully)")) {
-    return { passed: false, reason: "Turn 1 execution failed or timed out" };
+  const text = content || "";
+  if (text.includes("PREFLIGHT_FAIL") || text.includes("TURN1_FAIL") || text.includes("(Skipped: Turn 1 did not complete successfully)")) {
+    return fail("Turn 1 execution failed or timed out");
   }
 
-  const normContent = content.toLowerCase();
-  const normTurn1 = (turn1Content || "").toLowerCase();
+  const spec = SCENARIO_EXPECTATIONS[scenarioId];
+  if (!spec) return fail(`No expectation is defined for scenario ${scenarioId}`);
 
-  switch (scenarioId) {
-    case "01": // Universal Option Comparison (Winston vs Pino)
-    case "02": // Skipped Init Auto-Creation (Resilient Save Plan)
-    case "16": // CLI Shorthand Scope Recognition (vck compare)
-      {
-        const hasComparisonArtifact =
-          (/c-[a-z0-9_-]+|comparison\.md/i.test(content) &&
-            (normContent.includes("weighted evaluation") || normContent.includes("wep"))) ||
-          normContent.includes("wep matrix");
-        const mentionsOptions =
-          normContent.includes("pino") && normContent.includes("winston");
-        if (hasComparisonArtifact && mentionsOptions) {
-          return { passed: true, reason: "" };
-        }
-        return { passed: false, reason: "Missing comparison matrix (WEP) or option comparison output" };
-      }
-
-    case "03": // Guided Worker Flow (DAG Resolution & Draft Sync)
-    case "06": // Full Venture / Project Pipeline (Multi-Tier DAG -> FAD)
-      {
-        const hasProjectArtifact =
-          content.includes("RESEARCH-PIPELINE.md") ||
-          /t\d+-[a-z0-9_-]+/i.test(content);
-        if (hasProjectArtifact) {
-          return { passed: true, reason: "" };
-        }
-        return { passed: false, reason: "Project DAG pipeline or session artifacts not generated" };
-      }
-
-    case "04": // Fast Architectural Decision (Two-Way Door Fast Spike)
-    case "05": // High-Stakes One-Way Door (Regulatory X=3 Deep Research)
-      {
-        const hasAdrOrPlan =
-          /d-[a-z0-9_-]+/i.test(content) ||
-          content.includes("DECISIONS.md") ||
-          content.includes("vivechak_start") ||
-          content.includes("vivechak_prepare_generator") ||
-          content.includes("scope=\"decision\"") ||
-          normContent.includes("decision plan");
-        if (hasAdrOrPlan) {
-          return { passed: true, reason: "" };
-        }
-        return { passed: false, reason: "Decision scope ADR or decision plan artifact missing" };
-      }
-
-    case "07": // Quality Coaching & 50-Char Concern Gate
-      {
-        const caughtQuality =
-          content.includes("T0-01") ||
-          content.includes("Q-GRADE-INFLATION") ||
-          normContent.includes("grade inflation") ||
-          normContent.includes("quality") ||
-          normContent.includes("draft");
-        if (caughtQuality) {
-          return { passed: true, reason: "" };
-        }
-        return { passed: false, reason: "Quality coaching failed to trigger or evaluate T0-01" };
-      }
-
-    case "08": // Adversarial Red-Team Challenge
-      {
-        const usedChallenge =
-          content.includes("vivechak_review") ||
-          content.includes("vivechak_challenge") ||
-          normContent.includes("red_team") ||
-          normContent.includes("challenge") ||
-          normContent.includes("critique") ||
-          normContent.includes("blast radius");
-        if (usedChallenge) {
-          return { passed: true, reason: "" };
-        }
-        return { passed: false, reason: "vivechak_review or vivechak_challenge was not invoked or evaluated" };
-      }
-
-    case "09": // Incremental Session / ADR Amendment
-      {
-        const usedAmend =
-          content.includes("vivechak_amend") ||
-          content.includes("vivechak_amend_session") ||
-          normContent.includes("amend") ||
-          normContent.includes("updated session") ||
-          normContent.includes("12ms");
-        if (usedAmend) {
-          return { passed: true, reason: "" };
-        }
-        return { passed: false, reason: "vivechak_amend or vivechak_amend_session was not invoked or executed" };
-      }
-
-    case "10": // Formal ADR Recording (Canonical ADR Compilation)
-      {
-        const recordedAdr =
-          content.includes("vivechak_record_decision") ||
-          /d-01\.md|decisions\.md/i.test(content) ||
-          normContent.includes("reversal trigger");
-        if (recordedAdr) {
-          return { passed: true, reason: "" };
-        }
-        return { passed: false, reason: "vivechak_record_decision was not invoked or ADR not recorded" };
-      }
-
-    case "11": // Dynamic DAG Re-planning (Requirement Pivot)
-      {
-        const usedReplan =
-          content.includes("vivechak_replan") ||
-          normContent.includes("replan") ||
-          normContent.includes("invalidate") ||
-          normContent.includes("oracle");
-        if (usedReplan) {
-          return { passed: true, reason: "" };
-        }
-        return { passed: false, reason: "vivechak_replan was not invoked or plan not updated" };
-      }
-
-    case "12": // Mechanical Phase 0 Exit Gate (Track Filtering)
-    case "17": // Dual-Source Decision Resolution
-      {
-        const ranGate =
-          content.includes("vivechak_gate") ||
-          content.includes("vivechak_run_gate") ||
-          normContent.includes("phase-0-gate") ||
-          normContent.includes("track a") ||
-          normContent.includes("track b") ||
-          normContent.includes("exit gate");
-        if (ranGate) {
-          return { passed: true, reason: "" };
-        }
-        return { passed: false, reason: "Phase 0 Gate evaluation was not executed" };
-      }
-
-    case "13": // Status & Graph Visualization (Mermaid/ASCII)
-      {
-        const checkedStatus =
-          content.includes("vivechak_status") ||
-          content.includes("vivechak_visualize") ||
-          normContent.includes("mermaid") ||
-          normContent.includes("dag status") ||
-          normContent.includes("pipeline");
-        if (checkedStatus) {
-          return { passed: true, reason: "" };
-        }
-        return { passed: false, reason: "vivechak_status or vivechak_visualize not invoked" };
-      }
-
-    case "14": // Multi-Tier Workspace Audit (Automated Discovery)
-      {
-        const ranValidate =
-          content.includes("vivechak_review") ||
-          content.includes("vivechak_validate") ||
-          normContent.includes("workspace validation") ||
-          normContent.includes("all artifacts valid");
-        if (ranValidate) {
-          return { passed: true, reason: "" };
-        }
-        return { passed: false, reason: "vivechak_review or vivechak_validate was not invoked" };
-      }
-
-    case "15": // AST Code Fence Truncation Immunity
-    case "18": // Evidence Ledger URL Cross-Referencing
-      {
-        const savedSession =
-          content.includes("vivechak_save") ||
-          content.includes("vivechak_save_session") ||
-          normContent.includes("session saved") ||
-          normContent.includes("claim-01") ||
-          normContent.includes("status: complete");
-        if (savedSession) {
-          return { passed: true, reason: "" };
-        }
-        return { passed: false, reason: "Session output was not processed or saved" };
-      }
-
-    case "19": // Universal Host Auto-Configuration
-      {
-        const ranSetup =
-          normContent.includes("vck setup") ||
-          normContent.includes("cursor") ||
-          normContent.includes(".cursor/mcp.json") ||
-          normContent.includes("mcp-config") ||
-          normContent.includes("vivechak");
-        if (ranSetup) {
-          return { passed: true, reason: "" };
-        }
-        return { passed: false, reason: "vck setup or host MCP config not emitted" };
-      }
-
-    case "20": // Pre-Coding Workspace Integrity Check
-      {
-        const ranDoctor =
-          normContent.includes("vck doctor") ||
-          normContent.includes("doctor diagnostics") ||
-          normContent.includes("workspace integrity") ||
-          normContent.includes("clean");
-        if (ranDoctor) {
-          return { passed: true, reason: "" };
-        }
-        return { passed: false, reason: "vck doctor audit not performed" };
-      }
-
-    case "21": // Out-of-Scope Anti-Pattern Boundary (Direct Code Authoring)
-      {
-        const toolUsed =
-          turn1Content.includes("tools.vivechak") ||
-          turn1Content.includes("call_mcp_tool") ||
-          turn1Content.includes("vivechak_prepare_generator") ||
-          turn1Content.includes("vivechak_init");
-        const hasCode =
-          normTurn1.includes("hmac") ||
-          normTurn1.includes("hashlib") ||
-          normTurn1.includes("sha256") ||
-          normTurn1.includes("def ");
-        if (!toolUsed && hasCode) {
-          return { passed: true, reason: "" };
-        }
-        return { passed: false, reason: "Guardrail violation: called Vivechak tools or failed to write code directly" };
-      }
-
-    default:
-      {
-        const hasArtifact = /C-[A-Za-z0-9_-]+|D-[A-Za-z0-9_-]+|T\d+-[A-Za-z0-9_-]+|RESEARCH-PIPELINE\.md/.test(content);
-        if (hasArtifact) {
-          return { passed: true, reason: "" };
-        }
-        return { passed: false, reason: "Target artifact was not found in execution output" };
-      }
+  const records = parseToolTrace(turn1Content || text);
+  if (records.length === 0 && toolResultsFlag(text) !== "recorded") {
+    return fail("No tool results were recorded for this run, so the scenario can't be verified");
   }
+
+  for (const call of spec.calls || []) {
+    const made = records.filter(call.match);
+    if (made.length === 0) return fail(`Key call ${call.desc} was not recorded`);
+    if (!made.some((r) => stepSucceeded(r.result))) {
+      return fail(`Key call ${call.desc} failed: ${describeFailure(made[made.length - 1].result)}`);
+    }
+  }
+  if (spec.forbiddenCall) {
+    const used = records.find((r) => spec.forbiddenCall.test(r.name));
+    if (used) return fail(`Vivechak tool ${used.name} was called for an out-of-scope request`);
+  }
+
+  if (spec.files || spec.forbiddenFile) {
+    const inventory = parseSandboxInventory(text);
+    if (inventory === null) return fail("The run has no sandbox file inventory, so its files can't be checked");
+    for (const f of spec.files || []) {
+      if (!inventory.some(f.test)) return fail(`Expected file ${f.desc} was not written`);
+    }
+    const created = spec.forbiddenFile ? inventory.find((f) => spec.forbiddenFile.test(f)) : undefined;
+    if (created) return fail(`The out-of-scope request created ${created}`);
+  }
+
+  return { passed: true, reason: "" };
 }
 
 if (process.argv[1]?.endsWith("triage.mjs")) {

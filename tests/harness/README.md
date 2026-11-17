@@ -161,8 +161,8 @@ If a model encounters credit exhaustion or quota limits during pre-flight probe 
 ### Dead-Session Short-Circuiting:
 If Turn 1 aborts, times out, or produces zero output, `orchestrator.mjs` marks the session as `TURN1_FAIL` and immediately short-circuits Turns 2–4. This avoids wasting up to 270 seconds on an already-dead process tree while still assembling the partial diagnostic report.
 
-### Full 21-Scenario Semantic Triage:
-`triage.mjs` implements scenario-specific semantic evaluation across all 21 scenarios, verifying the exact required invariants (e.g. WEP matrices for 01/02, ADRs for 04/05/10, DAG pipelines for 03/06, `vck challenge` for 08, `vck amend` for 09, `vck replan` for 11, `vck gate` for 12/17, `vck status` for 13, `vck validate` for 14, `vck setup` for 19, `vck doctor` for 20, and anti-pattern code authoring guardrails for 21) without false-negative file-existence failures.
+### Triage From Recorded Tool Results:
+`triage.mjs` decides each scenario only from recorded evidence, never from words in the transcript: every key call of the scenario must be recorded with a result whose `isError` is false (CLI steps: exit code 0), and every file the scenario names must appear in the run's sandbox inventory (`SCENARIO_EXPECTATIONS` in `triage.mjs` lists both per scenario). Runs from adapters that don't record their tool results fail triage as unverifiable.
 
 ---
 
@@ -184,6 +184,7 @@ To add a new AI agent CLI or MCP client (e.g. `cursor`, `windsurf`, `cline`, or 
    - `probe()`: checks binary, auth, and token/quota health.
    - `runTurn(prompt, sandboxDir, model, timeoutMs)`: starts a new session.
    - `continueTurn(prompt, sandboxDir, timeoutMs)`: continues the session in the existing sandbox.
+   - To let triage pass its runs, make `runTurn` print every tool call and its full result as `→ Call: <name> <json args>` / `← Result: <json result>` lines (as `direct_mcp.mjs` does) and set `this.recordsToolResults = true`; otherwise every run of the adapter fails triage.
 3. Register the new adapter in `tests/harness/runner/adapters/registry.mjs`.
 4. Run `node scripts/run_harness.mjs --probe` to verify detection.
 

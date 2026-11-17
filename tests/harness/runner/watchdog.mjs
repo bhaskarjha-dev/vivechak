@@ -8,13 +8,14 @@ import { spawn } from "node:child_process";
  *
  * @param {string} cmd The executable or command.
  * @param {string[]} args Command line arguments.
- * @param {object} options Options including cwd, timeoutMs, stdio, shell.
+ * @param {object} options Options including cwd, timeoutMs, stdio, shell, env (merged over process.env).
  * @returns {Promise<{ stdout: string, stderr: string, exitCode: number, timedOut: boolean, killed: boolean }>}
  */
 export function execWithWatchdog(cmd, args = [], options = {}) {
   const timeoutMs = options.timeoutMs || 90000; // 90 second default
   const maxOutputChars = options.maxOutputChars || 60000;
   const cwd = options.cwd || process.cwd();
+  const env = options.env ? { ...process.env, ...options.env } : process.env;
   const isWin = process.platform === "win32";
 
   return new Promise((resolve) => {
@@ -116,7 +117,7 @@ export function execWithWatchdog(cmd, args = [], options = {}) {
           shell: initialShell,
           windowsHide: true,
           stdio: ["ignore", "pipe", "pipe"],
-          env: process.env
+          env
         });
 
         proc.on("error", (err) => {
@@ -130,7 +131,7 @@ export function execWithWatchdog(cmd, args = [], options = {}) {
                 shell: true,
                 windowsHide: true,
                 stdio: ["ignore", "pipe", "pipe"],
-                env: process.env
+                env
               });
               setupProcEvents(proc);
               proc.on("error", (err2) => {
@@ -175,7 +176,7 @@ export function execWithWatchdog(cmd, args = [], options = {}) {
               shell: true,
               windowsHide: true,
               stdio: ["ignore", "pipe", "pipe"],
-              env: process.env
+              env
             });
             setupProcEvents(proc);
             return;
