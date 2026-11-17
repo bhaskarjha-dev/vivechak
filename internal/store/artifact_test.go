@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -211,6 +212,58 @@ func TestProperty_1000RandomizedWrites_ZeroDataLoss(t *testing.T) {
 		}
 		if string(data) != expected {
 			t.Errorf("data mismatch in %s: expected %s, got %s", relPath, expected, string(data))
+		}
+	}
+}
+
+// Two revisions archived in the same instant must both survive: the second archive gets the next free
+// name instead of overwriting the first (before, names had one-second resolution and the earlier
+// archived version was lost).
+func TestArchiveRevision_SameInstantKeepsEveryRevision(t *testing.T) {
+	tmpDir := t.TempDir()
+	ws, err := OpenWorkspace(tmpDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ws.Close()
+
+	fixed := time.Date(2026, 11, 12, 20, 0, 0, 0, time.UTC)
+	orig := archiveNow
+	archiveNow = func() time.Time { return fixed }
+	defer func() { archiveNow = orig }()
+
+	target := "research/decisions/D-020.md"
+	for i, body := range []string{"v1", "v2", "v3"} {
+		if err := ws.WriteArtifact(target, []byte("---\nid: D-020\n---\n"+body), 0o644, i > 0); err != nil {
+			t.Fatalf("write %s: %v", body, err)
+		}
+	}
+
+	entries, err := ws.ListDir("research/.history/decisions")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var names []string
+	var bodies []string
+	for _, e := range entries {
+		names = append(names, e.Name())
+		data, err := ws.ReadFile("research/.history/decisions/" + e.Name())
+		if err != nil {
+			t.Fatal(err)
+		}
+		bodies = append(bodies, string(data))
+	}
+	sort.Strings(names)
+	if len(entries) != 2 {
+		t.Fatalf("expected the two replaced versions (v1, v2) archived under distinct names, got %v", names)
+	}
+	joined := strings.Join(bodies, "\n")
+	if !strings.Contains(joined, "v1") || !strings.Contains(joined, "v2") {
+		t.Errorf("both replaced versions must survive in .history, got %q", joined)
+	}
+	for _, n := range names {
+		if !strings.HasPrefix(n, "D-020.md@20261112T200000.") {
+			t.Errorf("archive name %q must keep the <file>@<UTC stamp>.md form", n)
 		}
 	}
 }

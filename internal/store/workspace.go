@@ -38,7 +38,8 @@ func (w *Workspace) AbsPath() string {
 }
 
 func (w *Workspace) ReadFile(relPath string) ([]byte, error) {
-	f, err := w.root.Open(relPath)
+	clean := filepath.ToSlash(filepath.Clean(relPath))
+	f, err := w.root.Open(clean)
 	if err != nil {
 		return nil, err
 	}
@@ -47,15 +48,20 @@ func (w *Workspace) ReadFile(relPath string) ([]byte, error) {
 }
 
 func (w *Workspace) Stat(relPath string) (os.FileInfo, error) {
-	if relPath == "" {
-		relPath = "."
+	clean := filepath.ToSlash(filepath.Clean(relPath))
+	if clean == "" || clean == "." {
+		clean = "."
 	}
-	return w.root.Stat(relPath)
+	return w.root.Stat(clean)
 }
 
 // FileExists reports whether relPath exists and can be stated within the workspace root.
 func (w *Workspace) FileExists(relPath string) bool {
-	_, err := w.root.Stat(relPath)
+	clean := filepath.ToSlash(filepath.Clean(relPath))
+	if clean == "" || clean == "." {
+		clean = "."
+	}
+	_, err := w.root.Stat(clean)
 	return err == nil
 }
 
@@ -67,12 +73,12 @@ func (w *Workspace) MkdirAll(relPath string, perm os.FileMode) error {
 		return fmt.Errorf("path escapes workspace: %s", relPath)
 	}
 
-	clean := filepath.Clean(relPath)
+	clean := filepath.ToSlash(filepath.Clean(relPath))
 	if clean == "." || clean == "" {
 		return nil
 	}
 
-	parts := strings.Split(filepath.ToSlash(clean), "/")
+	parts := strings.Split(clean, "/")
 	var current string
 	for _, part := range parts {
 		if part == "" || part == "." {
@@ -81,7 +87,7 @@ func (w *Workspace) MkdirAll(relPath string, perm os.FileMode) error {
 		if current == "" {
 			current = part
 		} else {
-			current = filepath.Join(current, part)
+			current = current + "/" + part
 		}
 
 		err := w.root.Mkdir(current, perm)
@@ -103,10 +109,11 @@ func (w *Workspace) MkdirAll(relPath string, perm os.FileMode) error {
 }
 
 func (w *Workspace) ListDir(relPath string) ([]os.DirEntry, error) {
-	if relPath == "" {
-		relPath = "."
+	clean := filepath.ToSlash(filepath.Clean(relPath))
+	if clean == "" || clean == "." {
+		clean = "."
 	}
-	f, err := w.root.Open(relPath)
+	f, err := w.root.Open(clean)
 	if err != nil {
 		return nil, err
 	}

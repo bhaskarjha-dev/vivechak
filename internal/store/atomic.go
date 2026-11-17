@@ -22,12 +22,16 @@ func WriteFileAtomic(root *os.Root, relPath string, data []byte, perm os.FileMod
 		return fmt.Errorf("E-CONFINEMENT: write target %q is outside research/", relPath)
 	}
 
-	dir := filepath.Dir(relPath)
+	relPath = cleanSlash
+	dir := filepath.ToSlash(filepath.Dir(relPath))
 	if dir == "." {
 		dir = ""
 	}
 	tmpName := fmt.Sprintf(".tmp_%d_%d_%d", time.Now().UnixNano(), os.Getpid(), tmpFileCounter.Add(1))
-	tmpPath := filepath.Join(dir, tmpName)
+	tmpPath := tmpName
+	if dir != "" {
+		tmpPath = dir + "/" + tmpName
+	}
 
 	f, err := root.OpenFile(tmpPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, perm)
 	if err != nil {

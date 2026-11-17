@@ -50,15 +50,58 @@ func ExtractFrontmatterID(content []byte) string {
 	return ""
 }
 
+// ExtractTitle returns an artifact's title: its frontmatter title, else its first "# " heading, else "".
+// E-REVISE-REQUIRED names it so an agent can tell an update of an artifact from a different one.
+func ExtractTitle(content []byte) string {
+	lines := strings.Split(string(NormalizeLineEndings(content)), "\n")
+	inFM := false
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if i == 0 && trimmed == "---" {
+			inFM = true
+			continue
+		}
+		if inFM {
+			if trimmed == "---" {
+				inFM = false
+				continue
+			}
+			if k, v, ok := strings.Cut(trimmed, ":"); ok && strings.EqualFold(strings.TrimSpace(k), "title") {
+				if t := strings.Trim(strings.TrimSpace(v), `"'`); t != "" {
+					return t
+				}
+			}
+			continue
+		}
+		if strings.HasPrefix(trimmed, "# ") {
+			return strings.TrimSpace(trimmed[2:])
+		}
+	}
+	return ""
+}
+
 // ArchiveRevision archives prior file content into research/.history/<path>@<UTC>.md
 // and caps total revisions for this file at 10.
+// archiveNow is the clock that names history archives; tests replace it to force same-instant revisions.
+var archiveNow = time.Now
+
+// archiveStampLayout names history archives: fixed width, so lexical order is time order.
+const archiveStampLayout = "20060102T150405.000000000Z"
+
 func ArchiveRevision(ws *Workspace, relPath string, existing []byte) error {
 	cleanRel := filepath.ToSlash(filepath.Clean(relPath))
 	subPath := strings.TrimPrefix(cleanRel, "research/")
 	subPath = strings.TrimPrefix(subPath, "/")
 
-	timestamp := time.Now().UTC().Format("20060102T150405Z")
-	archiveRel := fmt.Sprintf("research/.history/%s@%s.md", subPath, timestamp)
+	// Archive names carry a fixed-width UTC stamp with nanoseconds, so they sort in time order, and a name
+	// that is already taken (two revisions in the same instant, or a coarse clock) moves the stamp forward
+	// instead of overwriting the earlier archive.
+	stamp := archiveNow().UTC()
+	archiveRel := fmt.Sprintf("research/.history/%s@%s.md", subPath, stamp.Format(archiveStampLayout))
+	for ws.FileExists(archiveRel) {
+		stamp = stamp.Add(time.Nanosecond)
+		archiveRel = fmt.Sprintf("research/.history/%s@%s.md", subPath, stamp.Format(archiveStampLayout))
+	}
 
 	archiveDir := filepath.Dir(archiveRel)
 	if err := ws.MkdirAll(archiveDir, 0o755); err != nil {
@@ -126,6 +169,9 @@ func (w *Workspace) WriteArtifact(relPath string, data []byte, perm os.FileMode,
 			}
 
 			if !revise {
+				if title := ExtractTitle(existing); title != "" {
+					return fmt.Errorf("E-REVISE-REQUIRED: file %s already exists with different content (existing title %q); pass revise: true to overwrite", relPath, title)
+				}
 				return fmt.Errorf("E-REVISE-REQUIRED: file %s already exists with different content; pass revise: true to overwrite", relPath)
 			}
 
