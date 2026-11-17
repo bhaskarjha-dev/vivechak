@@ -16,9 +16,9 @@ import (
 	"github.com/tailscale/hujson"
 )
 
-// TestLiveHarness_EndToEnd_All21Hosts_Simulation validates Level 3 (idempotence, non-destructive merging,
-// state preservation) and Level 4 (live launch round-trip via extracted config) across ALL 21 supported AI harnesses.
-func TestLiveHarness_EndToEnd_All21Hosts_Simulation(t *testing.T) {
+// TestLiveHarness_EndToEnd_AllPresetHosts_Simulation validates Level 3 (idempotence, non-destructive merging,
+// state preservation) and Level 4 (live launch round-trip via extracted config) across every host preset.
+func TestLiveHarness_EndToEnd_AllPresetHosts_Simulation(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping exhaustive harness simulation in short mode")
 	}
@@ -29,7 +29,7 @@ func TestLiveHarness_EndToEnd_All21Hosts_Simulation(t *testing.T) {
 	// Resolve the live vivechak binary
 	binPath := resolveOrBuildTestBinary(t)
 
-	all21Presets := []struct {
+	allPresets := []struct {
 		preset        string
 		serverKey     string
 		isWorkspace   bool
@@ -73,29 +73,6 @@ func TestLiveHarness_EndToEnd_All21Hosts_Simulation(t *testing.T) {
 			},
 		},
 		{
-			preset:      "mcp",
-			serverKey:   "mcpServers",
-			isWorkspace: true,
-			preExisting: `{"mcpServers": {"existing_fetch": {"command": "fetch-mcp", "args": ["--port", "8080"]}}}`,
-			verifyContent: func(t *testing.T, content []byte) (string, []string) {
-				var parsed map[string]any
-				if err := json.Unmarshal(content, &parsed); err != nil {
-					t.Fatalf("failed to parse universal .mcp.json: %v", err)
-				}
-				mcpServers := parsed["mcpServers"].(map[string]any)
-				if mcpServers["existing_fetch"] == nil {
-					t.Errorf("universal .mcp.json clobbered existing_fetch server")
-				}
-				vivechak := mcpServers["vivechak"].(map[string]any)
-				cmd := vivechak["command"].(string)
-				var args []string
-				for _, a := range vivechak["args"].([]any) {
-					args = append(args, a.(string))
-				}
-				return cmd, args
-			},
-		},
-		{
 			preset:      "opencode",
 			serverKey:   "mcp",
 			isWorkspace: true,
@@ -130,26 +107,6 @@ func TestLiveHarness_EndToEnd_All21Hosts_Simulation(t *testing.T) {
 				cmd := cmdArray[0].(string)
 				var args []string
 				for _, a := range cmdArray[1:] {
-					args = append(args, a.(string))
-				}
-				return cmd, args
-			},
-		},
-		{
-			preset:      "continue",
-			serverKey:   "mcpServers",
-			isWorkspace: true,
-			preExisting: ``,
-			verifyContent: func(t *testing.T, content []byte) (string, []string) {
-				var parsed map[string]any
-				if err := json.Unmarshal(content, &parsed); err != nil {
-					t.Fatalf("failed to parse continue vivechak.json: %v", err)
-				}
-				mcpServers := parsed["mcpServers"].(map[string]any)
-				vivechak := mcpServers["vivechak"].(map[string]any)
-				cmd := vivechak["command"].(string)
-				var args []string
-				for _, a := range vivechak["args"].([]any) {
 					args = append(args, a.(string))
 				}
 				return cmd, args
@@ -254,34 +211,6 @@ func TestLiveHarness_EndToEnd_All21Hosts_Simulation(t *testing.T) {
 			},
 		},
 		{
-			preset:      "copilot",
-			serverKey:   "mcpServers",
-			isWorkspace: false,
-			preExisting: `{"mcpServers": {}}`,
-			verifyContent: func(t *testing.T, content []byte) (string, []string) {
-				var parsed map[string]any
-				if err := json.Unmarshal(content, &parsed); err != nil {
-					t.Fatalf("failed to parse copilot mcp.json: %v", err)
-				}
-				vivechak := parsed["mcpServers"].(map[string]any)["vivechak"].(map[string]any)
-				return vivechak["command"].(string), []string{"serve"}
-			},
-		},
-		{
-			preset:      "void",
-			serverKey:   "mcpServers",
-			isWorkspace: true,
-			preExisting: `{"mcpServers": {}}`,
-			verifyContent: func(t *testing.T, content []byte) (string, []string) {
-				var parsed map[string]any
-				if err := json.Unmarshal(content, &parsed); err != nil {
-					t.Fatalf("failed to parse void mcp.json: %v", err)
-				}
-				vivechak := parsed["mcpServers"].(map[string]any)["vivechak"].(map[string]any)
-				return vivechak["command"].(string), []string{"serve"}
-			},
-		},
-		{
 			preset:      "claude-desktop",
 			serverKey:   "mcpServers",
 			isWorkspace: false,
@@ -324,93 +253,9 @@ func TestLiveHarness_EndToEnd_All21Hosts_Simulation(t *testing.T) {
 			},
 		},
 		{
-			preset:      "kiro",
-			serverKey:   "mcpServers",
-			isWorkspace: false,
-			preExisting: `{"mcpServers": {}}`,
-			verifyContent: func(t *testing.T, content []byte) (string, []string) {
-				var parsed map[string]any
-				if err := json.Unmarshal(content, &parsed); err != nil {
-					t.Fatalf("failed to parse kiro json: %v", err)
-				}
-				vivechak := parsed["mcpServers"].(map[string]any)["vivechak"].(map[string]any)
-				return vivechak["command"].(string), []string{"serve"}
-			},
-		},
-		{
-			preset:      "trae",
-			serverKey:   "mcpServers",
-			isWorkspace: true,
-			preExisting: `{"mcpServers": {}}`,
-			verifyContent: func(t *testing.T, content []byte) (string, []string) {
-				var parsed map[string]any
-				if err := json.Unmarshal(content, &parsed); err != nil {
-					t.Fatalf("failed to parse trae json: %v", err)
-				}
-				vivechak := parsed["mcpServers"].(map[string]any)["vivechak"].(map[string]any)
-				return vivechak["command"].(string), []string{"serve"}
-			},
-		},
-		{
-			preset:      "omp",
-			serverKey:   "mcpServers",
-			isWorkspace: false,
-			preExisting: `{"mcpServers": {}}`,
-			verifyContent: func(t *testing.T, content []byte) (string, []string) {
-				var parsed map[string]any
-				if err := json.Unmarshal(content, &parsed); err != nil {
-					t.Fatalf("failed to parse omp json: %v", err)
-				}
-				vivechak := parsed["mcpServers"].(map[string]any)["vivechak"].(map[string]any)
-				return vivechak["command"].(string), []string{"serve"}
-			},
-		},
-		{
-			preset:      "openhands",
-			serverKey:   "mcpServers",
-			isWorkspace: false,
-			preExisting: `{"mcpServers": {}}`,
-			verifyContent: func(t *testing.T, content []byte) (string, []string) {
-				var parsed map[string]any
-				if err := json.Unmarshal(content, &parsed); err != nil {
-					t.Fatalf("failed to parse openhands json: %v", err)
-				}
-				vivechak := parsed["mcpServers"].(map[string]any)["vivechak"].(map[string]any)
-				return vivechak["command"].(string), []string{"serve"}
-			},
-		},
-		{
-			preset:      "droid",
-			serverKey:   "mcpServers",
-			isWorkspace: true,
-			preExisting: `{"mcpServers": {}}`,
-			verifyContent: func(t *testing.T, content []byte) (string, []string) {
-				var parsed map[string]any
-				if err := json.Unmarshal(content, &parsed); err != nil {
-					t.Fatalf("failed to parse droid json: %v", err)
-				}
-				vivechak := parsed["mcpServers"].(map[string]any)["vivechak"].(map[string]any)
-				return vivechak["command"].(string), []string{"serve"}
-			},
-		},
-		{
-			preset:      "cline",
-			serverKey:   "mcpServers",
-			isWorkspace: false,
-			preExisting: `{"mcpServers": {}}`,
-			verifyContent: func(t *testing.T, content []byte) (string, []string) {
-				var parsed map[string]any
-				if err := json.Unmarshal(content, &parsed); err != nil {
-					t.Fatalf("failed to parse cline json: %v", err)
-				}
-				vivechak := parsed["mcpServers"].(map[string]any)["vivechak"].(map[string]any)
-				return vivechak["command"].(string), []string{"serve"}
-			},
-		},
-		{
 			preset:      "roo",
 			serverKey:   "mcpServers",
-			isWorkspace: false,
+			isWorkspace: true,
 			preExisting: `{"mcpServers": {}}`,
 			verifyContent: func(t *testing.T, content []byte) (string, []string) {
 				var parsed map[string]any
@@ -421,23 +266,9 @@ func TestLiveHarness_EndToEnd_All21Hosts_Simulation(t *testing.T) {
 				return vivechak["command"].(string), []string{"serve"}
 			},
 		},
-		{
-			preset:      "devin",
-			serverKey:   "mcpServers",
-			isWorkspace: true,
-			preExisting: `{"mcpServers": {}}`,
-			verifyContent: func(t *testing.T, content []byte) (string, []string) {
-				var parsed map[string]any
-				if err := json.Unmarshal(content, &parsed); err != nil {
-					t.Fatalf("failed to parse devin json: %v", err)
-				}
-				vivechak := parsed["mcpServers"].(map[string]any)["vivechak"].(map[string]any)
-				return vivechak["command"].(string), []string{"serve"}
-			},
-		},
 	}
 
-	for _, tc := range all21Presets {
+	for _, tc := range allPresets {
 		tc := tc
 		t.Run("Harness_"+tc.preset, func(t *testing.T) {
 			mockHome := t.TempDir()

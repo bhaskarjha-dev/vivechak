@@ -50,7 +50,7 @@ func runMCPConfigWithArgs(args []string, stdout, stderr io.Writer) int {
 			fmt.Fprintln(stdout, "Examples:")
 			fmt.Fprintln(stdout, "  vck setup cursor                                        # Recommended: 1-second host setup")
 			fmt.Fprintln(stdout, "  vck mcp-config                                          # Universal MCP JSON to stdout")
-			fmt.Fprintln(stdout, "  vck mcp-config --path ~/.omp/agent/mcp.json --write     # Write directly to any agent config")
+			fmt.Fprintln(stdout, "  vck mcp-config --path ./path/to/mcp.json --write         # Write directly to any agent config")
 			fmt.Fprintln(stdout, "  vck mcp-config --preset cursor --write                  # Desktop shortcut for Cursor")
 			fmt.Fprintln(stdout, "  vck mcp-config --preset agy --write                     # Shortcut for Antigravity (IDE, 2.0, CLI)")
 			return 0
@@ -162,6 +162,10 @@ func runMCPConfigWithArgs(args []string, stdout, stderr io.Writer) int {
 		}
 	}
 
+	if w := launcherWarning(exePath); w != "" {
+		fmt.Fprintln(stderr, w)
+	}
+
 	if err := writeConfigFile(configPath, out); err != nil {
 		fmt.Fprintln(stderr, err.Error())
 		return 1
@@ -247,21 +251,27 @@ func isRunnerCachePath(clean string) bool {
 			}
 		}
 	}
-	if strings.Contains(clean, "_npx") || strings.Contains(clean, "node_modules/.cache") || strings.Contains(clean, "cellar") || strings.Contains(clean, "caskroom") {
-		return true
-	}
 	return false
 }
 
-// resolveLauncher detects ephemeral execution wrappers (such as npx cache paths
-// or Homebrew Cellar temporary locations) and falls back to running via npx.
+// resolveLauncher detects ephemeral execution wrappers (npx and uv caches) and falls
+// back to running via npx or uvx. A binary that is not on PATH (for example a Homebrew
+// Cellar path) is written by its absolute path; launcherWarning explains the risk.
 func resolveLauncher(exePath string) (cmd string, args []string) {
+	cmd, args, _ = resolveLauncherDetail(exePath)
+	return cmd, args
+}
+
+// resolveLauncherDetail is resolveLauncher that also reports whether it fell back to the
+// binary's own absolute path because no PATH entry, Nix profile or runner cache matched.
+// (A PATH entry can equal exePath, so comparing the command with exePath can't tell.)
+func resolveLauncherDetail(exePath string) (cmd string, args []string, absoluteFallback bool) {
 	if launcher := strings.TrimSpace(os.Getenv("VIVECHAK_LAUNCHER")); launcher != "" {
 		if strings.EqualFold(launcher, "uvx") {
-			return "uvx", []string{"vivechak", "serve"}
+			return "uvx", []string{"vivechak", "serve"}, false
 		}
 		if strings.EqualFold(launcher, "npx") {
-			return "npx", []string{"-y", "vivechak", "serve"}
+			return "npx", []string{"-y", "vivechak", "serve"}, false
 		}
 	}
 
@@ -272,7 +282,7 @@ func resolveLauncher(exePath string) (cmd string, args []string) {
 		if home, err := os.UserHomeDir(); err == nil && home != "" {
 			nixProfileBin := filepath.Join(home, ".nix-profile", "bin", "vck")
 			if fi, err := os.Stat(nixProfileBin); err == nil && !fi.IsDir() {
-				return nixProfileBin, []string{"serve"}
+				return nixProfileBin, []string{"serve"}, false
 			}
 		}
 	}
@@ -282,7 +292,7 @@ func resolveLauncher(exePath string) (cmd string, args []string) {
 		for _, name := range []string{"vck", "vivechak"} {
 			if pathExe, err := exec.LookPath(name); err == nil {
 				if pathFi, err := os.Stat(pathExe); err == nil && os.SameFile(exeFi, pathFi) {
-					return pathExe, []string{"serve"}
+					return pathExe, []string{"serve"}, false
 				}
 			}
 		}
@@ -290,17 +300,28 @@ func resolveLauncher(exePath string) (cmd string, args []string) {
 
 	if isRunnerCachePath(clean) {
 		if os.Getenv("VIVECHAK_LAUNCHER") == "uvx" {
-			return "uvx", []string{"vivechak", "serve"}
+			return "uvx", []string{"vivechak", "serve"}, false
 		}
-		return "npx", []string{"-y", "vivechak", "serve"}
+		return "npx", []string{"-y", "vivechak", "serve"}, false
 	}
 	if (strings.Contains(clean, "/uv/") || strings.Contains(clean, "\\uv\\")) &&
 		(strings.Contains(clean, "cache") || strings.Contains(clean, "archive")) ||
 		strings.Contains(clean, "uv-cache") {
-		return "uvx", []string{"vivechak", "serve"}
+		return "uvx", []string{"vivechak", "serve"}, false
 	}
 
-	return exePath, []string{"serve"}
+	return exePath, []string{"serve"}, true
+}
+
+// launcherWarning returns the warning to print when the host config will run the binary by
+// its own absolute path because no stable launcher was found ("" otherwise).
+func launcherWarning(exePath string) string {
+	if _, _, absoluteFallback := resolveLauncherDetail(exePath); !absoluteFallback {
+		return ""
+	}
+	return fmt.Sprintf("Warning: %s is not on your PATH, so the MCP server entry uses that absolute path. "+
+		"Upgrading, moving or deleting it (for example a Homebrew upgrade, which replaces versioned Cellar paths) "+
+		"breaks the entry; put vck on your PATH and run setup again.", exePath)
 }
 
 // buildServerConfig returns the appropriate configuration object for the given server key and optional host.

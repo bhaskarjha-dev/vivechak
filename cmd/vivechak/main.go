@@ -13,6 +13,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -138,7 +139,9 @@ func runServeWithContext(ctx context.Context, logger *slog.Logger) int {
 	server := mcputil.NewServer(v, logger)
 
 	logger.Info("starting vivechak MCP server", "version", v)
-	if err := server.Run(ctx, &mcp.StdioTransport{}); err != nil && err != context.Canceled {
+	// A cancelled context is a clean shutdown even when the SDK wraps the cancellation (Connect can
+	// observe it first), so compare with errors.Is rather than ==.
+	if err := server.Run(ctx, &mcp.StdioTransport{}); err != nil && !errors.Is(err, context.Canceled) {
 		logger.Error("server exited with error", "err", err)
 		return 1
 	}

@@ -42,7 +42,7 @@ func TestMCPLive_Hardening(t *testing.T) {
 		}
 
 		// Init comparison workspace
-		callTool("vivechak_start", map[string]any{"project_root": wsDir, "scope": "comparison"})
+		callTool("vivechak_start", map[string]any{"project_root": wsDir, "scope": "comparison", "question": "BadgerDB vs Pebble"})
 
 		// Save session containing nested ~~~~markdown and ````go blocks
 		sessionMD := `---
@@ -89,13 +89,13 @@ BadgerDB value log garbage collection creates noticeable I/O spikes under sustai
 			"id":           "C-001",
 			"content":      sessionMD,
 		})
-		if !saveEnv.Success {
+		if !saveEnv.Ok {
 			t.Fatalf("save_session failed: %s", saveEnv.Message)
 		}
 
 		// Verify session parsed completely
 		valEnv := callTool("vivechak_review", map[string]any{"project_root": wsDir, "mode": "validate"})
-		if !valEnv.Success {
+		if !valEnv.Ok {
 			t.Fatalf("validate failed: %s", valEnv.Message)
 		}
 	})
@@ -117,7 +117,7 @@ BadgerDB value log garbage collection creates noticeable I/O spikes under sustai
 			return parseTestEnvelope(t, res)
 		}
 
-		callTool("vivechak_start", map[string]any{"project_root": wsDir, "scope": "project"})
+		callTool("vivechak_start", map[string]any{"project_root": wsDir, "scope": "project", "question": "System architecture"})
 
 		// 49 characters under ## Discovered Concerns (must remain draft for One-Way Door)
 		shortSess := `---
@@ -183,14 +183,15 @@ status: complete
 		initEnv := callTool("vivechak_start", map[string]any{
 			"project_root": wsDir,
 			"scope":        "project",
+			"question":     "Session memory test",
 		})
-		if !initEnv.Success {
+		if !initEnv.Ok {
 			t.Fatalf("init failed: %s", initEnv.Message)
 		}
 
 		// Call status with project_root explicitly omitted ("")
 		statEnv := callTool("vivechak_status", map[string]any{})
-		if !statEnv.Success {
+		if !statEnv.Ok {
 			t.Fatalf("vivechak_status failed with session memory: %s", statEnv.Message)
 		}
 		resolvedRoot, _ := statEnv.Data["root"].(string)
@@ -216,68 +217,35 @@ status: complete
 			return parseTestEnvelope(t, res)
 		}
 
-		callTool("vivechak_start", map[string]any{"project_root": wsDir, "scope": "project"})
+		callTool("vivechak_start", map[string]any{"project_root": wsDir, "scope": "project", "question": "System architecture"})
 
-		// Plan declares T1-01 and T1-02 in Mermaid DAG, but only provides prompt for T1-01
-		partialPlan := `# Research Pipeline: Partial Test
-## Pipeline Overview
-` + "```mermaid\ngraph TD\n  T1-01 --> SYN-01\n  T1-02 --> SYN-01\n```\n" + `
-## Sessions
-### T1-01: Engine Spike
-| Field | Value |
-|---|---|
-| **ID** | T1-01 |
-| **Dependencies** | None |
-
-` + "```prompt\n# Brief for T1-01\n```\n"
+		// The plan's block lists T1-01, T1-02 and SYN-01, but only T1-01 has a prompt section (a generator cut short).
+		// That plan can't be run, so the save is refused with V-PLAN-MISSING-PROMPT naming the missing sessions, and
+		// nothing is written (HIGH-07; this replaced the W-PARSER-SESSION-MISMATCH warning).
+		partialPlan := livePlan("Research Pipeline: Partial Test", "PROJECT", "## Pipeline Overview\n"+"```mermaid\ngraph TD\n  T1-01 --> SYN-01\n  T1-02 --> SYN-01\n```",
+			[]string{"{id: T1-01, title: Engine Spike, depends: []}", "{id: T1-02, title: Second Spike, depends: []}",
+				"{id: SYN-01, title: Synthesis, kind: synthesis, depends: [ALL]}"},
+			liveSection("T1-01", "Engine Spike", "# Brief for T1-01"))
 
 		savePartial := callTool("vivechak_save", map[string]any{
 			"project_root": wsDir,
 			"kind":         "plan",
 			"content":      partialPlan,
 		})
-		if !savePartial.Success {
-			t.Fatalf("save_plan failed: %s", savePartial.Message)
+		if savePartial.Ok || !strings.Contains(savePartial.Message, "V-PLAN-MISSING-PROMPT") ||
+			!strings.Contains(savePartial.Message, "T1-02") || !strings.Contains(savePartial.Message, "SYN-01") {
+			t.Errorf("expected V-PLAN-MISSING-PROMPT naming T1-02 and SYN-01, got: %s", savePartial.Message)
 		}
-		hasMismatchWarning := false
-		for _, w := range savePartial.Warnings {
-			if strings.Contains(w, "W-PARSER-SESSION-MISMATCH") && strings.Contains(w, "T1-02") {
-				hasMismatchWarning = true
-				break
-			}
-		}
-		if !hasMismatchWarning {
-			t.Errorf("expected W-PARSER-SESSION-MISMATCH warning for T1-02, got: %v", savePartial.Warnings)
+		if _, err := os.Stat(filepath.Join(wsDir, "research", "RESEARCH-PIPELINE.md")); !os.IsNotExist(err) {
+			t.Errorf("a refused plan must not be written (stat err %v)", err)
 		}
 
-		// Plan with unreachable sink node (T1-02 disconnected from SYN-01)
-		sinkPlan := `# Research Pipeline: Full Test
-## Execution DAG
-` + "```mermaid\ngraph TD\n  T1-01 --> SYN-01\n  T1-02\n```\n" + `
-## Sessions
-### T1-01: Engine Spike
-| Field | Value |
-|---|---|
-| **ID** | T1-01 |
-| **Dependencies** | None |
-
-` + "```prompt\n# Brief T1-01\n```\n" + `
-
-### T1-02: Isolated Session
-| Field | Value |
-|---|---|
-| **ID** | T1-02 |
-| **Dependencies** | None |
-
-` + "```prompt\n# Brief T1-02\n```\n" + `
-
-### SYN-01: Synthesis
-| Field | Value |
-|---|---|
-| **ID** | SYN-01 |
-| **Dependencies** | T1-01 |
-
-` + "```prompt\n# Brief SYN-01\n```\n"
+		// Plan with an unreachable sink node (T1-02 disconnected from SYN-01): SYN-01 is the kind: synthesis session
+		sinkPlan := livePlan("Research Pipeline: Full Test", "PROJECT", "## Execution DAG\n"+"```mermaid\ngraph TD\n  T1-01 --> SYN-01\n  T1-02\n```",
+			[]string{"{id: T1-01, title: Engine Spike, depends: []}", "{id: T1-02, title: Isolated Session, depends: []}",
+				"{id: SYN-01, title: Synthesis, kind: synthesis, depends: [T1-01]}"},
+			liveSection("T1-01", "Engine Spike", "# Brief T1-01"), liveSection("T1-02", "Isolated Session", "# Brief T1-02"),
+			liveSection("SYN-01", "Synthesis", "# Brief SYN-01"))
 
 		saveSink := callTool("vivechak_save", map[string]any{
 			"project_root": wsDir,
@@ -285,7 +253,7 @@ status: complete
 			"content":      sinkPlan,
 			"revise":       true,
 		})
-		if !saveSink.Success {
+		if !saveSink.Ok {
 			t.Fatalf("save_plan sink test failed: %s", saveSink.Message)
 		}
 
@@ -310,7 +278,7 @@ door_type: two-way
 		// Call next_session: Even though T1-01 (upstream of SYN-01) is complete,
 		// SYN-01 MUST NOT be actionable because T1-02 (non-synthesis session) is still pending!
 		nextEnv := callTool("vivechak_next", map[string]any{"project_root": wsDir})
-		if !nextEnv.Success {
+		if !nextEnv.Ok {
 			t.Fatalf("next_session failed: %s", nextEnv.Message)
 		}
 		nextID, _ := nextEnv.Data["session_id"].(string)
@@ -339,7 +307,7 @@ door_type: two-way
 			return parseTestEnvelope(t, res)
 		}
 
-		callTool("vivechak_start", map[string]any{"project_root": wsDir, "scope": "project"})
+		callTool("vivechak_start", map[string]any{"project_root": wsDir, "scope": "project", "question": "System architecture"})
 
 		// Save D-10, D-1, D-2 out of order
 		for _, id := range []string{"D-10", "D-1", "D-2"} {
@@ -356,7 +324,7 @@ Chose option for ` + id + `. Grade A (docs)
 `
 			callTool("vivechak_record_decision", map[string]any{
 				"project_root": wsDir,
-				"decision_id":  id,
+				"id":           id,
 				"content":      adr,
 			})
 		}
@@ -407,51 +375,29 @@ Chose option for ` + id + `. Grade A (docs)
 			return parseTestEnvelope(t, res)
 		}
 
-		callTool("vivechak_start", map[string]any{"project_root": wsDir, "scope": "project"})
+		callTool("vivechak_start", map[string]any{"project_root": wsDir, "scope": "project", "question": "System architecture"})
 
 		// Diamond DAG: T0-01 -> t0-02 & T0-03 -> SYN-01
-		diamondPlan := `# Diamond Pipeline
-## Sessions
-### T0-01: Root
-| Field | Value |
-|---|---|
-| **ID** | T0-01 |
-| **Dependencies** | None |
-` + "```prompt\nRoot brief\n```\n" + `
-
-### t0-02: Branch A
-| Field | Value |
-|---|---|
-| **ID** | t0-02 |
-| **Dependencies** | T0-01 |
-` + "```prompt\nBranch A brief\n```\n" + `
-
-### T0-03: Branch B
-| Field | Value |
-|---|---|
-| **ID** | T0-03 |
-| **Dependencies** | t0-01 |
-` + "```prompt\nBranch B brief\n```\n" + `
-
-### SYN-01: Synthesis
-| Field | Value |
-|---|---|
-| **ID** | SYN-01 |
-| **Dependencies** | T0-02, t0-03 |
-` + "```prompt\nSynthesis brief\n```\n"
+		diamondPlan := livePlan("Diamond Pipeline", "PROJECT", "", []string{
+			"{id: T0-01, title: Root, depends: []}",
+			"{id: t0-02, title: Branch A, depends: [T0-01]}",
+			"{id: T0-03, title: Branch B, depends: [t0-01]}",
+			"{id: SYN-01, title: Synthesis, kind: synthesis, depends: [T0-02, t0-03]}",
+		}, liveSection("T0-01", "Root", "Root brief"), liveSection("t0-02", "Branch A", "Branch A brief"),
+			liveSection("T0-03", "Branch B", "Branch B brief"), liveSection("SYN-01", "Synthesis", "Synthesis brief"))
 
 		saveEnv := callTool("vivechak_save", map[string]any{
 			"project_root": wsDir,
 			"kind":         "plan",
 			"content":      diamondPlan,
 		})
-		if !saveEnv.Success {
+		if !saveEnv.Ok {
 			t.Fatalf("diamond DAG save_plan failed: %s", saveEnv.Message)
 		}
 
 		// Next session must resolve T0-01 as the ready root
 		nextEnv := callTool("vivechak_next", map[string]any{"project_root": wsDir})
-		if !nextEnv.Success || !strings.EqualFold(nextEnv.Data["session_id"].(string), "T0-01") {
+		if !nextEnv.Ok || !strings.EqualFold(nextEnv.Data["session_id"].(string), "T0-01") {
 			t.Fatalf("expected next session T0-01, got: %+v", nextEnv)
 		}
 	})
@@ -473,7 +419,7 @@ Chose option for ` + id + `. Grade A (docs)
 			return parseTestEnvelope(t, res)
 		}
 
-		callTool("vivechak_start", map[string]any{"project_root": wsDir, "scope": "decision"})
+		callTool("vivechak_start", map[string]any{"project_root": wsDir, "scope": "decision", "question": "Database choice"})
 
 		// Save One-Way Door ADR missing review trigger, alternatives, and premortem with TODO
 		badADR := `---
@@ -492,7 +438,7 @@ TODO: add premortem analysis before production release.
 `
 		callTool("vivechak_record_decision", map[string]any{
 			"project_root": wsDir,
-			"decision_id":  "D-001",
+			"id":           "D-001",
 			"content":      badADR,
 		})
 
@@ -501,11 +447,8 @@ TODO: add premortem analysis before production release.
 			"project_root": wsDir,
 			"track":        "track_b",
 		})
-		if gateEnv.Data["gate_passed"] == true {
-			t.Errorf("expected gate to fail for incomplete One-Way Door ADR, but passed: %+v", gateEnv.Data)
-		}
-		if gateEnv.Data["gate_status"] != "FAIL" {
-			t.Errorf("expected gate status 'FAIL', got: %v", gateEnv.Data["gate_status"])
+		if gateEnv.Data["verdict"] != "FAIL" {
+			t.Errorf("expected gate verdict 'FAIL' for incomplete One-Way Door ADR, got: %v (%+v)", gateEnv.Data["verdict"], gateEnv.Data)
 		}
 	})
 
@@ -526,7 +469,7 @@ TODO: add premortem analysis before production release.
 			return parseTestEnvelope(t, res)
 		}
 
-		callTool("vivechak_start", map[string]any{"project_root": wsDir, "scope": "project"})
+		callTool("vivechak_start", map[string]any{"project_root": wsDir, "scope": "project", "question": "System architecture"})
 
 		// Traversal in session_id
 		env1 := callTool("vivechak_save", map[string]any{
@@ -535,17 +478,17 @@ TODO: add premortem analysis before production release.
 			"id":           "../../evil_session",
 			"content":      "# Malicious session",
 		})
-		if env1.Success {
+		if env1.Ok {
 			t.Error("expected traversal in session_id to be rejected")
 		}
 
-		// Traversal in decision_id
+		// Traversal in decision id
 		env2 := callTool("vivechak_record_decision", map[string]any{
 			"project_root": wsDir,
-			"decision_id":  "../../../etc_passwd",
+			"id":           "../../../etc_passwd",
 			"content":      "# Malicious ADR",
 		})
-		if env2.Success {
+		if env2.Ok {
 			t.Error("expected traversal in decision_id to be rejected")
 		}
 	})
@@ -649,7 +592,7 @@ TODO: add premortem analysis before production release.
 			}
 		}
 
-		// 2. Verify prompts/get with canonical, legacy (vivechak_*), and shorthand (vck_*) aliases
+		// 2. Verify prompts/get succeeds on canonical names (<=600 chars) and errors on removed legacy aliases
 		triplets := []struct {
 			canonical string
 			legacy    string
@@ -666,7 +609,7 @@ TODO: add premortem analysis before production release.
 				canonical: "decision",
 				legacy:    "vivechak_decision",
 				shorthand: "vck_decision",
-				args:      map[string]string{"dilemma": "Migrate store to BadgerDB"},
+				args:      map[string]string{"question": "Migrate store to BadgerDB"},
 			},
 			{
 				canonical: "project",
@@ -678,7 +621,7 @@ TODO: add premortem analysis before production release.
 				canonical: "gate",
 				legacy:    "vivechak_gate",
 				shorthand: "vck_gate",
-				args:      map[string]string{"track": "all"},
+				args:      map[string]string{"decision": "D-001"},
 			},
 		}
 
@@ -687,28 +630,15 @@ TODO: add premortem analysis before production release.
 			if err != nil {
 				t.Fatalf("GetPrompt(%s) over live stdio failed: %v", trip.canonical, err)
 			}
-			rLeg, err := cs.GetPrompt(ctx, &mcp.GetPromptParams{Name: trip.legacy, Arguments: trip.args})
-			if err != nil {
-				t.Fatalf("GetPrompt(%s) over live stdio failed: %v", trip.legacy, err)
-			}
-			rShort, err := cs.GetPrompt(ctx, &mcp.GetPromptParams{Name: trip.shorthand, Arguments: trip.args})
-			if err != nil {
-				t.Fatalf("GetPrompt(%s) over live stdio failed: %v", trip.shorthand, err)
-			}
-
 			tcCanon, ok1 := rCanon.Messages[0].Content.(*mcp.TextContent)
-			tcLeg, ok2 := rLeg.Messages[0].Content.(*mcp.TextContent)
-			tcShort, ok3 := rShort.Messages[0].Content.(*mcp.TextContent)
-
-			if !ok1 || !ok2 || !ok3 {
-				t.Fatalf("expected TextContent across all prompt variations")
+			if !ok1 || len(tcCanon.Text) > 600 || !strings.Contains(tcCanon.Text, "vivechak_") {
+				t.Errorf("canonical prompt %s invalid (len=%d): %v", trip.canonical, len(tcCanon.Text), tcCanon)
 			}
-
-			if tcCanon.Text != tcLeg.Text {
-				t.Errorf("live wire prompt %s != %s", trip.canonical, trip.legacy)
+			if _, err := cs.GetPrompt(ctx, &mcp.GetPromptParams{Name: trip.legacy, Arguments: trip.args}); err == nil {
+				t.Errorf("expected removed prompt alias %s to return an error", trip.legacy)
 			}
-			if tcCanon.Text != tcShort.Text {
-				t.Errorf("live wire prompt %s != %s", trip.canonical, trip.shorthand)
+			if _, err := cs.GetPrompt(ctx, &mcp.GetPromptParams{Name: trip.shorthand, Arguments: trip.args}); err == nil {
+				t.Errorf("expected removed prompt alias %s to return an error", trip.shorthand)
 			}
 		}
 	})

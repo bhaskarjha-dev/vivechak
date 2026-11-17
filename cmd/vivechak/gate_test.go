@@ -166,6 +166,9 @@ Use slog. Grade A (https://golang.org)
 	if !strings.Contains(outStr, "Track A (Two-Way Doors): PASS") {
 		t.Errorf("expected Track A PASS, got: %s", outStr)
 	}
+	if !strings.Contains(outStr, "Track B (One-Way Doors): N/A") {
+		t.Errorf("expected Track B N/A (no one-way decisions, so none of G6-G11 ran), got: %s", outStr)
+	}
 
 	// Test 2: Filter by track_a on decision workspace
 	stdout.Reset()
@@ -204,5 +207,65 @@ Use slog. Grade A (https://golang.org)
 	codeProjB := runGateWithArgs([]string{"--track", "track_b", projDir}, &stdout, &stderr)
 	if codeProjB != 1 {
 		t.Errorf("expected exit code 1 for track_b on incomplete project workspace, got %d", codeProjB)
+	}
+}
+
+// A track summary must not say PASS for rules that did not run: with only a proposed one-way ADR,
+// G6–G11 are n/a, so Track B reads N/A, the n/a reason names the ADR that will be checked once it is
+// accepted, and the verdict is still FAIL (G5 reports the status).
+func TestRunGateCLI_TrackSummaryIsNAWhenNoRuleRan(t *testing.T) {
+	dir := t.TempDir()
+	research := filepath.Join(dir, core.ResearchDir)
+	sessions := filepath.Join(dir, core.SessionsDir)
+	_ = os.MkdirAll(sessions, 0o755)
+	s1 := `---
+session_id: D-001-S1
+title: S1
+status: complete
+date: 2026-10-18
+informs_decisions: [D-001]
+---
+## Key Findings
+- Finding 1 [Grade A] https://example.com/spec
+## Discovered Concerns
+Latency spike under heavy loads.
+## Delta
+Updated belief.
+`
+	_ = os.WriteFile(filepath.Join(sessions, "D-001-S1.md"), []byte(s1), 0o644)
+	decisions := `# Architectural Decisions
+
+| ID | Title | Status | Door | Date |
+|---|---|---|---|---|
+| D-001 | Event store | proposed | one-way | 2026-10-18 |
+`
+	_ = os.WriteFile(filepath.Join(research, core.DecisionsFile), []byte(decisions), 0o644)
+	adr := `---
+id: D-001
+type: decision
+title: Event store
+status: proposed
+door_type: one-way
+date: 2026-10-18
+review_trigger: "p95 write latency above 50 ms"
+---
+# Context
+Storage choice.
+# Decision
+Use PostgreSQL. [Grade A](https://www.postgresql.org/docs/)
+`
+	_ = os.WriteFile(filepath.Join(research, "D-001-decision.md"), []byte(adr), 0o644)
+
+	var stdout, stderr bytes.Buffer
+	code := runGateWithArgs([]string{dir}, &stdout, &stderr)
+	out := stdout.String()
+	if code != 1 || !strings.Contains(out, "Phase 0 Gate: FAIL") {
+		t.Fatalf("expected FAIL with exit code 1 for a proposed one-way ADR, got %d: %s", code, out)
+	}
+	if !strings.Contains(out, "Track B (One-Way Doors): N/A") {
+		t.Errorf("Track B must read N/A when none of G6-G11 ran, got: %s", out)
+	}
+	if !strings.Contains(out, "checked once accepted: D-001") {
+		t.Errorf("the n/a reason must name the one-way ADR that is checked once accepted, got: %s", out)
 	}
 }

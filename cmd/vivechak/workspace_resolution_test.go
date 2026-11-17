@@ -54,23 +54,23 @@ func TestMassive_LiveIDEInheritance_RejectionAndGuidance(t *testing.T) {
 	}
 	t.Cleanup(func() { cs.Close() })
 
-	// 4. Case A: vivechak_start with empty arguments MUST fail
+	// 4. Case A: vivechak_start without project_root in IDE CWD MUST fail
 	resEmpty, err := cs.CallTool(ctx, &mcp.CallToolParams{
 		Name:      "vivechak_start",
-		Arguments: map[string]any{},
+		Arguments: map[string]any{"scope": "project", "question": "Test system"},
 	})
 	if err != nil {
 		t.Fatalf("callTool vivechak_start (empty) error: %v", err)
 	}
 	envEmpty := parseTestEnvelope(t, resEmpty)
-	if envEmpty.Success {
-		t.Fatal("expected vivechak_start with empty args in IDE CWD to fail, got success")
+	if envEmpty.Ok {
+		t.Fatal("expected vivechak_start without project_root in IDE CWD to fail, got success")
 	}
 	if !strings.Contains(envEmpty.Message, "application or system directory") {
 		t.Errorf("expected error to mention application or system directory, got: %s", envEmpty.Message)
 	}
-	if !strings.Contains(envEmpty.NextStep, "project_root") {
-		t.Errorf("expected NextStep to instruct passing project_root, got: %s", envEmpty.NextStep)
+	if !strings.Contains(envEmpty.Guidance(), "project_root") {
+		t.Errorf("expected Fix to instruct passing project_root, got: %s", envEmpty.Guidance())
 	}
 
 	// Verify mockIDEDir is completely untouched
@@ -81,13 +81,13 @@ func TestMassive_LiveIDEInheritance_RejectionAndGuidance(t *testing.T) {
 	// 5. Case B: vivechak_start with project_root="." MUST also fail
 	resDot, err := cs.CallTool(ctx, &mcp.CallToolParams{
 		Name:      "vivechak_start",
-		Arguments: map[string]any{"project_root": "."},
+		Arguments: map[string]any{"project_root": ".", "scope": "project", "question": "Test system"},
 	})
 	if err != nil {
 		t.Fatalf("callTool vivechak_start (.) error: %v", err)
 	}
 	envDot := parseTestEnvelope(t, resDot)
-	if envDot.Success {
+	if envDot.Ok {
 		t.Fatal("expected vivechak_start with '.' in IDE CWD to fail, got success")
 	}
 	if _, err := os.Stat(filepath.Join(mockIDEDir, "research")); !os.IsNotExist(err) {
@@ -102,13 +102,14 @@ func TestMassive_LiveIDEInheritance_RejectionAndGuidance(t *testing.T) {
 		Arguments: map[string]any{
 			"project_root": realProjectDir,
 			"scope":        "project",
+			"question":     "Personal Finance Dashboard",
 		},
 	})
 	if err != nil {
 		t.Fatalf("callTool vivechak_start (explicit) error: %v", err)
 	}
 	envExplicit := parseTestEnvelope(t, resExplicit)
-	if !envExplicit.Success {
+	if !envExplicit.Ok {
 		t.Fatalf("expected explicit vivechak_start to succeed, got: %s", envExplicit.Message)
 	}
 
@@ -116,12 +117,9 @@ func TestMassive_LiveIDEInheritance_RejectionAndGuidance(t *testing.T) {
 	if !core.WorkspaceExists(realProjectDir) {
 		t.Fatalf("expected workspace to exist at %s", realProjectDir)
 	}
-	templatesDir := filepath.Join(realProjectDir, core.TemplatesDir)
-	for _, tmpl := range core.TemplatesToCopy {
-		tPath := filepath.Join(templatesDir, tmpl)
-		if fi, err := os.Stat(tPath); err != nil || fi.Size() == 0 {
-			t.Errorf("template %s not properly created: %v", tmpl, err)
-		}
+	// Templates are served as MCP resources, never copied into research/templates/ (HIGH-15)
+	if _, err := os.Stat(filepath.Join(realProjectDir, core.TemplatesDir)); !os.IsNotExist(err) {
+		t.Errorf("expected no research/templates/ directory, got err=%v", err)
 	}
 
 	// Mock IDE folder MUST still have NO research/ directory
@@ -139,7 +137,7 @@ func TestMassive_LiveIDEInheritance_RejectionAndGuidance(t *testing.T) {
 		t.Fatalf("status call: %v", err)
 	}
 	envStatus := parseTestEnvelope(t, resStatus)
-	if !envStatus.Success {
+	if !envStatus.Ok {
 		t.Fatalf("status failed: %s", envStatus.Message)
 	}
 
@@ -149,57 +147,25 @@ func TestMassive_LiveIDEInheritance_RejectionAndGuidance(t *testing.T) {
 		Arguments: map[string]any{
 			"project_root": realProjectDir,
 			"scope":        "project",
-			"context":      "Personal Finance Dashboard with encrypted local database",
+			"question":     "Personal Finance Dashboard with encrypted local database",
 		},
 	})
 	if err != nil {
 		t.Fatalf("vivechak_start call: %v", err)
 	}
 	envPrep := parseTestEnvelope(t, resPrep)
-	if !envPrep.Success {
+	if !envPrep.Ok {
 		t.Fatalf("vivechak_start failed: %s", envPrep.Message)
 	}
 
 	// 7.3 save_plan with 3 sessions (T0-01, T1-01, SYN-01)
-	pipelineDAG := `# Research Pipeline: Personal Finance Dashboard
-## Sessions
-### Session T0-01: Aggregation Landscape
-| Field | Value |
-|---|---|
-| **ID** | T0-01 |
-| **Layer** | 0 |
-| **Type** | Two-Way |
-| **Dependencies** | None |
-| **Output File** | research/sessions/T0-01.md |
-
-#### Research Question
-Landscape of financial aggregators.
-
-### Session T1-01: Embedded Database
-| Field | Value |
-|---|---|
-| **ID** | T1-01 |
-| **Layer** | 1 |
-| **Type** | One-Way |
-| **Informs Decision** | D-001 |
-| **Dependencies** | T0-01 |
-| **Output File** | research/sessions/T1-01.md |
-
-#### Research Question
-Which embedded database satisfies privacy and encryption requirements?
-
-### Session SYN-01: Terminal Architecture Synthesis
-| Field | Value |
-|---|---|
-| **ID** | SYN-01 |
-| **Layer** | 2 |
-| **Type** | One-Way |
-| **Dependencies** | T1-01 |
-| **Output File** | research/FAD.md |
-
-#### Research Question
-Synthesize all findings into Founding Architecture Document.
-`
+	pipelineDAG := livePlan("Research Pipeline: Personal Finance Dashboard", "PROJECT", "", []string{
+		"{id: T0-01, title: Aggregation Landscape, layer: 0, door: two-way, depends: []}",
+		"{id: T1-01, title: Embedded Database, layer: 1, door: one-way, informs: [D-001], depends: [T0-01]}",
+		"{id: SYN-01, title: Terminal Architecture Synthesis, layer: 2, kind: synthesis, depends: [T1-01]}",
+	}, liveSection("T0-01", "Aggregation Landscape", "#### Research Question\nLandscape of financial aggregators."),
+		liveSection("T1-01", "Embedded Database", "#### Research Question\nWhich embedded database satisfies privacy and encryption requirements?"),
+		liveSection("SYN-01", "Terminal Architecture Synthesis", "#### Research Question\nSynthesize all findings into Founding Architecture Document."))
 	resPlan, err := cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_save",
 		Arguments: map[string]any{
@@ -213,7 +179,7 @@ Synthesize all findings into Founding Architecture Document.
 		t.Fatalf("save plan call: %v", err)
 	}
 	envPlan := parseTestEnvelope(t, resPlan)
-	if !envPlan.Success {
+	if !envPlan.Ok {
 		t.Fatalf("save plan failed: %s", envPlan.Message)
 	}
 
@@ -226,7 +192,7 @@ Synthesize all findings into Founding Architecture Document.
 		t.Fatalf("next call: %v", err)
 	}
 	envNext0 := parseTestEnvelope(t, resNext0)
-	if !envNext0.Success || envNext0.Data["session_id"] != "T0-01" {
+	if !envNext0.Ok || envNext0.Data["session_id"] != "T0-01" {
 		t.Fatalf("expected next session T0-01, got: %v", envNext0.Data)
 	}
 
@@ -289,7 +255,7 @@ Select SimpleFIN.
 		t.Fatalf("next call: %v", err)
 	}
 	envNext := parseTestEnvelope(t, resNext)
-	if !envNext.Success || envNext.Data["session_id"] != "T1-01" {
+	if !envNext.Ok || envNext.Data["session_id"] != "T1-01" {
 		t.Fatalf("expected next session T1-01, got: %v", envNext.Data)
 	}
 
@@ -311,8 +277,8 @@ We assumed SQLite would be standard.
 Which embedded database satisfies privacy and native encryption?
 
 ## Key Findings
-- libsql supports AEAD AES-GCM native database-level encryption [Grade A: docs](https://github.com/tursodatabase/libsql) [verification_method: fetched].
-- Go driver requires explicit build tags [Grade B: benchmark](https://github.com/tursodatabase/libsql-client-go) [verification_method: fetched].
+- libsql supports AEAD AES-GCM native database-level encryption [Grade A: docs | fetched](https://github.com/tursodatabase/libsql).
+- Go driver requires explicit build tags [Grade B: benchmark | fetched](https://github.com/tursodatabase/libsql-client-go).
 
 ## Recommendation
 Select libsql with native encryption.
@@ -350,7 +316,7 @@ Select libsql with native encryption.
 		t.Fatalf("save session call: %v", err)
 	}
 	envSaveSess := parseTestEnvelope(t, resSaveSess)
-	if !envSaveSess.Success {
+	if !envSaveSess.Ok {
 		t.Fatalf("save session failed: %s", envSaveSess.Message)
 	}
 
@@ -395,7 +361,7 @@ See D-001-R1: Red-team stress testing confirms durability and single-binary secu
 		Name: "vivechak_record_decision",
 		Arguments: map[string]any{
 			"project_root": realProjectDir,
-			"decision_id":  "D-001",
+			"id":           "D-001",
 			"content":      decisionContent,
 		},
 	})
@@ -403,7 +369,7 @@ See D-001-R1: Red-team stress testing confirms durability and single-binary secu
 		t.Fatalf("record_decision call: %v", err)
 	}
 	envDec := parseTestEnvelope(t, resDec)
-	if !envDec.Success {
+	if !envDec.Ok {
 		t.Fatalf("record_decision failed: %s", envDec.Message)
 	}
 
@@ -411,16 +377,16 @@ See D-001-R1: Red-team stress testing confirms durability and single-binary secu
 	resChallenge, err := cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_review",
 		Arguments: map[string]any{
-			"project_root":   realProjectDir,
-			"decision_id":    "D-001",
-			"challenge_type": "red_team",
+			"project_root": realProjectDir,
+			"id":           "D-001",
+			"mode":         "red_team",
 		},
 	})
 	if err != nil {
 		t.Fatalf("challenge call: %v", err)
 	}
 	envChallenge := parseTestEnvelope(t, resChallenge)
-	if !envChallenge.Success {
+	if !envChallenge.Ok {
 		t.Fatalf("challenge D-001 failed: %s", envChallenge.Message)
 	}
 
@@ -506,7 +472,7 @@ Proceed to implementation.
 		t.Fatalf("save (FAD) call: %v", err)
 	}
 	envFAD := parseTestEnvelope(t, resFAD)
-	if !envFAD.Success {
+	if !envFAD.Ok {
 		t.Fatalf("save FAD failed: %s", envFAD.Message)
 	}
 
@@ -521,9 +487,9 @@ Proceed to implementation.
 		t.Fatalf("run_gate call: %v", err)
 	}
 	envGate := parseTestEnvelope(t, resGate)
-	if envGate.Data["gate_status"] != "PASS" || envGate.Data["gate_passed"] != true {
-		t.Fatalf("expected gate PASS, got status=%v passed=%v warnings=%v message=%s rules=%#v",
-			envGate.Data["gate_status"], envGate.Data["gate_passed"], envGate.Warnings, envGate.Message, envGate.Data["rules"])
+	if envGate.Data["verdict"] != "PASS" {
+		t.Fatalf("expected gate PASS, got verdict=%v warnings=%v message=%s rules=%#v",
+			envGate.Data["verdict"], envGate.Warnings, envGate.Message, envGate.Data["rules"])
 	}
 
 	// 8. Physical disk assertion on realProjectDir
@@ -534,7 +500,6 @@ Proceed to implementation.
 		"research/sessions/T1-01.md",
 		"research/FAD.md",
 		"research/PHASE-0-GATE.md",
-		"research/templates/SESSION.template.md",
 	})
 	if _, err := os.Stat(filepath.Join(realProjectDir, "FOUNDING-ARCHITECTURE.md")); !os.IsNotExist(err) {
 		t.Errorf("expected FOUNDING-ARCHITECTURE.md to NOT exist in root")
@@ -593,24 +558,24 @@ func TestMassive_SandboxesAndEnterprisePaths_LiveMCPMatrix(t *testing.T) {
 				Arguments: map[string]any{
 					"project_root": targetDir,
 					"scope":        tc.scope,
+					"question":     "Sandbox matrix test",
 				},
 			})
 			if err != nil {
 				t.Fatalf("[%s] vivechak_start call error: %v", tc.name, err)
 			}
 			envInit := parseTestEnvelope(t, resInit)
-			if !envInit.Success {
+			if !envInit.Ok {
 				t.Fatalf("[%s] vivechak_start failed: %s", tc.name, envInit.Message)
 			}
 
-			// Verify templates exist
+			// Workspace initialized; templates are served as MCP resources, never copied (HIGH-15)
 			info := core.InspectWorkspace(targetDir)
 			if !info.Initialized {
 				t.Fatalf("[%s] workspace not initialized at %s", tc.name, targetDir)
 			}
-			expectedTemplates := len(core.TemplatesForScope(core.Scope(tc.scope)))
-			if info.TemplateCount != expectedTemplates {
-				t.Errorf("[%s] expected %d templates, got %d", tc.name, expectedTemplates, info.TemplateCount)
+			if info.TemplateCount != 0 {
+				t.Errorf("[%s] expected no templates copied into research/templates/, got %d", tc.name, info.TemplateCount)
 			}
 
 			// 2. vivechak_status
@@ -622,7 +587,7 @@ func TestMassive_SandboxesAndEnterprisePaths_LiveMCPMatrix(t *testing.T) {
 				t.Fatalf("[%s] status call error: %v", tc.name, err)
 			}
 			envStatus := parseTestEnvelope(t, resStatus)
-			if !envStatus.Success {
+			if !envStatus.Ok {
 				t.Fatalf("[%s] status failed: %s", tc.name, envStatus.Message)
 			}
 
@@ -680,16 +645,16 @@ func TestMassive_ContainerEnvironmentVariables_LiveMCP(t *testing.T) {
 			}
 			defer cs.Close()
 
-			// Call vivechak_start with EMPTY arguments
+			// Call vivechak_start without project_root
 			res, err := cs.CallTool(ctx, &mcp.CallToolParams{
 				Name:      "vivechak_start",
-				Arguments: map[string]any{},
+				Arguments: map[string]any{"scope": "project", "question": "Container env test"},
 			})
 			if err != nil {
 				t.Fatalf("callTool with %s failed: %v", tc.envKey, err)
 			}
 			env := parseTestEnvelope(t, res)
-			if !env.Success {
+			if !env.Ok {
 				t.Fatalf("expected success with env %s, got: %s", tc.envKey, env.Message)
 			}
 
@@ -733,10 +698,10 @@ func TestMassive_ContainerEnvironmentVariables_LiveMCP(t *testing.T) {
 			}
 			defer cs.Close()
 
-			// Call vivechak_start with EMPTY arguments - must fail or not write to targetDir
+			// Call vivechak_start without project_root - must fail or not write to targetDir
 			res, err := cs.CallTool(ctx, &mcp.CallToolParams{
 				Name:      "vivechak_start",
-				Arguments: map[string]any{},
+				Arguments: map[string]any{"scope": "project", "question": "Ignored env test"},
 			})
 			if err != nil {
 				t.Fatalf("callTool with %s failed: %v", tc.envKey, err)

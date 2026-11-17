@@ -146,16 +146,18 @@ func runGateWithArgs(args []string, stdout, stderr io.Writer) int {
 		_ = enc.Encode(outMap)
 	} else {
 		fmt.Fprintf(stdout, "Phase 0 Gate: %s\n", gateStatus)
-		trackAStatus := "PASS"
-		trackBStatus := "PASS"
+		// A track reads N/A when none of its rules applied (all n/a), so the summary never says PASS
+		// for checks that did not run.
+		trackAStatus := "N/A"
+		trackBStatus := "N/A"
 		for _, r := range gateResult.Rules {
-			if r.ID == "G12" && r.Status == "FAIL" {
-				trackAStatus = "FAIL"
+			if r.ID == "G12" {
+				trackAStatus = mergeTrackStatus(trackAStatus, r.Status)
 			}
 			if strings.HasPrefix(r.ID, "G") {
 				num, _ := strconv.Atoi(strings.TrimPrefix(r.ID, "G"))
-				if num >= 6 && num <= 11 && r.Status == "FAIL" {
-					trackBStatus = "FAIL"
+				if num >= 6 && num <= 11 {
+					trackBStatus = mergeTrackStatus(trackBStatus, r.Status)
 				}
 			}
 		}
@@ -183,4 +185,17 @@ func runGateWithArgs(args []string, stdout, stderr io.Writer) int {
 		return 1
 	}
 	return 0
+}
+
+// mergeTrackStatus folds one rule's status into its track's summary: any FAIL makes the track FAIL,
+// a rule that ran and passed makes it PASS, and rules that did not apply (n/a) leave it unchanged.
+func mergeTrackStatus(current, ruleStatus string) string {
+	switch {
+	case current == "FAIL" || strings.EqualFold(ruleStatus, "FAIL"):
+		return "FAIL"
+	case strings.EqualFold(ruleStatus, "n/a"):
+		return current
+	default:
+		return "PASS"
+	}
 }

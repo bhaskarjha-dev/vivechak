@@ -43,18 +43,18 @@ func TestConfinement_LiveSubprocess(t *testing.T) {
 	}
 
 	// 1. Initialize decision scope
-	callTool("vivechak_start", map[string]any{"project_root": projDir, "scope": "decision"})
+	callTool("vivechak_start", map[string]any{"project_root": projDir, "scope": "decision", "question": "Storage engine selection"})
 
 	// 2. Traversal slug attempts via record_decision
 	for _, slug := range []string{"../../../README", "x/../../AGENTS"} {
 		env := callTool("vivechak_record_decision", map[string]any{
 			"project_root": projDir,
-			"decision_id":  "D-001",
+			"id":           "D-001",
 			"slug":         slug,
 			"content":      "---\nid: D-001\ntitle: Storage Engine\nstatus: proposed\ndoor_type: one-way\n---\n# D-001\n",
 		})
 		filePath, _ := env.Data["file_path"].(string)
-		if env.Success && filePath != "" && !strings.HasPrefix(filePath, "research/") {
+		if env.Ok && filePath != "" && !strings.HasPrefix(filePath, "research/") {
 			t.Errorf("slug %q escaped research: got file_path %s", slug, filePath)
 		}
 	}
@@ -97,7 +97,7 @@ func TestConfinement_LiveSubprocess(t *testing.T) {
 
 	callTool("vivechak_record_decision", map[string]any{
 		"project_root": projDir,
-		"decision_id":  "D-001",
+		"id":           "D-001",
 		"content":      "---\nid: D-001\ntitle: Primary Datastore\nstatus: accepted\ndoor_type: two-way\ndate: 2026-10-25\nreview_trigger: \"p95 > 50ms\"\n---\n# D-001: Primary Datastore\n## Decision Outcome\nPostgreSQL\n## Rejected Alternatives\nMySQL\n## Reversal Triggers\np95 > 50ms\n",
 	})
 

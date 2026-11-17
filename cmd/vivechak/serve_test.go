@@ -17,14 +17,45 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
+type testWarning struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
+	Fix     string `json:"fix"`
+}
+
+func (w testWarning) String() string {
+	return w.Code + ": " + w.Message
+}
+
 type testEnvelope struct {
-	Success  bool           `json:"success"`
-	Message  string         `json:"message"`
-	Data     map[string]any `json:"data,omitempty"`
-	Warnings []string       `json:"warnings,omitempty"`
-	NextStep string         `json:"next_step,omitempty"`
-	Next     map[string]any `json:"next,omitempty"`
-	Meta     map[string]any `json:"meta,omitempty"`
+	Ok        bool           `json:"ok"`
+	Code      string         `json:"code,omitempty"`
+	Message   string         `json:"message"`
+	Fix       string         `json:"fix,omitempty"`
+	Data      map[string]any `json:"data,omitempty"`
+	Warnings  []testWarning  `json:"warnings,omitempty"`
+	Next      map[string]any `json:"next,omitempty"`
+	Truncated bool           `json:"truncated,omitempty"`
+}
+
+func (e testEnvelope) WarningStrings() []string {
+	out := make([]string, len(e.Warnings))
+	for i, w := range e.Warnings {
+		out[i] = w.String()
+	}
+	return out
+}
+
+func (e testEnvelope) Guidance() string {
+	if e.Fix != "" {
+		return e.Fix
+	}
+	if e.Next != nil {
+		if w, ok := e.Next["why"].(string); ok {
+			return w
+		}
+	}
+	return ""
 }
 
 var (
@@ -156,72 +187,33 @@ func TestLiveMCPServer_EndToEnd(t *testing.T) {
 		Arguments: map[string]any{
 			"project_root": workDir,
 			"scope":        "project",
-			"context":      "Building high-throughput ledger system.",
+			"question":     "Building high-throughput ledger system.",
 		},
 	})
 	if err != nil {
 		t.Fatalf("vivechak_start call: %v", err)
 	}
 	env := parseTestEnvelope(t, res)
-	if !env.Success {
+	if !env.Ok {
 		t.Fatalf("vivechak_start failed: %s", env.Message)
 	}
 	metaFile := filepath.Join(workDir, "research", ".vivechak.json")
 	if _, err := os.Stat(metaFile); err != nil {
 		t.Fatalf(".vivechak.json was not created on disk: %v", err)
 	}
-	prompt, _ := env.Data["prompt"].(string)
+	prompt, _ := env.Data["brief"].(string)
 	if !strings.Contains(prompt, "high-throughput ledger system") {
-		t.Error("prompt should contain injected context")
+		t.Error("brief should contain injected context")
 	}
 
 	// 6. Tool: vivechak_save (kind="plan")
-	pipeline := `# Research Pipeline
-
-**Complexity Score**: 12/25 → Medium (Tier 2)
-
-## Session DAG
-
-### Session T1-01 — Database Selection
-| Field | Value |
-|---|---|
-| **ID** | T1-01 |
-| **Layer** | 1 |
-| **Door Type** | one-way |
-| **Dependencies** | None |
-| **Output File** | ` + "`T1-01-database.md`" + ` |
-
-` + "```prompt" + `
-Investigate database engines.
-` + "```" + `
-
-### Session T1-02 — Consensus
-| Field | Value |
-|---|---|
-| **ID** | T1-02 |
-| **Layer** | 1 |
-| **Door Type** | one-way |
-| **Dependencies** | None |
-| **Output File** | ` + "`T1-02-consensus.md`" + ` |
-
-` + "```prompt" + `
-Investigate consensus protocols.
-` + "```" + `
-
-### Session SYN-01 — Synthesis
-| Field | Value |
-|---|---|
-| **ID** | SYN-01 |
-| **Layer** | 2 |
-| **Door Type** | one-way |
-| **Dependencies** | T1-01, T1-02 |
-| **Output File** | ` + "`FAD.md`" + ` |
-
-` + "```prompt" + `
-Synthesize findings:
-[ALL_SESSION_FINDINGS]
-` + "```" + `
-`
+	pipeline := livePlan("Research Pipeline", "PROJECT", "**Complexity Score**: 12/25 → Medium (Tier 2)", []string{
+		"{id: T1-01, title: Database Selection, layer: 1, door: one-way, depends: []}",
+		"{id: T1-02, title: Consensus, layer: 1, door: one-way, depends: []}",
+		"{id: SYN-01, title: Synthesis, layer: 2, kind: synthesis, depends: [T1-01, T1-02]}",
+	}, liveSection("T1-01", "Database Selection", "Investigate database engines."),
+		liveSection("T1-02", "Consensus", "Investigate consensus protocols."),
+		liveSection("SYN-01", "Synthesis", "Synthesize findings:\n[ALL_SESSION_FINDINGS]"))
 	res, err = cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_save",
 		Arguments: map[string]any{
@@ -234,7 +226,7 @@ Synthesize findings:
 		t.Fatalf("vivechak_save plan call: %v", err)
 	}
 	env = parseTestEnvelope(t, res)
-	if !env.Success {
+	if !env.Ok {
 		t.Fatalf("vivechak_save plan failed: %s", env.Message)
 	}
 
@@ -247,7 +239,7 @@ Synthesize findings:
 		t.Fatalf("vivechak_status call: %v", err)
 	}
 	env = parseTestEnvelope(t, res)
-	if !env.Success {
+	if !env.Ok {
 		t.Fatalf("vivechak_status failed: %s", env.Message)
 	}
 
@@ -279,8 +271,8 @@ status: complete
 informs_decisions: ["D-001"]
 ---
 ## Key Findings
-- Use RocksDB. [Grade A: benchmark](https://rocksdb.org) [verification_method: fetched]
-- High write throughput. [Grade B: benchmark](https://github.com/facebook/rocksdb) [verification_method: fetched]
+- Use RocksDB. [Grade A: benchmark | fetched](https://rocksdb.org)
+- High write throughput. [Grade B: benchmark | fetched](https://github.com/facebook/rocksdb)
 
 ## Recommendation
 Adopt RocksDB for embedded transactional state storage.
@@ -299,7 +291,7 @@ Write stalls and compaction spikes observed during concurrent bulk ingest operat
 		t.Fatalf("vivechak_save T1-01 call: %v", err)
 	}
 	env = parseTestEnvelope(t, res)
-	if !env.Success {
+	if !env.Ok {
 		t.Fatalf("save_session failed: %s", env.Message)
 	}
 
@@ -348,7 +340,7 @@ Leader election delays occur during network partitions under high message volume
 		t.Fatalf("vivechak_save T1-02 call: %v", err)
 	}
 	env = parseTestEnvelope(t, res)
-	if !env.Success {
+	if !env.Ok {
 		t.Fatalf("save_session failed: %s", env.Message)
 	}
 
@@ -374,7 +366,7 @@ Leader election delays occur during network partitions under high message volume
 		Name: "vivechak_record_decision",
 		Arguments: map[string]any{
 			"project_root":  workDir,
-			"decision_id":   "D-001",
+			"id":            "D-001",
 			"artifact_type": "decision",
 			"content": `---
 decision_id: D-001
@@ -402,7 +394,7 @@ See D-001-R1: Red-team stress testing confirms write stall recovery bounds.
 		t.Fatalf("vivechak_record_decision call: %v", err)
 	}
 	env = parseTestEnvelope(t, res)
-	if !env.Success {
+	if !env.Ok {
 		t.Fatalf("record_decision failed: %s", env.Message)
 	}
 
@@ -410,9 +402,9 @@ See D-001-R1: Red-team stress testing confirms write stall recovery bounds.
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_review",
 		Arguments: map[string]any{
-			"project_root":   workDir,
-			"decision_id":    "D-001",
-			"challenge_type": "red_team",
+			"project_root": workDir,
+			"id":           "D-001",
+			"mode":         "red_team",
 		},
 	})
 
@@ -421,6 +413,7 @@ See D-001-R1: Red-team stress testing confirms write stall recovery bounds.
 		Name: "vivechak_review",
 		Arguments: map[string]any{
 			"project_root":  workDir,
+			"mode":          "validate",
 			"artifact_type": "decision",
 			"content": `---
 decision_id: D-001
@@ -436,7 +429,7 @@ Dry run test.
 		t.Fatalf("vivechak_review call: %v", err)
 	}
 	env = parseTestEnvelope(t, res)
-	if !env.Success {
+	if !env.Ok {
 		t.Fatalf("validate failed: %s", env.Message)
 	}
 
@@ -502,7 +495,7 @@ Storage and consensus accepted. [Grade A: formal proof](https://raft.github.io)
 		t.Fatalf("vivechak_gate call: %v", err)
 	}
 	env = parseTestEnvelope(t, res)
-	if env.Data["gate_status"] != "PASS" || env.Data["gate_passed"] != true {
-		t.Fatalf("expected gate PASS, got status=%v passed=%v", env.Data["gate_status"], env.Data["gate_passed"])
+	if env.Data["verdict"] != "PASS" {
+		t.Fatalf("expected gate PASS, got verdict=%v", env.Data["verdict"])
 	}
 }

@@ -179,13 +179,13 @@ func TestMassive_LiveMCP_DiamondDAG_And_DownstreamCascades(t *testing.T) {
 	envInit := callAndParse("vivechak_start", map[string]any{
 		"project_root": projectDir,
 		"scope":        "project",
+		"question":     "Event-driven platform",
 	})
-	if !envInit.Success {
+	if !envInit.Ok {
 		t.Fatalf("init failed: %s", envInit.Message)
 	}
-	tmpls, ok := envInit.Data["templates_copied"].([]any)
-	if !ok || len(tmpls) != 6 {
-		t.Fatalf("expected 6 templates copied, got: %v", envInit.Data["templates_copied"])
+	if _, err := os.Stat(filepath.Join(projectDir, core.TemplatesDir)); !os.IsNotExist(err) {
+		t.Fatalf("expected no templates copied into research/templates/ (HIGH-15), got err=%v", err)
 	}
 
 	// 4. Save Diamond DAG Pipeline:
@@ -196,71 +196,23 @@ func TestMassive_LiveMCP_DiamondDAG_And_DownstreamCascades(t *testing.T) {
 	//           S-04 (Layer 2)
 	//             |
 	//            FAD (Layer 3 - Synthesis)
-	diamondPlan := `# Diamond Research Pipeline
-
-## Session DAG
-
-### Session S-01 — Core Domain Model
-| Field | Value |
-|---|---|
-| **ID** | S-01 |
-| **Layer** | 0 |
-| **Door Type** | one-way |
-| **Dependencies** | None |
-| **Output File** | ` + "`S-01-core.md`" + ` |
-
-` + "```prompt\nDefine the core domain entities and invariants.\n```" + `
-
-### Session S-02 — Persistent Storage Layer
-| Field | Value |
-|---|---|
-| **ID** | S-02 |
-| **Layer** | 1 |
-| **Door Type** | one-way |
-| **Dependencies** | S-01 |
-| **Output File** | ` + "`S-02-storage.md`" + ` |
-
-` + "```prompt\nEvaluate embedded storage engines for the domain.\n```" + `
-
-### Session S-03 — Network Protocol & Wire Format
-| Field | Value |
-|---|---|
-| **ID** | S-03 |
-| **Layer** | 1 |
-| **Door Type** | two-way |
-| **Dependencies** | S-01 |
-| **Output File** | ` + "`S-03-network.md`" + ` |
-
-` + "```prompt\nEvaluate gRPC vs FlatBuffers vs Cap'n Proto.\n```" + `
-
-### Session S-04 — Distributed Consensus
-| Field | Value |
-|---|---|
-| **ID** | S-04 |
-| **Layer** | 2 |
-| **Door Type** | one-way |
-| **Dependencies** | S-02, S-03 |
-| **Output File** | ` + "`S-04-consensus.md`" + ` |
-
-` + "```prompt\nEvaluate consensus protocol given storage and wire constraints.\n```" + `
-
-### Session FAD — Founding Architecture Document
-| Field | Value |
-|---|---|
-| **ID** | FAD |
-| **Layer** | 3 |
-| **Door Type** | one-way |
-| **Dependencies** | S-01, S-02, S-03, S-04 |
-| **Output File** | ` + "`FAD.md`" + ` |
-
-` + "```prompt\nSynthesize founding architecture for the complete system.\n```" + `
-`
+	diamondPlan := livePlan("Diamond Research Pipeline", "PROJECT", "", []string{
+		"{id: S-01, title: Core Domain Model, layer: 0, door: one-way, depends: []}",
+		"{id: S-02, title: Persistent Storage Layer, layer: 1, door: one-way, depends: [S-01]}",
+		"{id: S-03, title: Network Protocol & Wire Format, layer: 1, door: two-way, depends: [S-01]}",
+		"{id: S-04, title: Distributed Consensus, layer: 2, door: one-way, depends: [S-02, S-03]}",
+		"{id: FAD, title: Founding Architecture Document, layer: 3, kind: synthesis, depends: [S-01, S-02, S-03, S-04]}",
+	}, liveSection("S-01", "Core Domain Model", "Define the core domain entities and invariants."),
+		liveSection("S-02", "Persistent Storage Layer", "Evaluate embedded storage engines for the domain."),
+		liveSection("S-03", "Network Protocol & Wire Format", "Evaluate gRPC vs FlatBuffers vs Cap'n Proto."),
+		liveSection("S-04", "Distributed Consensus", "Evaluate consensus protocol given storage and wire constraints."),
+		liveSection("FAD", "Founding Architecture Document", "Synthesize founding architecture for the complete system."))
 	envPlan := callAndParse("vivechak_save", map[string]any{
 		"project_root": projectDir,
 		"kind":         "plan",
 		"content":      diamondPlan,
 	})
-	if !envPlan.Success {
+	if !envPlan.Ok {
 		t.Fatalf("save_plan failed: %s", envPlan.Message)
 	}
 
@@ -301,7 +253,7 @@ Adopt immutable event-sourced aggregate root model.
 		"id":           "S-01",
 		"content":      s1Content,
 	})
-	if !envSave1.Success {
+	if !envSave1.Ok {
 		t.Fatalf("save S-01 failed: %s", envSave1.Message)
 	}
 
@@ -329,10 +281,10 @@ See D-001-R1: Red-team stress testing confirms replay bounds.
 `
 	envD1 := callAndParse("vivechak_record_decision", map[string]any{
 		"project_root": projectDir,
-		"decision_id":  "D-001",
+		"id":           "D-001",
 		"content":      d1Content,
 	})
-	if !envD1.Success {
+	if !envD1.Ok {
 		t.Fatalf("record D-001 failed: %s", envD1.Message)
 	}
 
@@ -345,8 +297,8 @@ See D-001-R1: Red-team stress testing confirms replay bounds.
 	if !ok || !strings.Contains(parallelismHint, "PARALLEL EXECUTION AVAILABLE: 2 independent sessions") {
 		t.Errorf("expected parallelism_hint for 2 parallel sessions, got: %v", envNext2.Data["parallelism_hint"])
 	}
-	if !strings.Contains(envNext2.NextStep, "⚡ 2 sessions ready in parallel") {
-		t.Errorf("expected ⚡ indicator in next_step, got: %s", envNext2.NextStep)
+	if !strings.Contains(envNext2.Guidance(), "2 sessions ready in parallel") {
+		t.Errorf("expected parallel-ready indicator in next.why, got: %s", envNext2.Guidance())
 	}
 
 	// Verify blocked sessions list includes S-04 and FAD
@@ -384,7 +336,7 @@ Compaction stalls observed under sustained concurrent writes requiring custom me
 		"id":           "S-02",
 		"content":      s2Content,
 	})
-	if !envSave2.Success {
+	if !envSave2.Ok {
 		t.Fatalf("save S-02 failed: %s", envSave2.Message)
 	}
 
@@ -425,7 +377,7 @@ Schema evolution requires strict field ID ordering rules.
 		"id":           "S-03",
 		"content":      s3Content,
 	})
-	if !envSave3.Success {
+	if !envSave3.Ok {
 		t.Fatalf("save S-03 failed: %s", envSave3.Message)
 	}
 
@@ -466,7 +418,7 @@ Leader election timeouts cause intermittent transaction pauses during partition 
 		"id":           "S-04",
 		"content":      s4Content,
 	})
-	if !envSave4.Success {
+	if !envSave4.Ok {
 		t.Fatalf("save S-04 failed: %s", envSave4.Message)
 	}
 
@@ -507,7 +459,7 @@ Diamond DAG resilient high-throughput event processing platform. Event-sourced R
 		"id":           "FAD",
 		"content":      fadContent,
 	})
-	if !envSaveFAD.Success {
+	if !envSaveFAD.Ok {
 		t.Fatalf("save FAD failed: %s", envSaveFAD.Message)
 	}
 
@@ -531,10 +483,10 @@ Diamond DAG resilient high-throughput event processing platform. Event-sourced R
 	// amending S-01 must detect completed downstream sessions and issue W-STALE-DOWNSTREAM.
 	envAmend := callAndParse("vivechak_amend", map[string]any{
 		"project_root": projectDir,
-		"session_id":   "S-01",
-		"amendment":    "Architecture revision: Aggregate roots must support snapshotting every 10,000 events.",
+		"id":           "S-01",
+		"note":         "Architecture revision: Aggregate roots must support snapshotting every 10,000 events.",
 	})
-	if !envAmend.Success {
+	if !envAmend.Ok {
 		t.Fatalf("amend S-01 failed: %s", envAmend.Message)
 	}
 	staleList, ok := envAmend.Data["potentially_stale_sessions"].([]any)
@@ -543,7 +495,7 @@ Diamond DAG resilient high-throughput event processing platform. Event-sourced R
 	}
 	hasStaleWarning := false
 	for _, w := range envAmend.Warnings {
-		if strings.Contains(w, "W-STALE-DOWNSTREAM") {
+		if w.Code == "W-STALE-DOWNSTREAM" {
 			hasStaleWarning = true
 			break
 		}
@@ -554,11 +506,11 @@ Diamond DAG resilient high-throughput event processing platform. Event-sourced R
 
 	// Red-team challenge for One-Way Door D-001
 	envChallenge := callAndParse("vivechak_review", map[string]any{
-		"project_root":   projectDir,
-		"decision_id":    "D-001",
-		"challenge_type": "red_team",
+		"project_root": projectDir,
+		"id":           "D-001",
+		"mode":         "red_team",
 	})
-	if !envChallenge.Success {
+	if !envChallenge.Ok {
 		t.Fatalf("challenge D-001 failed: %s", envChallenge.Message)
 	}
 
@@ -578,9 +530,9 @@ Diamond DAG resilient high-throughput event processing platform. Event-sourced R
 		"project_root": projectDir,
 		"verbose":      true,
 	})
-	if envGate.Data["gate_status"] != "PASS" || envGate.Data["gate_passed"] != true {
-		t.Fatalf("expected gate PASS, got status=%v passed=%v rules=%+v warnings=%v message=%s",
-			envGate.Data["gate_status"], envGate.Data["gate_passed"], envGate.Data["rules"], envGate.Warnings, envGate.Message)
+	if envGate.Data["verdict"] != "PASS" {
+		t.Fatalf("expected gate PASS, got verdict=%v rules=%+v warnings=%v message=%s",
+			envGate.Data["verdict"], envGate.Data["rules"], envGate.Warnings, envGate.Message)
 	}
 
 	gatePath := filepath.Join(projectDir, core.ResearchDir, "PHASE-0-GATE.md")
@@ -638,13 +590,14 @@ func TestMassive_LiveMCP_HighConcurrencyStress(t *testing.T) {
 		Arguments: map[string]any{
 			"project_root": projectDir,
 			"scope":        "project",
+			"question":     "Event-driven platform",
 		},
 	})
 	if err != nil {
 		t.Fatalf("init call failed: %v", err)
 	}
 	envInit := parseTestEnvelope(t, resInit)
-	if !envInit.Success {
+	if !envInit.Ok {
 		t.Fatalf("init unsuccessful: %s", envInit.Message)
 	}
 
@@ -663,7 +616,7 @@ Initial baseline.
 		Name: "vivechak_record_decision",
 		Arguments: map[string]any{
 			"project_root": projectDir,
-			"decision_id":  "D-001",
+			"id":           "D-001",
 			"content":      initD1,
 		},
 	})
@@ -713,7 +666,7 @@ Finding details for session %d. Grade B (automated run)
 				return
 			}
 			env := parseTestEnvelope(t, res)
-			if !env.Success {
+			if !env.Ok {
 				recordErr(fmt.Sprintf("save_session %s fail: %s", sessID, env.Message))
 			}
 		}(i)
@@ -740,7 +693,7 @@ Decision details for worker %d.
 				Name: "vivechak_record_decision",
 				Arguments: map[string]any{
 					"project_root": projectDir,
-					"decision_id":  decID,
+					"id":           decID,
 					"content":      decBody,
 				},
 			})
@@ -749,7 +702,7 @@ Decision details for worker %d.
 				return
 			}
 			env := parseTestEnvelope(t, res)
-			if !env.Success {
+			if !env.Ok {
 				recordErr(fmt.Sprintf("record_decision %s fail: %s", decID, env.Message))
 			}
 		}(i)
@@ -842,17 +795,17 @@ func TestMassive_LiveMCP_MultiScopeFullRoundtrips(t *testing.T) {
 	t.Run("DecisionScope_Roundtrip", func(t *testing.T) {
 		dDir := t.TempDir()
 
-		// 1. Init decision scope (must copy only 2 templates)
+		// 1. Init decision scope (templates are MCP resources, never copied)
 		envInit := callAndParse("vivechak_start", map[string]any{
 			"project_root": dDir,
 			"scope":        "decision",
+			"question":     "Choose between CockroachDB vs TiDB for multi-region transactional SQL.",
 		})
-		if !envInit.Success {
+		if !envInit.Ok {
 			t.Fatalf("decision init failed: %s", envInit.Message)
 		}
-		tmpls, ok := envInit.Data["templates_copied"].([]any)
-		if !ok || len(tmpls) != 2 {
-			t.Fatalf("expected 2 templates copied for decision scope, got: %v", envInit.Data["templates_copied"])
+		if _, err := os.Stat(filepath.Join(dDir, core.TemplatesDir)); !os.IsNotExist(err) {
+			t.Fatalf("expected no templates copied into research/templates/ (HIGH-15), got err=%v", err)
 		}
 
 		// 2. Prepare generator (decision scope)
@@ -861,30 +814,18 @@ func TestMassive_LiveMCP_MultiScopeFullRoundtrips(t *testing.T) {
 			"scope":        "decision",
 			"question":     "Choose between CockroachDB vs TiDB for multi-region transactional SQL.",
 		})
-		if !envPrep.Success {
+		if !envPrep.Ok {
 			t.Fatalf("prepare generator failed: %s", envPrep.Message)
 		}
-		prompt := envPrep.Data["prompt"].(string)
+		prompt := envPrep.Data["brief"].(string)
 		if !strings.Contains(prompt, "CockroachDB vs TiDB") {
 			t.Errorf("expected context injected into decision prompt")
 		}
 
 		// 3. Save decision plan (D-001-plan.md)
-		planContent := `# Decision Research Pipeline: D-001
-
-## Session DAG
-
-### Session D-001-S1 — Distributed SQL Evaluation
-| Field | Value |
-|---|---|
-| **ID** | D-001-S1 |
-| **Layer** | 0 |
-| **Door Type** | one-way |
-| **Dependencies** | None |
-| **Output File** | ` + "`D-001-S1.md`" + ` |
-
-` + "```prompt\nEvaluate CockroachDB and TiDB against regional latency requirements.\n```" + `
-`
+		planContent := livePlan("Decision Research Pipeline: D-001", "D-001", "", []string{
+			"{id: D-001-S1, title: Distributed SQL Evaluation, role: C, layer: 0, door: one-way, informs: [D-001], depends: []}",
+		}, liveSection("D-001-S1", "Distributed SQL Evaluation", "Evaluate CockroachDB and TiDB against regional latency requirements."))
 		envPlan := callAndParse("vivechak_save", map[string]any{
 			"project_root": dDir,
 			"kind":         "plan",
@@ -892,7 +833,7 @@ func TestMassive_LiveMCP_MultiScopeFullRoundtrips(t *testing.T) {
 			"content":      planContent,
 			"scope":        "decision",
 		})
-		if !envPlan.Success {
+		if !envPlan.Ok {
 			t.Fatalf("save decision plan failed: %s", envPlan.Message)
 		}
 
@@ -912,6 +853,8 @@ date: 2026-10-02
 status: complete
 ---
 # Evaluation Findings
+## Key Findings
+- CockroachDB serves multi-region transactions with serializable isolation [Grade A: https://www.cockroachlabs.com/docs/ | fetched]
 ## Recommendations
 We recommend CockroachDB. Grade A (regional multi-cloud benchmark)
 ## Discovered Concerns & Failure Modes
@@ -920,6 +863,8 @@ We recommend CockroachDB. Grade A (regional multi-cloud benchmark)
 | Prior | Status | Impact |
 |---|---|---|
 | Aurora Global DB | Contradicted | High |
+## Sources & Evidence Ledger
+- https://www.cockroachlabs.com/docs/ [Grade A]
 `
 		envSave := callAndParse("vivechak_save", map[string]any{
 			"project_root": dDir,
@@ -927,7 +872,7 @@ We recommend CockroachDB. Grade A (regional multi-cloud benchmark)
 			"id":           "D-001-S1",
 			"content":      s1Content,
 		})
-		if !envSave.Success {
+		if !envSave.Ok {
 			t.Fatalf("save session D-001-S1 failed: %s", envSave.Message)
 		}
 
@@ -955,20 +900,20 @@ See D-001-R1: Red-team challenge stress testing confirms partition resilience an
 `
 		envRec := callAndParse("vivechak_record_decision", map[string]any{
 			"project_root": dDir,
-			"decision_id":  "D-001",
+			"id":           "D-001",
 			"content":      d1Content,
 		})
-		if !envRec.Success {
+		if !envRec.Ok {
 			t.Fatalf("record decision failed: %s", envRec.Message)
 		}
 
 		// Red-team challenge for One-Way Door D-001
 		envChallenge := callAndParse("vivechak_review", map[string]any{
-			"project_root":   dDir,
-			"decision_id":    "D-001",
-			"challenge_type": "red_team",
+			"project_root": dDir,
+			"id":           "D-001",
+			"mode":         "red_team",
 		})
-		if !envChallenge.Success {
+		if !envChallenge.Ok {
 			t.Fatalf("challenge D-001 failed: %s", envChallenge.Message)
 		}
 
@@ -987,7 +932,7 @@ See D-001-R1: Red-team challenge stress testing confirms partition resilience an
 			"project_root": dDir,
 			"mode":         "validate",
 		})
-		if !envVal.Success {
+		if !envVal.Ok {
 			t.Fatalf("validate failed: %s", envVal.Message)
 		}
 
@@ -996,9 +941,9 @@ See D-001-R1: Red-team challenge stress testing confirms partition resilience an
 			"project_root": dDir,
 			"verbose":      true,
 		})
-		if envGate.Data["gate_status"] != "PASS" || envGate.Data["gate_passed"] != true {
-			t.Fatalf("expected gate PASS, got status=%v passed=%v rules=%+v warnings=%v message=%s",
-				envGate.Data["gate_status"], envGate.Data["gate_passed"], envGate.Data["rules"], envGate.Warnings, envGate.Message)
+		if envGate.Data["verdict"] != "PASS" {
+			t.Fatalf("expected gate PASS, got verdict=%v rules=%+v warnings=%v message=%s",
+				envGate.Data["verdict"], envGate.Data["rules"], envGate.Warnings, envGate.Message)
 		}
 	})
 
@@ -1008,17 +953,17 @@ See D-001-R1: Red-team challenge stress testing confirms partition resilience an
 	t.Run("ComparisonScope_Roundtrip", func(t *testing.T) {
 		cDir := t.TempDir()
 
-		// 1. Init comparison scope (must copy only 1 template)
+		// 1. Init comparison scope (templates are MCP resources, never copied)
 		envInit := callAndParse("vivechak_start", map[string]any{
 			"project_root": cDir,
 			"scope":        "comparison",
+			"question":     "Pino vs Winston",
 		})
-		if !envInit.Success {
+		if !envInit.Ok {
 			t.Fatalf("comparison init failed: %s", envInit.Message)
 		}
-		tmpls, ok := envInit.Data["templates_copied"].([]any)
-		if !ok || len(tmpls) != 1 {
-			t.Fatalf("expected 1 template copied for comparison scope, got: %v", envInit.Data["templates_copied"])
+		if _, err := os.Stat(filepath.Join(cDir, core.TemplatesDir)); !os.IsNotExist(err) {
+			t.Fatalf("expected no templates copied into research/templates/ (HIGH-15), got err=%v", err)
 		}
 
 		// 2. Save comparison plan
@@ -1026,35 +971,34 @@ See D-001-R1: Red-team challenge stress testing confirms partition resilience an
 
 ## Session DAG
 
-### Session COMP-01 — Streaming Broker Comparison
+### Session C-001 — Streaming Broker Comparison
 | Field | Value |
 |---|---|
-| **ID** | COMP-01 |
+| **ID** | C-001 |
 | **Layer** | 0 |
 | **Door Type** | two-way |
 | **Dependencies** | None |
-| **Output File** | ` + "`COMP-01.md`" + ` |
+| **Output File** | ` + "`C-001-comparison.md`" + ` |
 
 ` + "```prompt\nCompare Kafka vs Redpanda using WEP matrix.\n```" + `
 `
 		envPlan := callAndParse("vivechak_save", map[string]any{
 			"project_root": cDir,
-			"kind":         "plan",
-			"id":           "COMP-01",
+			"kind":         "comparison",
+			"id":           "C-001",
 			"content":      compPlan,
-			"scope":        "comparison",
 		})
-		if !envPlan.Success {
+		if !envPlan.Ok {
 			t.Fatalf("save comparison plan failed: %s", envPlan.Message)
 		}
 
-		// 3. Next session -> C-01
+		// 3. Next session -> C-001: the saved comparison names its session C-001, and vivechak_next reports that id.
 		envNext := callAndParse("vivechak_next", map[string]any{
 			"project_root": cDir,
 		})
 		sessID, _ := envNext.Data["session_id"].(string)
-		if sessID != "C-01" && sessID != "CMP-01" {
-			t.Fatalf("expected C-01 or CMP-01, got: %v", envNext.Data["session_id"])
+		if sessID != "C-001" {
+			t.Fatalf("expected session C-001 (the id the saved comparison declares), got: %v", envNext.Data["session_id"])
 		}
 
 		// 4. Save comparison session with WEP matrix
@@ -1083,7 +1027,7 @@ Adopt Redpanda for low operational complexity and zero JVM overhead. Grade A (be
 			"id":           sessID,
 			"content":      compContent,
 		})
-		if !envSave.Success {
+		if !envSave.Ok {
 			t.Fatalf("save %s failed: %s", sessID, envSave.Message)
 		}
 
@@ -1092,7 +1036,7 @@ Adopt Redpanda for low operational complexity and zero JVM overhead. Grade A (be
 			"project_root": cDir,
 			"mode":         "validate",
 		})
-		if !envVal.Success {
+		if !envVal.Ok {
 			t.Fatalf("validate comparison failed: %s", envVal.Message)
 		}
 
@@ -1101,9 +1045,10 @@ Adopt Redpanda for low operational complexity and zero JVM overhead. Grade A (be
 			"project_root": cDir,
 			"verbose":      true,
 		})
-		if (envGate.Data["gate_status"] != "PASS" && envGate.Data["gate_status"] != "not_applicable") || envGate.Data["gate_passed"] != true {
-			t.Fatalf("expected gate PASS for comparison, got status=%v passed=%v warnings=%v message=%s",
-				envGate.Data["gate_status"], envGate.Data["gate_passed"], envGate.Warnings, envGate.Message)
+		// A comparison-only workspace has no architecture gate: exactly not_applicable, never PASS.
+		if envGate.Data["verdict"] != "not_applicable" {
+			t.Fatalf("expected gate verdict not_applicable for a comparison-only workspace, got verdict=%v warnings=%v message=%s",
+				envGate.Data["verdict"], envGate.Warnings, envGate.Message)
 		}
 	})
 }
@@ -1140,11 +1085,10 @@ func TestMassive_CLI_SubcommandMatrix(t *testing.T) {
 		t.Errorf("setup --help output missing Available Presets:\n%s", string(outHelp))
 	}
 
-	// 3. Test mcp-config on all 21 presets: each must output valid JSON
+	// 3. Test mcp-config on every preset: each must output valid JSON
 	allPresets := []string{
-		"cursor", "vscode", "claude-desktop", "claude-code", "mcp", "opencode",
-		"copilot", "void", "continue", "goose", "windsurf", "antigravity",
-		"zed", "kiro", "trae", "omp", "openhands", "droid", "cline", "roo", "devin",
+		"cursor", "vscode", "claude-desktop", "claude-code", "opencode",
+		"goose", "windsurf", "antigravity", "zed", "roo",
 	}
 	for _, p := range allPresets {
 		cmdCfg := exec.CommandContext(ctx, binPath, "mcp-config", "--preset", p)

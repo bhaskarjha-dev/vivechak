@@ -97,40 +97,6 @@ func TestResolveConfigPath(t *testing.T) {
 		t.Errorf("zed windows path: got %s, want %s", p, expectedZedWin)
 	}
 
-	// Kiro (canonical ~/.kiro/settings/mcp.json by default)
-	p, err = resolveConfigPath("kiro", homeDir, appData, cwd, "linux")
-	if err != nil {
-		t.Fatalf("kiro: %v", err)
-	}
-	expectedKiro := filepath.Join(homeDir, ".kiro", "settings", "mcp.json")
-	if p != expectedKiro {
-		t.Errorf("kiro path: got %s, want %s", p, expectedKiro)
-	}
-
-	// Kiro (workspace when .kiro exists in cwd)
-	tempKiroWS := t.TempDir()
-	_ = os.MkdirAll(filepath.Join(tempKiroWS, ".kiro"), 0o755)
-	p, err = resolveConfigPath("kiro", homeDir, appData, tempKiroWS, "linux")
-	if err != nil {
-		t.Fatalf("kiro workspace: %v", err)
-	}
-	expectedKiroWS := filepath.Join(tempKiroWS, ".kiro", "settings", "mcp.json")
-	if p != expectedKiroWS {
-		t.Errorf("kiro workspace path: got %s, want %s", p, expectedKiroWS)
-	}
-
-	// Kiro (legacy fallback when ~/.aws/.kiro exists)
-	tempKiroHome := t.TempDir()
-	_ = os.MkdirAll(filepath.Join(tempKiroHome, ".aws", ".kiro"), 0o755)
-	p, err = resolveConfigPath("kiro", tempKiroHome, appData, cwd, "linux")
-	if err != nil {
-		t.Fatalf("kiro legacy: %v", err)
-	}
-	expectedKiroLegacy := filepath.Join(tempKiroHome, ".aws", ".kiro", "mcp.json")
-	if p != expectedKiroLegacy {
-		t.Errorf("kiro legacy path: got %s, want %s", p, expectedKiroLegacy)
-	}
-
 	// Antigravity (global default when no .agents in cwd)
 	p, err = resolveConfigPath("antigravity", homeDir, appData, cwd, "linux")
 	if err != nil {
@@ -153,82 +119,21 @@ func TestResolveConfigPath(t *testing.T) {
 		t.Errorf("antigravity workspace path: got %s, want %s", p, expectedAGWS)
 	}
 
-	// Trae
-	p, err = resolveConfigPath("trae", homeDir, appData, cwd, "linux")
-	if err != nil {
-		t.Fatalf("trae: %v", err)
-	}
-	expectedTrae := filepath.Join(cwd, ".trae", "mcp.json")
-	if p != expectedTrae {
-		t.Errorf("trae path: got %s, want %s", p, expectedTrae)
-	}
-
-	// OMP (global)
-	p, err = resolveConfigPath("omp", homeDir, appData, cwd, "linux")
-	if err != nil {
-		t.Fatalf("omp: %v", err)
-	}
-	expectedOMP := filepath.Join(homeDir, ".omp", "agent", "mcp.json")
-	if p != expectedOMP {
-		t.Errorf("omp path: got %s, want %s", p, expectedOMP)
-	}
-
-	// OpenHands (global)
-	p, err = resolveConfigPath("openhands", homeDir, appData, cwd, "linux")
-	if err != nil {
-		t.Fatalf("openhands: %v", err)
-	}
-	expectedOH := filepath.Join(homeDir, ".openhands", "mcp.json")
-	if p != expectedOH {
-		t.Errorf("openhands path: got %s, want %s", p, expectedOH)
-	}
-
-	// Factory Droid (global)
-	p, err = resolveConfigPath("droid", homeDir, appData, cwd, "linux")
-	if err != nil {
-		t.Fatalf("droid: %v", err)
-	}
-	expectedDroid := filepath.Join(homeDir, ".factory", "mcp.json")
-	if p != expectedDroid {
-		t.Errorf("droid path: got %s, want %s", p, expectedDroid)
-	}
-
-	// Cline (Linux, Mac, Windows)
-	p, err = resolveConfigPath("cline", homeDir, appData, cwd, "linux")
-	if err != nil {
-		t.Fatalf("cline linux: %v", err)
-	}
-	expectedClineLinux := filepath.Join(homeDir, ".config", "Code", "User", "globalStorage", "saoudrizwan.claude-dev", "settings", "cline_mcp_settings.json")
-	if p != expectedClineLinux {
-		t.Errorf("cline linux path: got %s, want %s", p, expectedClineLinux)
-	}
-	p, err = resolveConfigPath("cline", homeDir, "C:\\Users\\user\\AppData\\Roaming", cwd, "windows")
-	if err != nil {
-		t.Fatalf("cline windows: %v", err)
-	}
-	expectedClineWin := filepath.Join("C:\\Users\\user\\AppData\\Roaming", "Code", "User", "globalStorage", "saoudrizwan.claude-dev", "settings", "cline_mcp_settings.json")
-	if p != expectedClineWin {
-		t.Errorf("cline windows path: got %s, want %s", p, expectedClineWin)
-	}
-
-	// Roo (Linux, Windows)
+	// Roo Code: only the documented project-level .roo/mcp.json
 	p, err = resolveConfigPath("roo", homeDir, appData, cwd, "linux")
 	if err != nil {
-		t.Fatalf("roo linux: %v", err)
+		t.Fatalf("roo: %v", err)
 	}
-	expectedRooLinux := filepath.Join(homeDir, ".config", "Code", "User", "globalStorage", "rooveterinaryinc.roo-cline", "settings", "mcp_settings.json")
-	if p != expectedRooLinux {
-		t.Errorf("roo linux path: got %s, want %s", p, expectedRooLinux)
+	expectedRoo := filepath.Join(cwd, ".roo", "mcp.json")
+	if p != expectedRoo {
+		t.Errorf("roo path: got %s, want %s", p, expectedRoo)
 	}
 
-	// Devin
-	p, err = resolveConfigPath("devin", homeDir, appData, cwd, "linux")
-	if err != nil {
-		t.Fatalf("devin: %v", err)
-	}
-	expectedDevin := filepath.Join(cwd, ".devin", "mcp_config.local.json")
-	if p != expectedDevin {
-		t.Errorf("devin path: got %s, want %s", p, expectedDevin)
+	// HIGH-04: presets whose config location is not in the host's own docs were removed
+	for _, removed := range []string{"kiro", "trae", "omp", "openhands", "droid", "cline", "devin"} {
+		if _, err = resolveConfigPath(removed, homeDir, appData, cwd, "linux"); err == nil {
+			t.Errorf("%s: expected an error for a removed preset, got nil", removed)
+		}
 	}
 
 	// Unsupported write clients return error
@@ -470,6 +375,13 @@ func TestMergeConfigPreservesComments(t *testing.T) {
 }
 
 func TestResolveLauncher(t *testing.T) {
+	// npx caches are recognised only under the user's cache roots (HIGH-04 dropped the bare
+	// "_npx", "node_modules/.cache", "cellar" and "caskroom" substrings).
+	t.Setenv("HOME", "/home/user")
+	t.Setenv("USERPROFILE", "/home/user")
+	t.Setenv("LOCALAPPDATA", "C:\\Users\\User\\AppData\\Local")
+	t.Setenv("XDG_CACHE_HOME", "")
+	t.Setenv("VIVECHAK_LAUNCHER", "")
 	tests := []struct {
 		input       string
 		expectedCmd string
@@ -478,8 +390,8 @@ func TestResolveLauncher(t *testing.T) {
 		{"/usr/local/bin/vivechak", "/usr/local/bin/vivechak", false},
 		{"C:\\Users\\User\\AppData\\Local\\npm-cache\\_npx\\12345\\node_modules\\.bin\\vivechak.exe", "npx", true},
 		{"/home/user/.npm/_npx/abc/bin/vivechak", "npx", true},
-		{"/home/user/project/node_modules/.cache/bin/vivechak", "npx", true},
-		{"/opt/homebrew/Cellar/vivechak/0.1.0/tmp/build/vck", "npx", true},
+		{"/home/user/project/node_modules/.cache/bin/vivechak", "/home/user/project/node_modules/.cache/bin/vivechak", false},
+		{"/opt/homebrew/Cellar/vivechak/0.1.0/tmp/build/vck", "/opt/homebrew/Cellar/vivechak/0.1.0/tmp/build/vck", false},
 	}
 
 	for _, tt := range tests {
@@ -546,9 +458,8 @@ func TestWriteConfigFile(t *testing.T) {
 func TestIsSupportedPreset(t *testing.T) {
 	valid := []string{
 		"cursor", "vscode", "code", "claude-desktop", "claude", "claude-code", "claudecode",
-		"mcp", "portable", "universal", "opencode", "open-code", "copilot", "github-copilot",
-		"void", "void-editor", "continue", "continuedev", "goose", "block-goose",
-		"windsurf", "antigravity", "agy", "zed", "kiro", "trae", "omp", "openhands", "droid", "cline", "roo", "devin",
+		"opencode", "open-code", "goose", "block-goose",
+		"windsurf", "antigravity", "agy", "zed", "roo",
 	}
 	for _, v := range valid {
 		if !isSupportedPreset(v) {
@@ -556,7 +467,10 @@ func TestIsSupportedPreset(t *testing.T) {
 		}
 	}
 
-	invalid := []string{"", "random", "cursro", "vs-code", "sublime", "chatgpt", "codex"}
+	// HIGH-04: presets not verified against the host's docs were removed (use vck setup <path>).
+	invalid := []string{"", "random", "cursro", "vs-code", "sublime", "chatgpt", "codex",
+		"mcp", "portable", "universal", "copilot", "github-copilot", "void", "void-editor", "continue", "continuedev",
+		"kiro", "trae", "omp", "openhands", "droid", "cline", "devin"}
 	for _, inv := range invalid {
 		if isSupportedPreset(inv) {
 			t.Errorf("expected %s to NOT be recognized as supported preset", inv)
@@ -571,9 +485,8 @@ func TestPresetAndClientCompatibility(t *testing.T) {
 
 	presets := []string{
 		"cursor", "vscode", "code", "claude-desktop", "claude", "claude-code", "claudecode",
-		"mcp", "portable", "universal", "opencode", "open-code", "copilot", "github-copilot",
-		"void", "void-editor", "continue", "continuedev", "goose", "block-goose",
-		"windsurf", "antigravity", "agy", "zed", "kiro", "trae", "omp", "openhands", "droid", "cline", "roo", "devin",
+		"opencode", "open-code", "goose", "block-goose",
+		"windsurf", "antigravity", "agy", "zed", "roo",
 	}
 	for _, p := range presets {
 		pathFromPreset, err1 := resolveConfigPath(p, home, appData, cwd, "linux")
@@ -773,18 +686,14 @@ func TestFormatHostName(t *testing.T) {
 		"claude-desktop": "Claude Desktop",
 		"claude":         "Claude Desktop",
 		"claude-code":    "Claude Code CLI",
-		"mcp":            "Universal Portable (.mcp.json)",
 		"opencode":       "OpenCode",
-		"copilot":        "GitHub Copilot",
-		"void":           "Void Editor",
-		"continue":       "Continue.dev",
 		"goose":          "Block Goose",
 		"antigravity":    "Google Antigravity",
 		"agy":            "Google Antigravity",
 		"zed":            "Zed",
-		"kiro":           "AWS Kiro",
-		"trae":           "ByteDance Trae",
-		"omp":            "Oh My Pi (OMP)",
+		"roo":            "Roo Code",
+		"windsurf":       "Windsurf",
+		"kiro":           "kiro", // removed preset (HIGH-04): no display name any more
 		"unknown":        "unknown",
 	}
 	for in, want := range tests {
@@ -859,7 +768,7 @@ func TestResolveLauncher_Uvx(t *testing.T) {
 		{"/home/user/.cache/uv/archive-v0/xyz/vivechak", "uvx"},
 		{"C:\\Users\\user\\AppData\\Local\\uv\\cache\\archive\\vivechak.exe", "uvx"},
 		{"/root/.cache/uv-cache/bin/vivechak", "uvx"},
-		{"/home/user/_npx/1234/node_modules/.bin/vivechak", "npx"},
+		{"/home/user/_npx/1234/node_modules/.bin/vivechak", "/home/user/_npx/1234/node_modules/.bin/vivechak"},
 		{"/usr/local/bin/vivechak", "/usr/local/bin/vivechak"},
 	}
 
@@ -881,17 +790,16 @@ func TestResolveConfigPath_ExpandedHarnesses(t *testing.T) {
 	cwd := "/workspace/testproject"
 	appData := "C:\\Users\\testuser\\AppData\\Roaming"
 
-	// 1. Universal Portable .mcp.json
-	p, err := resolveConfigPath("mcp", homeDir, appData, cwd, "linux")
-	if err != nil {
-		t.Fatalf("mcp: %v", err)
-	}
-	if p != filepath.Join(cwd, ".mcp.json") {
-		t.Errorf("mcp got %s, want %s", p, filepath.Join(cwd, ".mcp.json"))
+	// HIGH-04: the "mcp" (portable .mcp.json), copilot, void and continue presets were removed
+	// (not verified against the host's docs, or the written entry lacks a field the host requires).
+	for _, removed := range []string{"mcp", "portable", "universal", "copilot", "github-copilot", "void", "continue"} {
+		if _, err := resolveConfigPath(removed, homeDir, appData, cwd, "linux"); err == nil {
+			t.Errorf("%s: expected an error for a removed preset, got nil", removed)
+		}
 	}
 
 	// 2. Claude Code (global default when no .mcp.json in cwd)
-	p, err = resolveConfigPath("claude-code", homeDir, appData, cwd, "linux")
+	p, err := resolveConfigPath("claude-code", homeDir, appData, cwd, "linux")
 	if err != nil {
 		t.Fatalf("claude-code: %v", err)
 	}
@@ -928,66 +836,6 @@ func TestResolveConfigPath_ExpandedHarnesses(t *testing.T) {
 	}
 	if p != filepath.Join(tempOpenCodeWS, "opencode.json") {
 		t.Errorf("opencode workspace got %s, want %s", p, filepath.Join(tempOpenCodeWS, "opencode.json"))
-	}
-
-	// 4. GitHub Copilot CLI
-	p, err = resolveConfigPath("copilot", homeDir, appData, cwd, "linux")
-	if err != nil {
-		t.Fatalf("copilot: %v", err)
-	}
-	if p != filepath.Join(homeDir, ".copilot", "mcp-config.json") {
-		t.Errorf("copilot got %s, want %s", p, filepath.Join(homeDir, ".copilot", "mcp-config.json"))
-	}
-
-	// Copilot CLI with COPILOT_HOME override
-	tempCopilotHome := t.TempDir()
-	t.Setenv("COPILOT_HOME", tempCopilotHome)
-	p, err = resolveConfigPath("copilot", homeDir, appData, cwd, "linux")
-	if err != nil {
-		t.Fatalf("copilot with COPILOT_HOME: %v", err)
-	}
-	if p != filepath.Join(tempCopilotHome, "mcp-config.json") {
-		t.Errorf("copilot COPILOT_HOME got %s, want %s", p, filepath.Join(tempCopilotHome, "mcp-config.json"))
-	}
-
-	// 5. Void Editor (global default)
-	p, err = resolveConfigPath("void", homeDir, appData, cwd, "linux")
-	if err != nil {
-		t.Fatalf("void: %v", err)
-	}
-	if p != filepath.Join(homeDir, ".void-editor", "mcp.json") {
-		t.Errorf("void got %s, want %s", p, filepath.Join(homeDir, ".void-editor", "mcp.json"))
-	}
-
-	// Void Editor (workspace when .void exists)
-	tempVoidWS := t.TempDir()
-	_ = os.MkdirAll(filepath.Join(tempVoidWS, ".void"), 0o755)
-	p, err = resolveConfigPath("void", homeDir, appData, tempVoidWS, "linux")
-	if err != nil {
-		t.Fatalf("void workspace: %v", err)
-	}
-	if p != filepath.Join(tempVoidWS, ".void", "mcp.json") {
-		t.Errorf("void workspace got %s, want %s", p, filepath.Join(tempVoidWS, ".void", "mcp.json"))
-	}
-
-	// 6. Continue.dev (global default)
-	p, err = resolveConfigPath("continue", homeDir, appData, cwd, "linux")
-	if err != nil {
-		t.Fatalf("continue: %v", err)
-	}
-	if p != filepath.Join(homeDir, ".continue", "mcpServers", "vivechak.json") {
-		t.Errorf("continue got %s, want %s", p, filepath.Join(homeDir, ".continue", "mcpServers", "vivechak.json"))
-	}
-
-	// Continue.dev (workspace when .continue exists)
-	tempContinueWS := t.TempDir()
-	_ = os.MkdirAll(filepath.Join(tempContinueWS, ".continue"), 0o755)
-	p, err = resolveConfigPath("continue", homeDir, appData, tempContinueWS, "linux")
-	if err != nil {
-		t.Fatalf("continue workspace: %v", err)
-	}
-	if p != filepath.Join(tempContinueWS, ".continue", "mcpServers", "vivechak.json") {
-		t.Errorf("continue workspace got %s, want %s", p, filepath.Join(tempContinueWS, ".continue", "mcpServers", "vivechak.json"))
 	}
 
 	// 7. Block Goose (Linux/macOS)
@@ -1149,11 +997,11 @@ func TestMergeConfig_PreservesClaudeCodeState(t *testing.T) {
 }
 
 func TestDetectWorkspaceHost_ExpandedIndicators(t *testing.T) {
-	// 1. .mcp.json file
+	// 1. .mcp.json file: Claude Code's documented project-scope file (the "mcp" preset was removed, HIGH-04)
 	dirMCP := t.TempDir()
 	_ = os.WriteFile(filepath.Join(dirMCP, ".mcp.json"), []byte("{}"), 0o644)
-	if got := detectWorkspaceHost(dirMCP); got != "mcp" {
-		t.Errorf("expected 'mcp' for .mcp.json, got %q", got)
+	if got := detectWorkspaceHost(dirMCP); got != "claude-code" {
+		t.Errorf("expected 'claude-code' for .mcp.json, got %q", got)
 	}
 
 	// 2. opencode.json file
@@ -1163,25 +1011,13 @@ func TestDetectWorkspaceHost_ExpandedIndicators(t *testing.T) {
 		t.Errorf("expected 'opencode' for opencode.json, got %q", got)
 	}
 
-	// 3. .void directory
-	dirVoid := t.TempDir()
-	_ = os.MkdirAll(filepath.Join(dirVoid, ".void"), 0o755)
-	if got := detectWorkspaceHost(dirVoid); got != "void" {
-		t.Errorf("expected 'void' for .void, got %q", got)
-	}
-
-	// 4. .continue directory
-	dirContinue := t.TempDir()
-	_ = os.MkdirAll(filepath.Join(dirContinue, ".continue"), 0o755)
-	if got := detectWorkspaceHost(dirContinue); got != "continue" {
-		t.Errorf("expected 'continue' for .continue, got %q", got)
-	}
-
-	// 5. .copilot directory
-	dirCopilot := t.TempDir()
-	_ = os.MkdirAll(filepath.Join(dirCopilot, ".copilot"), 0o755)
-	if got := detectWorkspaceHost(dirCopilot); got != "copilot" {
-		t.Errorf("expected 'copilot' for .copilot, got %q", got)
+	// 3-5. Markers of hosts whose presets were removed (HIGH-04) are no longer detected
+	for _, marker := range []string{".void", ".continue", ".copilot", ".kiro", ".trae", ".cline"} {
+		dir := t.TempDir()
+		_ = os.MkdirAll(filepath.Join(dir, marker), 0o755)
+		if got := detectWorkspaceHost(dir); got != "" {
+			t.Errorf("expected no host for %s, got %q", marker, got)
+		}
 	}
 
 	// 6. .goose directory
@@ -1192,11 +1028,10 @@ func TestDetectWorkspaceHost_ExpandedIndicators(t *testing.T) {
 	}
 }
 
-func TestRunSetup_DryRun_All21Presets(t *testing.T) {
+func TestRunSetup_DryRun_AllPresets(t *testing.T) {
 	presets := []string{
-		"cursor", "vscode", "claude-desktop", "claude-code", "mcp", "opencode",
-		"copilot", "void", "continue", "goose", "windsurf", "antigravity",
-		"zed", "kiro", "trae", "omp", "openhands", "droid", "cline", "roo", "devin",
+		"cursor", "vscode", "claude-desktop", "claude-code", "opencode",
+		"goose", "windsurf", "antigravity", "zed", "roo",
 	}
 
 	for _, p := range presets {

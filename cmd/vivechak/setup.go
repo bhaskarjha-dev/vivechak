@@ -139,6 +139,10 @@ func runSetupWithArgs(args []string, stdout, stderr io.Writer) int {
 		}
 	}
 
+	if w := launcherWarning(exePath); w != "" {
+		fmt.Fprintln(stderr, w)
+	}
+
 	if dryRun {
 		fmt.Fprintf(stdout, "[dry-run] Would write Vivechak configuration to %s (%s):\n", configPath, targetKey)
 		printConfigDiff(stdout, oldBytes, out, configPath)
@@ -162,7 +166,7 @@ func printSetupUsage(w io.Writer) {
 	fmt.Fprintln(w, "Set up Vivechak Model Context Protocol (MCP) in your AI editor, IDE, or agent harness.")
 	fmt.Fprintln(w, "")
 	fmt.Fprintln(w, "Arguments:")
-	fmt.Fprintln(w, "  <host>        Desktop shortcut (e.g. cursor, agy, vscode, zed, kiro, trae, omp, etc.)")
+	fmt.Fprintln(w, "  <host>        Host preset (e.g. cursor, agy, vscode, zed; full list below)")
 	fmt.Fprintln(w, "  <filepath>    Target configuration file path to write and merge into")
 	fmt.Fprintln(w, "")
 	fmt.Fprintln(w, "Flags:")
@@ -199,7 +203,7 @@ func extractServerEntry(data []byte, serverName string) string {
 	if std, err := hujson.Standardize(data); err == nil {
 		var root map[string]any
 		if err := json.Unmarshal(std, &root); err == nil {
-			for _, key := range []string{"mcpServers", "context_servers", "servers", "mcp"} {
+			for _, key := range []string{"mcpServers", "context_servers", "servers", "mcp", "extensions"} {
 				if srvMap, ok := root[key].(map[string]any); ok {
 					if entry, found := srvMap[serverName]; found {
 						b, _ := json.MarshalIndent(map[string]any{serverName: entry}, "", "  ")
@@ -211,6 +215,9 @@ func extractServerEntry(data []byte, serverName string) string {
 				b, _ := json.MarshalIndent(map[string]any{serverName: entry}, "", "  ")
 				return string(b)
 			}
+			// Valid JSON: the YAML reading below would find nothing more, and re-parsing a large
+			// JSON file as YAML costs about 0.7 s per 50,000 lines.
+			return ""
 		}
 	}
 

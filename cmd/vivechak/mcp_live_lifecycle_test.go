@@ -53,9 +53,9 @@ func TestMCPLive_Lifecycle(t *testing.T) {
 		startEnv := callTool("vivechak_start", map[string]any{
 			"project_root": projectDir,
 			"scope":        "project",
-			"context":      "Architecting high-frequency financial distributed ledger with audit guarantees.",
+			"question":     "Architecting high-frequency financial distributed ledger with audit guarantees.",
 		})
-		if !startEnv.Success {
+		if !startEnv.Ok {
 			t.Fatalf("vivechak_start failed: %s", startEnv.Message)
 		}
 
@@ -65,71 +65,34 @@ func TestMCPLive_Lifecycle(t *testing.T) {
 			t.Errorf("expected research/.gitignore to contain *.lock, got err=%v content=%s", err, string(giData))
 		}
 
-		// Verify 6 templates copied, including SESSION.template.md
-		tmpls, ok := startEnv.Data["templates_copied"].([]any)
-		if !ok || len(tmpls) != 6 {
-			t.Fatalf("expected 6 templates copied, got: %v", startEnv.Data["templates_copied"])
+		// Templates are served as MCP resources, never copied into research/templates/ (HIGH-15)
+		if _, ok := startEnv.Data["templates_copied"]; ok {
+			t.Errorf("expected no templates_copied in the start reply, got: %v", startEnv.Data["templates_copied"])
 		}
-		if _, err := os.Stat(filepath.Join(projectDir, core.TemplatesDir, "SESSION.template.md")); err != nil {
-			t.Errorf("expected SESSION.template.md in templates/: %v", err)
+		if _, err := os.Stat(filepath.Join(projectDir, core.TemplatesDir)); !os.IsNotExist(err) {
+			t.Errorf("expected no research/templates/ directory, got err=%v", err)
 		}
 
-		prompt := startEnv.Data["prompt"].(string)
+		prompt := startEnv.Data["brief"].(string)
 		if !strings.Contains(prompt, "financial distributed ledger") {
 			t.Errorf("expected context injected into generator prompt")
 		}
 
 		// 1.3 vivechak_save (kind="plan"): 3-layer DAG with large guidance
 		largeGuidance := strings.Repeat("Ensure rigorous verification and benchmark latency under load. ", 700)
-		planContent := `# Research Pipeline
-
-## Session DAG
-
-### Session S-01 — Storage Engine
-| Field | Value |
-|---|---|
-| **ID** | S-01 |
-| **Layer** | 0 |
-| **Door Type** | one-way |
-| **Dependencies** | None |
-| **Output File** | ` + "`S-01-storage.md`" + ` |
-
-` + "```prompt\n" + largeGuidance + "\nEvaluate RocksDB vs LMDB.\n```" + `
-
-### Session S-02 — Consensus Protocol
-| Field | Value |
-|---|---|
-| **ID** | S-02 |
-| **Layer** | 1 |
-| **Door Type** | one-way |
-| **Dependencies** | S-01 |
-| **Output File** | ` + "`S-02-consensus.md`" + ` |
-
-` + "```prompt\n" + `
-Investigate consensus based on storage findings:
-[UPSTREAM_FINDINGS]
-` + "```" + `
-
-### Session SYN-01 — Founding Architecture
-| Field | Value |
-|---|---|
-| **ID** | SYN-01 |
-| **Layer** | 2 |
-| **Door Type** | one-way |
-| **Dependencies** | S-01, S-02 |
-| **Output File** | ` + "`FAD.md`" + ` |
-
-` + "```prompt\n" + largeGuidance + `
-Synthesize founding architecture:
-[ALL_SESSION_FINDINGS]
-` + "```" + `
-`
+		planContent := livePlan("Research Pipeline", "PROJECT", "", []string{
+			"{id: S-01, title: Storage Engine, layer: 0, door: one-way, depends: []}",
+			"{id: S-02, title: Consensus Protocol, layer: 1, door: one-way, depends: [S-01]}",
+			"{id: SYN-01, title: Founding Architecture, layer: 2, kind: synthesis, depends: [S-01, S-02]}",
+		}, liveSection("S-01", "Storage Engine", largeGuidance+"\nEvaluate RocksDB vs LMDB."),
+			liveSection("S-02", "Consensus Protocol", "Investigate consensus based on storage findings:\n[UPSTREAM_FINDINGS]"),
+			liveSection("SYN-01", "Founding Architecture", largeGuidance+"\nSynthesize founding architecture:\n[ALL_SESSION_FINDINGS]"))
 		planEnv := callTool("vivechak_save", map[string]any{
 			"project_root": projectDir,
 			"kind":         "plan",
 			"content":      planContent,
 		})
-		if !planEnv.Success {
+		if !planEnv.Ok {
 			t.Fatalf("save plan failed: %s", planEnv.Message)
 		}
 
@@ -137,7 +100,7 @@ Synthesize founding architecture:
 		statEnv := callTool("vivechak_status", map[string]any{
 			"project_root": projectDir,
 		})
-		if !statEnv.Success {
+		if !statEnv.Ok {
 			t.Fatalf("status failed: %s", statEnv.Message)
 		}
 		if statEnv.Data["session_count"].(float64) != 0 {
@@ -149,7 +112,7 @@ Synthesize founding architecture:
 			"project_root": projectDir,
 			"verbose":      false,
 		})
-		if !next1Env.Success || next1Env.Data["session_id"] != "S-01" {
+		if !next1Env.Ok || next1Env.Data["session_id"] != "S-01" {
 			t.Fatalf("expected next session S-01, got: %+v", next1Env)
 		}
 		p1 := next1Env.Data["prompt"].(string)
@@ -197,7 +160,7 @@ Compaction stall boundary analysis confirmed memory stalls under concurrent writ
 			"id":           "S-01",
 			"content":      s1Content,
 		})
-		if !saveS1Env.Success {
+		if !saveS1Env.Ok {
 			t.Fatalf("save S-01 failed: %s", saveS1Env.Message)
 		}
 
@@ -233,18 +196,18 @@ See D-001-R1: Red-team stress testing confirms write stall recovery within accep
 `
 		recEnv := callTool("vivechak_record_decision", map[string]any{
 			"project_root": projectDir,
-			"decision_id":  "D-001",
+			"id":           "D-001",
 			"content":      adrContent,
 		})
-		if !recEnv.Success {
+		if !recEnv.Ok {
 			t.Fatalf("record_decision D-001 failed: %s", recEnv.Message)
 		}
 
 		// Red-team challenge review for D-001
 		_ = callTool("vivechak_review", map[string]any{
-			"project_root":   projectDir,
-			"decision_id":    "D-001",
-			"challenge_type": "red_team",
+			"project_root": projectDir,
+			"id":           "D-001",
+			"mode":         "red_team",
 		})
 
 		// 1.8 Save S-02
@@ -283,16 +246,16 @@ Pre-vote extension must be enabled to prevent disrupted elections during cluster
 		// 1.9 vivechak_amend: amend S-01 now that S-02 is completed (triggers W-STALE-DOWNSTREAM)
 		amendEnv := callTool("vivechak_amend", map[string]any{
 			"project_root": projectDir,
-			"session_id":   "S-01",
-			"content":      s1Content + "\n\n// Amendment: tune write_buffer_size to 128MB.\n",
+			"id":           "S-01",
+			"note":         "Amendment: tune write_buffer_size to 128MB.",
 			"reason":       "Tuning buffer parameters for write stall mitigation.",
 		})
-		if !amendEnv.Success {
+		if !amendEnv.Ok {
 			t.Fatalf("amend S-01 failed: %s", amendEnv.Message)
 		}
 		hasDownstreamWarn := false
 		for _, w := range amendEnv.Warnings {
-			if strings.Contains(w, "W-STALE-DOWNSTREAM") && strings.Contains(w, "S-02") {
+			if w.Code == "W-STALE-DOWNSTREAM" && strings.Contains(w.Message, "S-02") {
 				hasDownstreamWarn = true
 				break
 			}
@@ -306,7 +269,7 @@ Pre-vote extension must be enabled to prevent disrupted elections during cluster
 			"project_root": projectDir,
 			"format":       "mermaid",
 		})
-		if !vizEnv.Success {
+		if !vizEnv.Ok {
 			t.Fatalf("visualize failed: %s", vizEnv.Message)
 		}
 		mermaid, _ := vizEnv.Data["mermaid"].(string)
@@ -317,14 +280,15 @@ Pre-vote extension must be enabled to prevent disrupted elections during cluster
 		// 1.11 vivechak_replan: add session S-03 (dependencies as comma-separated string)
 		replanEnv := callTool("vivechak_replan", map[string]any{
 			"project_root": projectDir,
-			"operation":    "add_session",
+			"plan":         "PROJECT",
+			"op":           "add_session",
 			"session_id":   "S-03",
 			"topic":        "Disaster Recovery and Snapshots",
 			"dependencies": "S-01",
 			"door_type":    "two-way",
 			"reason":       "Add backup architecture exploration before synthesis.",
 		})
-		if !replanEnv.Success {
+		if !replanEnv.Ok {
 			t.Fatalf("replan add_session failed: %s", replanEnv.Message)
 		}
 
@@ -402,7 +366,7 @@ Continuous WAL archiving to S3 object storage. [Grade A: specs](https://aws.amaz
 			"id":           "SYN-01",
 			"content":      fadContent,
 		})
-		if !saveFADEnv.Success {
+		if !saveFADEnv.Ok {
 			t.Fatalf("save SYN-01 (FAD) failed: %s", saveFADEnv.Message)
 		}
 
@@ -427,14 +391,11 @@ Continuous WAL archiving to S3 object storage. [Grade A: specs](https://aws.amaz
 		gateEnv := callTool("vivechak_gate", map[string]any{
 			"project_root": projectDir,
 		})
-		if !gateEnv.Success {
+		if !gateEnv.Ok {
 			t.Fatalf("gate failed: %s", gateEnv.Message)
 		}
-		if gateEnv.Data["gate_passed"] != true {
-			t.Fatalf("expected gate to pass, got: %+v\nwarnings: %v", gateEnv.Data, gateEnv.Warnings)
-		}
-		if gateEnv.Data["gate_status"] != "PASS" {
-			t.Errorf("expected gate status 'PASS', got: %v", gateEnv.Data["gate_status"])
+		if gateEnv.Data["verdict"] != "PASS" {
+			t.Fatalf("expected gate verdict 'PASS', got: %+v\nwarnings: %v", gateEnv.Data, gateEnv.Warnings)
 		}
 
 		// Verify PHASE-0-GATE.md was auto-persisted
@@ -479,30 +440,29 @@ Continuous WAL archiving to S3 object storage. [Grade A: specs](https://aws.amaz
 		initEnv := callTool("vivechak_start", map[string]any{
 			"project_root": decDir,
 			"scope":        "decision",
+			"question":     "Raft vs Multi-Paxos for cluster consensus",
 		})
-		if !initEnv.Success {
+		if !initEnv.Ok {
 			t.Fatalf("init decision failed: %s", initEnv.Message)
 		}
 
-		// Verify exactly 2 templates copied
+		// Templates are served as MCP resources, never copied into research/templates/ (HIGH-15)
 		tplEntries, _ := os.ReadDir(filepath.Join(decDir, core.TemplatesDir))
-		if len(tplEntries) != 2 {
-			t.Errorf("expected exactly 2 templates for decision scope, got %d: %v", len(tplEntries), tplEntries)
+		if len(tplEntries) != 0 {
+			t.Errorf("expected no templates copied for decision scope, got %d: %v", len(tplEntries), tplEntries)
 		}
 
 		// 2.2 Save Decision Plan
-		planMD := `# Decision Plan: D-001 Consensus Protocol
-| ID | Topic | Dependencies | Output File |
-|---|---|---|---|
-| D-001-S01 | Raft Protocol Evaluation | none | sessions/D-001-S01.md |
-`
+		planMD := livePlan("Decision Plan: D-001 Consensus Protocol", "D-001", "", []string{
+			"{id: D-001-S01, title: Raft Protocol Evaluation, role: C, door: one-way, informs: [D-001], depends: []}",
+		}, liveSection("D-001-S01", "Raft Protocol Evaluation", "Evaluate Raft implementations for the consensus layer."))
 		planEnv := callTool("vivechak_save", map[string]any{
 			"project_root": decDir,
 			"kind":         "plan",
 			"id":           "D-001",
 			"content":      planMD,
 		})
-		if !planEnv.Success {
+		if !planEnv.Ok {
 			t.Fatalf("save_plan decision failed: %s", planEnv.Message)
 		}
 
@@ -544,17 +504,17 @@ Split-brain partition analysis verified safety leases and quorum requirements.
 			"id":           "D-001-S01",
 			"content":      sessMD,
 		})
-		if !saveSessEnv.Success {
+		if !saveSessEnv.Ok {
 			t.Fatalf("save_session D-001-S01 failed: %s", saveSessEnv.Message)
 		}
 
 		// 2.4 Adversarial Challenge Tool Call
 		challEnv := callTool("vivechak_review", map[string]any{
 			"project_root": decDir,
-			"session_id":   "D-001-S01",
-			"mode":         "challenge",
+			"id":           "D-001-S01",
+			"mode":         "red_team",
 		})
-		if !challEnv.Success {
+		if !challEnv.Ok {
 			t.Fatalf("vivechak_review failed: %s", challEnv.Message)
 		}
 
@@ -590,18 +550,18 @@ See D-001-R1: Red-team stress testing confirms split-brain safety leases and quo
 `
 		recEnv := callTool("vivechak_record_decision", map[string]any{
 			"project_root": decDir,
-			"decision_id":  "D-001",
+			"id":           "D-001",
 			"content":      adrMD,
 		})
-		if !recEnv.Success {
+		if !recEnv.Ok {
 			t.Fatalf("record_decision failed: %s", recEnv.Message)
 		}
 
 		// Red-team challenge review for D-001
 		_ = callTool("vivechak_review", map[string]any{
-			"project_root":   decDir,
-			"decision_id":    "D-001",
-			"challenge_type": "red_team",
+			"project_root": decDir,
+			"id":           "D-001",
+			"mode":         "red_team",
 		})
 
 		// 2.6 Validate Workspace (deduplication check between D-001.md and DECISIONS.md)
@@ -609,7 +569,7 @@ See D-001-R1: Red-team stress testing confirms split-brain safety leases and quo
 			"project_root": decDir,
 			"mode":         "validate",
 		})
-		if !valEnv.Success {
+		if !valEnv.Ok {
 			t.Fatalf("validate failed: %s", valEnv.Message)
 		}
 		decStats := valEnv.Data["decisions"].(map[string]any)
@@ -633,7 +593,7 @@ See D-001-R1: Red-team stress testing confirms split-brain safety leases and quo
 			"project_root": decDir,
 			"track":        "track_b",
 		})
-		if !gateEnv.Success || gateEnv.Data["gate_passed"] != true {
+		if !gateEnv.Ok || gateEnv.Data["verdict"] != "PASS" {
 			t.Fatalf("expected decision gate to pass, got: %+v", gateEnv.Data)
 		}
 	})
@@ -663,19 +623,19 @@ See D-001-R1: Red-team stress testing confirms split-brain safety leases and quo
 		startEnv := callTool("vivechak_start", map[string]any{
 			"project_root": cmpDir,
 			"scope":        "comparison",
-			"context":      "Compare Pino vs Winston for high-throughput Node.js microservices.",
+			"question":     "Compare Pino vs Winston for high-throughput Node.js microservices.",
 		})
-		if !startEnv.Success {
+		if !startEnv.Ok {
 			t.Fatalf("start comparison failed: %s", startEnv.Message)
 		}
 
-		// Verify only COMPARISON-SESSION.template.md was copied
+		// Templates are served as MCP resources, never copied into research/templates/ (HIGH-15)
 		tplEntries, _ := os.ReadDir(filepath.Join(cmpDir, core.TemplatesDir))
-		if len(tplEntries) != 1 || tplEntries[0].Name() != "COMPARISON-SESSION.template.md" {
-			t.Errorf("expected only COMPARISON-SESSION.template.md, got: %v", tplEntries)
+		if len(tplEntries) != 0 {
+			t.Errorf("expected no templates copied for comparison scope, got: %v", tplEntries)
 		}
 
-		// 3.3 Save Comparison Plan (Auto ID extraction C-001)
+		// 3.3 Save the comparison (kind="comparison"; kind="plan" never saves a comparison)
 		planMD := `# Bounded Comparison: Pino vs Winston
 | Option | Focus | Status |
 |---|---|---|
@@ -684,12 +644,12 @@ See D-001-R1: Red-team stress testing confirms split-brain safety leases and quo
 `
 		planEnv := callTool("vivechak_save", map[string]any{
 			"project_root": cmpDir,
-			"kind":         "plan",
+			"kind":         "comparison",
 			"id":           "C-001",
 			"slug":         "pino-winston",
 			"content":      planMD,
 		})
-		if !planEnv.Success {
+		if !planEnv.Ok {
 			t.Fatalf("save_plan comparison failed: %s", planEnv.Message)
 		}
 
@@ -725,7 +685,7 @@ Pino asynchronous logging may lose trailing log lines on unhandled process crash
 			"id":           "C-001",
 			"content":      sessMD,
 		})
-		if !saveSessEnv.Success {
+		if !saveSessEnv.Ok {
 			t.Fatalf("save_session comparison failed: %s", saveSessEnv.Message)
 		}
 
@@ -734,7 +694,7 @@ Pino asynchronous logging may lose trailing log lines on unhandled process crash
 			"project_root": cmpDir,
 			"mode":         "validate",
 		})
-		if !valEnv.Success {
+		if !valEnv.Ok {
 			t.Fatalf("validate comparison failed: %s", valEnv.Message)
 		}
 	})
@@ -816,13 +776,13 @@ Pino asynchronous logging may lose trailing log lines on unhandled process crash
 		envPrep := callTool("vivechak_start", map[string]any{
 			"project_root": projectDir,
 			"scope":        "project",
-			"context":      "Distributed graph analytics engine",
+			"question":     "Distributed graph analytics engine",
 		})
-		if !envPrep.Success {
+		if !envPrep.Ok {
 			t.Fatalf("live start failed: %s", envPrep.Message)
 		}
-		if !strings.Contains(envPrep.NextStep, "assemble sections in internal scratch") {
-			t.Errorf("expected scratch guidance in next_step: %s", envPrep.NextStep)
+		if !strings.Contains(envPrep.Guidance(), "vivechak_save") || envPrep.Next["tool"] != "vivechak_save" {
+			t.Errorf("expected save plan guidance in next: %v / %s", envPrep.Next, envPrep.Guidance())
 		}
 
 		// 5.3 Save plan with multi-decision registry
@@ -870,29 +830,18 @@ Evaluating NATS JetStream vs Apache Kafka.
 </details>
 <!-- /DECISION: D-02 -->
 `
-		pipelineContent := `# Research Pipeline: Graph Analytics
-**Complexity Score:** 18 / 24 → **Tier 3 (17–30 Sessions)**
-
-## Sessions
-#### T0-01: Protocol Benchmark
-| Field | Value |
-|---|---|
-| ID | T0-01 |
-| Layer | 0 |
-| Door Type | Two-Way |
-| Dependencies | None |
-
-` + "```prompt" + `
-Investigate gRPC vs Arrow Flight for graph query results.
-` + "```" + `
-`
+		pipelineContent := livePlan("Research Pipeline: Graph Analytics", "PROJECT", "**Complexity Score:** 18 / 24 → **Tier 3 (17–30 Sessions)**",
+			[]string{"{id: T0-01, title: Protocol Benchmark, layer: 0, door: two-way, depends: []}",
+				"{id: SYN-01, title: Synthesis, kind: synthesis, depends: [ALL]}"},
+			liveSection("T0-01", "Protocol Benchmark", "Investigate gRPC vs Arrow Flight for graph query results."),
+			liveSection("SYN-01", "Synthesis", "Synthesize."))
 		envSave := callTool("vivechak_save", map[string]any{
 			"project_root":      projectDir,
 			"kind":              "plan",
 			"content":           pipelineContent,
 			"decisions_content": decisionsRegistry,
 		})
-		if !envSave.Success {
+		if !envSave.Ok {
 			t.Fatalf("live save plan failed: %s", envSave.Message)
 		}
 		if len(envSave.Warnings) != 0 {
@@ -901,7 +850,7 @@ Investigate gRPC vs Arrow Flight for graph query results.
 
 		_ = callTool("vivechak_record_decision", map[string]any{
 			"project_root": projectDir,
-			"decision_id":  "D-001",
+			"id":           "D-001",
 			"content": `---
 id: D-001
 title: Primary Graph Engine
@@ -918,7 +867,7 @@ Proposed.
 		})
 		_ = callTool("vivechak_record_decision", map[string]any{
 			"project_root": projectDir,
-			"decision_id":  "D-002",
+			"id":           "D-002",
 			"content": `---
 id: D-002
 title: Ingest Buffer
@@ -934,13 +883,14 @@ Proposed.
 `,
 		})
 
-		// 5.4 Validate registry directly via artifact_type="decisions"
+		// 5.4 Validate registry directly via artifact_type="decision"
 		envValDec := callTool("vivechak_review", map[string]any{
 			"project_root":  projectDir,
-			"artifact_type": "decisions",
+			"mode":          "validate",
+			"artifact_type": "decision",
 			"content":       decisionsRegistry,
 		})
-		if !envValDec.Success {
+		if !envValDec.Ok {
 			t.Fatalf("live validate decisions failed: %s", envValDec.Message)
 		}
 		valData := envValDec.Data
@@ -953,7 +903,7 @@ Proposed.
 			"project_root": projectDir,
 			"mode":         "validate",
 		})
-		if !envValWs.Success {
+		if !envValWs.Ok {
 			t.Fatalf("live workspace validate failed: %s", envValWs.Message)
 		}
 		wsData := envValWs.Data
@@ -1006,7 +956,7 @@ Proposed.
 			"scope":        "project",
 			"question":     "Vision: Live Subprocess Epistemic Verification",
 		})
-		if !initEnv.Success {
+		if !initEnv.Ok {
 			t.Fatalf("live start failed: %s", initEnv.Message)
 		}
 
@@ -1019,9 +969,9 @@ Proposed.
 |---|---|---|---|
 | T1-01 | Ingestion Tier | none | sessions/T1-01.md |
 
-## Session Prompts
+## Sessions
 
-### Session T1-01: Ingestion Tier
+### T1-01: Ingestion Tier
 | **Field** | **Value** |
 |---|---|
 | **ID** | T1-01 |
@@ -1031,13 +981,22 @@ Proposed.
 			`# T1-01: Ingestion
 Baseline throughput.
 ` + "````\n\n" +
+			`### SYN-01: Synthesis
+
+` + "````prompt\n" +
+			`Synthesize. [ALL_SESSION_FINDINGS]
+` + "````\n\n" +
 			"```yaml vivechak-plan\n" +
-			`sessions:
+			`plan: PROJECT
+sessions:
   - id: T1-01
     title: Ingestion Tier
     door: two-way
-    dependencies: []
-    output_file: research/sessions/T1-01.md
+    depends: []
+  - id: SYN-01
+    title: Synthesis
+    kind: synthesis
+    depends: [ALL]
 ` + "```\n"
 
 		savePlanEnv := callTool("vivechak_save", map[string]any{
@@ -1045,7 +1004,7 @@ Baseline throughput.
 			"kind":         "plan",
 			"content":      initialPipeline,
 		})
-		if !savePlanEnv.Success {
+		if !savePlanEnv.Ok {
 			t.Fatalf("live save plan failed: %s", savePlanEnv.Message)
 		}
 
@@ -1053,13 +1012,13 @@ Baseline throughput.
 		dollarPrompt := "# T1-01: Ingestion Tier\nTarget budget is $100/month. Target port: $PORT. Pattern match: $1."
 		replanEnv := callTool("vivechak_replan", map[string]any{
 			"project_root": projectDir,
-			"operation":    "update_prompt",
+			"plan":         "PROJECT",
+			"op":           "update_prompt",
 			"session_id":   "T1-01",
-			"new_prompt":   dollarPrompt,
+			"prompt":       dollarPrompt,
 			"reason":       "Set $100/month budget over live wire",
-			"impact":       "Refines requirements",
 		})
-		if !replanEnv.Success {
+		if !replanEnv.Ok {
 			t.Fatalf("live replan failed: %s", replanEnv.Message)
 		}
 
@@ -1092,18 +1051,18 @@ TLS handshake CPU overhead on connection churn.
 			"id":           "T1-01",
 			"content":      sessContent,
 		})
-		if !saveSessEnv.Success {
+		if !saveSessEnv.Ok {
 			t.Fatalf("live save session failed: %s", saveSessEnv.Message)
 		}
 
 		// 6.5 Auto-draft decision D-001 with auto_save: true
 		draftEnv := callTool("vivechak_record_decision", map[string]any{
 			"project_root":    projectDir,
-			"decision_id":     "D-001",
+			"id":              "D-001",
 			"auto_draft_from": "T1-01",
 			"auto_save":       true,
 		})
-		if !draftEnv.Success {
+		if !draftEnv.Ok {
 			t.Fatalf("live auto-draft decision failed: %s", draftEnv.Message)
 		}
 
@@ -1183,12 +1142,19 @@ TLS handshake CPU overhead on connection churn.
 			"scope":        "project",
 			"question":     "Vision: Live Multi-Agent Microservice Orchestrator",
 		})
-		if !startEnv.Success {
+		if !startEnv.Ok {
 			t.Fatalf("live start failed: %s", startEnv.Message)
 		}
 
 		// 7.2 Save plan with backtick formatting in topology and metadata tables (DF-01)
 		planContent := `# Research Pipeline: Orchestrator Architecture
+
+` + "```yaml vivechak-plan" + `
+plan: PROJECT
+sessions:
+  - {id: T0-01, title: State Engine, door: two-way, informs: [D-001], depends: []}
+  - {id: SYN-01, title: Architecture Synthesis, kind: synthesis, depends: [T0-01]}
+` + "```" + `
 
 ## Pipeline Topology
 | ID | Topic | Dependencies | Output File |
@@ -1196,25 +1162,20 @@ TLS handshake CPU overhead on connection churn.
 | ` + "`T0-01`" + ` | **State Engine** | none | ` + "`sessions/T0-01.md`" + ` |
 | [SYN-01] | Architecture Synthesis | ` + "`T0-01`" + ` | ` + "`research/FAD.md`" + ` |
 
-## Session Prompts
+## Sessions
 
-### Session ` + "`T0-01`" + `: State Engine
+### T0-01: State Engine
 | **Field** | **Value** |
 |---|---|
 | **ID** | ` + "`T0-01`" + ` |
 | **Door Type** | ` + "`two-way`" + ` |
 | **Decision** | ` + "`D-001`" + ` |
-| **Dependencies** | None |
-| **Output File** | ` + "`sessions/T0-01.md`" + ` |
 
 ` + "```prompt\n# T0-01: State Engine\nEvaluate SQLite vs Redis for local state caching.\n```\n\n" +
-			`### Session [SYN-01]: Architecture Synthesis
+			`### SYN-01: Architecture Synthesis
 | **Field** | **Value** |
 |---|---|
 | **ID** | [SYN-01] |
-| **Door Type** | *two-way* |
-| **Dependencies** | ` + "`T0-01`" + ` |
-| **Output File** | ` + "`research/FAD.md`" + ` |
 
 ` + "```prompt\n# SYN-01: Synthesis\nSynthesize architecture.\n```\n"
 
@@ -1223,16 +1184,16 @@ TLS handshake CPU overhead on connection churn.
 			"kind":         "plan",
 			"content":      planContent,
 		})
-		if !savePlanEnv.Success {
+		if !savePlanEnv.Ok {
 			t.Fatalf("live save plan failed: %s", savePlanEnv.Message)
 		}
 
-		// 7.3 vivechak_next using universal 'id' alias
+		// 7.3 vivechak_next using session_id
 		nextEnv := callTool("vivechak_next", map[string]any{
 			"project_root": projectDir,
-			"id":           "T0-01",
+			"session_id":   "T0-01",
 		})
-		if !nextEnv.Success {
+		if !nextEnv.Ok {
 			t.Fatalf("live next failed with id alias: %s", nextEnv.Message)
 		}
 		if nextEnv.Data["session_id"] != "T0-01" {
@@ -1265,27 +1226,27 @@ Concurrency bottleneck if multiple writer threads execute concurrent transaction
 			"id":           "T0-01",
 			"content":      sessContent,
 		})
-		if !saveSessEnv.Success {
+		if !saveSessEnv.Ok {
 			t.Fatalf("live save session failed: %s", saveSessEnv.Message)
 		}
 
-		// 7.5 Review session using universal 'id' alias
+		// 7.5 Review session using validate mode
 		revEnv := callTool("vivechak_review", map[string]any{
 			"project_root": projectDir,
 			"id":           "T0-01",
-			"mode":         "coaching",
+			"mode":         "validate",
 		})
-		if !revEnv.Success {
-			t.Fatalf("live review failed with id alias: %s", revEnv.Message)
+		if !revEnv.Ok {
+			t.Fatalf("live review failed: %s", revEnv.Message)
 		}
 
-		// 7.6 Amend session using universal 'id' and 'append_content' aliases
+		// 7.6 Amend session using canonical id and note
 		amendEnv := callTool("vivechak_amend", map[string]any{
-			"project_root":   projectDir,
-			"id":             "T0-01",
-			"append_content": "\n### Additional Empirical Test\nVerified WAL mode performance under 100 concurrent readers. Grade A (https://sqlite.org/wal)\n",
+			"project_root": projectDir,
+			"id":           "T0-01",
+			"note":         "\n### Additional Empirical Test\nVerified WAL mode performance under 100 concurrent readers. Grade A (https://sqlite.org/wal)\n",
 		})
-		if !amendEnv.Success {
+		if !amendEnv.Ok {
 			t.Fatalf("live amend failed with id and append_content aliases: %s", amendEnv.Message)
 		}
 
@@ -1296,7 +1257,7 @@ Concurrency bottleneck if multiple writer threads execute concurrent transaction
 			"auto_draft_from": "T0-01",
 			"auto_save":       true,
 		})
-		if !draftEnv.Success {
+		if !draftEnv.Ok {
 			t.Fatalf("live auto-draft failed: %s", draftEnv.Message)
 		}
 
@@ -1328,7 +1289,7 @@ Two-way door: migration to external cache easily accommodated via cache interfac
 			"status":       "accepted",
 			"revise":       true,
 		})
-		if !promoteEnv.Success {
+		if !promoteEnv.Ok {
 			t.Fatalf("live decision promotion failed: %s", promoteEnv.Message)
 		}
 
@@ -1351,16 +1312,16 @@ Two-way door: migration to external cache easily accommodated via cache interfac
 			t.Errorf("expected DECISIONS.md to contain 'accepted', got:\n%s", string(decBytes))
 		}
 
-		// 7.9 vivechak_next for SYN-01: verify recommendation is kind='fad' (DF-02)
+		// 7.9 vivechak_next for SYN-01: verify recommendation is kind="fad" (DF-02)
 		nextSynEnv := callTool("vivechak_next", map[string]any{
 			"project_root": projectDir,
-			"id":           "SYN-01",
+			"session_id":   "SYN-01",
 		})
-		if !nextSynEnv.Success {
+		if !nextSynEnv.Ok {
 			t.Fatalf("live next for SYN-01 failed: %s", nextSynEnv.Message)
 		}
-		if !strings.Contains(nextSynEnv.NextStep, "kind='fad'") {
-			t.Errorf("expected live next_step to recommend kind='fad', got: %s", nextSynEnv.NextStep)
+		if !strings.Contains(nextSynEnv.Guidance(), "kind=\"fad\"") && !strings.Contains(nextSynEnv.Guidance(), "kind='fad'") {
+			t.Errorf("expected live next.why to recommend kind=fad, got: %s", nextSynEnv.Guidance())
 		}
 		if nextSynEnv.Next == nil {
 			t.Fatalf("expected Next struct in live next response")
@@ -1401,7 +1362,7 @@ Synthesizes decision D-001 based on empirical benchmarks.
 			"id":           "SYN-01",
 			"content":      fadContent,
 		})
-		if !saveFadEnv.Success {
+		if !saveFadEnv.Ok {
 			t.Fatalf("live save FAD failed: %s", saveFadEnv.Message)
 		}
 
