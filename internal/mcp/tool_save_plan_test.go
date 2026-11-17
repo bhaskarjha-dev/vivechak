@@ -13,11 +13,7 @@ import (
 func TestSavePlan_PipelineContentAlias(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	pipelineContent := `# Research Pipeline
-### Session T1-01: Storage Selection
-| **ID** | T1-01 |
-| **Dependencies** | None |
-` + "```prompt\nBrief\n```\n"
+	pipelineContent := oneSessionTestPlan("Storage Selection", "Brief")
 
 	decisionsContent := `# Decisions
 <!-- DECISION: D-001 -->
@@ -32,14 +28,15 @@ func TestSavePlan_PipelineContentAlias(t *testing.T) {
 	ctx := context.Background()
 
 	// Pass pipeline content via PipelineContent instead of Content
-	_, env, err := handleSavePlan(ctx, nil, SavePlanInput{
+	_, env, err := handleSave(ctx, nil, SaveInput{
+		Kind:             "plan",
 		ProjectRoot:      tmpDir,
 		Scope:            "project",
-		PipelineContent:  pipelineContent,
+		Content:          pipelineContent,
 		DecisionsContent: decisionsContent,
 	})
-	if err != nil || !env.Success {
-		t.Fatalf("handleSavePlan with PipelineContent failed: err=%v, env=%+v", err, env)
+	if err != nil || !env.Ok {
+		t.Fatalf("handleSave with PipelineContent failed: err=%v, env=%+v", err, env)
 	}
 
 	// Verify RESEARCH-PIPELINE.md was persisted

@@ -7,80 +7,86 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 
 	"github.com/bhaskarjha-dev/vivechak/internal/core"
-	vembed "github.com/bhaskarjha-dev/vivechak/internal/embed"
 	store "github.com/bhaskarjha-dev/vivechak/internal/store"
 	versionPkg "github.com/bhaskarjha-dev/vivechak/internal/version"
 	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-// SaveInput holds the arguments for vivechak_save.
+// SaveInput holds the canonical arguments for vivechak_save.
 type SaveInput struct {
-	ProjectRoot      string `json:"project_root,omitempty"       jsonschema:"workspace root path (optional)"`
-	Kind             string `json:"kind"                         jsonschema:"required,artifact kind: 'plan' (RESEARCH-PIPELINE.md) | 'session' (research session) | 'comparison' (WEP matrix) | 'fad' (FAD.md)"`
-	Scope            string `json:"scope,omitempty"              jsonschema:"optional scope hint ('comparison' | 'decision' | 'project')"`
-	ID               string `json:"id,omitempty"                 jsonschema:"identifier: session_id (e.g. T1-01, SYN-01) or comparison_id (e.g. C-001)"`
-	SessionID        string `json:"session_id,omitempty"         jsonschema:"alias for id"`
-	DecisionID       string `json:"decision_id,omitempty"        jsonschema:"alias for id in decision scope"`
-	Content          string `json:"content"                      jsonschema:"required,markdown artifact content to save"`
-	PipelineContent  string `json:"pipeline_content,omitempty"   jsonschema:"alias for content when saving a research pipeline"`
-	DecisionsContent string `json:"decisions_content,omitempty" jsonschema:"initial decision registry content when saving plan (optional)"`
-	Slug             string `json:"slug,omitempty"               jsonschema:"URL-safe slug for the artifact (optional)"`
-	Revise           bool   `json:"revise,omitempty"             jsonschema:"force revision of existing artifact with history archiving"`
-}
-
-// SavePlanInput provides backward compatibility for unit tests calling handleSavePlan.
-type SavePlanInput struct {
 	ProjectRoot      string `json:"project_root,omitempty"`
+	Kind             string `json:"kind"`
 	Scope            string `json:"scope,omitempty"`
-	Content          string `json:"content,omitempty"`
-	PipelineContent  string `json:"pipeline_content,omitempty"`
-	DecisionsContent string `json:"decisions_content,omitempty"`
 	ID               string `json:"id,omitempty"`
-	DecisionID       string `json:"decision_id,omitempty"`
-	ComparisonID     string `json:"comparison_id,omitempty"`
+	Content          string `json:"content"`
+	DecisionsContent string `json:"decisions_content,omitempty"`
 	Slug             string `json:"slug,omitempty"`
-}
-
-// SaveSessionInput provides backward compatibility for unit tests calling handleSaveSession.
-type SaveSessionInput struct {
-	ProjectRoot string `json:"project_root,omitempty"`
-	SessionID   string `json:"session_id"`
-	Content     string `json:"content"`
-	Revise      bool   `json:"revise,omitempty"`
+	Revise           bool   `json:"revise,omitempty"`
 }
 
 var (
-	reSaveTableRow  = regexp.MustCompile(`(?m)^\|\s*(?:\*\*)?(?:ID|Decision|Decision ID|Comparison ID)(?:\*\*)?\s*\|\s*(D-\d+|C-\d+|[A-Za-z]+-\d+)\s*\|`)
-	reSaveHeadingID = regexp.MustCompile(`(?m)^#+\s*(?:Session\s+)?([A-Za-z]+-\d+[A-Za-z0-9_-]*)`)
-	reSaveDec       = regexp.MustCompile(`\b(D-\d{1,4})\b`)
-	reSaveDNew      = regexp.MustCompile(`\bD-NEW\b`)
-	reSaveDNewDash  = regexp.MustCompile(`\bD-NEW-`)
+	reDecisionPlanHeading = regexp.MustCompile(`(?im)^#{1,3}\s+D-[A-Za-z0-9]+-PLAN\b`)
+	reDecisionSessionID   = regexp.MustCompile(`(?i)^D-[A-Za-z0-9]+-S\d+$`)
 )
 
+func deriveDecisionIDFromPlan(content string) string {
+	if block, err := core.ParsePlanMachineBlock([]byte(content)); err == nil && block != nil {
+		id := strings.TrimSpace(block.Plan)
+		if m := numberedIDRe.FindStringSubmatch(id); m != nil && strings.EqualFold(m[1], "D") {
+			return id
+		}
+	}
+	return ""
+}
+
+func planScopeFromContent(content string) string {
+	if block, err := core.ParsePlanMachineBlock([]byte(content)); err == nil && block != nil {
+		switch p := strings.ToUpper(strings.TrimSpace(block.Plan)); {
+		case strings.HasPrefix(p, "D-"):
+			return "decision"
+		case p == "PROJECT" || p == "DAG":
+			return "project"
+		}
+		if len(block.Sessions) > 0 {
+			for _, s := range block.Sessions {
+				if !reDecisionSessionID.MatchString(strings.TrimSpace(s.ID)) {
+					return "project"
+				}
+			}
+			return "decision"
+		}
+	}
+	if reDecisionPlanHeading.MatchString(content) {
+		return "decision"
+	}
+	return ""
+}
+
 func registerSave(server *sdkmcp.Server) {
-	sdkmcp.AddTool(server,
-		&sdkmcp.Tool{
-			Name:  "vivechak_save",
-			Title: "Save Research Artifact",
-			Description: "Validate and persist research artifacts into the workspace. " +
-				"Pass 'kind': 'plan' (persists RESEARCH-PIPELINE.md and compiles initial decision stubs), " +
-				"'session' (validates evidence and persists research/sessions/<id>.md), " +
-				"'comparison' (validates and persists research/<id>-comparison.md), " +
-				"or 'fad' (validates and persists research/FAD.md for synthesis). " +
-				"Validates artifacts against the 4-level quality ladder before saving.",
-			Annotations: &sdkmcp.ToolAnnotations{
-				ReadOnlyHint:    false,
-				IdempotentHint:  false,
-				DestructiveHint: BoolPtr(true),
-				OpenWorldHint:   BoolPtr(false),
-			},
+	registerTool(server, ToolSpec{
+		Name:        "vivechak_save",
+		Description: "Validate and persist research under research/ (comparison, plan, session, or fad). Needs revise=true to overwrite; invalid saves as draft.",
+		Annotations: &sdkmcp.ToolAnnotations{
+			ReadOnlyHint:    false,
+			IdempotentHint:  false,
+			DestructiveHint: BoolPtr(true),
 		},
-		handleSave,
-	)
+		Params: []ParamSpec{
+			{Name: "kind", Type: "string", Enum: []string{"plan", "session", "comparison", "fad"}, Required: true, Doc: "Artifact kind: plan, session, comparison, or fad."},
+			{Name: "content", Type: "string", Required: true, Description: "Markdown body", Doc: "Markdown content to validate and save."},
+			{Name: "id", Type: "string", Description: "Artifact ID", Doc: "Artifact or session ID (allocated when omitted for comparison/plan)."},
+			{Name: "scope", Type: "string", Enum: []string{"comparison", "decision", "project"}, Doc: "Optional scope hint when saving a plan."},
+			{Name: "slug", Type: "string", Doc: "Optional URL-safe filename slug."},
+			{Name: "revise", Type: "boolean", Doc: "Update an existing artifact, archiving the old version."},
+			{Name: "decisions_content", Type: "string", Description: "Seeded ADR", Doc: "Initial ADR stub or registry Markdown when saving a plan."},
+			{Name: "project_root", Type: "string", Doc: "Absolute path to the target project directory."},
+		},
+	}, handleSave)
 }
 
 func handleSave(ctx context.Context, req *sdkmcp.CallToolRequest, in SaveInput) (*sdkmcp.CallToolResult, Envelope, error) {
@@ -119,7 +125,7 @@ func handleSave(ctx context.Context, req *sdkmcp.CallToolRequest, in SaveInput) 
 	_ = os.MkdirAll(root, 0o755)
 	ws, err := store.OpenWorkspace(root)
 	if err != nil {
-		return ErrorResult(tool, err, "Ensure workspace directory exists and is accessible.")
+		return ErrorResult(tool, fmt.Errorf("E-IO: %w", err), "Ensure workspace directory exists and is accessible.")
 	}
 	defer ws.Close()
 
@@ -145,116 +151,108 @@ func handleSave(ctx context.Context, req *sdkmcp.CallToolRequest, in SaveInput) 
 		}
 	}
 
-	if in.ID == "" {
-		if in.SessionID != "" {
-			in.ID = in.SessionID
-		} else if in.DecisionID != "" {
-			in.ID = in.DecisionID
-		}
-	}
-
-	if in.Content == "" && in.PipelineContent != "" {
-		in.Content = in.PipelineContent
-	}
 	if in.Content == "" {
-		return ErrorResult(tool, fmt.Errorf("content is required"), "Provide content to save.")
+		return ErrorResult(tool, fmt.Errorf("E-INVALID-ARGUMENT: content is required"), "Provide content to save.")
 	}
 
 	kind := strings.ToLower(strings.TrimSpace(in.Kind))
 	if kind == "" {
-		if in.SessionID != "" {
-			kind = "session"
-		} else if in.PipelineContent != "" {
-			kind = "plan"
-		} else if in.Scope == "comparison" || strings.HasPrefix(strings.ToUpper(in.ID), "C-") {
-			kind = "comparison"
-		}
-	}
-	if kind == "" {
-		return ErrorResult(tool, fmt.Errorf("kind is required: use 'plan', 'session', 'comparison', or 'fad'"),
+		return ErrorResult(tool, fmt.Errorf("E-INVALID-ARGUMENT: kind is required: use 'plan', 'session', 'comparison', or 'fad'"),
 			"Provide the 'kind' parameter indicating what artifact type is being saved.")
 	}
 
 	switch kind {
 	case "plan":
-		return handleSavePlanKind(ctx, ws, root, rule, in)
+		return handleSavePlanKind(req, ws, root, rule, in)
 	case "comparison":
-		return handleSaveComparisonKind(ctx, ws, root, rule, in)
+		return handleSaveComparisonKind(req, ws, root, rule, in)
 	case "session", "fad":
 		if kind == "fad" && strings.TrimSpace(in.ID) == "" {
 			in.ID = "SYN-01"
+			if synth := readPipelineDAG(ws).SynthesisSessions(); len(synth) == 1 {
+				in.ID = synth[0].ID
+			}
 		}
-		return handleSaveSessionKind(ctx, ws, root, rule, in)
+		sessionID, mapped, idErr := resolvePlaceholderRef(sessionOf(req), ws, root, in.ID, false)
+		if idErr != nil {
+			return ErrorResult(tool, idErr, placeholderRefFix)
+		}
+		var idWarnings []Warning
+		if mapped {
+			did := sessionID[:strings.Index(strings.ToUpper(sessionID), "-S")]
+			in.Content = placeholderTokenRe.ReplaceAllString(in.Content, did)
+			idWarnings = append(idWarnings, NewWarning("W-ID-ALLOCATED", fmt.Sprintf("session id %s resolved to %s", strings.TrimSpace(in.ID), sessionID), ""))
+			in.ID = sessionID
+		}
+		return handleSaveSessionKind(ctx, ws, root, rule, in, idWarnings...)
 	default:
-		return ErrorResult(tool, fmt.Errorf("invalid kind %q", in.Kind),
+		return ErrorResult(tool, fmt.Errorf("E-INVALID-ARGUMENT: invalid kind %q", in.Kind),
 			"Use kind 'plan', 'session', 'comparison', or 'fad'.")
 	}
 }
 
-func ensureWorkspaceTemplates(ws *store.Workspace, scope core.Scope) {
-	if scope == "" {
-		scope = core.ScopeProject
-	}
-	_ = ws.MkdirAll(core.TemplatesDir, 0o755)
-	for _, tmpl := range core.TemplatesForScope(scope) {
-		relPath := filepath.Join(core.TemplatesDir, tmpl)
-		if !ws.FileExists(relPath) {
-			if tmplBytes, err := vembed.ReadTemplate(tmpl); err == nil {
-				_ = store.WriteFileAtomic(ws.Root(), relPath, tmplBytes, 0o644)
-			}
-		}
-	}
-}
-
-func handleSavePlanKind(ctx context.Context, ws *store.Workspace, root, rule string, in SaveInput) (*sdkmcp.CallToolResult, Envelope, error) {
+func handleSavePlanKind(req *sdkmcp.CallToolRequest, ws *store.Workspace, root, rule string, in SaveInput) (*sdkmcp.CallToolResult, Envelope, error) {
 	const tool = "vivechak_save"
 
 	if strings.TrimSpace(in.Content) == "" {
-		return ErrorResult(tool, fmt.Errorf("content is required when saving a plan"),
-			"Provide the RESEARCH-PIPELINE.md content.")
+		return ErrorResult(tool, fmt.Errorf("E-INVALID-ARGUMENT: content is required when saving a plan"),
+			"Provide the plan Markdown content.")
 	}
 
-	info := core.InspectWorkspace(root)
 	scope := strings.ToLower(strings.TrimSpace(in.Scope))
-	if scope == "" {
-		if info.Scope == core.ScopeComparison || (in.ID != "" && strings.HasPrefix(strings.ToUpper(in.ID), "C-")) {
-			scope = "comparison"
-		} else if in.DecisionID != "" || (in.ID != "" && strings.HasPrefix(strings.ToUpper(in.ID), "D-")) {
-			scope = "decision"
-		} else {
-			scope = "project"
-		}
+	planIDArg := strings.ToUpper(strings.TrimSpace(in.ID))
+	if strings.HasPrefix(planIDArg, "C-") {
+		return ErrorResult(tool, fmt.Errorf("E-ID-INVALID: %q is a comparison id; kind=\"plan\" saves a decision plan (D-NNN) or the project pipeline (DAG)", in.ID),
+			"Save comparisons with vivechak_save(kind=\"comparison\", id=\"C-NNN\", content=...).")
 	}
 	if scope == "comparison" {
-		return handleSaveComparisonKind(ctx, ws, root, rule, in)
+		return ErrorResult(tool, fmt.Errorf("E-INVALID-ARGUMENT: kind=\"plan\" saves a decision plan or the project pipeline, not a comparison"),
+			"Save comparisons with vivechak_save(kind=\"comparison\", content=...).")
 	}
-	if scope != "project" && scope != "decision" && scope != "comparison" {
-		return ErrorResult(tool, fmt.Errorf("invalid plan scope %q: use 'project', 'decision', or 'comparison'", in.Scope),
-			"Provide 'scope': 'project', 'decision', or 'comparison'.")
-	}
-
-	ensureWorkspaceTemplates(ws, core.Scope(scope))
-
-	planValidation := core.ValidatePlan([]byte(in.Content))
-	if planValidation.HasBlocking() {
-		var firstErr string
-		var firstHint string
-		for _, issue := range planValidation.Issues {
-			if issue.Level == core.L2Block {
-				firstErr = issue.Message
-				firstHint = issue.FixHint
-				break
+	if scope == "" {
+		switch {
+		case planIDArg == "DAG" || planIDArg == "PROJECT":
+			scope = "project"
+		case strings.HasPrefix(planIDArg, "D-"):
+			scope = "decision"
+		default:
+			scope = planScopeFromContent(in.Content)
+			if scope == "" {
+				if info := core.InspectWorkspace(root); info.Scope == core.ScopeDecision {
+					scope = "decision"
+				} else {
+					scope = "project"
+				}
 			}
 		}
-		if firstHint == "" {
-			firstHint = "Fix dependency cycles, dangling session references, or missing plan content."
-		}
-		return ErrorResult(tool, fmt.Errorf("plan validation failed: %s", firstErr), firstHint)
+	}
+	if scope != "project" && scope != "decision" {
+		return ErrorResult(tool, fmt.Errorf("E-INVALID-ARGUMENT: invalid plan scope %q: use 'project' or 'decision'", in.Scope),
+			"Provide scope 'project' or 'decision' (comparisons are saved with kind=\"comparison\").")
 	}
 
-	var warnings []string
+	if scope == "decision" {
+		raw := strings.TrimSpace(in.ID)
+		if err := checkArtifactIDSyntax("D", raw); err != nil {
+			return ErrorResult(tool, err, "Use a decision id like D-001, or omit id (or pass D-NEW) to get the next free one.")
+		}
+	}
+
+	planValidation := core.ValidatePlanForScope([]byte(in.Content), scope)
+	if planValidation.HasBlocking() {
+		var problems, fixes []string
+		for _, issue := range planValidation.BlockingIssues() {
+			problems = append(problems, issue.Code+": "+issue.Message)
+			if issue.FixHint != "" && !slices.Contains(fixes, issue.FixHint) {
+				fixes = append(fixes, issue.FixHint)
+			}
+		}
+		return ErrorResult(tool, fmt.Errorf("plan validation failed: %s", strings.Join(problems, "; ")), strings.Join(fixes, " "))
+	}
+
+	var warnings []Warning
 	for _, issue := range planValidation.Issues {
-		warnings = append(warnings, fmt.Sprintf("[%s] %s: %s (fix: %s)", issue.Level, issue.Code, issue.Message, issue.FixHint))
+		warnings = append(warnings, WarningFromIssue(issue))
 	}
 
 	_ = ws.MkdirAll(core.ResearchDir, 0o755)
@@ -262,73 +260,22 @@ func handleSavePlanKind(ctx context.Context, ws *store.Workspace, root, rule str
 	pipelinePath := core.PipelineFile
 	planID := ""
 	switch scope {
-	case "comparison":
-		compID := in.ID
-		if compID == "" {
-			compID = in.DecisionID
-		}
-		if compID == "" {
-			compID = "C-001"
-		}
-		filename := fmt.Sprintf("%s-comparison.md", compID)
-		if in.Slug != "" {
-			filename = fmt.Sprintf("%s-cmp-%s.md", compID, in.Slug)
-		}
-		pipelinePath = filepath.Join(core.ResearchDir, filename)
-		planID = compID
 	case "decision":
-		decID := in.ID
+		decID := strings.TrimSpace(in.ID)
 		if decID == "" {
-			decID = in.DecisionID
+			decID = deriveDecisionIDFromPlan(in.Content)
 		}
-		if decID == "" {
-			if m := reSaveTableRow.FindStringSubmatch(in.Content); len(m) > 1 {
-				val := strings.TrimSpace(m[1])
-				lower := strings.ToLower(val)
-				if val != "D-NEW" && val != "C-NEW" && val != "" &&
-					lower != "role" && lower != "depends" && lower != "filename" &&
-					lower != "topic" && lower != "description" && lower != "status" && lower != "title" {
-					decID = val
-				}
-			}
-			if decID == "" {
-				if m := reSaveHeadingID.FindStringSubmatch(in.Content); len(m) > 1 {
-					val := strings.TrimSpace(m[1])
-					if strings.Contains(val, "-S") {
-						parts := strings.Split(val, "-S")
-						decID = parts[0]
-					} else {
-						decID = val
-					}
-				}
-			}
-			if decID == "" {
-				if m := reSaveDec.FindStringSubmatch(in.Content); len(m) > 1 && m[1] != "D-NEW" {
-					decID = m[1]
-				}
-			}
+		resolvedID, isAllocated, idErr := resolveArtifactID(sessionOf(req), ws, root, "D", decID,
+			func(id string) bool { return !decisionPlanExists(ws, id) })
+		if idErr != nil {
+			return ErrorResult(tool, idErr, "Use a decision id like D-001, or omit id (or pass D-NEW) to get the next free one.")
 		}
-		isAllocated := false
-		if decID == "" || strings.EqualFold(decID, "D-NEW") || strings.EqualFold(decID, "NEW") {
-			var allocErr error
-			decID, allocErr = store.AllocateID(ws, "D")
-			if allocErr != nil {
-				return ErrorResult(tool, fmt.Errorf("allocating decision ID: %w", allocErr), "Ensure research/.vivechak.json is accessible.")
-			}
-			isAllocated = true
-		} else {
-			decID = core.NormalizeDecisionID(decID)
-		}
-
-		if !isValidID(decID) {
-			return ErrorResult(tool, fmt.Errorf("E-ID-INVALID: invalid plan ID %q", decID), "Provide a valid alphanumeric decision ID.")
-		}
-		planID = decID
+		planID = resolvedID
 		if isAllocated {
-			warnings = append(warnings, fmt.Sprintf("W-ID-ALLOCATED: allocated decision ID %s", planID))
-			in.Content = reSaveDNew.ReplaceAllString(in.Content, planID)
-			in.Content = reSaveDNewDash.ReplaceAllString(in.Content, planID+"-")
+			warnings = append(warnings, NewWarning("W-ID-ALLOCATED", fmt.Sprintf("allocated decision ID %s", planID), ""))
 		}
+		in.Content = placeholderTokenRe.ReplaceAllString(in.Content, planID)
+		in.DecisionsContent = placeholderTokenRe.ReplaceAllString(in.DecisionsContent, planID)
 
 		filename := fmt.Sprintf("%s-plan.md", planID)
 		if in.Slug != "" {
@@ -347,8 +294,12 @@ func handleSavePlanKind(ctx context.Context, ws *store.Workspace, root, rule str
 	fm["id"] = planID
 	fm["type"] = "plan"
 	fm["vivechak"] = 1
-	if !fm.Has("title") || fm.GetString("title") == "" {
-		fm["title"] = "Research Plan"
+	if !fm.Has("title") || strings.TrimSpace(fm.GetString("title")) == "" {
+		if t := core.PlanDecisionTitle(contentBytes); t != "" {
+			fm["title"] = t
+		} else {
+			fm["title"] = "[Decision title]"
+		}
 	}
 	if !fm.Has("date") {
 		fm["date"] = time.Now().UTC().Format("2006-01-02")
@@ -365,7 +316,12 @@ func handleSavePlanKind(ctx context.Context, ws *store.Workspace, root, rule str
 	}
 
 	if err := ws.WriteArtifact(pipelinePath, contentBytes, 0o644, in.Revise); err != nil {
-		return ErrorResult(tool, err, "Pass revise=true if updating an existing plan.")
+		return ErrorResult(tool, err, "Pass revise=true only if this updates that same plan; for a different decision, save without an id (or with id D-NEW) to get a new one.")
+	}
+	if scope == "decision" {
+		if st := stateForSession(sessionOf(req)); st != nil {
+			st.notePlanDecision(root, planID)
+		}
 	}
 
 	savedFiles := []string{filepath.ToSlash(pipelinePath)}
@@ -374,13 +330,10 @@ func handleSavePlanKind(ctx context.Context, ws *store.Workspace, root, rule str
 		decVal := core.ValidateDecisionRegistry([]byte(in.DecisionsContent))
 		decValResult = decVal
 		for _, issue := range decVal.Issues {
-			warnings = append(warnings, fmt.Sprintf("%s[%s] %s: %s (fix: %s)", issue.Prefix, issue.Level, issue.Code, issue.Message, issue.FixHint))
+			warnings = append(warnings, WarningFromIssue(issue))
 		}
 		if scope == "decision" {
-			filename := fmt.Sprintf("%s.md", planID)
-			if in.Slug != "" {
-				filename = fmt.Sprintf("%s-%s.md", planID, in.Slug)
-			}
+			filename := resolveDecisionFilename(ws, planID, in.Slug)
 			adrPath := filepath.Join(core.ResearchDir, filename)
 			adrBytes := []byte(in.DecisionsContent)
 			adrFM, adrBody, _ := core.ParseFrontmatter(adrBytes)
@@ -429,52 +382,37 @@ func handleSavePlanKind(ctx context.Context, ws *store.Workspace, root, rule str
 	msg := fmt.Sprintf("Research plan saved to %s.", filepath.ToSlash(pipelinePath))
 	next := &NextAction{
 		Tool: "vivechak_next",
+		Args: map[string]any{},
 		Why:  fmt.Sprintf("Research plan saved to %s. Call vivechak_next to begin the first research session.", filepath.ToSlash(pipelinePath)),
 	}
 
 	env := Envelope{
 		Ok:       true,
-		Success:  true,
 		Message:  msg,
 		Data:     data,
 		Warnings: warnings,
 		Next:     next,
-		NextStep: next.Why,
-		Meta:     NewMeta(tool),
 	}
 	return env.ToResult()
 }
 
-func handleSaveComparisonKind(_ context.Context, ws *store.Workspace, root, rule string, in SaveInput) (*sdkmcp.CallToolResult, Envelope, error) {
+func handleSaveComparisonKind(req *sdkmcp.CallToolRequest, ws *store.Workspace, root, rule string, in SaveInput) (*sdkmcp.CallToolResult, Envelope, error) {
 	const tool = "vivechak_save"
 
-	ensureWorkspaceTemplates(ws, core.ScopeComparison)
-
-	cid := in.ID
-	isAllocated := false
-	if cid == "" || strings.EqualFold(cid, "C-NEW") || strings.EqualFold(cid, "NEW") {
-		var allocErr error
-		cid, allocErr = store.AllocateID(ws, "C")
-		if allocErr != nil {
-			return ErrorResult(tool, fmt.Errorf("allocating comparison ID: %w", allocErr), "Ensure research/.vivechak.json is accessible.")
-		}
-		isAllocated = true
-	} else {
-		cid = core.NormalizeComparisonID(cid)
+	cid, isAllocated, idErr := resolveArtifactID(sessionOf(req), ws, root, "C", in.ID,
+		func(id string) bool { return !artifactIDInUse(ws, id) })
+	if idErr != nil {
+		return ErrorResult(tool, idErr, "Use a comparison id like C-001, or omit id to get the next free one.")
 	}
 
-	if !isValidID(cid) {
-		return ErrorResult(tool, fmt.Errorf("E-ID-INVALID: invalid ID %q", cid), "Use a valid identifier like 'C-001'.")
-	}
-
-	var warnings []string
+	var warnings []Warning
 	if isAllocated {
-		warnings = append(warnings, fmt.Sprintf("W-ID-ALLOCATED: allocated comparison ID %s", cid))
+		warnings = append(warnings, NewWarning("W-ID-ALLOCATED", fmt.Sprintf("allocated comparison ID %s", cid), ""))
 	}
 
 	val := core.ValidateComparison([]byte(in.Content))
 	for _, issue := range val.Issues {
-		warnings = append(warnings, fmt.Sprintf("[%s] %s: %s (fix: %s)", issue.Level, issue.Code, issue.Message, issue.FixHint))
+		warnings = append(warnings, WarningFromIssue(issue))
 	}
 
 	contentBytes := []byte(in.Content)
@@ -529,48 +467,45 @@ func handleSaveComparisonKind(_ context.Context, ws *store.Workspace, root, rule
 
 	next := &NextAction{
 		Tool: "vivechak_review",
-		Args: map[string]any{"mode": "validate", "target": cid},
-		Why:  fmt.Sprintf("Comparison WEP matrix successfully saved to %s. Comparison scope is complete. No DAG sessions required. (Optional: run vivechak_review to audit empirical claims).", filepath.ToSlash(relPath)),
+		Args: map[string]any{"mode": "validate", "id": cid},
+		Why:  fmt.Sprintf("Comparison WEP matrix saved to %s. Comparison scope is complete (optional: run vivechak_review to audit claims).", filepath.ToSlash(relPath)),
+	}
+	if val.HasBlocking() {
+		next = &NextAction{
+			Tool: "vivechak_save",
+			Args: map[string]any{"kind": "comparison", "id": cid, "revise": true},
+			Why:  "Comparison saved as draft with blocking validation issues; fix the listed issues and re-save with revise=true.",
+		}
 	}
 
 	env := Envelope{
 		Ok:       true,
-		Success:  true,
 		Message:  fmt.Sprintf("Comparison saved to %s.", filepath.ToSlash(relPath)),
 		Data:     data,
 		Warnings: warnings,
 		Next:     next,
-		NextStep: next.Why,
-		Meta:     NewMeta(tool),
 	}
 	return env.ToResult()
 }
 
-func handleSaveSessionKind(ctx context.Context, ws *store.Workspace, root, rule string, in SaveInput) (*sdkmcp.CallToolResult, Envelope, error) {
+func handleSaveSessionKind(ctx context.Context, ws *store.Workspace, root, rule string, in SaveInput, idWarnings ...Warning) (*sdkmcp.CallToolResult, Envelope, error) {
 	const tool = "vivechak_save"
-
-	ensureWorkspaceTemplates(ws, core.ScopeProject)
 
 	sessionID := strings.TrimSpace(in.ID)
 	if sessionID == "" {
-		return ErrorResult(tool, fmt.Errorf("id (session_id) is required when saving a session"),
-			"Provide the session identifier (e.g. 'T1-01', 'SYN-01').")
+		return ErrorResult(tool, fmt.Errorf("E-INVALID-ARGUMENT: id is required when saving a session"),
+			"Provide the session identifier in id (e.g. 'T1-01', 'SYN-01').")
 	}
 
 	if !isValidID(sessionID) {
-		return ErrorResult(tool, fmt.Errorf("invalid session id %q", sessionID), "Use an ID like 'T1-01'.")
+		return ErrorResult(tool, fmt.Errorf("E-ID-INVALID: invalid session id %q", sessionID), "Use an ID like 'T1-01'.")
 	}
 
-	isSynthesis := core.IsSynthesisSession(sessionID)
+	dag := readPipelineDAG(ws)
+	isSynthesis := strings.EqualFold(strings.TrimSpace(in.Kind), "fad") || dag.IsSynthesisID(sessionID)
 	isOneWay := false
-	var dag *core.DAG
-	if pipeData, pErr := ws.ReadFile(core.PipelineFile); pErr == nil {
-		dag, _ = core.ParsePipeline(pipeData)
-		if dag != nil {
-			if s := dag.SessionByID(sessionID); s != nil {
-				isOneWay = strings.EqualFold(s.DoorType, "one-way")
-			}
-		}
+	if s := dag.SessionByID(sessionID); s != nil {
+		isOneWay = strings.EqualFold(s.DoorType, "one-way")
 	}
 
 	var val *core.ValidationResult
@@ -580,16 +515,15 @@ func handleSaveSessionKind(ctx context.Context, ws *store.Workspace, root, rule 
 		val = core.ValidateSessionWithContext([]byte(in.Content), isOneWay)
 	}
 
-	var warnings []string
+	warnings := append([]Warning{}, idWarnings...)
 	for _, issue := range val.Issues {
-		warnings = append(warnings, fmt.Sprintf("[%s] %s: %s (fix: %s)", issue.Level, issue.Code, issue.Message, issue.FixHint))
+		warnings = append(warnings, WarningFromIssue(issue))
 	}
 
-	// Quality coaching observations (non-blocking Q-* codes)
 	qualityObs := core.ObserveSessionQuality([]byte(in.Content))
 	for _, q := range qualityObs {
 		if q.Severity == "consideration" || q.Severity == "suggestion" {
-			warnings = append(warnings, fmt.Sprintf("Q-%s: %s", strings.ToUpper(q.Category), q.Message))
+			warnings = append(warnings, NewWarning("Q-"+strings.ToUpper(q.Category), q.Message, ""))
 		}
 	}
 
@@ -638,7 +572,7 @@ func handleSaveSessionKind(ctx context.Context, ws *store.Workspace, root, rule 
 
 	unlock, lockErr := store.LockFile(ctx, filepath.Join(root, relPath), 5*time.Second)
 	if lockErr != nil {
-		return ErrorResult(tool, fmt.Errorf("could not acquire lock for %s: %w", relPath, lockErr), "Try again.")
+		return ErrorResult(tool, fmt.Errorf("E-LOCK-TIMEOUT: could not acquire lock for %s: %w", relPath, lockErr), "Try again.")
 	}
 	defer func() { _ = unlock() }()
 
@@ -655,13 +589,7 @@ func handleSaveSessionKind(ctx context.Context, ws *store.Workspace, root, rule 
 		})
 	}
 
-	var knownIDs []string
-	if dag != nil {
-		for _, s := range dag.Sessions {
-			knownIDs = append(knownIDs, s.ID)
-		}
-	}
-	completedSessions, _ := scanCompletedSessions(ws, knownIDs...)
+	completedSessions, _ := dag.CompletedSessions(ws)
 	gateDecisions := collectGateDecisions(ws)
 	progress := map[string]any{
 		"sessions_completed": len(completedSessions),
@@ -687,83 +615,50 @@ func handleSaveSessionKind(ctx context.Context, ws *store.Workspace, root, rule 
 		"progress":             progress,
 	}
 
-	nextStep := buildNextStep(sessionID, val.ErrorCount(), qualityObs, dag)
+	nextWhy := buildNextStep(sessionID, isSynthesis, val.ErrorCount(), qualityObs, dag)
 	var next *NextAction
-	if isSynthesis {
+	switch {
+	case val.HasBlocking():
+		saveKind := "session"
+		if isSynthesis {
+			saveKind = "fad"
+		}
+		next = &NextAction{
+			Tool: "vivechak_save",
+			Args: map[string]any{"kind": saveKind, "id": sessionID, "revise": true},
+			Why:  nextWhy,
+		}
+	case isSynthesis:
 		next = &NextAction{
 			Tool: "vivechak_gate",
-			Why:  nextStep,
+			Args: map[string]any{},
+			Why:  nextWhy,
 		}
-	} else {
+	default:
 		next = &NextAction{
 			Tool: "vivechak_next",
-			Why:  nextStep,
+			Args: map[string]any{},
+			Why:  nextWhy,
 		}
 	}
 
 	env := Envelope{
 		Ok:       true,
-		Success:  true,
 		Message:  fmt.Sprintf("Session %s saved to %s.", sessionID, relPath),
 		Data:     data,
 		Warnings: warnings,
 		Next:     next,
-		NextStep: nextStep,
-		Meta:     NewMeta(tool),
 	}
 	return env.ToResult()
 }
 
-// handleSavePlan provides backward compatibility for unit tests calling handleSavePlan.
-func handleSavePlan(ctx context.Context, req *sdkmcp.CallToolRequest, in SavePlanInput) (*sdkmcp.CallToolResult, Envelope, error) {
-	content := in.Content
-	if content == "" {
-		content = in.PipelineContent
-	}
-	kind := "plan"
-	id := in.ID
-	if in.DecisionID != "" {
-		id = in.DecisionID
-	}
-	if in.ComparisonID != "" {
-		id = in.ComparisonID
-		kind = "comparison"
-	}
-	if in.Scope == "comparison" {
-		kind = "comparison"
-	}
-
-	return handleSave(ctx, req, SaveInput{
-		ProjectRoot:      in.ProjectRoot,
-		Kind:             kind,
-		Scope:            in.Scope,
-		ID:               id,
-		Content:          content,
-		DecisionsContent: in.DecisionsContent,
-		Slug:             in.Slug,
-	})
-}
-
-// handleSaveSession provides backward compatibility for unit tests calling handleSaveSession.
-func handleSaveSession(ctx context.Context, req *sdkmcp.CallToolRequest, in SaveSessionInput) (*sdkmcp.CallToolResult, Envelope, error) {
-	return handleSave(ctx, req, SaveInput{
-		ProjectRoot: in.ProjectRoot,
-		Kind:        "session",
-		ID:          in.SessionID,
-		Content:     in.Content,
-		Revise:      in.Revise,
-	})
-}
-
-func buildNextStep(sessionID string, errorCount int, observations []core.QualityObservation, dag *core.DAG) string {
+func buildNextStep(sessionID string, isSynthesis bool, errorCount int, observations []core.QualityObservation, dag *core.DAG) string {
 	if errorCount > 0 {
-		return fmt.Sprintf("Session saved as draft (%d blocking issues). Fix the issues and re-save, "+
-			"or run vivechak_review for quality coaching.", errorCount)
+		return fmt.Sprintf("Session saved as draft (%d blocking issues). Fix the issues and re-save with revise=true, "+
+			"or run vivechak_review(mode=\"validate\", id=%q).", errorCount, sessionID)
 	}
 
 	var parts []string
-
-	// 1. Surface quality advisories directly in next_step
 	var advisories []string
 	for _, obs := range observations {
 		if obs.Severity == "consideration" || obs.Severity == "suggestion" {
@@ -771,19 +666,14 @@ func buildNextStep(sessionID string, errorCount int, observations []core.Quality
 		}
 	}
 	if len(advisories) > 0 {
-		parts = append(parts, "⚠️ QUALITY ADVISORIES: "+strings.Join(advisories, " | "))
+		parts = append(parts, "QUALITY ADVISORIES: "+strings.Join(advisories, " | "))
 	}
 
-	// Dedicated synthesis exit gate routing
-	if core.IsSynthesisSession(sessionID) {
-		parts = append(parts, "🎉 FAD synthesis saved to research/FAD.md. "+
-			"All research pipeline sessions are complete, but Phase 0 is NOT yet passed.\n\n"+
-			"➡️ NEXT REQUIRED STEP: Run 'vivechak_gate' to evaluate Phase 0 exit criteria "+
-			"before code scaffolding or implementation.")
+	if isSynthesis {
+		parts = append(parts, "FAD synthesis saved to research/FAD.md. Run vivechak_gate to evaluate Phase 0 exit criteria before coding.")
 		return strings.Join(parts, "\n\n")
 	}
 
-	// 2. Door type check from DAG
 	isOneWay := false
 	if dag != nil {
 		if s := dag.SessionByID(sessionID); s != nil {
@@ -791,18 +681,15 @@ func buildNextStep(sessionID string, errorCount int, observations []core.Quality
 		}
 	}
 
-	// 3. Route based on door type
 	if isOneWay {
 		parts = append(parts, fmt.Sprintf(
-			"🛑 ONE-WAY DOOR: Session '%s' informs an irreversible decision.\n"+
-				"1. Run 'vivechak_review(session_id=\"%s\", mode=\"challenge\")' to stress-test findings.\n"+
-				"2. Amend findings via 'vivechak_amend'.\n"+
-				"3. Auto-draft and record canonical ADR via 'vivechak_record_decision(decision_id=\"<D-ID>\", auto_draft_from=\"%s\")'.",
-			sessionID, sessionID, sessionID))
+			"ONE-WAY DOOR: Session %s informs an irreversible decision. "+
+				"Record the ADR via vivechak_record_decision(id=\"<D-ID>\", auto_draft_from=%q), "+
+				"run vivechak_review(mode=\"red_team\", id=\"<D-ID>\"), and cite the returned record_id.",
+			sessionID, sessionID))
 	} else {
 		parts = append(parts, fmt.Sprintf(
-			"Next: Run 'vivechak_next' for the next session, or "+
-				"record an ADR via 'vivechak_record_decision(decision_id=\"<D-ID>\", auto_draft_from=\"%s\")'.",
+			"Run vivechak_next for the next session, or record an ADR via vivechak_record_decision(id=\"<D-ID>\", auto_draft_from=%q).",
 			sessionID))
 	}
 

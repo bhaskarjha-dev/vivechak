@@ -247,24 +247,8 @@ func TestCanonicalTemplates_ParseAndValidate(t *testing.T) {
 
 func TestValidatePlan(t *testing.T) {
 	// Plan with valid DAG but no YAML frontmatter or evidence grades
-	plan := `# Research Pipeline: Test Pipeline
-
-### Session T1-01: Architecture
-| **ID** | T1-01 |
-| **Dependencies** | None |
-
-` + "````prompt" + `
-Execute architecture research
-` + "````" + `
-
-### Session SYN-01: Synthesis
-| **ID** | SYN-01 |
-| **Dependencies** | T1-01 |
-
-` + "````prompt" + `
-Synthesize findings
-` + "````" + `
-`
+	plan := projectPlan([]string{"{id: T1-01, title: Architecture, depends: []}", "{id: SYN-01, title: Synthesis, kind: synthesis, depends: [T1-01]}"},
+		section("T1-01", "Architecture", "Execute architecture research")+section("SYN-01", "Synthesis", "Synthesize findings"))
 	res := ValidatePlan([]byte(plan))
 	if res.HasBlocking() {
 		t.Errorf("expected valid plan, got blocking issues: %v", res.BlockingIssues())
@@ -281,24 +265,12 @@ Synthesize findings
 		t.Error("expected blocking error for empty plan")
 	}
 
-	// Plan with DAG cycle should report invalid DAG
-	cyclicPlan := `# Research Pipeline
-### Session T1-01: First
-| **ID** | T1-01 |
-| **Dependencies** | T1-02 |
-` + "````prompt" + `
-Prompt
-` + "````" + `
-### Session T1-02: Second
-| **ID** | T1-02 |
-| **Dependencies** | T1-01 |
-` + "````prompt" + `
-Prompt
-` + "````" + `
-`
+	// Plan with DAG cycle should report V-PLAN-CYCLE
+	cyclicPlan := projectPlan([]string{"{id: T1-01, title: First, depends: [T1-02]}", "{id: T1-02, title: Second, depends: [T1-01]}", "{id: SYN-01, kind: synthesis, depends: [ALL]}"},
+		section("T1-01", "First", "Prompt")+section("T1-02", "Second", "Prompt")+section("SYN-01", "Synthesis", "Prompt"))
 	resCycle := ValidatePlan([]byte(cyclicPlan))
-	if !resCycle.HasBlocking() {
-		t.Error("expected blocking error for cyclic plan")
+	if !resCycle.HasBlocking() || resCycle.BlockingIssues()[0].Code != CodePlanCycle {
+		t.Errorf("expected blocking %s for cyclic plan, got %+v", CodePlanCycle, resCycle.Issues)
 	}
 }
 

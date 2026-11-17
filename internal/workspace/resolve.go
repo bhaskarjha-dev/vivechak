@@ -10,30 +10,47 @@ import (
 	"sync"
 )
 
-var (
-	lastResolvedWorkspaceMu sync.RWMutex
-	lastResolvedWorkspace   string
-)
-
-// SetLastResolvedWorkspace records the most recently resolved workspace root in memory.
-func SetLastResolvedWorkspace(ws string) {
-	lastResolvedWorkspaceMu.Lock()
-	defer lastResolvedWorkspaceMu.Unlock()
-	lastResolvedWorkspace = ws
+// Memory is the workspace one MCP session last resolved (rule "session"). Each MCP session has its own
+// (see WithMemory); a resolution without one (CLI commands) remembers nothing. The zero value is ready to use.
+type Memory struct {
+	mu   sync.RWMutex
+	root string
 }
 
-// GetLastResolvedWorkspace returns the in-memory cached workspace root, if any.
-func GetLastResolvedWorkspace() string {
-	lastResolvedWorkspaceMu.RLock()
-	defer lastResolvedWorkspaceMu.RUnlock()
-	return lastResolvedWorkspace
+// Get returns the remembered workspace root, or "" (also for a nil *Memory).
+func (m *Memory) Get() string {
+	if m == nil {
+		return ""
+	}
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.root
 }
 
-// ResetLastResolvedWorkspace clears the in-memory cached workspace root (used in tests).
-func ResetLastResolvedWorkspace() {
-	lastResolvedWorkspaceMu.Lock()
-	defer lastResolvedWorkspaceMu.Unlock()
-	lastResolvedWorkspace = ""
+// Set remembers root; a nil *Memory ignores it.
+func (m *Memory) Set(root string) {
+	if m == nil {
+		return
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.root = root
+}
+
+type memoryKey struct{}
+
+// WithMemory returns a context whose workspace resolutions read and update m, the calling MCP session's memory.
+func WithMemory(ctx context.Context, m *Memory) context.Context {
+	return context.WithValue(ctx, memoryKey{}, m)
+}
+
+// memoryFrom returns the session memory carried by ctx, or nil.
+func memoryFrom(ctx context.Context) *Memory {
+	if ctx == nil {
+		return nil
+	}
+	m, _ := ctx.Value(memoryKey{}).(*Memory)
+	return m
 }
 
 // ProjectAnchorFiles lists manifest and anchor files identifying a software project root.
@@ -74,8 +91,11 @@ func ResolveWorkspaceWithRule(explicit string) (string, string, error) {
 }
 
 // ResolveWorkspaceWithRoots resolves the workspace root evaluating MCP client roots at step 2.
-// Rules returned: "explicit", "roots", "env", "marker", "cwd", "session".
+// Rules returned: "explicit", "roots", "env", "marker", "cwd", "session". The "session" rule reads, and every
+// successful resolution updates, the calling MCP session's memory carried by ctx (WithMemory); without one,
+// nothing is remembered.
 func ResolveWorkspaceWithRoots(ctx context.Context, explicit string, roots []string) (string, string, error) {
+	mem := memoryFrom(ctx)
 	trimmedExplicit := strings.TrimSpace(explicit)
 
 	// Step 1: Explicit project_root argument (rule: "explicit")
@@ -114,7 +134,7 @@ func ResolveWorkspaceWithRoots(ctx context.Context, explicit string, roots []str
 			abs = filepath.Dir(abs)
 		}
 
-		SetLastResolvedWorkspace(abs)
+		mem.Set(abs)
 		return abs, "explicit", nil
 	}
 
@@ -131,13 +151,13 @@ func ResolveWorkspaceWithRoots(ctx context.Context, explicit string, roots []str
 		}
 	}
 	if len(validRoots) == 1 {
-		SetLastResolvedWorkspace(validRoots[0])
+		mem.Set(validRoots[0])
 		return validRoots[0], "roots", nil
 	} else if len(validRoots) > 1 {
 		for _, vr := range validRoots {
 			marker := filepath.Join(vr, MetadataFile)
 			if _, err := os.Stat(marker); err == nil {
-				SetLastResolvedWorkspace(vr)
+				mem.Set(vr)
 				return vr, "roots", nil
 			}
 		}
@@ -167,15 +187,15 @@ func ResolveWorkspaceWithRoots(ctx context.Context, explicit string, roots []str
 					if filepath.Base(abs) == ResearchDir {
 						abs = filepath.Dir(abs)
 					}
-					SetLastResolvedWorkspace(abs)
+					mem.Set(abs)
 					return abs, "env", nil
 				}
 			}
 		}
 	}
 
-	// Step 4: In-process session memory (rule: "session")
-	if cached := GetLastResolvedWorkspace(); cached != "" {
+	// Step 4: This MCP session's memory (rule: "session")
+	if cached := mem.Get(); cached != "" {
 		if fi, err := os.Stat(cached); err == nil && fi.IsDir() && SafeRoot(cached) == nil {
 			return cached, "session", nil
 		}
@@ -203,7 +223,7 @@ func ResolveWorkspaceWithRoots(ctx context.Context, explicit string, roots []str
 		if !IsSystemOrAppDir(cleanDir) && SafeRoot(cleanDir) == nil {
 			markerPath := filepath.Join(cleanDir, MetadataFile)
 			if fi, err := os.Stat(markerPath); err == nil && !fi.IsDir() {
-				SetLastResolvedWorkspace(cleanDir)
+				mem.Set(cleanDir)
 				return cleanDir, "marker", nil
 			}
 		}
@@ -217,7 +237,7 @@ func ResolveWorkspaceWithRoots(ctx context.Context, explicit string, roots []str
 
 	// Step 6: Guarded working directory (rule: "cwd")
 	if !IsSystemOrAppDir(cwd) && HasProjectAnchor(cwd) && SafeRoot(cwd) == nil {
-		SetLastResolvedWorkspace(cwd)
+		mem.Set(cwd)
 		return cwd, "cwd", nil
 	}
 

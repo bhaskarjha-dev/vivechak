@@ -15,19 +15,18 @@ import (
 	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-// RecordDecisionInput holds the arguments for vivechak_record_decision.
+// RecordDecisionInput holds the canonical arguments for vivechak_record_decision.
 type RecordDecisionInput struct {
-	ProjectRoot   string `json:"project_root,omitempty"   jsonschema:"workspace root path"`
-	ArtifactType  string `json:"artifact_type,omitempty"  jsonschema:"type of artifact: decision | conflict-resolution (default: decision)"`
-	DecisionID    string `json:"decision_id,omitempty"    jsonschema:"decision identifier (e.g. D-015)"`
-	ID            string `json:"id,omitempty"             jsonschema:"alias for decision_id (e.g. D-015)"`
-	Slug          string `json:"slug,omitempty"            jsonschema:"slug for decision filename (optional)"`
-	Status        string `json:"status,omitempty"          jsonschema:"decision lifecycle status: proposed | accepted | rejected | deprecated | superseded (updates frontmatter before saving)"`
-	Content       string `json:"content,omitempty"         jsonschema:"decision record or conflict resolution content (Markdown with YAML frontmatter); omit with auto_draft_from to generate a draft"`
-	AutoDraftFrom string `json:"auto_draft_from,omitempty" jsonschema:"session ID to auto-draft decision from (e.g. R-01); omit content to get a draft for review"`
-	AutoSave      bool   `json:"auto_save,omitempty"       jsonschema:"if true with auto_draft_from, automatically validate and save the drafted decision in one step"`
-	Revise        bool   `json:"revise,omitempty"          jsonschema:"force revision of existing ADR with history archiving"`
-	Supersedes    string `json:"supersedes,omitempty"      jsonschema:"decision ID being superseded by this decision (e.g. D-003)"`
+	ProjectRoot   string `json:"project_root,omitempty"`
+	ID            string `json:"id"`
+	Content       string `json:"content,omitempty"`
+	AutoDraftFrom string `json:"auto_draft_from,omitempty"`
+	AutoSave      bool   `json:"auto_save,omitempty"`
+	Status        string `json:"status,omitempty"`
+	Slug          string `json:"slug,omitempty"`
+	Supersedes    string `json:"supersedes,omitempty"`
+	Revise        bool   `json:"revise,omitempty"`
+	ArtifactType  string `json:"artifact_type,omitempty"`
 }
 
 var (
@@ -42,28 +41,27 @@ var (
 )
 
 func registerRecordDecision(server *sdkmcp.Server) {
-	sdkmcp.AddTool(server,
-		&sdkmcp.Tool{
-			Name:  "vivechak_record_decision",
-			Title: "Record Decision",
-			Description: "Save an Architectural Decision Record (ADR) or conflict resolution. " +
-				"Validates against DECISIONS.template.md or CONFLICT-RESOLUTION.template.md schema. " +
-				"Use artifact_type='decision' for ADRs and 'conflict-resolution' for ACH analysis. " +
-				"Classifies decisions as one-way or two-way door per P2. " +
-				"Supports status (e.g. 'accepted') to set or update the lifecycle status before validation and saving. " +
-				"Supports auto_draft_from: provide a session ID (omit content) to auto-generate a " +
-				"draft decision from session findings for review before saving. Pass auto_save=true to draft and save in one step. " +
-				"Supports supersedes: provide a decision ID to mark an existing ADR as superseded, " +
-				"link the records, and detect stale session references.",
-			Annotations: &sdkmcp.ToolAnnotations{
-				ReadOnlyHint:    false,
-				IdempotentHint:  false,
-				DestructiveHint: BoolPtr(true),
-				OpenWorldHint:   BoolPtr(false),
-			},
+	registerTool(server, ToolSpec{
+		Name:        "vivechak_record_decision",
+		Description: "Create or update an ADR or conflict resolution and compile DECISIONS.md. Supports auto_draft_from, auto_save, status, and supersedes.",
+		Annotations: &sdkmcp.ToolAnnotations{
+			ReadOnlyHint:    false,
+			IdempotentHint:  false,
+			DestructiveHint: BoolPtr(true),
 		},
-		handleRecordDecision,
-	)
+		Params: []ParamSpec{
+			{Name: "id", Type: "string", Required: true, Description: "D-NNN or D-NEW", Doc: "Decision ID (e.g. D-001, or D-NEW to allocate the next free ID)."},
+			{Name: "content", Type: "string", Description: "ADR Markdown", Doc: "Decision or conflict-resolution Markdown (omit when using auto_draft_from)."},
+			{Name: "auto_draft_from", Type: "string", Description: "Source session", Doc: "Session ID (e.g. D-001-S1) to draft the ADR from."},
+			{Name: "auto_save", Type: "boolean", Doc: "Save the drafted ADR immediately when using auto_draft_from."},
+			{Name: "status", Type: "string", Enum: []string{"proposed", "accepted", "rejected", "superseded", "deprecated"}, Doc: "Lifecycle status written into frontmatter before validation."},
+			{Name: "slug", Type: "string", Doc: "Optional URL-safe filename slug."},
+			{Name: "supersedes", Type: "string", Description: "Retired D-ID", Doc: "Existing decision ID superseded by this ADR (e.g. D-001)."},
+			{Name: "revise", Type: "boolean", Doc: "Overwrite an existing ADR with history archiving."},
+			{Name: "artifact_type", Type: "string", Enum: []string{"decision", "conflict-resolution"}, Doc: "Artifact type: decision (default) or conflict-resolution."},
+			{Name: "project_root", Type: "string", Doc: "Absolute path to the target project directory."},
+		},
+	}, handleRecordDecision)
 }
 
 func handleRecordDecision(ctx context.Context, req *sdkmcp.CallToolRequest, in RecordDecisionInput) (*sdkmcp.CallToolResult, Envelope, error) {
@@ -85,52 +83,81 @@ func handleRecordDecision(ctx context.Context, req *sdkmcp.CallToolRequest, in R
 	}
 	defer ws.Close()
 
-	if strings.TrimSpace(in.DecisionID) == "" && strings.TrimSpace(in.ID) != "" {
-		in.DecisionID = strings.TrimSpace(in.ID)
-	}
-	in.DecisionID = strings.TrimSpace(in.DecisionID)
+	in.ID = strings.TrimSpace(in.ID)
 
-	if in.DecisionID == "" && in.Content != "" {
+	if in.ID == "" && in.Content != "" {
 		if fm, _, pErr := core.ParseFrontmatter([]byte(in.Content)); pErr == nil && fm != nil {
 			if id := fm.GetString("id"); id != "" {
-				in.DecisionID = id
+				in.ID = id
 			} else if id := fm.GetString("decision_id"); id != "" {
-				in.DecisionID = id
+				in.ID = id
 			}
 		}
 	}
 
-	if in.DecisionID == "" {
-		return ErrorResult(tool, fmt.Errorf("decision_id is required"),
-			"Provide a decision identifier like 'D-015'.")
+	artifactType := strings.TrimSpace(in.ArtifactType)
+	if artifactType == "" {
+		artifactType = "decision"
 	}
 
-	if strings.EqualFold(in.DecisionID, "D-NEW") {
-		allocated, aErr := store.AllocateID(ws, "D")
-		if aErr != nil {
-			return ErrorResult(tool, fmt.Errorf("allocating decision ID: %w", aErr), "Check workspace health.")
+	var idWarnings []Warning
+	if artifactType == "decision" {
+		// One id rule with vivechak_save (HIGH-15): a missing id or a placeholder (NEW, NNN, XXX, TBD) gets this
+		// session's reserved id or the next free one, D-n is normalized, anything else is E-ID-INVALID.
+		rawID := in.ID
+		resolved, allocated, idErr := resolveArtifactID(sessionOf(req), ws, root, "D", rawID,
+			func(id string) bool { return !decisionADRExists(ws, id) })
+		if idErr != nil {
+			return ErrorResult(tool, idErr, "Use a decision id like D-001, or pass D-NEW to allocate the next free one.")
 		}
-		in.DecisionID = allocated
-		if in.Content != "" {
-			in.Content = reDNew.ReplaceAllString(in.Content, allocated)
+		if in.Content != "" && rawID != "" && !strings.EqualFold(rawID, resolved) && strings.HasPrefix(strings.ToUpper(rawID), "D-") {
+			in.Content = regexp.MustCompile(`(?i)\b`+regexp.QuoteMeta(rawID)+`\b`).ReplaceAllString(in.Content, resolved)
 		}
-	} else if m := reDNum.FindStringSubmatch(in.DecisionID); len(m) > 1 {
-		num, _ := strconv.Atoi(m[1])
-		normalized := fmt.Sprintf("D-%03d", num)
-		if in.Content != "" {
-			in.Content = regexp.MustCompile(`(?i)\b`+regexp.QuoteMeta(in.DecisionID)+`\b`).ReplaceAllString(in.Content, normalized)
+		if allocated {
+			in.Content = placeholderTokenRe.ReplaceAllString(in.Content, resolved)
+			idWarnings = append(idWarnings, NewWarning("W-ID-ALLOCATED", fmt.Sprintf("allocated decision ID %s", resolved), fmt.Sprintf("Use id=%q on subsequent calls.", resolved)))
 		}
-		in.DecisionID = normalized
-	}
+		in.ID = resolved
+		// A session id written with the placeholder (auto_draft_from="D-NNN-S1") names this
+		// decision's session; such ids can never be saved literally, so map them to the resolved id.
+		if from := strings.TrimSpace(in.AutoDraftFrom); placeholderTokenRe.MatchString(from) {
+			in.AutoDraftFrom = placeholderTokenRe.ReplaceAllString(from, resolved)
+			idWarnings = append(idWarnings, NewWarning("W-ID-ALLOCATED", fmt.Sprintf("auto_draft_from %s resolved to %s", from, in.AutoDraftFrom), fmt.Sprintf("Use id=%q for this session.", in.AutoDraftFrom)))
+		}
+	} else {
+		if in.ID == "" {
+			return ErrorResult(tool, fmt.Errorf("E-INVALID-ARGUMENT: id is required"),
+				"Provide a decision identifier like 'D-015'.")
+		}
 
-	// Validate decision ID format to prevent path traversal
-	if !isValidID(in.DecisionID) {
-		return ErrorResult(tool, fmt.Errorf("invalid decision_id %q — must be alphanumeric with optional hyphens, underscores, dots", in.DecisionID),
-			"Use a simple ID like 'D-01'.")
+		if strings.EqualFold(in.ID, "D-NEW") {
+			allocated, aErr := store.AllocateID(ws, "D")
+			if aErr != nil {
+				return ErrorResult(tool, fmt.Errorf("allocating decision ID: %w", aErr), "Check workspace health.")
+			}
+			in.ID = allocated
+			if in.Content != "" {
+				in.Content = reDNew.ReplaceAllString(in.Content, allocated)
+			}
+			idWarnings = append(idWarnings, NewWarning("W-ID-ALLOCATED", fmt.Sprintf("allocated decision ID %s", allocated), fmt.Sprintf("Use id=%q on subsequent calls.", allocated)))
+		} else if m := reDNum.FindStringSubmatch(in.ID); len(m) > 1 {
+			num, _ := strconv.Atoi(m[1])
+			normalized := fmt.Sprintf("D-%03d", num)
+			if in.Content != "" {
+				in.Content = regexp.MustCompile(`(?i)\b`+regexp.QuoteMeta(in.ID)+`\b`).ReplaceAllString(in.Content, normalized)
+			}
+			in.ID = normalized
+		}
+
+		// Validate decision ID format to prevent path traversal
+		if !isValidID(in.ID) {
+			return ErrorResult(tool, fmt.Errorf("E-ID-INVALID: invalid id %q — must be alphanumeric with optional hyphens, underscores, dots", in.ID),
+				"Use a simple ID like 'D-001'.")
+		}
 	}
 
 	if in.AutoDraftFrom != "" && !isValidID(in.AutoDraftFrom) {
-		return ErrorResult(tool, fmt.Errorf("invalid auto_draft_from %q — must be alphanumeric with optional hyphens, underscores, dots", in.AutoDraftFrom),
+		return ErrorResult(tool, fmt.Errorf("E-ID-INVALID: invalid auto_draft_from %q — must be alphanumeric with optional hyphens, underscores, dots", in.AutoDraftFrom),
 			"Use a valid session ID like 'T1-01'.")
 	}
 
@@ -146,7 +173,7 @@ func handleRecordDecision(ctx context.Context, req *sdkmcp.CallToolRequest, in R
 		case "proposed", "accepted", "rejected", "superseded", "deprecated":
 			// valid
 		default:
-			return ErrorResult(tool, fmt.Errorf("invalid status %q — must be proposed, accepted, rejected, superseded, or deprecated", in.Status),
+			return ErrorResult(tool, fmt.Errorf("E-INVALID-ARGUMENT: invalid status %q — must be proposed, accepted, rejected, superseded, or deprecated", in.Status),
 				"Use 'proposed', 'accepted', 'rejected', 'superseded', or 'deprecated'.")
 		}
 	}
@@ -165,7 +192,7 @@ func handleRecordDecision(ctx context.Context, req *sdkmcp.CallToolRequest, in R
 				"Ensure the session has been saved with vivechak_save first.")
 		}
 		if content == "" {
-			return ErrorResult(tool, fmt.Errorf("session file for %q not found", in.AutoDraftFrom),
+			return ErrorResult(tool, fmt.Errorf("E-NOT-FOUND: session file for %q not found", in.AutoDraftFrom),
 				fmt.Sprintf("Ensure session %s has been saved first.", in.AutoDraftFrom))
 		}
 
@@ -174,7 +201,7 @@ func handleRecordDecision(ctx context.Context, req *sdkmcp.CallToolRequest, in R
 		if strings.TrimSpace(in.Content) != "" {
 			existingADR = []byte(in.Content)
 		} else {
-			existingFilename := resolveDecisionFilename(ws, in.DecisionID, in.Slug)
+			existingFilename := resolveDecisionFilename(ws, in.ID, in.Slug)
 			if d, err := ws.ReadFile(filepath.Join(core.DecisionsDir, existingFilename)); err == nil && len(d) > 0 {
 				existingADR = d
 			} else if d, err := ws.ReadFile(filepath.Join(core.ResearchDir, existingFilename)); err == nil && len(d) > 0 {
@@ -184,8 +211,8 @@ func handleRecordDecision(ctx context.Context, req *sdkmcp.CallToolRequest, in R
 
 		if len(existingADR) == 0 {
 			for _, planName := range []string{
-				fmt.Sprintf("%s-plan.md", in.DecisionID),
-				fmt.Sprintf("%s.plan.md", in.DecisionID),
+				fmt.Sprintf("%s-plan.md", in.ID),
+				fmt.Sprintf("%s.plan.md", in.ID),
 			} {
 				if pData, pErr := ws.ReadFile(filepath.Join(core.ResearchDir, planName)); pErr == nil && len(pData) > 0 {
 					existingADR = pData
@@ -195,8 +222,8 @@ func handleRecordDecision(ctx context.Context, req *sdkmcp.CallToolRequest, in R
 		} else {
 			if efm, _, _ := core.ParseFrontmatter(existingADR); efm == nil || efm.GetString("title") == "" || strings.HasPrefix(efm.GetString("title"), "[") {
 				for _, planName := range []string{
-					fmt.Sprintf("%s-plan.md", in.DecisionID),
-					fmt.Sprintf("%s.plan.md", in.DecisionID),
+					fmt.Sprintf("%s-plan.md", in.ID),
+					fmt.Sprintf("%s.plan.md", in.ID),
 				} {
 					if pData, pErr := ws.ReadFile(filepath.Join(core.ResearchDir, planName)); pErr == nil && len(pData) > 0 {
 						if m := reHeaderTitle.FindStringSubmatch(string(pData)); len(m) > 1 {
@@ -211,9 +238,9 @@ func handleRecordDecision(ctx context.Context, req *sdkmcp.CallToolRequest, in R
 			}
 		}
 
-		draft, err := core.DraftDecisionFromSessionWithExisting(existingADR, []byte(content), in.DecisionID)
+		draft, err := core.DraftDecisionFromSessionWithExisting(existingADR, []byte(content), in.ID)
 		if err != nil {
-			return ErrorResult(tool, fmt.Errorf("auto-drafting decision: %w", err),
+			return ErrorResult(tool, fmt.Errorf("E-INVALID-ARGUMENT: auto-drafting decision: %w", err),
 				"Check session content and try again.")
 		}
 
@@ -227,24 +254,29 @@ func handleRecordDecision(ctx context.Context, req *sdkmcp.CallToolRequest, in R
 			in.Revise = true
 		} else {
 			env := Envelope{
-				Success: true,
-				Message: fmt.Sprintf("Auto-drafted decision %s from session %s", in.DecisionID, in.AutoDraftFrom),
+				Ok:      true,
+				Message: fmt.Sprintf("Auto-drafted decision %s from session %s", in.ID, in.AutoDraftFrom),
 				Data: map[string]any{
 					"workspace_root": root,
-					"decision_id":    in.DecisionID,
+					"workspace":      map[string]any{"root": root, "rule": rule},
+					"decision_id":    in.ID,
+					"id":             in.ID,
 					"source_session": in.AutoDraftFrom,
 					"draft_content":  draft,
 				},
-				NextStep: "Review the auto-drafted decision below. Edit as needed, " +
-					"then call vivechak_record_decision with the final content.",
-				Meta: NewMeta(tool),
+				Warnings: idWarnings,
+				Next: &NextAction{
+					Tool: "vivechak_record_decision",
+					Args: map[string]any{"id": in.ID, "revise": true},
+					Why:  "Refine placeholders in draft_content and call vivechak_record_decision with content to persist the ADR.",
+				},
 			}
 			return env.ToResult()
 		}
 	}
 
 	if strings.TrimSpace(in.Content) == "" {
-		return ErrorResult(tool, fmt.Errorf("content is required (or use auto_draft_from to generate a draft)"),
+		return ErrorResult(tool, fmt.Errorf("E-INVALID-ARGUMENT: content is required (or use auto_draft_from to generate a draft)"),
 			"Provide the decision record content, or use auto_draft_from with a session ID to generate a draft.")
 	}
 
@@ -258,12 +290,8 @@ func handleRecordDecision(ctx context.Context, req *sdkmcp.CallToolRequest, in R
 	}
 
 	// Validate artifact type
-	artifactType := in.ArtifactType
-	if artifactType == "" {
-		artifactType = "decision"
-	}
 	if artifactType != "decision" && artifactType != "conflict-resolution" {
-		return ErrorResult(tool, fmt.Errorf("invalid artifact_type %q", artifactType),
+		return ErrorResult(tool, fmt.Errorf("E-INVALID-ARGUMENT: invalid artifact_type %q", artifactType),
 			"Use 'decision' for ADRs or 'conflict-resolution' for ACH analysis.")
 	}
 
@@ -277,26 +305,33 @@ func handleRecordDecision(ctx context.Context, req *sdkmcp.CallToolRequest, in R
 	}
 
 	if validation.HasBlocking() || validation.Status == "invalid" {
+		errCode := "E-INVALID-ARGUMENT"
 		msg := "decision validation failed"
+		fix := "Fix the validation errors and try again."
 		if len(validation.Issues) > 0 {
+			if validation.Issues[0].Code != "" {
+				errCode = validation.Issues[0].Code
+			}
 			msg = validation.Issues[0].Message
+			if validation.Issues[0].FixHint != "" {
+				fix = validation.Issues[0].FixHint
+			}
 		}
-		return ErrorResult(tool, fmt.Errorf("decision validation failed: %s", msg),
-			"Fix the validation errors and try again.")
+		return ErrorResult(tool, fmt.Errorf("%s: decision validation failed: %s", errCode, msg), fix)
 	}
 
 	var supersededFile string
 	if in.Supersedes != "" {
 		if artifactType != "decision" {
-			return ErrorResult(tool, fmt.Errorf("supersedes can only be used with artifact_type='decision'"),
+			return ErrorResult(tool, fmt.Errorf("E-INVALID-ARGUMENT: supersedes can only be used with artifact_type='decision'"),
 				"Provide artifact_type='decision' when superseding a decision.")
 		}
-		if strings.EqualFold(in.Supersedes, in.DecisionID) {
-			return ErrorResult(tool, fmt.Errorf("decision %s cannot supersede itself", in.DecisionID),
+		if strings.EqualFold(in.Supersedes, in.ID) {
+			return ErrorResult(tool, fmt.Errorf("E-INVALID-ARGUMENT: decision %s cannot supersede itself", in.ID),
 				"Provide a different decision ID to supersede.")
 		}
 		if !isValidID(in.Supersedes) {
-			return ErrorResult(tool, fmt.Errorf("invalid supersedes ID %q", in.Supersedes),
+			return ErrorResult(tool, fmt.Errorf("E-ID-INVALID: invalid supersedes ID %q", in.Supersedes),
 				"Use a valid decision ID like 'D-001'.")
 		}
 		oldFilename := resolveDecisionFilename(ws, in.Supersedes, "")
@@ -306,22 +341,22 @@ func handleRecordDecision(ctx context.Context, req *sdkmcp.CallToolRequest, in R
 		}
 		oldData, readErr := ws.ReadFile(oldRelPath)
 		if readErr != nil {
-			return ErrorResult(tool, fmt.Errorf("superseded decision %s not found: %w", in.Supersedes, readErr),
+			return ErrorResult(tool, fmt.Errorf("E-NOT-FOUND: superseded decision %s not found: %w", in.Supersedes, readErr),
 				fmt.Sprintf("Ensure decision %s exists in %s before superseding it.", in.Supersedes, core.ResearchDir))
 		}
 
 		updatedOldData, updateErr := updateFrontmatterFields(oldData, map[string]string{
 			"status":        "superseded",
-			"superseded_by": in.DecisionID,
+			"superseded_by": in.ID,
 		})
 		if updateErr != nil {
-			return ErrorResult(tool, fmt.Errorf("updating superseded decision frontmatter: %w", updateErr),
+			return ErrorResult(tool, fmt.Errorf("E-INVALID-ARGUMENT: updating superseded decision frontmatter: %w", updateErr),
 				"Check frontmatter format of the superseded decision.")
 		}
 
 		oldUnlock, lockErr := store.LockFile(ctx, filepath.Join(root, oldRelPath), 5*time.Second)
 		if lockErr != nil {
-			return ErrorResult(tool, fmt.Errorf("could not acquire lock for %s: %w", oldFilename, lockErr), "Another process may be writing. Try again.")
+			return ErrorResult(tool, fmt.Errorf("E-LOCK-TIMEOUT: could not acquire lock for %s: %w", oldFilename, lockErr), "Another process may be writing. Try again.")
 		}
 		defer func() { _ = oldUnlock() }()
 
@@ -342,9 +377,9 @@ func handleRecordDecision(ctx context.Context, req *sdkmcp.CallToolRequest, in R
 	var filename string
 	switch artifactType {
 	case "decision":
-		filename = resolveDecisionFilename(ws, in.DecisionID, in.Slug)
+		filename = resolveDecisionFilename(ws, in.ID, in.Slug)
 	case "conflict-resolution":
-		filename = in.DecisionID + "-conflict-resolution.md"
+		filename = in.ID + "-conflict-resolution.md"
 	}
 
 	// Save to research directory
@@ -357,8 +392,8 @@ func handleRecordDecision(ctx context.Context, req *sdkmcp.CallToolRequest, in R
 			if exID == "" {
 				exID = fm.GetString("decision_id")
 			}
-			if exID != "" && !strings.EqualFold(exID, in.DecisionID) {
-				return ErrorResult(tool, fmt.Errorf("E-ID-CONFLICT: file %s already exists with different id %s (cannot overwrite with %s)", filename, exID, in.DecisionID),
+			if exID != "" && !strings.EqualFold(exID, in.ID) {
+				return ErrorResult(tool, fmt.Errorf("E-ID-CONFLICT: file %s already exists with different id %s (cannot overwrite with %s)", filename, exID, in.ID),
 					"Use a unique decision ID or correct filename slug.")
 			}
 		}
@@ -370,7 +405,7 @@ func handleRecordDecision(ctx context.Context, req *sdkmcp.CallToolRequest, in R
 		var lockErr error
 		decUnlock, lockErr = store.LockFile(ctx, filepath.Join(root, core.DecisionsFile), 10*time.Second)
 		if lockErr != nil {
-			return ErrorResult(tool, fmt.Errorf("could not acquire decisions registry lock: %w", lockErr), "Another process is recording decisions. Try again.")
+			return ErrorResult(tool, fmt.Errorf("E-LOCK-TIMEOUT: could not acquire decisions registry lock: %w", lockErr), "Another process is recording decisions. Try again.")
 		}
 		defer func() {
 			if decUnlock != nil {
@@ -381,37 +416,49 @@ func handleRecordDecision(ctx context.Context, req *sdkmcp.CallToolRequest, in R
 
 	unlock, err := store.LockFile(ctx, filepath.Join(root, relPath), 5*time.Second)
 	if err != nil {
-		return ErrorResult(tool, fmt.Errorf("could not acquire lock: %w", err), "Another process may be writing. Try again.")
+		return ErrorResult(tool, fmt.Errorf("E-LOCK-TIMEOUT: could not acquire lock: %w", err), "Another process may be writing. Try again.")
 	}
 	defer func() { _ = unlock() }()
+
+	if artifactType == "decision" {
+		// Every ADR carries its id, type: decision and vivechak: 1, also when auto_save redrafts it (HIGH-15).
+		in.Content = string(stampDecisionFrontmatter([]byte(in.Content), in.ID))
+	}
 
 	revise := in.Revise || in.AutoSave
 	if err := ws.WriteArtifact(relPath, []byte(in.Content), 0o644, revise); err != nil {
 		return ErrorResult(tool, fmt.Errorf("writing %s: %w", filename, err),
-			"Check filesystem permissions or pass revise=true to overwrite an existing ADR.")
+			"Pass revise=true only if this updates that same decision; for a different decision, pass id=\"D-NEW\" to allocate a new one.")
 	}
 
-	var warnings []string
+	warnings := append([]Warning{}, idWarnings...)
 	for _, issue := range validation.Issues {
-		warnings = append(warnings, issue.String())
+		warnings = append(warnings, WarningFromIssue(issue))
 	}
 
 	// Compile DECISIONS.md registry from all individual ADR files
 	if artifactType == "decision" {
 		if compileErr := compileDecisionsRegistry(ctx, ws, root); compileErr != nil {
-			warnings = append(warnings, fmt.Sprintf(
-				"W-DECISIONS-COMPILE: Failed to compile DECISIONS.md: %v", compileErr))
+			warnings = append(warnings, NewWarning(
+				"W-DECISIONS-COMPILE",
+				fmt.Sprintf("Failed to compile DECISIONS.md: %v", compileErr),
+				"Check write permissions on research/DECISIONS.md and re-run vivechak_record_decision.",
+			))
 		}
 	}
 
 	// Warn if content contains unexpected or nested decision boundary markers that could confuse the registry
-	startMarker := fmt.Sprintf("<!-- DECISION: %s -->", in.DecisionID)
-	endMarker := fmt.Sprintf("<!-- /DECISION: %s -->", in.DecisionID)
+	startMarker := fmt.Sprintf("<!-- DECISION: %s -->", in.ID)
+	endMarker := fmt.Sprintf("<!-- /DECISION: %s -->", in.ID)
 	innerContent := strings.TrimSpace(in.Content)
 	innerContent = strings.TrimPrefix(innerContent, startMarker)
 	innerContent = strings.TrimSuffix(innerContent, endMarker)
 	if strings.Contains(innerContent, "<!-- DECISION:") || strings.Contains(innerContent, "<!-- /DECISION:") {
-		warnings = append(warnings, "W-MARKER-CONFLICT: content contains unexpected nested HTML decision markers that may conflict with the registry format")
+		warnings = append(warnings, NewWarning(
+			"W-MARKER-CONFLICT",
+			"content contains unexpected nested HTML decision markers that may conflict with the registry format",
+			"Remove manual <!-- DECISION: ... --> markers from individual ADR files.",
+		))
 	}
 
 	// Scan sessions for stale references to superseded decision
@@ -428,7 +475,11 @@ func handleRecordDecision(ctx context.Context, req *sdkmcp.CallToolRequest, in R
 				}
 				if refPattern.Match(sData) {
 					stem := strings.TrimSuffix(se.Name(), ".md")
-					warnings = append(warnings, fmt.Sprintf("W-STALE-DECISION-REFERENCE: session %s references superseded decision %s", stem, in.Supersedes))
+					warnings = append(warnings, NewWarning(
+						"W-STALE-DECISION-REFERENCE",
+						fmt.Sprintf("session %s references superseded decision %s", stem, in.Supersedes),
+						fmt.Sprintf("Review session %s and append an update with vivechak_amend if needed.", stem),
+					))
 				}
 			}
 		}
@@ -438,17 +489,17 @@ func handleRecordDecision(ctx context.Context, req *sdkmcp.CallToolRequest, in R
 	hasPlaceholders := len(phs) > 0
 
 	statusStr := validation.Status
-	msg := fmt.Sprintf("Saved %s %s as %s", artifactType, in.DecisionID, validation.Status)
+	msg := fmt.Sprintf("Saved %s %s as %s", artifactType, in.ID, validation.Status)
 	if hasPlaceholders {
 		statusStr = "draft"
-		msg = fmt.Sprintf("Saved draft ADR %s (proposed; %d placeholder lines to refine)", in.DecisionID, len(phs))
+		msg = fmt.Sprintf("Saved draft ADR %s (proposed; %d placeholder lines to refine)", in.ID, len(phs))
 	}
 
 	dataMap := map[string]any{
 		"workspace_root":   root,
 		"workspace":        map[string]any{"root": root, "rule": rule},
-		"decision_id":      in.DecisionID,
-		"id":               in.DecisionID,
+		"decision_id":      in.ID,
+		"id":               in.ID,
 		"artifact_type":    artifactType,
 		"file_path":        filepath.ToSlash(filepath.Join(core.ResearchDir, filename)),
 		"status":           statusStr,
@@ -470,41 +521,67 @@ func handleRecordDecision(ctx context.Context, req *sdkmcp.CallToolRequest, in R
 	}
 
 	// Mini-status (eliminates need for separate status calls)
-	var knownIDs []string
+	var planDAG *core.DAG
 	progress := make(map[string]any)
 	info := core.InspectWorkspace(root)
 	if info.HasPipeline {
 		if pipeData, err := ws.ReadFile(core.PipelineFile); err == nil {
 			if dag, err := core.ParsePipeline(pipeData); err == nil {
-				for _, s := range dag.Sessions {
-					knownIDs = append(knownIDs, s.ID)
-				}
+				planDAG = dag
 				progress["sessions_total"] = len(dag.Sessions)
 			}
 		}
 	}
-	completedSessions, _ := scanCompletedSessions(ws, knownIDs...)
+	completedSessions, _ := planDAG.CompletedSessions(ws)
 	gateDecisions := collectGateDecisions(ws)
 	progress["sessions_completed"] = len(completedSessions)
 	progress["decisions_recorded"] = len(gateDecisions)
 	dataMap["progress"] = progress
 
-	nextStep := "Run vivechak_next for the next research session, or " +
-		"vivechak_record_decision with auto_draft_from=[session_id] to auto-draft " +
-		"a decision from session findings. Use vivechak_status to review progress."
-	if fm, _, _ := core.ParseFrontmatter([]byte(in.Content)); fm != nil {
-		if strings.EqualFold(fm.GetString("door_type"), "one-way") {
-			nextStep += " (one-way door — requires Grade A/B evidence, specific reversal triggers, and documented rejected alternatives)"
+	var next *NextAction
+	if hasPlaceholders {
+		next = &NextAction{
+			Tool: "vivechak_record_decision",
+			Args: map[string]any{"id": in.ID, "revise": true},
+			Why:  fmt.Sprintf("Replace all %d placeholder line(s) in %s and save with status=\"accepted\" and revise=true.", len(phs), in.ID),
+		}
+	} else {
+		isOneWay := false
+		if fm, _, _ := core.ParseFrontmatter([]byte(in.Content)); fm != nil {
+			isOneWay = strings.EqualFold(fm.GetString("door_type"), "one-way")
+		}
+		challengeCited := regexp.MustCompile(`(?i)\b` + regexp.QuoteMeta(in.ID) + `-R\d+\b`).MatchString(in.Content)
+		if artifactType == "decision" && isOneWay && !challengeCited {
+			next = &NextAction{
+				Tool: "vivechak_review",
+				Args: map[string]any{"mode": "red_team", "id": in.ID},
+				Why:  fmt.Sprintf("Run adversarial red-team review for One-Way Door %s and cite the returned record_id before Phase 0 Gate.", in.ID),
+			}
+		} else if planDAG != nil && len(completedSessions) < len(planDAG.Sessions) {
+			next = &NextAction{
+				Tool: "vivechak_next",
+				Args: map[string]any{},
+				Why:  "Continue with the next unblocked research session in the pipeline.",
+			}
+		} else {
+			why := "Evaluate Phase 0 Gate exit criteria before implementation."
+			if isOneWay {
+				why = fmt.Sprintf("Evaluate Phase 0 Gate exit criteria (ask a human reviewer to run 'vck signoff %s' in an interactive terminal).", in.ID)
+			}
+			next = &NextAction{
+				Tool: "vivechak_gate",
+				Args: map[string]any{},
+				Why:  why,
+			}
 		}
 	}
 
 	env := Envelope{
-		Success:  true,
+		Ok:       true,
 		Message:  msg,
 		Data:     dataMap,
 		Warnings: warnings,
-		NextStep: nextStep,
-		Meta:     NewMeta(tool),
+		Next:     next,
 	}
 	return env.ToResult()
 }
@@ -848,8 +925,9 @@ func naturalDecisionIDLess(a, b string) bool {
 var reSessionOrReview = regexp.MustCompile(`(?i)-[RS]\d+`)
 
 // resolveDecisionFilename determines the target filename for a decision artifact.
-// It prioritizes explicit slugs, then matches existing [ID]-*.md files in the research directory,
-// and falls back to [ID]-decision.md.
+// It prioritizes explicit slugs, then adopts an existing [ID]-*.md ADR file in the research directory,
+// and falls back to [ID]-decision.md. Only a decision file is adopted: its frontmatter type is
+// "decision", or it has no type and no -comparison/-plan suffix; never a comparison or a plan (CRIT-19).
 func resolveDecisionFilename(ws *store.Workspace, decisionID string, slug string) string {
 	if slug != "" {
 		return fmt.Sprintf("%s-%s.md", decisionID, slug)
@@ -866,15 +944,40 @@ func resolveDecisionFilename(ws *store.Workspace, decisionID string, slug string
 				if strings.HasSuffix(nameUpper, "-PLAN.MD") || reSessionOrReview.MatchString(nameUpper) {
 					continue
 				}
-				if nameUpper == idUpper+".MD" ||
+				if (nameUpper == idUpper+".MD" ||
 					strings.HasPrefix(nameUpper, idUpper+"-") ||
-					strings.HasPrefix(nameUpper, idUpper+"_") {
+					strings.HasPrefix(nameUpper, idUpper+"_")) && isDecisionArtifact(ws, name) {
 					return name
 				}
 			}
 		}
 	}
 	return decisionID + "-decision.md"
+}
+
+// isDecisionArtifact reports whether research/<name> holds an ADR: frontmatter type "decision",
+// or no type at all and a filename that does not end in -comparison.md or -plan.md.
+func isDecisionArtifact(ws *store.Workspace, name string) bool {
+	data, err := ws.ReadFile(filepath.Join(core.ResearchDir, name))
+	if err != nil {
+		return false
+	}
+	if fm, _, _ := core.ParseFrontmatter(data); fm != nil {
+		if typ := strings.ToLower(strings.TrimSpace(fm.GetString("type"))); typ != "" {
+			return typ == "decision"
+		}
+	}
+	lower := strings.ToLower(name)
+	return !strings.HasSuffix(lower, "-comparison.md") && !strings.HasSuffix(lower, "-plan.md")
+}
+
+// stampDecisionFrontmatter sets id, type: decision and vivechak: 1 in an ADR's frontmatter, editing only those
+// keys in place (in a fixed order, so the same content always yields the same bytes).
+func stampDecisionFrontmatter(content []byte, decisionID string) []byte {
+	for _, kv := range [][2]string{{"id", decisionID}, {"type", "decision"}, {"vivechak", "1"}} {
+		content = core.SetFrontmatterField(content, kv[0], kv[1])
+	}
+	return content
 }
 
 // updateFrontmatterFields modifies or adds key-value pairs in YAML frontmatter,

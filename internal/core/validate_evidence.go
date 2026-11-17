@@ -142,7 +142,7 @@ func checkEvidenceGrades(bodyStr string, result *ValidationResult) {
 	if bodyStr != "" && !evidenceGradePattern.MatchString(bodyStr) {
 		result.AddIssueWithHint(L3Warn, "W-NO-EVIDENCE-GRADES",
 			"No inline evidence grades found (expected A-E grades per P3)",
-			"Add evidence grades like 'A (official docs)' or 'B (peer-reviewed study)' to claims")
+			"Grade each claim inline, e.g. (Grade A · single · fresh · direct | fetched) next to its URL; grades A–E are defined in the vivechak://methodology/grades resource")
 	}
 }
 

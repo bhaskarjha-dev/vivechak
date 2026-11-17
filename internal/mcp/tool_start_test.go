@@ -2,6 +2,7 @@ package mcputil
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -28,7 +29,7 @@ func TestStart_ProjectScope_MultipartChunking(t *testing.T) {
 		t.Fatalf("vivechak_start part 1 failed: %v", err)
 	}
 	env1 := parseEnvelope(t, res1)
-	if !env1.Success {
+	if !env1.Ok {
 		t.Fatalf("expected success on part 1, got error: %s", env1.Message)
 	}
 	data1, ok := env1.Data.(map[string]any)
@@ -75,7 +76,7 @@ func TestStart_ProjectScope_MultipartChunking(t *testing.T) {
 		t.Fatalf("vivechak_start part 2 failed: %v", err)
 	}
 	env2 := parseEnvelope(t, res2)
-	if !env2.Success {
+	if !env2.Ok {
 		t.Fatalf("expected success on part 2, got error: %s", env2.Message)
 	}
 	data2, ok := env2.Data.(map[string]any)
@@ -125,7 +126,7 @@ func TestStart_ProjectScope_DefaultOmittedPart(t *testing.T) {
 		t.Fatalf("vivechak_start failed: %v", err)
 	}
 	env := parseEnvelope(t, res)
-	if !env.Success {
+	if !env.Ok {
 		t.Fatalf("expected success, got error: %s", env.Message)
 	}
 	data, ok := env.Data.(map[string]any)
@@ -171,7 +172,7 @@ func TestStart_InvalidPart(t *testing.T) {
 		t.Fatalf("call tool failed: %v", err)
 	}
 	env := parseEnvelope(t, res)
-	if env.Success {
+	if env.Ok {
 		t.Errorf("expected failure for out-of-range part 99, got success")
 	}
 	if !strings.Contains(env.Message, "invalid part 99") {
@@ -222,7 +223,7 @@ func TestStart_FilesystemRootAndHomeGuards(t *testing.T) {
 		t.Fatalf("call tool failed: %v", err)
 	}
 	envRoot := parseEnvelope(t, resRoot)
-	if envRoot.Success {
+	if envRoot.Ok {
 		t.Errorf("expected failure for filesystem root '/', got success")
 	}
 	if !strings.Contains(envRoot.Message, "cannot be used as workspace root") {
@@ -243,7 +244,7 @@ func TestStart_FilesystemRootAndHomeGuards(t *testing.T) {
 			t.Fatalf("call tool failed: %v", err)
 		}
 		envHome := parseEnvelope(t, resHome)
-		if envHome.Success {
+		if envHome.Ok {
 			t.Errorf("expected failure for user home dir %q, got success", home)
 		}
 		if !strings.Contains(envHome.Message, "user home directory") {
@@ -253,29 +254,24 @@ func TestStart_FilesystemRootAndHomeGuards(t *testing.T) {
 }
 
 func TestStart_ScopeInference(t *testing.T) {
-	cs := testServer(t)
 	ctx := context.Background()
 	tmpDir := t.TempDir()
 
-	res, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_start",
-		Arguments: map[string]any{
-			"project_root": tmpDir,
-			"question":     "Compare Pino vs Winston for structured logging",
-		},
+	_, env, err := handleStart(ctx, nil, StartInput{
+		ProjectRoot: tmpDir,
+		Question:    "Compare Pino vs Winston for structured logging",
 	})
 	if err != nil {
-		t.Fatalf("call tool failed: %v", err)
+		t.Fatalf("handleStart failed: %v", err)
 	}
-	env := parseEnvelope(t, res)
-	if !env.Success {
+	if !env.Ok {
 		t.Fatalf("expected success, got error: %s", env.Message)
 	}
 	data, ok := env.Data.(map[string]any)
 	if !ok {
 		t.Fatalf("expected env.Data to be map[string]any, got %T", env.Data)
 	}
-	if data["scope"] != "comparison" {
+	if fmt.Sprint(data["scope"]) != "comparison" {
 		t.Errorf("expected inferred scope 'comparison', got: %v", data["scope"])
 	}
 }

@@ -9,6 +9,55 @@ import (
 
 var canonicalEvidenceIDRe = regexp.MustCompile(`\b(E-\d{1,4})\b`)
 
+// planHeadingIDRe matches a plan heading's "<ID>-PLAN" prefix (with an optional ": <title>").
+var planHeadingIDRe = regexp.MustCompile(`(?i)^[A-Za-z0-9_-]+-PLAN\s*(?::\s*(.*))?$`)
+
+// PlanDecisionTitle returns the decision title a plan declares: its first top-level heading outside code fences
+// (without a leading "<ID>-PLAN:"), else the title of the decision in its machine-readable plan block (the one
+// whose id is the plan's, or the only one). It returns "" when the plan declares no title (HIGH-13).
+func PlanDecisionTitle(plan []byte) string {
+	body := plan
+	if _, b, err := ParseFrontmatter(plan); err == nil && b != nil {
+		body = b
+	}
+	fence := ""
+	for _, line := range strings.Split(string(body), "\n") {
+		trimmed := strings.TrimSpace(line)
+		if ticks := len(trimmed) - len(strings.TrimLeft(trimmed, "`")); ticks >= 3 {
+			run := trimmed[:ticks]
+			switch {
+			case fence == "":
+				fence = run
+			case strings.HasPrefix(run, fence) && strings.TrimSpace(trimmed[ticks:]) == "":
+				fence = ""
+			}
+			continue
+		}
+		if fence != "" || !strings.HasPrefix(trimmed, "# ") {
+			continue
+		}
+		title := strings.TrimSpace(trimmed[2:])
+		if m := planHeadingIDRe.FindStringSubmatch(title); m != nil {
+			title = strings.TrimSpace(m[1])
+		}
+		if title != "" && (!strings.HasPrefix(title, "[") || !strings.HasSuffix(title, "]")) {
+			return title
+		}
+		break // only the plan's first heading names it
+	}
+	if block, err := ParsePlanMachineBlock(plan); err == nil && block != nil {
+		for _, d := range block.Decisions {
+			if strings.EqualFold(strings.TrimSpace(d.ID), strings.TrimSpace(block.Plan)) && strings.TrimSpace(d.Title) != "" {
+				return strings.TrimSpace(d.Title)
+			}
+		}
+		if len(block.Decisions) == 1 && strings.TrimSpace(block.Decisions[0].Title) != "" {
+			return strings.TrimSpace(block.Decisions[0].Title)
+		}
+	}
+	return ""
+}
+
 func extractCanonicalEvidenceIDs(sessionFM Frontmatter, sessionBody string) []string {
 	seen := make(map[string]bool)
 	var ids []string
@@ -91,7 +140,17 @@ func DraftDecisionFromSessionWithExisting(existingADR []byte, sessionContent []b
 
 	// Determine fields: preserve existing non-placeholder values
 	title := sessionTitle
-	if existFM != nil && !isPlaceholder(existFM.GetString("title")) {
+	existIsPlan := existFM != nil && strings.EqualFold(strings.TrimSpace(existFM.GetString("type")), "plan")
+	if existIsPlan {
+		// No ADR yet, so the "existing" record is the decision's plan: its decision title (heading or plan block,
+		// else a non-placeholder frontmatter title) wins over the session title (HIGH-13).
+		if pt := PlanDecisionTitle(existingADR); pt != "" {
+			title = pt
+		} else if !isPlaceholder(existFM.GetString("title")) {
+			title = existFM.GetString("title")
+		}
+	}
+	if !existIsPlan && existFM != nil && !isPlaceholder(existFM.GetString("title")) {
 		title = existFM.GetString("title")
 	} else if title == "" || isPlaceholder(title) {
 		extractHeadingTitle := func(text string) string {
@@ -324,7 +383,7 @@ func DraftDecisionFromSessionWithExisting(existingADR []byte, sessionContent []b
 	if isSubstantiveSection(existChallenge) {
 		b.WriteString(existChallenge + "\n\n")
 	} else {
-		b.WriteString("> Required for One-Way Doors: run `vivechak_review(target=\"...\", mode=\"challenge\")` before commitment.\n")
+		fmt.Fprintf(&b, "> Required for One-Way Doors: run `vivechak_review(mode=\"red_team\", id=%q)` before commitment.\n", decisionID)
 		b.WriteString("[Document disconfirming search results, premortem failure modes, and adversarial stress-test findings.]\n\n")
 	}
 

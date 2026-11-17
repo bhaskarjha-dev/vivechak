@@ -35,9 +35,9 @@ func registerResources(server *sdkmcp.Server) {
 	}{
 		{
 			uri:         "vivechak://templates/decisions",
-			name:        "template_decisions",
-			title:       "ADR Template (Architecture Decision Record)",
-			description: "Canonical YAML frontmatter Architecture Decision Record format for recording technical decisions.",
+			name:        "decisions",
+			title:       "ADR Template",
+			description: "ADR contract.",
 			readFn: func() (string, error) {
 				b, err := vembed.ReadTemplate("DECISIONS.template.md")
 				return string(b), err
@@ -45,9 +45,9 @@ func registerResources(server *sdkmcp.Server) {
 		},
 		{
 			uri:         "vivechak://templates/comparison",
-			name:        "template_comparison",
-			title:       "WEP Comparison Template",
-			description: "Weighted Evaluation Protocol matrix template for structured multi-option evaluation.",
+			name:        "comparison",
+			title:       "WEP Template",
+			description: "WEP matrix contract.",
 			readFn: func() (string, error) {
 				b, err := vembed.ReadTemplate("COMPARISON-SESSION.template.md")
 				return string(b), err
@@ -55,9 +55,9 @@ func registerResources(server *sdkmcp.Server) {
 		},
 		{
 			uri:         "vivechak://templates/fad",
-			name:        "template_fad",
-			title:       "Founding Architecture Document Template (FAD)",
-			description: "Map-Reduce terminal synthesis architecture template for greenfield systems.",
+			name:        "fad",
+			title:       "FAD Template",
+			description: "FAD synthesis contract.",
 			readFn: func() (string, error) {
 				b, err := vembed.ReadTemplate("FOUNDING-ARCHITECTURE.template.md")
 				return string(b), err
@@ -65,9 +65,9 @@ func registerResources(server *sdkmcp.Server) {
 		},
 		{
 			uri:         "vivechak://templates/conflict-resolution",
-			name:        "template_conflict_resolution",
-			title:       "Conflict Resolution Template",
-			description: "Analysis of Competing Hypotheses (ACH) template for resolving contested technical claims.",
+			name:        "conflict-resolution",
+			title:       "Conflict Template",
+			description: "Conflict resolution contract.",
 			readFn: func() (string, error) {
 				b, err := vembed.ReadTemplate("CONFLICT-RESOLUTION.template.md")
 				return string(b), err
@@ -75,9 +75,9 @@ func registerResources(server *sdkmcp.Server) {
 		},
 		{
 			uri:         "vivechak://templates/gate",
-			name:        "template_gate",
-			title:       "Phase 0 Exit Gate Template",
-			description: "Two-track (Track A reversibility & Track B Rules G1–G12) pre-codebase exit criteria template.",
+			name:        "gate",
+			title:       "Gate Template",
+			description: "Phase 0 gate contract.",
 			readFn: func() (string, error) {
 				b, err := vembed.ReadTemplate("PHASE-0-GATE.template.md")
 				return string(b), err
@@ -85,9 +85,9 @@ func registerResources(server *sdkmcp.Server) {
 		},
 		{
 			uri:         "vivechak://templates/session",
-			name:        "template_session",
-			title:       "Research Session Template",
-			description: "Standard research session output format with YAML frontmatter, Prior, Delta, and Evidence Ledger.",
+			name:        "session",
+			title:       "Session Template",
+			description: "Session output contract.",
 			readFn: func() (string, error) {
 				b, err := vembed.ReadTemplate("SESSION.template.md")
 				return string(b), err
@@ -95,18 +95,18 @@ func registerResources(server *sdkmcp.Server) {
 		},
 		{
 			uri:         "vivechak://methodology/grades",
-			name:        "methodology_grades",
-			title:       "Evidence Grading Reference Card (Grades A–E)",
-			description: "Taxonomy of evidence grades A–E, modifiers (corroboration, recency, directness), and verification methods.",
+			name:        "grades",
+			title:       "Evidence Grades",
+			description: "Grades A-E and modifiers.",
 			readFn: func() (string, error) {
 				return method.FormatTaxonomyMarkdown(), nil
 			},
 		},
 		{
 			uri:         "vivechak://methodology/principles",
-			name:        "methodology_principles",
-			title:       "Core Principles Reference Card (P1–P8)",
-			description: "The 8 epistemic grounding principles: Context Architecture, Reversibility-Calibrated Rigor, Evidentiary Grounding, etc.",
+			name:        "principles",
+			title:       "Core Principles",
+			description: "Principles P1-P8.",
 			readFn: func() (string, error) {
 				return corePrinciplesDoc, nil
 			},

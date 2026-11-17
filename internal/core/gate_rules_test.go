@@ -11,18 +11,18 @@ import (
 	"github.com/bhaskarjha-dev/vivechak/internal/store"
 )
 
-func TestIsSynthesisSession_TightPattern(t *testing.T) {
-	valid := []string{"FAD", "fad", "SYN", "syn", "SYN-01", "syn-01", "SYN-2", "SYN-99"}
-	for _, id := range valid {
-		if !IsSynthesisSession(id) {
-			t.Errorf("expected IsSynthesisSession(%q) to be true", id)
+// The synthesis session is the one the plan marks kind: synthesis; no id makes a session the synthesis session
+// (HIGH-07), so ids that look like synthesis ids are ordinary without the kind and any id can carry it.
+func TestSynthesisSession_KindNotID(t *testing.T) {
+	ids := []string{"FAD", "fad", "SYN", "syn", "SYN-01", "syn-01", "SYN-2", "SYN-99", "SYNC-01", "sync-01", "SYNTAX", "syn_01", "SESSION-01", "T0-01", "FINAL-01"}
+	for _, id := range ids {
+		plain := &DAG{Sessions: []Session{{ID: id}}}
+		if plain.IsSynthesisID(id) || plain.Sessions[0].IsSynthesis() {
+			t.Errorf("%q without kind: synthesis must be an ordinary session", id)
 		}
-	}
-
-	invalid := []string{"SYNC-01", "sync-01", "SYNTAX", "syn_01", "SESSION-01", "T0-01", "D-01", "C-01"}
-	for _, id := range invalid {
-		if IsSynthesisSession(id) {
-			t.Errorf("expected IsSynthesisSession(%q) to be false", id)
+		marked := &DAG{Sessions: []Session{{ID: id, Kind: SynthesisKind}}}
+		if !marked.IsSynthesisID(strings.ToUpper(id)) || !marked.Sessions[0].IsSynthesis() {
+			t.Errorf("%q with kind: synthesis must be the synthesis session", id)
 		}
 	}
 }
@@ -159,19 +159,10 @@ func setupPassingBase(t *testing.T) (string, *testWorkspaceFS) {
 	_ = os.WriteFile(filepath.Join(dir, MetadataFile), []byte(`{"scope":"project"}`), 0o644)
 
 	// Pipeline (G1)
-	pipeline := `# Pipeline
-### T0-01: Foundation
-Dependencies: none
-` + "```prompt\nResearch\n```\n" + `
-### T1-01: Backend Architecture
-Dependencies: [T0-01]
-` + "```prompt\nResearch\n```\n" + `
-### T2-01: Data Tier Architecture
-Dependencies: [T0-01]
-` + "```prompt\nResearch\n```\n" + `
-### SYN-01: Synthesis
-Dependencies: [T1-01, T2-01]
-` + "```prompt\nSynthesize\n```\n"
+	pipeline := projectPlan([]string{"{id: T0-01, title: Foundation, depends: []}", "{id: T1-01, title: Backend Architecture, depends: [T0-01]}",
+		"{id: T2-01, title: Data Tier Architecture, depends: [T0-01]}", "{id: SYN-01, title: Synthesis, kind: synthesis, depends: [T1-01, T2-01]}"},
+		section("T0-01", "Foundation", "Research")+section("T1-01", "Backend Architecture", "Research")+
+			section("T2-01", "Data Tier Architecture", "Research")+section("SYN-01", "Synthesis", "Synthesize"))
 	_ = os.WriteFile(filepath.Join(dir, PipelineFile), []byte(pipeline), 0o644)
 
 	// Sessions T0-01, T1-01, T2-01 (G2)

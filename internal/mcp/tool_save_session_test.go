@@ -12,14 +12,19 @@ import (
 )
 
 func TestBuildNextStep_Synthesis_ExitGate(t *testing.T) {
-	nextStep := buildNextStep("SYN-01", 0, nil, nil)
+	// The synthesis session is the plan's kind: synthesis session (or a kind="fad" save), whatever its id.
+	nextStep := buildNextStep("SYN-01", true, 0, nil, nil)
 	if !strings.Contains(nextStep, "vivechak_gate") {
 		t.Errorf("expected synthesis nextStep to mandate vivechak_gate, got: %s", nextStep)
 	}
 
-	nextStepFAD := buildNextStep("FAD", 0, nil, nil)
+	nextStepFAD := buildNextStep("FINAL-01", true, 0, nil, nil)
 	if !strings.Contains(nextStepFAD, "vivechak_gate") {
 		t.Errorf("expected FAD nextStep to mandate vivechak_gate, got: %s", nextStepFAD)
+	}
+
+	if ordinary := buildNextStep("SYN-01", false, 0, nil, nil); strings.Contains(ordinary, "vivechak_gate") {
+		t.Errorf("a session named SYN-01 that is not the synthesis session must not route to the gate, got: %s", ordinary)
 	}
 }
 
@@ -30,12 +35,12 @@ func TestBuildNextStep_ADRAutoDraftGuidance(t *testing.T) {
 			{ID: "T1-02", DoorType: "two-way"},
 		},
 	}
-	owdStep := buildNextStep("T1-01", 0, nil, dag)
+	owdStep := buildNextStep("T1-01", false, 0, nil, dag)
 	if !strings.Contains(owdStep, `auto_draft_from="T1-01"`) {
 		t.Errorf("expected OWD nextStep to include auto_draft_from guidance, got: %s", owdStep)
 	}
 
-	twdStep := buildNextStep("T1-02", 0, nil, dag)
+	twdStep := buildNextStep("T1-02", false, 0, nil, dag)
 	if !strings.Contains(twdStep, `auto_draft_from="T1-02"`) {
 		t.Errorf("expected TWD nextStep to include auto_draft_from guidance, got: %s", twdStep)
 	}
@@ -46,9 +51,9 @@ func TestHandleSaveSession_FrontmatterStatusSync(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Initialize workspace
-	initRes, initEnv, err := handleInit(ctx, nil, InitInput{ProjectRoot: tmpDir, Scope: "project"})
+	initRes, initEnv, err := handleStart(ctx, nil, StartInput{Question: "test", ProjectRoot: tmpDir, Scope: "project"})
 	if err != nil || initRes.IsError {
-		t.Fatalf("handleInit failed: %v, env: %+v", err, initEnv)
+		t.Fatalf("handleStart failed: %v, env: %+v", err, initEnv)
 	}
 
 	ws, err := store.OpenWorkspace(tmpDir)
@@ -58,36 +63,12 @@ func TestHandleSaveSession_FrontmatterStatusSync(t *testing.T) {
 	defer ws.Close()
 
 	// Save pipeline with an irreversible One-Way Door session
-	pipelineMD := `# Pipeline
-
-### Session T1-01: Primary Datastore
-
-| Field | Value |
-|---|---|
-| **ID** | T1-01 |
-| **Layer** | 1 |
-| **Door Type** | One-Way |
-| **Decision** | D-001 |
-| **Dependencies** | none |
-| **Output File** | research/sessions/T1-01.md |
-
-` + "```prompt" + `
-Prompt text
-` + "```" + `
-
-### Session T1-02: Cache Layer
-
-| Field | Value |
-|---|---|
-| **ID** | T1-02 |
-| **Layer** | 1 |
-| **Door Type** | Two-Way |
-| **Dependencies** | T1-01 |
-| **Output File** | research/sessions/T1-02.md |
-
-` + "```prompt" + `
-Prompt text
-` + "```\n"
+	pipelineMD := testPlan("Pipeline", "PROJECT", "", []string{
+		"{id: T1-01, title: Primary Datastore, layer: 1, door: one-way, informs: [D-001], depends: []}",
+		"{id: T1-02, title: Cache Layer, layer: 1, door: two-way, depends: [T1-01]}",
+		"{id: SYN-01, title: Synthesis, kind: synthesis, depends: [ALL]}",
+	}, testSection("T1-01", "Primary Datastore", "Prompt text"), testSection("T1-02", "Cache Layer", "Prompt text"),
+		testSection("SYN-01", "Synthesis", "Synthesize."))
 	if err := os.WriteFile(filepath.Join(tmpDir, core.PipelineFile), []byte(pipelineMD), 0o644); err != nil {
 		t.Fatalf("writing pipeline failed: %v", err)
 	}
@@ -106,9 +87,10 @@ date: 2026-10-14
 ## Recommendation
 Postgres is selected (Grade A · canonical | fetched https://www.postgresql.org).
 `
-	res1, env1, err := handleSaveSession(ctx, nil, SaveSessionInput{
+	res1, env1, err := handleSave(ctx, nil, SaveInput{
+		Kind:        "session",
 		ProjectRoot: tmpDir,
-		SessionID:   "T1-01",
+		ID:          "T1-01",
 		Content:     invalidOWDContent,
 	})
 	if err != nil || res1.IsError {
@@ -154,9 +136,10 @@ Postgres is selected (Grade A · canonical | fetched https://www.postgresql.org)
 ## Discovered Concerns
 Found major connection limits and serialization anomalies under high concurrent connection spikes requiring pgbouncer.
 `
-	res2, env2, err := handleSaveSession(ctx, nil, SaveSessionInput{
+	res2, env2, err := handleSave(ctx, nil, SaveInput{
+		Kind:        "session",
 		ProjectRoot: tmpDir,
-		SessionID:   "T1-01",
+		ID:          "T1-01",
 		Content:     validOWDContent,
 		Revise:      true,
 	})
@@ -192,9 +175,9 @@ func TestHandleSaveSession_NoRootFADCopy(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Initialize workspace
-	initRes, initEnv, err := handleInit(ctx, nil, InitInput{ProjectRoot: tmpDir, Scope: "project"})
+	initRes, initEnv, err := handleStart(ctx, nil, StartInput{Question: "test", ProjectRoot: tmpDir, Scope: "project"})
 	if err != nil || initRes.IsError {
-		t.Fatalf("handleInit failed: %v, env: %+v", err, initEnv)
+		t.Fatalf("handleStart failed: %v, env: %+v", err, initEnv)
 	}
 
 	fadContent := `---
@@ -206,14 +189,15 @@ date: 2026-10-14
 # Founding Architecture Document
 Content here with Grade A (canonical docs: https://example.com) architecture.
 `
-	// Attempt to save synthesis session SYN-01
-	res, env, err := handleSaveSession(ctx, nil, SaveSessionInput{
+	// Save the synthesis (kind="fad"; with no plan, an id alone never makes a session the synthesis session)
+	res, env, err := handleSave(ctx, nil, SaveInput{
 		ProjectRoot: tmpDir,
-		SessionID:   "SYN-01",
+		Kind:        "fad",
+		ID:          "SYN-01",
 		Content:     fadContent,
 	})
 	if err != nil || res.IsError {
-		t.Fatalf("handleSaveSession failed: %v, env: %+v", err, env)
+		t.Fatalf("handleSave failed: %v, env: %+v", err, env)
 	}
 
 	// 1. research/FAD.md must exist
@@ -234,9 +218,9 @@ func TestHandleAmendSession_NoRootFADCopy(t *testing.T) {
 	ctx := context.Background()
 
 	// Initialize workspace
-	_, _, err := handleInit(ctx, nil, InitInput{ProjectRoot: tmpDir, Scope: "project"})
+	_, _, err := handleStart(ctx, nil, StartInput{Question: "test", ProjectRoot: tmpDir, Scope: "project"})
 	if err != nil {
-		t.Fatalf("handleInit failed: %v", err)
+		t.Fatalf("handleStart failed: %v", err)
 	}
 
 	fadContent := `---
@@ -248,24 +232,25 @@ date: 2026-10-14
 # Founding Architecture Document
 Base architecture content with Grade A (canonical docs: https://example.com).
 `
-	// Save initial SYN-01
-	res, env, err := handleSaveSession(ctx, nil, SaveSessionInput{
+	// Save initial SYN-01 as the synthesis (kind="fad"; with no plan, an id alone never makes it the synthesis)
+	res, env, err := handleSave(ctx, nil, SaveInput{
 		ProjectRoot: tmpDir,
-		SessionID:   "SYN-01",
+		Kind:        "fad",
+		ID:          "SYN-01",
 		Content:     fadContent,
 	})
 	if err != nil || res.IsError {
-		t.Fatalf("handleSaveSession failed: %v, env: %+v", err, env)
+		t.Fatalf("handleSave failed: %v, env: %+v", err, env)
 	}
 
 	// Amend synthesis session SYN-01
-	resAmend, envAmend, err := handleAmendSession(ctx, nil, AmendSessionInput{
+	resAmend, envAmend, err := handleAmend(ctx, nil, AmendInput{
 		ProjectRoot: tmpDir,
-		SessionID:   "SYN-01",
-		Amendment:   "### Post-Hoc Synthesis Note\nValidated edge caching layer.\n",
+		ID:          "SYN-01",
+		Note:        "### Post-Hoc Synthesis Note\nValidated edge caching layer.\n",
 	})
 	if err != nil || resAmend.IsError {
-		t.Fatalf("handleAmendSession failed: %v, env: %+v", err, envAmend)
+		t.Fatalf("handleAmend failed: %v, env: %+v", err, envAmend)
 	}
 
 	// 1. research/FAD.md must contain amendment

@@ -593,22 +593,22 @@ status: complete
 	ctx := context.Background()
 	_, envSelf, _ := handleRecordDecision(ctx, nil, RecordDecisionInput{
 		ProjectRoot: tmpDir,
-		DecisionID:  "D-001",
+		ID:          "D-001",
 		Supersedes:  "D-001",
 		Content:     d1Content,
 	})
-	if envSelf.Success {
+	if envSelf.Ok {
 		t.Errorf("expected failure when superseding itself")
 	}
 
 	// 4. Test supersede non-existent decision error
 	_, envNonExistent, _ := handleRecordDecision(ctx, nil, RecordDecisionInput{
 		ProjectRoot: tmpDir,
-		DecisionID:  "D-002",
+		ID:          "D-002",
 		Supersedes:  "D-999",
 		Content:     d1Content,
 	})
-	if envNonExistent.Success {
+	if envNonExistent.Ok {
 		t.Errorf("expected failure when superseding non-existent decision")
 	}
 
@@ -624,11 +624,11 @@ Migrated away from SQLite to DuckDB for analytical query performance and embedde
 `
 	_, envSuccess, err := handleRecordDecision(ctx, nil, RecordDecisionInput{
 		ProjectRoot: tmpDir,
-		DecisionID:  "D-002",
+		ID:          "D-002",
 		Supersedes:  "D-001",
 		Content:     d2Content,
 	})
-	if err != nil || !envSuccess.Success {
+	if err != nil || !envSuccess.Ok {
 		t.Fatalf("handleRecordDecision supersede failed: err=%v, env=%+v", err, envSuccess)
 	}
 
@@ -657,7 +657,7 @@ Migrated away from SQLite to DuckDB for analytical query performance and embedde
 
 	// Verify warnings contain W-STALE-DECISION-REFERENCE for session T-01
 	foundWarning := false
-	for _, w := range envSuccess.Warnings {
+	for _, w := range envWarningStrings(envSuccess) {
 		if strings.Contains(w, "W-STALE-DECISION-REFERENCE") && strings.Contains(w, "T-01") {
 			foundWarning = true
 			break
@@ -714,11 +714,11 @@ Upgraded engine rationale and alternatives considered.
 	ctx := context.Background()
 	_, envSuccess, err := handleRecordDecision(ctx, nil, RecordDecisionInput{
 		ProjectRoot: tmpDir,
-		DecisionID:  "D-002",
+		ID:          "D-002",
 		Supersedes:  "D-001",
 		Content:     d2Content,
 	})
-	if err != nil || !envSuccess.Success {
+	if err != nil || !envSuccess.Ok {
 		t.Fatalf("supersede failed: %v, env: %+v", err, envSuccess)
 	}
 
@@ -756,11 +756,7 @@ func TestRecordDecision_AutoDraftFromSluggedSessionWithoutFrontmatterID(t *testi
 	}
 
 	// Create pipeline declaring T1-01
-	pipelineContent := `# Research Pipeline
-### Session T1-01: Storage Selection
-| **ID** | T1-01 |
-| **Dependencies** | None |
-` + "```prompt\nBrief\n```\n"
+	pipelineContent := oneSessionTestPlan("Storage Selection", "Brief")
 	if err := os.WriteFile(filepath.Join(tmpDir, core.PipelineFile), []byte(pipelineContent), 0o644); err != nil {
 		t.Fatalf("writing pipeline: %v", err)
 	}
@@ -782,10 +778,10 @@ Adopt PostgreSQL with pg_partman for scalable time-series events [Grade A: offic
 	ctx := context.Background()
 	_, envDraft, err := handleRecordDecision(ctx, nil, RecordDecisionInput{
 		ProjectRoot:   tmpDir,
-		DecisionID:    "D-001",
+		ID:            "D-001",
 		AutoDraftFrom: "T1-01",
 	})
-	if err != nil || !envDraft.Success {
+	if err != nil || !envDraft.Ok {
 		t.Fatalf("auto draft from slugged session failed: err=%v, env=%+v", err, envDraft)
 	}
 	dataMap, ok := envDraft.Data.(map[string]any)
@@ -816,11 +812,7 @@ func TestRecordDecision_AutoDraftFrom_WithAutoSave(t *testing.T) {
 		t.Fatalf("mkdir sessions: %v", err)
 	}
 
-	pipelineContent := `# Research Pipeline
-### Session T1-01: Storage Selection
-| **ID** | T1-01 |
-| **Dependencies** | None |
-` + "```prompt\nBrief\n```\n"
+	pipelineContent := oneSessionTestPlan("Storage Selection", "Brief")
 	if err := os.WriteFile(filepath.Join(tmpDir, core.PipelineFile), []byte(pipelineContent), 0o644); err != nil {
 		t.Fatalf("writing pipeline: %v", err)
 	}
@@ -842,11 +834,11 @@ Adopt PostgreSQL with pg_partman for scalable time-series events [Grade A: offic
 	ctx := context.Background()
 	_, envAutoSave, err := handleRecordDecision(ctx, nil, RecordDecisionInput{
 		ProjectRoot:   tmpDir,
-		DecisionID:    "D-001",
+		ID:            "D-001",
 		AutoDraftFrom: "T1-01",
 		AutoSave:      true,
 	})
-	if err != nil || !envAutoSave.Success {
+	if err != nil || !envAutoSave.Ok {
 		t.Fatalf("record decision with auto_save failed: err=%v, env=%+v", err, envAutoSave)
 	}
 
@@ -876,9 +868,9 @@ func TestRecordDecision_SupersedesRollbackOnValidationFailure(t *testing.T) {
 	ctx := context.Background()
 
 	// Initialize workspace
-	_, _, err := handleInit(ctx, nil, InitInput{ProjectRoot: tmpDir, Scope: "project"})
+	_, _, err := handleStart(ctx, nil, StartInput{Question: "test", ProjectRoot: tmpDir, Scope: "project"})
 	if err != nil {
-		t.Fatalf("handleInit failed: %v", err)
+		t.Fatalf("handleStart failed: %v", err)
 	}
 
 	// 1. Record D-001 successfully
@@ -894,10 +886,10 @@ Use MySQL. Grade A (https://mysql.com)
 `
 	_, envD1, err := handleRecordDecision(ctx, nil, RecordDecisionInput{
 		ProjectRoot: tmpDir,
-		DecisionID:  "D-001",
+		ID:          "D-001",
 		Content:     d1Content,
 	})
-	if err != nil || !envD1.Success {
+	if err != nil || !envD1.Ok {
 		t.Fatalf("recording D-001 failed: err=%v, env=%+v", err, envD1)
 	}
 
@@ -911,11 +903,11 @@ date: 2026-10-15
 `
 	resD2, envD2, err := handleRecordDecision(ctx, nil, RecordDecisionInput{
 		ProjectRoot: tmpDir,
-		DecisionID:  "D-002",
+		ID:          "D-002",
 		Supersedes:  "D-001",
 		Content:     invalidD2Content,
 	})
-	if err == nil && envD2.Success {
+	if err == nil && envD2.Ok {
 		t.Fatalf("expected invalid D-002 to fail validation, but succeeded: res=%+v", resD2)
 	}
 
@@ -963,11 +955,11 @@ We choose ClickHouse for vectorized query performance and columnar compression.
 	// 1. Record with Status: "accepted" to promote from proposed to accepted
 	_, env, err := handleRecordDecision(ctx, nil, RecordDecisionInput{
 		ProjectRoot: tmpDir,
-		DecisionID:  "D-001",
+		ID:          "D-001",
 		Status:      "accepted",
 		Content:     contentWithProposed,
 	})
-	if err != nil || !env.Success {
+	if err != nil || !env.Ok {
 		t.Fatalf("handleRecordDecision failed: err=%v, env=%+v", err, env)
 	}
 
@@ -994,11 +986,11 @@ We choose ClickHouse for vectorized query performance and columnar compression.
 	// 4. Test invalid status returns error
 	_, envInv, _ := handleRecordDecision(ctx, nil, RecordDecisionInput{
 		ProjectRoot: tmpDir,
-		DecisionID:  "D-001",
+		ID:          "D-001",
 		Status:      "bogus-status",
 		Content:     contentWithProposed,
 	})
-	if envInv.Success {
+	if envInv.Ok {
 		t.Errorf("expected bogus status to fail, but got success")
 	}
 }
@@ -1011,27 +1003,20 @@ func TestUniversalIDParameterAliasing(t *testing.T) {
 	_ = os.MkdirAll(filepath.Join(tmpDir, core.SessionsDir), 0o755)
 	_ = os.WriteFile(filepath.Join(tmpDir, core.MetadataFile), []byte(`{"scope":"project","created_at":"2026-10-25T00:00:00Z"}`), 0o644)
 
-	plan := `# Research Pipeline
-### Session T1-01: Message Bus
-| **ID** | T1-01 |
-| **Topic** | Message Bus |
-| **Layer** | 1 |
-| **Door Type** | two-way |
-| **Dependencies** | None |
-| **Output File** | sessions/T1-01.md |
-
-` + "```prompt\nEvaluate options.\n```\n"
+	plan := testPlan("Research Pipeline", "PROJECT", "", []string{"{id: T1-01, title: Message Bus, layer: 1, door: two-way, depends: []}",
+		"{id: SYN-01, title: Synthesis, kind: synthesis, depends: [ALL]}"},
+		testSection("T1-01", "Message Bus", "Evaluate options."), testSection("SYN-01", "Synthesis", "Synthesize."))
 
 	_ = os.WriteFile(filepath.Join(tmpDir, core.PipelineFile), []byte(plan), 0o644)
 	sessionContent := "---\nsession_id: T1-01\ntitle: Message Bus\ndate: 2026-10-25\nstatus: complete\n---\n\n## Findings\nFinding 1 [E-A: https://nats.io].\n"
 	_ = os.WriteFile(filepath.Join(tmpDir, core.SessionsDir, "T1-01.md"), []byte(sessionContent), 0o644)
 
-	// 1. Test handleNext using ID alias instead of SessionID
+	// 1. Test handleNext using canonical SessionID
 	_, envNext, err := handleNext(ctx, nil, NextInput{
 		ProjectRoot: tmpDir,
-		ID:          "T1-01",
+		SessionID:   "T1-01",
 	})
-	if err != nil || !envNext.Success {
+	if err != nil || !envNext.Ok {
 		t.Fatalf("handleNext with ID alias failed: err=%v, env=%+v", err, envNext)
 	}
 
@@ -1058,17 +1043,17 @@ We select NATS.
 		ID:          "D-001",
 		Content:     adrContent,
 	})
-	if err != nil || !envRec.Success {
+	if err != nil || !envRec.Ok {
 		t.Fatalf("handleRecordDecision with ID alias failed: err=%v, env=%+v", err, envRec)
 	}
 
 	// 3. Test handleReviewChallenge using ID alias instead of Target
 	_, envRev, err := handleReview(ctx, nil, ReviewInput{
 		ProjectRoot: tmpDir,
-		Mode:        "challenge",
+		Mode:        "red_team",
 		ID:          "T1-01",
 	})
-	if err != nil || !envRev.Success {
+	if err != nil || !envRev.Ok {
 		t.Fatalf("handleReview with ID alias failed: err=%v, env=%+v", err, envRev)
 	}
 
@@ -1076,9 +1061,9 @@ We select NATS.
 	_, envAmend, err := handleAmend(ctx, nil, AmendInput{
 		ProjectRoot: tmpDir,
 		ID:          "T1-01",
-		Amendment:   "Post-hoc note on throughput limits.",
+		Note:        "Post-hoc note on throughput limits.",
 	})
-	if err != nil || !envAmend.Success {
+	if err != nil || !envAmend.Ok {
 		t.Fatalf("handleAmend with ID alias failed: err=%v, env=%+v", err, envAmend)
 	}
 }

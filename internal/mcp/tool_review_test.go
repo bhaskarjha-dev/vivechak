@@ -44,8 +44,8 @@ Memory footprint during burst key invalidation requires eviction policy.
 	if res.IsError {
 		t.Fatalf("expected validate not to error, got message: %s", env.Message)
 	}
-	if !env.Ok || !env.Success {
-		t.Errorf("expected Ok=true, Success=true, got Ok=%v, Success=%v", env.Ok, env.Success)
+	if !env.Ok {
+		t.Errorf("expected Ok=true, Success=true, got Ok=%v, Success=%v", env.Ok, env.Ok)
 	}
 }
 
@@ -86,8 +86,8 @@ func TestHandleReview_WorkspaceValidate(t *testing.T) {
 	if res.IsError {
 		t.Fatalf("expected success on initialized workspace review, got: %s", env.Message)
 	}
-	if !env.Ok || !env.Success {
-		t.Errorf("expected Ok=true and Success=true, got Ok=%v, Success=%v", env.Ok, env.Success)
+	if !env.Ok {
+		t.Errorf("expected Ok=true and Success=true, got Ok=%v, Success=%v", env.Ok, env.Ok)
 	}
 }
 
@@ -126,10 +126,9 @@ SQLite in WAL mode.
 
 	// Run review in challenge mode
 	res, env, err := handleReview(ctx, nil, ReviewInput{
-		ProjectRoot:   tmpDir,
-		Mode:          "challenge",
-		ChallengeType: "red_team",
-		Target:        "T1-01",
+		ProjectRoot: tmpDir,
+		Mode:        "red_team",
+		ID:          "T1-01",
 	})
 	if err != nil {
 		t.Fatalf("handleReview challenge failed with go error: %v", err)
@@ -137,7 +136,7 @@ SQLite in WAL mode.
 	if res.IsError {
 		t.Fatalf("expected challenge mode success, got error: %s", env.Message)
 	}
-	if !env.Ok || !env.Success {
-		t.Errorf("expected Ok=true and Success=true, got Ok=%v, Success=%v", env.Ok, env.Success)
+	if !env.Ok {
+		t.Errorf("expected Ok=true and Success=true, got Ok=%v, Success=%v", env.Ok, env.Ok)
 	}
 }

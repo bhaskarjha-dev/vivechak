@@ -3,164 +3,66 @@ package mcputil
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
-	"github.com/bhaskarjha-dev/vivechak/internal/core"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 // ============================================================================
-// T1-01: Scope-Aware Template Copying
+// T1-01: Templates are MCP resources, never copied into the workspace (HIGH-15)
 // ============================================================================
 
-// TestInit_DecisionScopeCopiesOnly2Templates verifies vivechak_start with
-// decision scope copies only DECISIONS + CONFLICT-RESOLUTION templates.
-func TestInit_DecisionScopeCopiesOnly2Templates(t *testing.T) {
-	cs := testServer(t)
-	ctx := context.Background()
-	tmpDir := t.TempDir()
-
-	_, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name:      "vivechak_start",
-		Arguments: map[string]any{"project_root": tmpDir, "scope": "decision"},
-	})
-	if err != nil {
-		t.Fatalf("init: %v", err)
+// TestInit_StartCopiesNoTemplates verifies vivechak_start copies no templates into research/templates/ for any
+// scope (repeated starts included) and that each scope's templates stay readable as MCP resources. It replaces the
+// four scope-aware template-copy tests (decision 2, comparison 1, project 6, repair), whose behaviour HIGH-15 removes.
+func TestInit_StartCopiesNoTemplates(t *testing.T) {
+	cases := []struct {
+		scope     string
+		resources []string
+	}{
+		{"decision", []string{"vivechak://templates/decisions", "vivechak://templates/conflict-resolution"}},
+		{"comparison", []string{"vivechak://templates/comparison"}},
+		{"project", []string{"vivechak://templates/decisions", "vivechak://templates/conflict-resolution",
+			"vivechak://templates/comparison", "vivechak://templates/fad", "vivechak://templates/gate", "vivechak://templates/session"}},
 	}
+	for _, tc := range cases {
+		t.Run(tc.scope, func(t *testing.T) {
+			cs := testServer(t)
+			ctx := context.Background()
+			tmpDir := t.TempDir()
 
-	tmplDir := filepath.Join(tmpDir, "research", "templates")
-
-	// Should exist
-	expected := core.TemplatesForScope(core.ScopeDecision)
-	for _, tmpl := range expected {
-		path := filepath.Join(tmplDir, tmpl)
-		if _, err := os.Stat(path); os.IsNotExist(err) {
-			t.Errorf("expected template %q to exist for decision scope", tmpl)
-		}
-	}
-
-	// Should NOT exist
-	excluded := []string{
-		"COMPARISON-SESSION.template.md",
-		"FOUNDING-ARCHITECTURE.template.md",
-		"PHASE-0-GATE.template.md",
-	}
-	for _, tmpl := range excluded {
-		path := filepath.Join(tmplDir, tmpl)
-		if _, err := os.Stat(path); !os.IsNotExist(err) {
-			t.Errorf("template %q should NOT exist for decision scope", tmpl)
-		}
-	}
-}
-
-// TestInit_ComparisonScopeCopiesOnly1Template verifies vivechak_start with
-// comparison scope copies only COMPARISON-SESSION template.
-func TestInit_ComparisonScopeCopiesOnly1Template(t *testing.T) {
-	cs := testServer(t)
-	ctx := context.Background()
-	tmpDir := t.TempDir()
-
-	_, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name:      "vivechak_start",
-		Arguments: map[string]any{"project_root": tmpDir, "scope": "comparison"},
-	})
-	if err != nil {
-		t.Fatalf("init: %v", err)
-	}
-
-	tmplDir := filepath.Join(tmpDir, "research", "templates")
-
-	// Should exist
-	path := filepath.Join(tmplDir, "COMPARISON-SESSION.template.md")
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		t.Error("COMPARISON-SESSION.template.md should exist for comparison scope")
-	}
-
-	// Should NOT exist
-	excluded := []string{
-		"DECISIONS.template.md",
-		"CONFLICT-RESOLUTION.template.md",
-		"FOUNDING-ARCHITECTURE.template.md",
-		"PHASE-0-GATE.template.md",
-	}
-	for _, tmpl := range excluded {
-		path := filepath.Join(tmplDir, tmpl)
-		if _, err := os.Stat(path); !os.IsNotExist(err) {
-			t.Errorf("template %q should NOT exist for comparison scope", tmpl)
-		}
-	}
-}
-
-// TestInit_ProjectScopeCopiesAll6Templates verifies vivechak_start with
-// project scope copies all 6 templates.
-func TestInit_ProjectScopeCopiesAll6Templates(t *testing.T) {
-	cs := testServer(t)
-	ctx := context.Background()
-	tmpDir := t.TempDir()
-
-	_, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name:      "vivechak_start",
-		Arguments: map[string]any{"project_root": tmpDir, "scope": "project"},
-	})
-	if err != nil {
-		t.Fatalf("init: %v", err)
-	}
-
-	tmplDir := filepath.Join(tmpDir, "research", "templates")
-	for _, tmpl := range core.TemplatesToCopy {
-		path := filepath.Join(tmplDir, tmpl)
-		if _, err := os.Stat(path); os.IsNotExist(err) {
-			t.Errorf("template %q should exist for project scope", tmpl)
-		}
-	}
-}
-
-// TestInit_RepairRestoresOnlyScopeTemplates verifies the re-init repair loop
-// only restores templates appropriate for the workspace scope.
-func TestInit_RepairRestoresOnlyScopeTemplates(t *testing.T) {
-	cs := testServer(t)
-	ctx := context.Background()
-	tmpDir := t.TempDir()
-
-	// Init with decision scope
-	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
-		Name:      "vivechak_start",
-		Arguments: map[string]any{"project_root": tmpDir, "scope": "decision"},
-	})
-
-	// Delete one template
-	os.Remove(filepath.Join(tmpDir, "research", "templates", "DECISIONS.template.md"))
-
-	// Re-init should repair only decision-scope templates
-	result, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name:      "vivechak_start",
-		Arguments: map[string]any{"project_root": tmpDir, "scope": "decision"},
-	})
-	if err != nil {
-		t.Fatalf("re-init: %v", err)
-	}
-
-	env := parseEnvelope(t, result)
-	if !env.Success {
-		t.Fatalf("re-init failed: %s", env.Message)
-	}
-
-	// Verify restored
-	path := filepath.Join(tmpDir, "research", "templates", "DECISIONS.template.md")
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		t.Error("DECISIONS.template.md should have been restored")
-	}
-
-	// Verify project-only templates were NOT created during repair
-	excluded := []string{"FOUNDING-ARCHITECTURE.template.md", "PHASE-0-GATE.template.md"}
-	for _, tmpl := range excluded {
-		path := filepath.Join(tmpDir, "research", "templates", tmpl)
-		if _, err := os.Stat(path); !os.IsNotExist(err) {
-			t.Errorf("template %q should NOT be created during decision-scope repair", tmpl)
-		}
+			for i := 0; i < 2; i++ {
+				result, err := cs.CallTool(ctx, &mcp.CallToolParams{
+					Name:      "vivechak_start",
+					Arguments: map[string]any{"question": "test", "project_root": tmpDir, "scope": tc.scope},
+				})
+				if err != nil {
+					t.Fatalf("start %d: %v", i+1, err)
+				}
+				env := parseEnvelope(t, result)
+				if !env.Ok {
+					t.Fatalf("start %d failed: %s", i+1, env.Message)
+				}
+				if data, ok := env.Data.(map[string]any); ok {
+					if _, has := data["templates_copied"]; has {
+						t.Errorf("start %d reports templates_copied %v; nothing is copied", i+1, data["templates_copied"])
+					}
+				}
+			}
+			if _, err := os.Stat(filepath.Join(tmpDir, "research", "templates")); !os.IsNotExist(err) {
+				t.Errorf("expected no research/templates/ for %s scope, got err=%v", tc.scope, err)
+			}
+			for _, uri := range tc.resources {
+				res, err := cs.ReadResource(ctx, &mcp.ReadResourceParams{URI: uri})
+				if err != nil || res == nil || len(res.Contents) == 0 || res.Contents[0].Text == "" {
+					t.Errorf("template resource %s not readable: %v", uri, err)
+				}
+			}
+		})
 	}
 }
 
@@ -178,19 +80,13 @@ func TestNextSession_QualityBarLanguage(t *testing.T) {
 	// Init + save pipeline with 2 sessions
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
 		Name:      "vivechak_start",
-		Arguments: map[string]any{"project_root": tmpDir, "scope": "project"},
+		Arguments: map[string]any{"question": "test", "project_root": tmpDir, "scope": "project"},
 	})
 
-	pipeline := `# Pipeline
-#### T1-01: Database Selection
-| **ID** | T1-01 |
-| **Dependencies** | None |
-` + "```prompt\nResearch databases.\n```" + `
-
-#### SYN-01: Synthesis
-| **ID** | SYN-01 |
-| **Dependencies** | T1-01 |
-` + "```prompt\nSynthesize findings.\n[ALL_SESSION_FINDINGS]\n```"
+	pipeline := testPlan("Pipeline", "PROJECT", "", []string{"{id: T1-01, title: Database Selection, depends: []}",
+		"{id: SYN-01, title: Synthesis, kind: synthesis, depends: [T1-01]}"},
+		testSection("T1-01", "Database Selection", "Research databases."),
+		testSection("SYN-01", "Synthesis", "Synthesize findings.\n[ALL_SESSION_FINDINGS]"))
 
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
 		Name:      "vivechak_save",
@@ -208,13 +104,13 @@ func TestNextSession_QualityBarLanguage(t *testing.T) {
 	env := parseEnvelope(t, result)
 
 	// P4: No "web search enabled"
-	if strings.Contains(env.NextStep, "web search enabled") {
+	if strings.Contains(envGuidance(env), "web search enabled") {
 		t.Error("next_step should NOT contain 'web search enabled' (P4 violation)")
 	}
 
 	// Quality bar language for research session
-	if !strings.Contains(env.NextStep, "evidence") {
-		t.Error("next_step for research session should mention evidence quality")
+	if !strings.Contains(envGuidance(env), "grade claims A-E") {
+		t.Error("next_step for research session should mention evidence grading")
 	}
 }
 
@@ -226,19 +122,13 @@ func TestNextSession_SynthesisLanguage(t *testing.T) {
 
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
 		Name:      "vivechak_start",
-		Arguments: map[string]any{"project_root": tmpDir, "scope": "project"},
+		Arguments: map[string]any{"question": "test", "project_root": tmpDir, "scope": "project"},
 	})
 
-	pipeline := `# Pipeline
-#### T1-01: Database Selection
-| **ID** | T1-01 |
-| **Dependencies** | None |
-` + "```prompt\nResearch.\n```" + `
-
-#### SYN-01: Synthesis
-| **ID** | SYN-01 |
-| **Dependencies** | T1-01 |
-` + "```prompt\nSynthesize.\n[ALL_SESSION_FINDINGS]\n```"
+	pipeline := testPlan("Pipeline", "PROJECT", "", []string{"{id: T1-01, title: Database Selection, depends: []}",
+		"{id: SYN-01, title: Synthesis, kind: synthesis, depends: [T1-01]}"},
+		testSection("T1-01", "Database Selection", "Research."),
+		testSection("SYN-01", "Synthesis", "Synthesize.\n[ALL_SESSION_FINDINGS]"))
 
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
 		Name:      "vivechak_save",
@@ -251,7 +141,7 @@ func TestNextSession_SynthesisLanguage(t *testing.T) {
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"kind":         "session",
-			"session_id":   "T1-01",
+			"id":           "T1-01",
 			"content": `---
 session_id: T1-01
 title: DB Selection
@@ -275,11 +165,11 @@ PostgreSQL recommended. Grade A (docs)
 	env := parseEnvelope(t, result)
 
 	// Synthesis-specific language
-	if !strings.Contains(env.NextStep, "ynthesize") {
+	if !strings.Contains(envGuidance(env), "ynthesize") {
 		t.Error("SYN-01 next_step should contain synthesis-specific language")
 	}
-	if !strings.Contains(env.NextStep, "session evidence") || !strings.Contains(env.NextStep, "Conflicts") {
-		t.Error("SYN-01 next_step should mention tracing to session evidence and surfacing conflicts")
+	if !strings.Contains(envGuidance(env), "completed sessions") || !strings.Contains(envGuidance(env), "surfacing cross-session conflicts") {
+		t.Error("SYN-01 next_step should mention completed sessions and surfacing cross-session conflicts")
 	}
 }
 
@@ -291,25 +181,15 @@ func TestNextSession_BlockedSessionsData(t *testing.T) {
 
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
 		Name:      "vivechak_start",
-		Arguments: map[string]any{"project_root": tmpDir, "scope": "project"},
+		Arguments: map[string]any{"question": "test", "project_root": tmpDir, "scope": "project"},
 	})
 
 	// Pipeline: T1-01 -> T2-01, T1-01 -> SYN-01
-	pipeline := `# Pipeline
-#### T1-01: Research
-| **ID** | T1-01 |
-| **Dependencies** | None |
-` + "```prompt\nResearch.\n```" + `
-
-#### T2-01: Deep Dive
-| **ID** | T2-01 |
-| **Dependencies** | T1-01 |
-` + "```prompt\nDeep dive.\n[UPSTREAM_FINDINGS]\n```" + `
-
-#### SYN-01: Synthesis
-| **ID** | SYN-01 |
-| **Dependencies** | T1-01, T2-01 |
-` + "```prompt\nSynthesize.\n[ALL_SESSION_FINDINGS]\n```"
+	pipeline := testPlan("Pipeline", "PROJECT", "", []string{"{id: T1-01, title: Research, depends: []}",
+		"{id: T2-01, title: Deep Dive, depends: [T1-01]}",
+		"{id: SYN-01, title: Synthesis, kind: synthesis, depends: [T1-01, T2-01]}"},
+		testSection("T1-01", "Research", "Research."), testSection("T2-01", "Deep Dive", "Deep dive.\n[UPSTREAM_FINDINGS]"),
+		testSection("SYN-01", "Synthesis", "Synthesize.\n[ALL_SESSION_FINDINGS]"))
 
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
 		Name:      "vivechak_save",
@@ -367,25 +247,15 @@ func TestNextSession_ParallelSessionCount(t *testing.T) {
 
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
 		Name:      "vivechak_start",
-		Arguments: map[string]any{"project_root": tmpDir, "scope": "project"},
+		Arguments: map[string]any{"question": "test", "project_root": tmpDir, "scope": "project"},
 	})
 
 	// 3 independent sessions
-	pipeline := `# Pipeline
-#### T1-01: Research A
-| **ID** | T1-01 |
-| **Dependencies** | None |
-` + "```prompt\nA.\n```" + `
-
-#### T1-02: Research B
-| **ID** | T1-02 |
-| **Dependencies** | None |
-` + "```prompt\nB.\n```" + `
-
-#### T1-03: Research C
-| **ID** | T1-03 |
-| **Dependencies** | None |
-` + "```prompt\nC.\n```"
+	pipeline := testPlan("Pipeline", "PROJECT", "", []string{"{id: T1-01, title: Research A, depends: []}",
+		"{id: T1-02, title: Research B, depends: []}", "{id: T1-03, title: Research C, depends: []}",
+		"{id: SYN-01, title: Synthesis, kind: synthesis, depends: [ALL]}"},
+		testSection("T1-01", "Research A", "A."), testSection("T1-02", "Research B", "B."), testSection("T1-03", "Research C", "C."),
+		testSection("SYN-01", "Synthesis", "Synthesize."))
 
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
 		Name:      "vivechak_save",
@@ -397,9 +267,9 @@ func TestNextSession_ParallelSessionCount(t *testing.T) {
 		Arguments: map[string]any{"project_root": tmpDir},
 	})
 	env := parseEnvelope(t, result)
-	// Should mention number of parallel sessions with ⚡ prefix
-	if !strings.HasPrefix(env.NextStep, "⚡ 3 sessions ready in parallel") {
-		t.Errorf("expected '⚡ 3 sessions ready in parallel' prefix in next_step, got: %s", env.NextStep)
+	// Should mention number of parallel sessions
+	if !strings.HasPrefix(envGuidance(env), "3 sessions ready in parallel") {
+		t.Errorf("expected '3 sessions ready in parallel' prefix in next_step, got: %s", envGuidance(env))
 	}
 
 	dataMap, ok := env.Data.(map[string]any)
@@ -426,6 +296,7 @@ func TestValidate_AdvisoryLanguage(t *testing.T) {
 	result, err := cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_review",
 		Arguments: map[string]any{
+			"mode":          "validate",
 			"content":       content,
 			"artifact_type": "session",
 		},
@@ -436,10 +307,10 @@ func TestValidate_AdvisoryLanguage(t *testing.T) {
 	env := parseEnvelope(t, result)
 
 	// Should say "Review" not "Fix"
-	if strings.Contains(env.NextStep, "Fix the blocking") {
+	if strings.Contains(envGuidance(env), "Fix the blocking") {
 		t.Error("next_step should NOT say 'Fix the blocking' — use advisory language")
 	}
-	if !strings.Contains(env.NextStep, "Review") {
+	if !strings.Contains(envGuidance(env), "Review") {
 		t.Error("next_step should use advisory 'Review' language")
 	}
 }
@@ -467,6 +338,7 @@ Use PostgreSQL. Grade A (official docs)
 	result, err := cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_review",
 		Arguments: map[string]any{
+			"mode":          "validate",
 			"content":       content,
 			"artifact_type": "session",
 		},
@@ -546,6 +418,7 @@ Should we use PostgreSQL or MySQL?
 	result, err := cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_review",
 		Arguments: map[string]any{
+			"mode":          "validate",
 			"content":       content,
 			"artifact_type": "session",
 		},
@@ -590,6 +463,7 @@ This session has no evidence grades but is otherwise valid with enough body cont
 	result, err := cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_review",
 		Arguments: map[string]any{
+			"mode":          "validate",
 			"content":       content,
 			"artifact_type": "session",
 		},
@@ -599,7 +473,7 @@ This session has no evidence grades but is otherwise valid with enough body cont
 	}
 	env := parseEnvelope(t, result)
 
-	if strings.Contains(env.NextStep, "You can save it using the appropriate save tool") {
+	if strings.Contains(envGuidance(env), "You can save it using the appropriate save tool") {
 		t.Error("old language found — should use 'observations' framing")
 	}
 }
@@ -617,10 +491,10 @@ func TestNoWebSearchEnabledInAnyNextStep(t *testing.T) {
 	// Init
 	res, _ := cs.CallTool(ctx, &mcp.CallToolParams{
 		Name:      "vivechak_start",
-		Arguments: map[string]any{"project_root": tmpDir, "scope": "project"},
+		Arguments: map[string]any{"question": "test", "project_root": tmpDir, "scope": "project"},
 	})
 	env := parseEnvelope(t, res)
-	if strings.Contains(env.NextStep, "web search enabled") {
+	if strings.Contains(envGuidance(env), "web search enabled") {
 		t.Error("vivechak_start next_step contains 'web search enabled'")
 	}
 
@@ -630,27 +504,23 @@ func TestNoWebSearchEnabledInAnyNextStep(t *testing.T) {
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"scope":        "project",
-			"context":      "Test project",
+			"question":     "Test project",
 		},
 	})
 	env = parseEnvelope(t, res)
-	if strings.Contains(env.NextStep, "web search enabled") {
+	if strings.Contains(envGuidance(env), "web search enabled") {
 		t.Error("vivechak_start (generator) next_step contains 'web search enabled'")
 	}
 
 	// Save plan
-	pipeline := `# Pipeline
-#### T1-01: Research
-| **ID** | T1-01 |
-| **Dependencies** | None |
-` + "```prompt\nResearch.\n```"
+	pipeline := oneSessionTestPlan("Research", "Research.")
 
 	res, _ = cs.CallTool(ctx, &mcp.CallToolParams{
 		Name:      "vivechak_save",
 		Arguments: map[string]any{"project_root": tmpDir, "kind": "plan", "content": pipeline},
 	})
 	env = parseEnvelope(t, res)
-	if strings.Contains(env.NextStep, "web search enabled") {
+	if strings.Contains(envGuidance(env), "web search enabled") {
 		t.Error("vivechak_save (plan) next_step contains 'web search enabled'")
 	}
 
@@ -660,17 +530,17 @@ func TestNoWebSearchEnabledInAnyNextStep(t *testing.T) {
 		Arguments: map[string]any{"project_root": tmpDir},
 	})
 	env = parseEnvelope(t, res)
-	if strings.Contains(env.NextStep, "web search enabled") {
+	if strings.Contains(envGuidance(env), "web search enabled") {
 		t.Error("vivechak_next next_step contains 'web search enabled'")
 	}
 
 	// Validate
 	res, _ = cs.CallTool(ctx, &mcp.CallToolParams{
 		Name:      "vivechak_review",
-		Arguments: map[string]any{"content": "test", "artifact_type": "session"},
+		Arguments: map[string]any{"mode": "validate", "content": "test", "artifact_type": "session"},
 	})
 	env = parseEnvelope(t, res)
-	if strings.Contains(env.NextStep, "web search enabled") {
+	if strings.Contains(envGuidance(env), "web search enabled") {
 		t.Error("vivechak_review next_step contains 'web search enabled'")
 	}
 
@@ -680,7 +550,7 @@ func TestNoWebSearchEnabledInAnyNextStep(t *testing.T) {
 		Arguments: map[string]any{"project_root": tmpDir},
 	})
 	env = parseEnvelope(t, res)
-	if strings.Contains(env.NextStep, "web search enabled") {
+	if strings.Contains(envGuidance(env), "web search enabled") {
 		t.Error("vivechak_status next_step contains 'web search enabled'")
 	}
 }
@@ -705,7 +575,7 @@ func TestGenerator_8BlockStructure(t *testing.T) {
 				Arguments: map[string]any{
 					"project_root": tmpDir,
 					"scope":        scope,
-					"context":      "A test application for research",
+					"question":     "A test application for research",
 				},
 			})
 			if err != nil {
@@ -714,7 +584,7 @@ func TestGenerator_8BlockStructure(t *testing.T) {
 
 			env := parseEnvelope(t, result)
 			data, _ := env.Data.(map[string]any)
-			prompt, _ := data["prompt"].(string)
+			prompt, _ := data["brief"].(string)
 
 			for _, block := range requiredBlocks {
 				// For project scope, these blocks are in the instructions, not the prompt itself
@@ -760,7 +630,7 @@ func TestGenerator_NoCoverageChecklist(t *testing.T) {
 				Arguments: map[string]any{
 					"project_root": tmpDir,
 					"scope":        scope,
-					"context":      "Test",
+					"question":     "Test",
 				},
 			})
 			if err != nil {
@@ -768,7 +638,7 @@ func TestGenerator_NoCoverageChecklist(t *testing.T) {
 			}
 			env := parseEnvelope(t, result)
 			data, _ := env.Data.(map[string]any)
-			prompt, _ := data["prompt"].(string)
+			prompt, _ := data["brief"].(string)
 
 			if strings.Contains(strings.ToLower(prompt), "coverage checklist") {
 				t.Errorf("%s generator should not contain 'coverage checklist' (T1-05)", scope)
@@ -795,7 +665,7 @@ func TestGenerator_PriorDeltaInFormat(t *testing.T) {
 				Arguments: map[string]any{
 					"project_root": tmpDir,
 					"scope":        scope,
-					"context":      "Test",
+					"question":     "Test",
 				},
 			})
 			if err != nil {
@@ -803,7 +673,7 @@ func TestGenerator_PriorDeltaInFormat(t *testing.T) {
 			}
 			env := parseEnvelope(t, result)
 			data, _ := env.Data.(map[string]any)
-			prompt, _ := data["prompt"].(string)
+			prompt, _ := data["brief"].(string)
 
 			if !strings.Contains(prompt, "Prior") {
 				t.Errorf("%s generator should mention Prior section", scope)
@@ -833,7 +703,7 @@ func TestGenerator_IterativeGuidance(t *testing.T) {
 				Arguments: map[string]any{
 					"project_root": tmpDir,
 					"scope":        scope,
-					"context":      "Test",
+					"question":     "Test",
 				},
 			})
 			if err != nil {
@@ -841,7 +711,7 @@ func TestGenerator_IterativeGuidance(t *testing.T) {
 			}
 			env := parseEnvelope(t, result)
 			data, _ := env.Data.(map[string]any)
-			prompt, _ := data["prompt"].(string)
+			prompt, _ := data["brief"].(string)
 
 			// Should have research moves vocabulary
 			moves := []string{"DEEPEN", "WIDEN", "CORROBORATE", "FALSIFY", "PIVOT"}
@@ -877,7 +747,7 @@ func TestGenerator_CalibrationBlock(t *testing.T) {
 				Arguments: map[string]any{
 					"project_root": tmpDir,
 					"scope":        scope,
-					"context":      "Test",
+					"question":     "Test",
 				},
 			})
 			if err != nil {
@@ -885,7 +755,7 @@ func TestGenerator_CalibrationBlock(t *testing.T) {
 			}
 			env := parseEnvelope(t, result)
 			data, _ := env.Data.(map[string]any)
-			prompt, _ := data["prompt"].(string)
+			prompt, _ := data["brief"].(string)
 
 			if !strings.Contains(prompt, "## CALIBRATION") {
 				t.Errorf("%s generator missing CALIBRATION block", scope)
@@ -910,7 +780,7 @@ func TestRunGate_ScopeAwareTemplateCount(t *testing.T) {
 	tmpDir := t.TempDir()
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
 		Name:      "vivechak_start",
-		Arguments: map[string]any{"project_root": tmpDir, "scope": "decision"},
+		Arguments: map[string]any{"question": "test", "project_root": tmpDir, "scope": "decision"},
 	})
 
 	// Save a session
@@ -919,7 +789,7 @@ func TestRunGate_ScopeAwareTemplateCount(t *testing.T) {
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"kind":         "session",
-			"session_id":   "S1-01",
+			"id":           "S1-01",
 			"content": `---
 session_id: S1-01
 title: Decision Research
@@ -943,7 +813,7 @@ Found X. Grade A (https://docs.example.com) [fetched]
 		Arguments: map[string]any{
 			"project_root":  tmpDir,
 			"artifact_type": "decision",
-			"decision_id":   "D-001",
+			"id":            "D-001",
 			"content": `---
 decision_id: D-001
 title: Test Decision
@@ -979,10 +849,10 @@ None significant.
 	}
 
 	// Verify gate passes
-	if data["gate_status"] != "PASS" {
+	if data["verdict"] != "PASS" {
 		// Dump the full response for debugging
 		raw, _ := json.MarshalIndent(data, "", "  ")
-		t.Errorf("gate should PASS with scope-appropriate templates, got: %s\nFull data: %s", data["gate_status"], string(raw))
+		t.Errorf("gate should PASS with scope-appropriate templates, got: %s\nFull data: %s", data["verdict"], string(raw))
 	}
 }
 
@@ -999,7 +869,7 @@ func TestNextSession_ComparisonQualityGuidance(t *testing.T) {
 
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
 		Name:      "vivechak_start",
-		Arguments: map[string]any{"project_root": tmpDir, "scope": "comparison"},
+		Arguments: map[string]any{"question": "test", "project_root": tmpDir, "scope": "comparison"},
 	})
 
 	compPrompt := `# RESEARCH BRIEF: Queue Selection
@@ -1011,7 +881,7 @@ Compare Kafka vs RabbitMQ. A (benchmark)
 			"project_root": tmpDir,
 			"kind":         "comparison",
 			"scope":        "comparison",
-			"decision_id":  "D-001",
+			"id":           "D-001",
 			"slug":         "queue",
 			"content":      compPrompt,
 		},
@@ -1026,10 +896,10 @@ Compare Kafka vs RabbitMQ. A (benchmark)
 	}
 	env := parseEnvelope(t, res)
 
-	if !strings.Contains(env.NextStep, "evidence") {
-		t.Errorf("comparison next_step should mention evidence quality, got: %s", env.NextStep)
+	if !strings.Contains(envGuidance(env), "vivechak_save(kind=\"comparison\")") {
+		t.Errorf("comparison next_step should guide saving comparison matrix, got: %s", envGuidance(env))
 	}
-	if strings.Contains(env.NextStep, "web search enabled") {
+	if strings.Contains(envGuidance(env), "web search enabled") {
 		t.Error("comparison next_step should NOT say 'web search enabled'")
 	}
 }
@@ -1037,33 +907,27 @@ Compare Kafka vs RabbitMQ. A (benchmark)
 // TestPrepareGenerator_AutoInfersScope verifies that prepare_generator automatically infers
 // comparison scope from "vs" in the context when scope is omitted.
 func TestPrepareGenerator_AutoInfersScope(t *testing.T) {
-	cs := testServer(t)
 	ctx := context.Background()
-
 	tmpDir := t.TempDir()
-	res, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_start",
-		Arguments: map[string]any{
-			"project_root": tmpDir,
-			"context":      "Compare Winston vs Pino for high throughput logging in Node.js",
-		},
+	_, env, err := handleStart(ctx, nil, StartInput{
+		ProjectRoot: tmpDir,
+		Question:    "Compare Winston vs Pino for high throughput logging in Node.js",
 	})
 	if err != nil {
-		t.Fatalf("prepare_generator: %v", err)
+		t.Fatalf("handleStart: %v", err)
 	}
-	env := parseEnvelope(t, res)
-	if !env.Success {
-		t.Fatalf("prepare_generator failed: %s", env.Message)
+	if !env.Ok {
+		t.Fatalf("handleStart failed: %s", env.Message)
 	}
 	data, ok := env.Data.(map[string]any)
 	if !ok {
 		t.Fatal("expected data map in envelope")
 	}
-	if data["scope"] != "comparison" {
+	if fmt.Sprint(data["scope"]) != "comparison" {
 		t.Errorf("expected scope 'comparison', got: %v", data["scope"])
 	}
-	prompt, _ := data["prompt"].(string)
-	if !strings.Contains(prompt, "COMPARISON") {
+	prompt, _ := data["brief"].(string)
+	if !strings.Contains(prompt, "scope_level: comparison") {
 		t.Errorf("expected comparison prompt content")
 	}
 }
@@ -1084,7 +948,7 @@ Compare Winston vs Pino. Evidence Grade A (official docs).
 			"project_root": tmpDir,
 			"kind":         "comparison",
 			"scope":        "comparison",
-			"decision_id":  "C-01",
+			"id":           "C-01",
 			"slug":         "logging",
 			"content":      compContent,
 		},
@@ -1093,13 +957,16 @@ Compare Winston vs Pino. Evidence Grade A (official docs).
 		t.Fatalf("save_plan failed: %v", err)
 	}
 	env := parseEnvelope(t, res)
-	if !env.Success {
+	if !env.Ok {
 		t.Fatalf("save_plan returned unsuccessful: %s", env.Message)
 	}
 
-	// Verify workspace structure was auto-initialized
-	if _, err := os.Stat(filepath.Join(tmpDir, "research", "templates", "COMPARISON-SESSION.template.md")); err != nil {
-		t.Errorf("auto-init failed to copy comparison template: %v", err)
+	// Verify workspace structure was auto-initialized (templates are MCP resources, never copied: HIGH-15)
+	if _, err := os.Stat(filepath.Join(tmpDir, "research", ".vivechak.json")); err != nil {
+		t.Errorf("auto-init failed to create research/.vivechak.json: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(tmpDir, "research", "templates")); !os.IsNotExist(err) {
+		t.Errorf("expected no research/templates/ after auto-init, got err=%v", err)
 	}
 	var savedPath string
 	if dataMap, ok := env.Data.(map[string]any); ok {
@@ -1135,13 +1002,13 @@ func TestPrepareGenerator_ScopeAwareNextStep(t *testing.T) {
 			name:        "decision scope",
 			scope:       "decision",
 			context:     "Migrate PostgreSQL to ClickHouse for analytics",
-			expectedSub: "decision plan and ADR skeleton",
+			expectedSub: "decision plan",
 		},
 		{
 			name:        "project scope",
 			scope:       "project",
 			context:     "Build a distributed streaming architecture in Go",
-			expectedSub: "generate your research pipeline",
+			expectedSub: "research pipeline DAG",
 		},
 	}
 
@@ -1152,15 +1019,15 @@ func TestPrepareGenerator_ScopeAwareNextStep(t *testing.T) {
 				Arguments: map[string]any{
 					"project_root": t.TempDir(),
 					"scope":        tc.scope,
-					"context":      tc.context,
+					"question":     tc.context,
 				},
 			})
 			if err != nil {
 				t.Fatalf("prepare_generator(%s): %v", tc.scope, err)
 			}
 			env := parseEnvelope(t, res)
-			if !strings.Contains(env.NextStep, tc.expectedSub) {
-				t.Errorf("expected next_step to contain %q, got: %q", tc.expectedSub, env.NextStep)
+			if !strings.Contains(envGuidance(env), tc.expectedSub) {
+				t.Errorf("expected next_step to contain %q, got: %q", tc.expectedSub, envGuidance(env))
 			}
 		})
 	}
@@ -1195,7 +1062,7 @@ func TestPrepareGenerator_ExtractComparisonOptions(t *testing.T) {
 			Arguments: map[string]any{
 				"project_root": t.TempDir(),
 				"scope":        "comparison",
-				"context":      tc.context,
+				"question":     tc.context,
 			},
 		})
 		if err != nil {
@@ -1207,7 +1074,7 @@ func TestPrepareGenerator_ExtractComparisonOptions(t *testing.T) {
 		if !ok {
 			t.Fatalf("expected env.Data map, got %T", env.Data)
 		}
-		prompt, _ := data["prompt"].(string)
+		prompt, _ := data["brief"].(string)
 		if !strings.Contains(prompt, tc.expected) {
 			t.Errorf("for context %q, expected prompt to contain %q, got:\n%s", tc.context, tc.expected, prompt)
 		}
@@ -1235,9 +1102,9 @@ func TestServerInstructions_MultiScopeAndOutofScope(t *testing.T) {
 	}
 }
 
-// TestSaveSession_CustomOutputFileFromDAG verifies that vivechak_save respects
-// the custom OutputFile path configured in the DAG pipeline.
-func TestSaveSession_CustomOutputFileFromDAG(t *testing.T) {
+// TestSaveSession_OutputFileFromSessionID verifies that vivechak_save names a session's file after its id: an
+// OutputFile column in a plan table is prose for people, not a setting (HIGH-07).
+func TestSaveSession_OutputFileFromSessionID(t *testing.T) {
 	cs := testServer(t)
 	ctx := context.Background()
 	tmpDir := t.TempDir()
@@ -1246,6 +1113,7 @@ func TestSaveSession_CustomOutputFileFromDAG(t *testing.T) {
 	initRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_start",
 		Arguments: map[string]any{
+			"question":     "test",
 			"project_root": tmpDir,
 			"scope":        "project",
 		},
@@ -1255,21 +1123,15 @@ func TestSaveSession_CustomOutputFileFromDAG(t *testing.T) {
 	}
 	_ = parseEnvelope(t, initRes)
 
-	// 2. Save pipeline with custom OutputFile
-	pipelineContent := `# RESEARCH PIPELINE
-
-## Overview
+	// 2. Save a pipeline whose overview table names a custom OutputFile
+	pipelineContent := testPlan("RESEARCH PIPELINE", "PROJECT", `## Overview
 | ID | Topic | Dependencies | OutputFile |
 |---|---|---|---|
 | T1-01 | Database Architecture | none | sessions/T1-01-database-selection.md |
-| T1-02 | Auth System | none | |
-
-### T1-01: Database Architecture
-` + "```prompt\nResearch DB\n```" + `
-
-### T1-02: Auth System
-` + "```prompt\nResearch Auth\n```" + `
-`
+| T1-02 | Auth System | none | |`, []string{"{id: T1-01, title: Database Architecture, depends: []}", "{id: T1-02, title: Auth System, depends: []}",
+		"{id: SYN-01, title: Synthesis, kind: synthesis, depends: [ALL]}"},
+		testSection("T1-01", "Database Architecture", "Research DB"), testSection("T1-02", "Auth System", "Research Auth"),
+		testSection("SYN-01", "Synthesis", "Synthesize."))
 	savePlanRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_save",
 		Arguments: map[string]any{
@@ -1300,7 +1162,7 @@ status: complete
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"kind":         "session",
-			"session_id":   "T1-01",
+			"id":           "T1-01",
 			"content":      sessionContent,
 		},
 	})
@@ -1313,15 +1175,15 @@ status: complete
 		t.Fatalf("expected data map in save_session response, got %T", env.Data)
 	}
 	filePath, _ := data["file_path"].(string)
-	expectedPath := "research/sessions/T1-01-database-selection.md"
+	expectedPath := "research/sessions/T1-01.md"
 	if filePath != expectedPath {
 		t.Errorf("file_path = %q; want %q", filePath, expectedPath)
 	}
 
-	// Verify file actually exists at custom output path
+	// Verify file actually exists at the id-named path
 	fullPath := filepath.Join(tmpDir, filePath)
 	if _, err := os.Stat(fullPath); os.IsNotExist(err) {
-		t.Errorf("file was not created at expected custom output path: %s", fullPath)
+		t.Errorf("file was not created at the expected path: %s", fullPath)
 	}
 
 	// 4. Save session T1-02 without custom OutputFile (should use default T1-02.md)
@@ -1330,7 +1192,7 @@ status: complete
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"kind":         "session",
-			"session_id":   "T1-02",
+			"id":           "T1-02",
 			"content":      sessionContent,
 		},
 	})

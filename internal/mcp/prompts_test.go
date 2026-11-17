@@ -43,65 +43,19 @@ func TestPromptListing(t *testing.T) {
 	}
 }
 
-func TestPromptAliases(t *testing.T) {
+func TestPromptAliasesRejected(t *testing.T) {
 	cs := testServer(t)
 	ctx := context.Background()
 
-	pairs := []struct {
-		canonical string
-		legacy    string
-		shorthand string
-		args      map[string]string
-	}{
-		{
-			canonical: "compare",
-			legacy:    "vivechak_compare",
-			shorthand: "vck_compare",
-			args:      map[string]string{"options": "Pino, Winston"},
-		},
-		{
-			canonical: "decision",
-			legacy:    "vivechak_decision",
-			shorthand: "vck_decision",
-			args:      map[string]string{"dilemma": "Migrate DB"},
-		},
-		{
-			canonical: "project",
-			legacy:    "vivechak_project",
-			shorthand: "vck_project",
-			args:      map[string]string{"vision": "Build Engine"},
-		},
-		{
-			canonical: "gate",
-			legacy:    "vivechak_gate",
-			shorthand: "vck_gate",
-			args:      map[string]string{"track": "all"},
-		},
+	removed := []string{
+		"vivechak_compare", "vck_compare",
+		"vivechak_decision", "vck_decision",
+		"vivechak_project", "vck_project",
+		"vivechak_gate", "vck_gate",
 	}
-
-	for _, p := range pairs {
-		rCanon, err := cs.GetPrompt(ctx, &mcp.GetPromptParams{Name: p.canonical, Arguments: p.args})
-		if err != nil {
-			t.Fatalf("GetPrompt(%s): %v", p.canonical, err)
-		}
-		rLeg, err := cs.GetPrompt(ctx, &mcp.GetPromptParams{Name: p.legacy, Arguments: p.args})
-		if err != nil {
-			t.Fatalf("GetPrompt(%s): %v", p.legacy, err)
-		}
-		rShort, err := cs.GetPrompt(ctx, &mcp.GetPromptParams{Name: p.shorthand, Arguments: p.args})
-		if err != nil {
-			t.Fatalf("GetPrompt(%s): %v", p.shorthand, err)
-		}
-
-		cCanon := rCanon.Messages[0].Content.(*mcp.TextContent).Text
-		cLeg := rLeg.Messages[0].Content.(*mcp.TextContent).Text
-		cShort := rShort.Messages[0].Content.(*mcp.TextContent).Text
-
-		if cCanon != cLeg {
-			t.Errorf("prompt %s != %s", p.canonical, p.legacy)
-		}
-		if cCanon != cShort {
-			t.Errorf("prompt %s != %s", p.canonical, p.shorthand)
+	for _, name := range removed {
+		if _, err := cs.GetPrompt(ctx, &mcp.GetPromptParams{Name: name}); err == nil {
+			t.Errorf("expected removed prompt alias %q to return an error", name)
 		}
 	}
 }
@@ -110,9 +64,8 @@ func TestPromptGet_Compare(t *testing.T) {
 	cs := testServer(t)
 	ctx := context.Background()
 
-	// 1. With explicit arguments
 	res, err := cs.GetPrompt(ctx, &mcp.GetPromptParams{
-		Name: "vivechak_compare",
+		Name: "compare",
 		Arguments: map[string]string{
 			"options":  "Pino, Winston",
 			"criteria": "Throughput, ESM support",
@@ -120,54 +73,19 @@ func TestPromptGet_Compare(t *testing.T) {
 		},
 	})
 	if err != nil {
-		t.Fatalf("GetPrompt(vivechak_compare): %v", err)
+		t.Fatalf("GetPrompt(compare): %v", err)
 	}
-
-	if len(res.Messages) != 1 {
-		t.Fatalf("expected 1 message, got %d", len(res.Messages))
+	if len(res.Messages) != 1 || res.Messages[0].Role != mcp.Role("user") {
+		t.Fatalf("unexpected prompt messages: %+v", res.Messages)
 	}
-	msg := res.Messages[0]
-	if msg.Role != mcp.Role("user") {
-		t.Errorf("expected role 'user', got %q", msg.Role)
+	text := res.Messages[0].Content.(*mcp.TextContent).Text
+	if len(text) > 600 {
+		t.Errorf("compare prompt exceeds 600 chars: %d", len(text))
 	}
-	tc, ok := msg.Content.(*mcp.TextContent)
-	if !ok {
-		t.Fatalf("expected TextContent, got %T", msg.Content)
-	}
-	text := tc.Text
-
-	if !strings.Contains(text, "OPTIONS: Pino, Winston") {
-		t.Errorf("missing injected options in prompt text: %s", text)
-	}
-	if !strings.Contains(text, "CRITERIA: Throughput, ESM support") {
-		t.Errorf("missing injected criteria in prompt text: %s", text)
-	}
-	if !strings.Contains(text, "High-throughput microservices") {
-		t.Errorf("missing injected context in prompt text: %s", text)
-	}
-	if !strings.Contains(text, "vivechak_save") {
-		t.Errorf("missing save directive in prompt text")
-	}
-	if strings.Contains(text, "From the context block, output a SCOPE CHECK line") {
-		t.Errorf("meta-generator instruction was not stripped from prompt output: %s", text)
-	}
-	if !strings.Contains(text, "Execute this evidence-calibrated research brief with live web search to compare the options below and produce the Weighted Evaluation Protocol (WEP) matrix.") {
-		t.Errorf("direct research execution directive was not injected into prompt text")
-	}
-
-	// 2. With empty / omitted optional arguments
-	resDefault, err := cs.GetPrompt(ctx, &mcp.GetPromptParams{
-		Name: "vivechak_compare",
-		Arguments: map[string]string{
-			"options": "A vs B",
-		},
-	})
-	if err != nil {
-		t.Fatalf("GetPrompt(vivechak_compare default): %v", err)
-	}
-	tcDef, _ := resDefault.Messages[0].Content.(*mcp.TextContent)
-	if !strings.Contains(tcDef.Text, "OPTIONS: A vs B") {
-		t.Errorf("missing options in default call: %s", tcDef.Text)
+	for _, want := range []string{"Pino, Winston", "Throughput, ESM support", "High-throughput microservices", "vivechak_start", "vivechak_save", "next"} {
+		if !strings.Contains(text, want) {
+			t.Errorf("compare prompt missing %q: %s", want, text)
+		}
 	}
 }
 
@@ -176,29 +94,26 @@ func TestPromptGet_Decision(t *testing.T) {
 	ctx := context.Background()
 
 	res, err := cs.GetPrompt(ctx, &mcp.GetPromptParams{
-		Name: "vivechak_decision",
+		Name: "decision",
 		Arguments: map[string]string{
-			"dilemma": "Migrate event log from Postgres to ClickHouse",
-			"context": "100k events/sec, multi-tenant SaaS",
+			"question": "Migrate event log from Postgres to ClickHouse",
+			"context":  "100k events/sec, multi-tenant SaaS",
 		},
 	})
 	if err != nil {
-		t.Fatalf("GetPrompt(vivechak_decision): %v", err)
+		t.Fatalf("GetPrompt(decision): %v", err)
 	}
-
-	tc, ok := res.Messages[0].Content.(*mcp.TextContent)
-	if !ok {
-		t.Fatalf("expected TextContent, got %T", res.Messages[0].Content)
+	text := res.Messages[0].Content.(*mcp.TextContent).Text
+	if len(text) > 600 {
+		t.Errorf("decision prompt exceeds 600 chars: %d", len(text))
 	}
-
-	if !strings.Contains(tc.Text, "DECISION: Migrate event log from Postgres to ClickHouse") {
-		t.Errorf("missing injected dilemma: %s", tc.Text)
+	for _, want := range []string{"Migrate event log from Postgres to ClickHouse", "100k events/sec", "vivechak_start", "next"} {
+		if !strings.Contains(text, want) {
+			t.Errorf("decision prompt missing %q: %s", want, text)
+		}
 	}
-	if !strings.Contains(tc.Text, "100k events/sec") {
-		t.Errorf("missing injected context: %s", tc.Text)
-	}
-	if !strings.Contains(tc.Text, "vivechak_save") {
-		t.Errorf("missing save directive")
+	if strings.Contains(text, "D-001") {
+		t.Errorf("decision prompt must not hardcode D-001: %s", text)
 	}
 }
 
@@ -207,29 +122,23 @@ func TestPromptGet_Project(t *testing.T) {
 	ctx := context.Background()
 
 	res, err := cs.GetPrompt(ctx, &mcp.GetPromptParams{
-		Name: "vivechak_project",
+		Name: "project",
 		Arguments: map[string]string{
-			"vision":  "Build a real-time collaborative code review engine",
-			"context": "Go backend, WebSockets, Redis cache",
+			"vision":      "Build a real-time collaborative code review engine",
+			"constraints": "Go backend, WebSockets, Redis cache",
 		},
 	})
 	if err != nil {
-		t.Fatalf("GetPrompt(vivechak_project): %v", err)
+		t.Fatalf("GetPrompt(project): %v", err)
 	}
-
-	tc, ok := res.Messages[0].Content.(*mcp.TextContent)
-	if !ok {
-		t.Fatalf("expected TextContent, got %T", res.Messages[0].Content)
+	text := res.Messages[0].Content.(*mcp.TextContent).Text
+	if len(text) > 600 {
+		t.Errorf("project prompt exceeds 600 chars: %d", len(text))
 	}
-
-	if !strings.Contains(tc.Text, "Build a real-time collaborative code review engine") {
-		t.Errorf("missing injected vision: %s", tc.Text)
-	}
-	if !strings.Contains(tc.Text, "Go backend, WebSockets") {
-		t.Errorf("missing injected context: %s", tc.Text)
-	}
-	if !strings.Contains(tc.Text, "vivechak_save") {
-		t.Errorf("missing save directive: %s", tc.Text)
+	for _, want := range []string{"Build a real-time collaborative code review engine", "Go backend, WebSockets", "vivechak_start", "next"} {
+		if !strings.Contains(text, want) {
+			t.Errorf("project prompt missing %q: %s", want, text)
+		}
 	}
 }
 
@@ -238,29 +147,22 @@ func TestPromptGet_Gate(t *testing.T) {
 	ctx := context.Background()
 
 	res, err := cs.GetPrompt(ctx, &mcp.GetPromptParams{
-		Name: "vivechak_gate",
+		Name: "gate",
 		Arguments: map[string]string{
-			"track":        "track_b",
-			"project_root": "/custom/workspace",
+			"decision": "D-001",
 		},
 	})
 	if err != nil {
-		t.Fatalf("GetPrompt(vivechak_gate): %v", err)
+		t.Fatalf("GetPrompt(gate): %v", err)
 	}
-
-	tc, ok := res.Messages[0].Content.(*mcp.TextContent)
-	if !ok {
-		t.Fatalf("expected TextContent, got %T", res.Messages[0].Content)
+	text := res.Messages[0].Content.(*mcp.TextContent).Text
+	if len(text) > 600 {
+		t.Errorf("gate prompt exceeds 600 chars: %d", len(text))
 	}
-
-	if !strings.Contains(tc.Text, "vivechak_gate") {
-		t.Errorf("missing vivechak_gate instruction: %s", tc.Text)
-	}
-	if !strings.Contains(tc.Text, `"track_b"`) {
-		t.Errorf("missing track_b parameter: %s", tc.Text)
-	}
-	if !strings.Contains(tc.Text, `project_root="/custom/workspace"`) {
-		t.Errorf("missing project_root parameter: %s", tc.Text)
+	for _, want := range []string{"vivechak_gate", "D-001", "vck signoff"} {
+		if !strings.Contains(text, want) {
+			t.Errorf("gate prompt missing %q: %s", want, text)
+		}
 	}
 }
 
@@ -268,10 +170,7 @@ func TestPromptGet_UnknownPrompt(t *testing.T) {
 	cs := testServer(t)
 	ctx := context.Background()
 
-	_, err := cs.GetPrompt(ctx, &mcp.GetPromptParams{
-		Name: "vivechak_unknown",
-	})
-	if err == nil {
+	if _, err := cs.GetPrompt(ctx, &mcp.GetPromptParams{Name: "vivechak_unknown"}); err == nil {
 		t.Fatal("expected error getting unknown prompt, got nil")
 	}
 }
@@ -280,52 +179,15 @@ func TestPromptGet_EmptyArgumentsFallback(t *testing.T) {
 	cs := testServer(t)
 	ctx := context.Background()
 
-	// 1. Compare with nil arguments
-	resComp, err := cs.GetPrompt(ctx, &mcp.GetPromptParams{
-		Name: "vivechak_compare",
-	})
-	if err != nil {
-		t.Fatalf("GetPrompt(vivechak_compare, nil): %v", err)
-	}
-	tcComp := resComp.Messages[0].Content.(*mcp.TextContent)
-	if !strings.Contains(tcComp.Text, "[options to compare]") {
-		t.Errorf("expected fallback options placeholder, got: %s", tcComp.Text)
-	}
-
-	// 2. Decision with nil arguments
-	resDec, err := cs.GetPrompt(ctx, &mcp.GetPromptParams{
-		Name: "vivechak_decision",
-	})
-	if err != nil {
-		t.Fatalf("GetPrompt(vivechak_decision, nil): %v", err)
-	}
-	tcDec := resDec.Messages[0].Content.(*mcp.TextContent)
-	if !strings.Contains(tcDec.Text, "[architectural fork or dilemma]") {
-		t.Errorf("expected fallback dilemma placeholder, got: %s", tcDec.Text)
-	}
-
-	// 3. Project with nil arguments
-	resProj, err := cs.GetPrompt(ctx, &mcp.GetPromptParams{
-		Name: "vivechak_project",
-	})
-	if err != nil {
-		t.Fatalf("GetPrompt(vivechak_project, nil): %v", err)
-	}
-	tcProj := resProj.Messages[0].Content.(*mcp.TextContent)
-	if !strings.Contains(tcProj.Text, "[system architecture vision and requirements]") {
-		t.Errorf("expected fallback vision placeholder, got: %s", tcProj.Text)
-	}
-
-	// 4. Gate with nil arguments
-	resGate, err := cs.GetPrompt(ctx, &mcp.GetPromptParams{
-		Name: "vivechak_gate",
-	})
-	if err != nil {
-		t.Fatalf("GetPrompt(vivechak_gate, nil): %v", err)
-	}
-	tcGate := resGate.Messages[0].Content.(*mcp.TextContent)
-	if !strings.Contains(tcGate.Text, `"all"`) {
-		t.Errorf("expected default track 'all', got: %s", tcGate.Text)
+	for _, name := range []string{"compare", "decision", "project", "gate"} {
+		res, err := cs.GetPrompt(ctx, &mcp.GetPromptParams{Name: name})
+		if err != nil {
+			t.Fatalf("GetPrompt(%s, nil): %v", name, err)
+		}
+		text := res.Messages[0].Content.(*mcp.TextContent).Text
+		if text == "" || len(text) > 600 {
+			t.Errorf("prompt %s empty or >600 chars (%d): %s", name, len(text), text)
+		}
 	}
 }
 
@@ -333,61 +195,19 @@ func TestPromptGet_SpecialCharactersAndMultiline(t *testing.T) {
 	cs := testServer(t)
 	ctx := context.Background()
 
-	// 1. Compare with special chars, quotes, ampersands, and unicode
 	resComp, err := cs.GetPrompt(ctx, &mcp.GetPromptParams{
-		Name: "vivechak_compare",
+		Name: "compare",
 		Arguments: map[string]string{
 			"options":  "Option \"A\" (v1.2) vs Option 'B' & Option C (देवनागरी)",
 			"criteria": "Throughput > 10k req/s & latency < 5ms",
-			"context":  "Multi-line\ncontext\nwith `code blocks` and $symbols",
+			"context":  "Multi-line\ncontext\nwith $symbols",
 		},
 	})
 	if err != nil {
 		t.Fatalf("GetPrompt compare with special chars: %v", err)
 	}
 	textComp := resComp.Messages[0].Content.(*mcp.TextContent).Text
-	if !strings.Contains(textComp, "Option \"A\" (v1.2) vs Option 'B' & Option C (देवनागरी)") {
-		t.Errorf("special characters not preserved in compare options")
-	}
-	if !strings.Contains(textComp, "Throughput > 10k req/s & latency < 5ms") {
-		t.Errorf("criteria with symbols not preserved")
-	}
-
-	// 2. Decision with markdown fences and multiline dilemma
-	resDec, err := cs.GetPrompt(ctx, &mcp.GetPromptParams{
-		Name: "vivechak_decision",
-		Arguments: map[string]string{
-			"dilemma": "Migrate `auth_service` from OAuth2 to Passkeys/WebAuthn",
-			"context": "Stack: Go 1.25+\nScale: 10M users\nBudget: $0/month additional SaaS cost",
-		},
-	})
-	if err != nil {
-		t.Fatalf("GetPrompt decision with multiline: %v", err)
-	}
-	textDec := resDec.Messages[0].Content.(*mcp.TextContent).Text
-	if !strings.Contains(textDec, "Migrate `auth_service` from OAuth2 to Passkeys/WebAuthn") {
-		t.Errorf("decision dilemma with code blocks not preserved")
-	}
-	if !strings.Contains(textDec, "Budget: $0/month") {
-		t.Errorf("multiline context not preserved")
-	}
-
-	// 3. Project with nested markdown fences
-	resProj, err := cs.GetPrompt(ctx, &mcp.GetPromptParams{
-		Name: "vivechak_project",
-		Arguments: map[string]string{
-			"vision":  "Build distributed KV store with raft consensus\n```go\ntype Node struct{}\n```",
-			"context": "Security: mTLS on port 9090",
-		},
-	})
-	if err != nil {
-		t.Fatalf("GetPrompt project with nested code blocks: %v", err)
-	}
-	textProj := resProj.Messages[0].Content.(*mcp.TextContent).Text
-	if !strings.Contains(textProj, "Build distributed KV store with raft consensus") {
-		t.Errorf("project vision not preserved")
-	}
-	if !strings.Contains(textProj, "mTLS on port 9090") {
-		t.Errorf("project context not preserved")
+	if len(textComp) > 600 || !strings.Contains(textComp, "Option \"A\" (v1.2)") || !strings.Contains(textComp, "Throughput > 10k req/s") {
+		t.Errorf("special characters not preserved or >600 chars: %s", textComp)
 	}
 }

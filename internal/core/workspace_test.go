@@ -1,6 +1,7 @@
 package core
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
@@ -265,7 +266,6 @@ func TestResolveWorkspace_EnvironmentAndMacroGuard(t *testing.T) {
 		t.Setenv("VCK_DEFAULT_ROOT", "")
 		t.Setenv("WORKSPACE", tmpDir)
 		t.Setenv("PROJECT_ROOT", tmpDir)
-		ResetLastResolvedWorkspace()
 
 		res, _ := ResolveWorkspace("")
 		if res == tmpDir {
@@ -286,6 +286,8 @@ func TestResolveWorkspace_EnvironmentAndMacroGuard(t *testing.T) {
 	})
 }
 
+// TestResolveWorkspace_LastResolvedMemory checks the "session" rule: the workspace one MCP session resolved is
+// remembered for that session only (HIGH-14); another session, or a resolution without a session, does not see it.
 func TestResolveWorkspace_LastResolvedMemory(t *testing.T) {
 	wsDir := t.TempDir()
 	researchDir := filepath.Join(wsDir, ResearchDir)
@@ -293,8 +295,9 @@ func TestResolveWorkspace_LastResolvedMemory(t *testing.T) {
 		t.Fatalf("mkdir research failed: %v", err)
 	}
 
-	// 1. Resolve explicitly to prime in-process memory
-	resolved, err := ResolveWorkspace(wsDir)
+	// 1. Resolve explicitly within session A to prime its memory
+	sessionA := WithWorkspaceMemory(context.Background(), &WorkspaceMemory{})
+	resolved, _, err := ResolveWorkspaceWithRoots(sessionA, wsDir, nil)
 	if err != nil {
 		t.Fatalf("ResolveWorkspace explicit: %v", err)
 	}
@@ -311,30 +314,29 @@ func TestResolveWorkspace_LastResolvedMemory(t *testing.T) {
 	if err := os.Chdir(outsideDir); err != nil {
 		t.Fatal(err)
 	}
-	defer func() {
-		_ = os.Chdir(origCwd)
-		SetLastResolvedWorkspace("")
-	}()
+	defer func() { _ = os.Chdir(origCwd) }()
 
 	t.Setenv("VIVECHAK_PROJECT_ROOT", "")
 	t.Setenv("VIVECHAK_DEFAULT_ROOT", "")
 	t.Setenv("WORKSPACE", "")
 	t.Setenv("PROJECT_ROOT", "")
 
-	// 3. Resolve with empty string from outside CWD -> should hit in-process memory
-	resFromMemory, err := ResolveWorkspace("")
+	// 3. Resolve with empty string from outside CWD within session A -> hits A's memory
+	resFromMemory, rule, err := ResolveWorkspaceWithRoots(sessionA, "", nil)
 	if err != nil {
-		t.Fatalf("expected ResolveWorkspace to succeed via in-process memory, got error: %v", err)
+		t.Fatalf("expected session A to resolve via its memory, got error: %v", err)
 	}
-	if filepath.Clean(resFromMemory) != filepath.Clean(wsDir) {
-		t.Errorf("expected %s from in-process memory, got %s", wsDir, resFromMemory)
+	if filepath.Clean(resFromMemory) != filepath.Clean(wsDir) || rule != "session" {
+		t.Errorf("expected %s via rule session, got %s via %s", wsDir, resFromMemory, rule)
 	}
 
-	// 4. When in-process memory is cleared, resolution should fail
-	SetLastResolvedWorkspace("")
-	_, err = ResolveWorkspace("")
-	if err == nil {
-		t.Errorf("expected error after clearing session memory when CWD is outside workspace")
+	// 4. Another session (fresh memory) and a resolution without a session do not see A's workspace
+	sessionB := WithWorkspaceMemory(context.Background(), &WorkspaceMemory{})
+	if res, _, err := ResolveWorkspaceWithRoots(sessionB, "", nil); err == nil {
+		t.Errorf("expected session B not to inherit session A's workspace, got %s", res)
+	}
+	if res, err := ResolveWorkspace(""); err == nil {
+		t.Errorf("expected a resolution without a session to remember nothing, got %s", res)
 	}
 }
 

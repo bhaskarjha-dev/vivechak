@@ -75,20 +75,8 @@ func TestEvaluateGate_ScopeProject_Empty(t *testing.T) {
 func TestEvaluateGate_ScopeProject_FullPass(t *testing.T) {
 	dir, ws := setupTestWorkspace(t, ScopeProject)
 
-	pipelineContent := `# Research Pipeline: MyProject
-
-### T1-01: Session 1
-| Field | Value |
-|---|---|
-| **ID** | T1-01 |
-| **Output File** | ` + "`research/sessions/T1-01.md`" + ` |
-
-### SYN-01: Synthesis
-| Field | Value |
-|---|---|
-| **ID** | SYN-01 |
-| **Output File** | ` + "`research/FAD.md`" + ` |
-`
+	pipelineContent := projectPlan([]string{"{id: T1-01, title: Session 1, depends: []}", "{id: SYN-01, title: Synthesis, kind: synthesis, depends: [ALL]}"},
+		section("T1-01", "Session 1", "Research session 1.")+section("SYN-01", "Synthesis", "Synthesize. [ALL_SESSION_FINDINGS]"))
 	if err := os.WriteFile(filepath.Join(dir, PipelineFile), []byte(pipelineContent), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -435,8 +423,18 @@ PostgreSQL is selected.
 func TestEvaluateGate_ScopeDecision(t *testing.T) {
 	dir, ws := setupTestWorkspace(t, ScopeDecision)
 
-	// Decision plan
-	_ = os.WriteFile(filepath.Join(dir, "research", "D-001-plan.md"), []byte("# Decision Plan"), 0o644)
+	// Decision plan (the block lists its one session; HIGH-07)
+	_ = os.WriteFile(filepath.Join(dir, "research", "D-001-plan.md"), []byte(md(`# D-001-PLAN: Auth
+
+<F>yaml vivechak-plan
+plan: D-001
+sessions:
+  - {id: D-001-S01, title: Auth, role: C, depends: []}
+<F>
+
+## Sessions
+
+`+section("D-001-S01", "Auth", "Compare the authentication options."))), 0o644)
 
 	// Session
 	sContent := `---
@@ -477,6 +475,44 @@ We use OAuth2.
 
 	if !res.Passed {
 		t.Fatalf("expected decision scope gate to pass, got issues: %v", res.StructuralChecks.Issues)
+	}
+}
+
+func TestEvaluateGate_DecisionPlanMustBeAValidPlan(t *testing.T) {
+	g1 := func(t *testing.T, plan string) GateRuleResult {
+		t.Helper()
+		dir, ws := setupTestWorkspace(t, ScopeDecision)
+		_ = os.WriteFile(filepath.Join(dir, "research", "D-001-plan.md"), []byte(plan), 0o644)
+		res := EvaluateGate(ws, InspectWorkspace(dir), dir)
+		for _, r := range res.Rules {
+			if r.ID == "G1" {
+				return r
+			}
+		}
+		t.Fatalf("no G1 rule in %+v", res.Rules)
+		return GateRuleResult{}
+	}
+
+	// A decision plan without its vivechak-plan block (HIGH-07): G1 fails naming the code and the fix.
+	r := g1(t, "# D-001-PLAN: Auth\n\n| ID | Role | Depends |\n|---|---|---|\n| D-001-S1 | C | none |\n")
+	if r.Status != "FAIL" || !strings.Contains(r.Reason, "D-001-plan.md: "+CodePlanMissingBlock) || !strings.Contains(r.Reason, "vivechak-plan") {
+		t.Errorf("block-less decision plan: G1 = %s %q, want FAIL naming D-001-plan.md and %s", r.Status, r.Reason, CodePlanMissingBlock)
+	}
+
+	// A valid block plan: G1 passes.
+	valid := md(`# D-001-PLAN: Auth
+
+<F>yaml vivechak-plan
+plan: D-001
+sessions:
+  - {id: D-001-S1, title: Auth, role: C, depends: []}
+<F>
+
+## Sessions
+
+`) + section("D-001-S1", "Auth", "Compare the authentication options.")
+	if r := g1(t, valid); r.Status != "PASS" {
+		t.Errorf("valid decision plan: G1 = %s %q, want PASS", r.Status, r.Reason)
 	}
 }
 

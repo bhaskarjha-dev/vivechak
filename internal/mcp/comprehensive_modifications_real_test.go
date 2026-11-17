@@ -2,9 +2,11 @@ package mcputil
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -98,11 +100,11 @@ Migrate to Pebble. Grade A (benchmark)
 	ctx := context.Background()
 	_, env, err := handleRecordDecision(ctx, nil, RecordDecisionInput{
 		ProjectRoot: tmpDir,
-		DecisionID:  "D-002",
+		ID:          "D-002",
 		Supersedes:  "D-001",
 		Content:     d2Content,
 	})
-	if err != nil || !env.Success {
+	if err != nil || !env.Ok {
 		t.Fatalf("handleRecordDecision failed: %v, env: %+v", err, env)
 	}
 
@@ -128,12 +130,21 @@ Migrate to Pebble. Grade A (benchmark)
 	}
 }
 
-// TestComprehensive_DAGParsingASCIIArrowsAndUppercaseHeaders tests DAG complexity parsing
-// across all ASCII arrow variants (->, -->, =>) and uppercase session headers (### FAD:).
+// TestComprehensive_DAGParsingASCIIArrowsAndUppercaseHeaders tests uppercase session headers (### FAD:) in the
+// plan format; prose such as a complexity score line is not parsed (HIGH-07).
 func TestComprehensive_DAGParsingASCIIArrowsAndUppercaseHeaders(t *testing.T) {
 	plan := `# Research Pipeline
 
 **Complexity Score:** 15/25 => Tier 2 (8 sessions)
+
+` + "```yaml vivechak-plan" + `
+plan: PROJECT
+sessions:
+  - {id: S1, title: Foundation Landscape, depends: []}
+  - {id: FAD, title: Founding Architecture Synthesis, kind: synthesis, depends: [S1]}
+` + "```" + `
+
+## Sessions
 
 ### S1: Foundation Landscape
 | **ID** | S1 |
@@ -155,12 +166,6 @@ Synthesize all architecture findings.
 	if err != nil {
 		t.Fatalf("ParsePipeline failed: %v", err)
 	}
-	if dag.ComplexityScore != 15 {
-		t.Errorf("expected complexity score 15, got %d", dag.ComplexityScore)
-	}
-	if !strings.HasPrefix(dag.Tier, "Tier 2") {
-		t.Errorf("expected tier starting with Tier 2, got %q", dag.Tier)
-	}
 	if len(dag.Sessions) != 2 {
 		t.Fatalf("expected 2 sessions, got %d", len(dag.Sessions))
 	}
@@ -174,41 +179,22 @@ Synthesize all architecture findings.
 func TestComprehensive_StrictTrackBOneWayDoorGateBlocking(t *testing.T) {
 	ctx := context.Background()
 
-	setupWorkspace := func(t *testing.T, sessionRec, adrBody string) (string, Envelope) {
+	setupWorkspace := func(t *testing.T, sessionRec, adrBody, challenge string) (string, Envelope) {
 		tmpDir := t.TempDir()
-		_, envInit, err := handleInit(ctx, nil, InitInput{ProjectRoot: tmpDir})
-		if err != nil || !envInit.Success {
+		_, envInit, err := handleStart(ctx, nil, StartInput{Question: "test", Scope: "project", ProjectRoot: tmpDir})
+		if err != nil || !envInit.Ok {
 			t.Fatalf("init failed: %v", err)
 		}
 
-		pipelineContent := `# Research Pipeline
-### T1-01: Core Storage
-| **ID** | T1-01 |
-| **Dependencies** | None |
-` + "```prompt" + `
-storage prompt
-` + "```" + `
-
-### T1-02: Transport Protocol
-| **ID** | T1-02 |
-| **Dependencies** | None |
-` + "```prompt" + `
-transport prompt
-` + "```" + `
-
-### SYN-01: Founding Architecture Synthesis
-| **ID** | SYN-01 |
-| **Dependencies** | T1-01, T1-02 |
-` + "```prompt" + `
-synthesis prompt
-` + "```" + `
-`
-		_, envPlan, err := handleSavePlan(ctx, nil, SavePlanInput{
+		pipelineContent := threeSessionTestPlan("Core Storage", "storage prompt", "Transport Protocol", "transport prompt",
+			"Founding Architecture Synthesis", "synthesis prompt")
+		_, envPlan, err := handleSave(ctx, nil, SaveInput{
+			Kind:             "plan",
 			ProjectRoot:      tmpDir,
 			Content:          pipelineContent,
 			DecisionsContent: "# Decision Registry\n",
 		})
-		if err != nil || !envPlan.Success {
+		if err != nil || !envPlan.Ok {
 			t.Fatalf("save plan failed: %v", err)
 		}
 
@@ -238,12 +224,13 @@ Contradicted assumption that LevelDB is simpler.
 - RFC 7636: https://tools.ietf.org/html/rfc7636 [Grade A]
 `
 
-		_, envSess, err := handleSaveSession(ctx, nil, SaveSessionInput{
+		_, envSess, err := handleSave(ctx, nil, SaveInput{
+			Kind:        "session",
 			ProjectRoot: tmpDir,
-			SessionID:   "T1-01",
+			ID:          "T1-01",
 			Content:     sessContent,
 		})
-		if err != nil || !envSess.Success {
+		if err != nil || !envSess.Ok {
 			t.Fatalf("save session T1-01 failed: %v", err)
 		}
 
@@ -273,12 +260,13 @@ Use QUIC with TCP fallback. Grade A (https://quicwg.org)
 - QUIC WG: https://quicwg.org [Grade A]
 - RFC 9000: https://tools.ietf.org/html/rfc9000 [Grade A]
 `
-		_, envSess2, err := handleSaveSession(ctx, nil, SaveSessionInput{
+		_, envSess2, err := handleSave(ctx, nil, SaveInput{
+			Kind:        "session",
 			ProjectRoot: tmpDir,
-			SessionID:   "T1-02",
+			ID:          "T1-02",
 			Content:     sess2Content,
 		})
-		if err != nil || !envSess2.Success {
+		if err != nil || !envSess2.Ok {
 			t.Fatalf("save session T1-02 failed: %v", err)
 		}
 
@@ -308,12 +296,13 @@ Edge subsystem persistence and transport topology.
 - T1-01 -> Storage
 - T1-02 -> Transport
 `
-		_, envFAD, err := handleSaveSession(ctx, nil, SaveSessionInput{
+		_, envFAD, err := handleSave(ctx, nil, SaveInput{
+			Kind:        "session",
 			ProjectRoot: tmpDir,
-			SessionID:   "SYN-01",
+			ID:          "SYN-01",
 			Content:     fadContent,
 		})
-		if err != nil || !envFAD.Success {
+		if err != nil || !envFAD.Ok {
 			t.Fatalf("save FAD failed: %v", err)
 		}
 
@@ -333,22 +322,27 @@ review_trigger: "Data exceeds 100 GB"
 
 		_, envADR, err := handleRecordDecision(ctx, nil, RecordDecisionInput{
 			ProjectRoot: tmpDir,
-			DecisionID:  "D-001",
+			ID:          "D-001",
 			Content:     adrContent,
 		})
-		if err != nil || !envADR.Success {
+		if err != nil || !envADR.Ok {
 			t.Fatalf("record decision failed: %v", err)
 		}
 
-		chContent := fmt.Sprintf(`---
-decision_id: D-001
-decision_hash: %s
-date: 2026-10-07
----
-# Red Team Challenge D-001-R1
-Substantive challenge findings.
-`, core.ComputeDecisionOutcomeHash([]byte(adrContent)))
-		_ = os.WriteFile(filepath.Join(tmpDir, core.ResearchDir, "D-001-R1.md"), []byte(chContent), 0o644)
+		// The red-team record comes from the real tool; when the case documents a challenge, the ADR cites the
+		// record id the tool returned.
+		recID := redTeamRecordIDDirect(t, ctx, tmpDir, "D-001")
+		if challenge != "" {
+			_, envCited, err := handleRecordDecision(ctx, nil, RecordDecisionInput{
+				ProjectRoot: tmpDir,
+				ID:          "D-001",
+				Content:     adrContent + fmt.Sprintf(challenge, recID),
+				Revise:      true,
+			})
+			if err != nil || !envCited.Ok {
+				t.Fatalf("record decision citing %s failed: %v %s", recID, err, envCited.Message)
+			}
+		}
 
 		ws, err := store.OpenWorkspace(tmpDir)
 		if err != nil {
@@ -361,7 +355,7 @@ Substantive challenge findings.
 		ws.Close()
 
 		// Run gate
-		_, envGate, err := handleRunGate(ctx, nil, RunGateInput{
+		_, envGate, err := handleGate(ctx, nil, GateInput{
 			ProjectRoot: tmpDir,
 		})
 		if err != nil {
@@ -382,14 +376,13 @@ Adopt SQLite with WAL mode.
 # Consequences
 Simple deployment.
 `
-		_, envGate := setupWorkspace(t, sessionRec, adrBody)
+		_, envGate := setupWorkspace(t, sessionRec, adrBody, "")
 		dataMap, _ := envGate.Data.(map[string]any)
-		gatePassed, _ := dataMap["gate_passed"].(bool)
-		if gatePassed {
-			t.Errorf("expected gate_passed to be FALSE due to missing B5 rejected alternatives: %+v", envGate)
+		if dataMap["verdict"] != "FAIL" {
+			t.Errorf("expected verdict FAIL due to missing B5 rejected alternatives: %+v", envGate)
 		}
 		foundB5 := false
-		for _, w := range envGate.Warnings {
+		for _, w := range envWarningStrings(envGate) {
 			if strings.Contains(w, "B5-ALTERNATIVES") {
 				foundB5 = true
 				break
@@ -412,14 +405,13 @@ Adopt Custom Store.
 ## Rejected Alternatives
 - SQLite: rejected due to concurrency.
 `
-		_, envGate := setupWorkspace(t, sessionRec, adrBody)
+		_, envGate := setupWorkspace(t, sessionRec, adrBody, "")
 		dataMap, _ := envGate.Data.(map[string]any)
-		gatePassed, _ := dataMap["gate_passed"].(bool)
-		if gatePassed {
-			t.Errorf("expected gate_passed to be FALSE due to B3 Grade C evidence: %+v", envGate)
+		if dataMap["verdict"] != "FAIL" {
+			t.Errorf("expected verdict FAIL due to B3 Grade C evidence: %+v", envGate)
 		}
 		foundB3 := false
-		for _, w := range envGate.Warnings {
+		for _, w := range envWarningStrings(envGate) {
 			if strings.Contains(w, "B3-EVIDENTIARY") {
 				foundB3 = true
 				break
@@ -442,14 +434,13 @@ Adopt InfluxDB.
 ## Rejected Alternatives
 - Prometheus: rejected due to retention policies.
 `
-		_, envGate := setupWorkspace(t, sessionRec, adrBody)
+		_, envGate := setupWorkspace(t, sessionRec, adrBody, "")
 		dataMap, _ := envGate.Data.(map[string]any)
-		gatePassed, _ := dataMap["gate_passed"].(bool)
-		if gatePassed {
-			t.Errorf("expected gate_passed to be FALSE due to B4 recalled evidence: %+v", envGate)
+		if dataMap["verdict"] != "FAIL" {
+			t.Errorf("expected verdict FAIL due to B4 recalled evidence: %+v", envGate)
 		}
 		foundB4 := false
-		for _, w := range envGate.Warnings {
+		for _, w := range envWarningStrings(envGate) {
 			if strings.Contains(w, "B4-VERIFICATION") {
 				foundB4 = true
 				break
@@ -474,18 +465,15 @@ Adopt SQLite with WAL mode backed by:
 - [Grade A: https://tools.ietf.org/html/rfc9000 | fetched]
 ## Rejected Alternatives
 - PostgreSQL: rejected due to daemon resource footprint.
-## Red-Team Stress Test
-### Challenge Findings
-Evaluated D-001-R1 write contention under 100 concurrent writers. WAL mode sustains throughput with busy retry.
 `
-		_, envGate := setupWorkspace(t, sessionRec, adrBody)
+		challenge := `## Red-Team Stress Test
+### Challenge Findings
+Evaluated %s write contention under 100 concurrent writers. WAL mode sustains throughput with busy retry.
+`
+		_, envGate := setupWorkspace(t, sessionRec, adrBody, challenge)
 		dataMap, _ := envGate.Data.(map[string]any)
-		gatePassed, _ := dataMap["gate_passed"].(bool)
-		if !gatePassed {
-			t.Errorf("expected gate_passed to be TRUE, got FALSE (warnings: %v)", envGate.Warnings)
-		}
-		if dataMap["gate_status"] != "PASS" {
-			t.Errorf("expected gate_status to be PASS, got: %v", dataMap["gate_status"])
+		if dataMap["verdict"] != "PASS" {
+			t.Errorf("expected verdict PASS, got: %v (warnings: %v)", dataMap["verdict"], envGate.Warnings)
 		}
 	})
 }
@@ -496,25 +484,21 @@ func TestComprehensive_EagerReplanAndRootFADLocks(t *testing.T) {
 	tmpDir := t.TempDir()
 	ctx := context.Background()
 
-	_, envInit, err := handleInit(ctx, nil, InitInput{ProjectRoot: tmpDir})
-	if err != nil || !envInit.Success {
+	_, envInit, err := handleStart(ctx, nil, StartInput{Question: "test", Scope: "project", ProjectRoot: tmpDir})
+	if err != nil || !envInit.Ok {
 		t.Fatalf("init failed: %v", err)
 	}
 
-	pipelineContent := `# Research Pipeline
-### T1-01: Session 1
-| **ID** | T1-01 |
-| **Dependencies** | None |
-` + "```prompt" + `
-prompt 1
-` + "```" + `
-`
-	_, envPlan, err := handleSavePlan(ctx, nil, SavePlanInput{
+	pipelineContent := testPlan("Research Pipeline", "PROJECT", "", []string{"{id: T1-01, title: Session 1, depends: []}",
+		"{id: SYN-01, title: Synthesis, kind: synthesis, depends: [ALL]}"},
+		testSection("T1-01", "Session 1", "prompt 1"), testSection("SYN-01", "Synthesis", "Synthesize."))
+	_, envPlan, err := handleSave(ctx, nil, SaveInput{
+		Kind:             "plan",
 		ProjectRoot:      tmpDir,
 		Content:          pipelineContent,
 		DecisionsContent: "# Decision Registry\n",
 	})
-	if err != nil || !envPlan.Success {
+	if err != nil || !envPlan.Ok {
 		t.Fatalf("save plan failed: %v", err)
 	}
 
@@ -529,26 +513,28 @@ prompt 1
 	ctxShort, cancel := context.WithTimeout(ctx, 300*time.Millisecond)
 	defer cancel()
 	_, envReplan, _ := handleReplan(ctxShort, nil, ReplanInput{
+		Plan:        "PROJECT",
 		ProjectRoot: tmpDir,
-		Operation:   "add_session",
+		Op:          "add_session",
 		SessionID:   "T1-02",
 		Topic:       "Added Session",
 		Prompt:      "prompt 2",
 	})
-	if envReplan.Success {
+	if envReplan.Ok {
 		t.Errorf("expected replan to fail while pipeline lock is held, but succeeded: %+v", envReplan)
 	}
 	_ = unlock()
 
 	// 2. Now replan succeeds with lock released
 	_, envReplan2, err := handleReplan(ctx, nil, ReplanInput{
+		Plan:        "PROJECT",
 		ProjectRoot: tmpDir,
-		Operation:   "add_session",
+		Op:          "add_session",
 		SessionID:   "T1-02",
 		Topic:       "Added Session",
 		Prompt:      "prompt 2",
 	})
-	if err != nil || !envReplan2.Success {
+	if err != nil || !envReplan2.Ok {
 		t.Fatalf("expected replan to succeed when unlocked: %v, env: %+v", err, envReplan2)
 	}
 
@@ -562,12 +548,13 @@ date: 2026-10-07
 # Founding Architecture
 Complete spec with Grade A (canonical docs: https://example.com).
 `
-	_, envSaveFAD, err := handleSaveSession(ctx, nil, SaveSessionInput{
+	_, envSaveFAD, err := handleSave(ctx, nil, SaveInput{
+		Kind:        "session",
 		ProjectRoot: tmpDir,
-		SessionID:   "SYN-01",
+		ID:          "SYN-01",
 		Content:     fadContent,
 	})
-	if err != nil || !envSaveFAD.Success {
+	if err != nil || !envSaveFAD.Ok {
 		t.Fatalf("save FAD failed: %v", err)
 	}
 
@@ -586,12 +573,12 @@ Complete spec with Grade A (canonical docs: https://example.com).
 ### Amendment 2026-10-07
 Founding Architecture Updated with additional telemetry notes.
 `
-	_, envAmendFAD, err := handleAmendSession(ctx, nil, AmendSessionInput{
+	_, envAmendFAD, err := handleAmend(ctx, nil, AmendInput{
 		ProjectRoot: tmpDir,
-		SessionID:   "SYN-01",
-		Amendment:   amendmentNote,
+		ID:          "SYN-01",
+		Note:        amendmentNote,
 	})
-	if err != nil || !envAmendFAD.Success {
+	if err != nil || !envAmendFAD.Ok {
 		t.Fatalf("amend FAD failed: %v", err)
 	}
 
@@ -667,68 +654,61 @@ func TestComprehensive_GuidedReplanAndReasonImpactMetadata(t *testing.T) {
 	tmpDir := t.TempDir()
 	ctx := context.Background()
 
-	_, envInit, err := handleInit(ctx, nil, InitInput{ProjectRoot: tmpDir, Scope: "project"})
-	if err != nil || !envInit.Success {
+	_, envInit, err := handleStart(ctx, nil, StartInput{Question: "test", ProjectRoot: tmpDir, Scope: "project"})
+	if err != nil || !envInit.Ok {
 		t.Fatalf("init failed: %v", err)
 	}
 
-	pipelineContent := `# Research Pipeline
-### T1-01: Session 1
-| **ID** | T1-01 |
-| **Dependencies** | None |
-` + "```prompt\nprompt 1\n```\n"
+	pipelineContent := testPlan("Research Pipeline", "PROJECT", "", []string{"{id: T1-01, title: Session 1, depends: []}",
+		"{id: SYN-01, title: Synthesis, kind: synthesis, depends: [ALL]}"},
+		testSection("T1-01", "Session 1", "prompt 1"), testSection("SYN-01", "Synthesis", "Synthesize."))
 
-	_, envPlan, err := handleSavePlan(ctx, nil, SavePlanInput{
+	_, envPlan, err := handleSave(ctx, nil, SaveInput{
+		Kind:             "plan",
 		ProjectRoot:      tmpDir,
 		Content:          pipelineContent,
 		DecisionsContent: "# Decision Registry\n",
 	})
-	if err != nil || !envPlan.Success {
+	if err != nil || !envPlan.Ok {
 		t.Fatalf("save plan failed: %v", err)
 	}
 
-	// 1. Guided replan with empty operation
-	_, envGuided, err := handleReplan(ctx, nil, ReplanInput{
+	// 1. Replan without required op returns E-INVALID-ARGUMENT and leaves pipeline untouched
+	resMissingOp, envMissingOp, err := handleReplan(ctx, nil, ReplanInput{
+		Plan:        "PROJECT",
 		ProjectRoot: tmpDir,
 	})
-	if err != nil || !envGuided.Success {
-		t.Fatalf("guided replan failed: %v, env: %+v", err, envGuided)
+	if err != nil {
+		t.Fatalf("unexpected go error: %v", err)
 	}
-	guidedData, ok := envGuided.Data.(map[string]any)
-	if !ok || guidedData["status"] != "guided" {
-		t.Errorf("expected status guided, got: %v", envGuided.Data)
-	}
-	if !strings.Contains(envGuided.NextStep, "Call vivechak_replan with operation") {
-		t.Errorf("expected guided next_step to guide user, got: %q", envGuided.NextStep)
+	if !resMissingOp.IsError || envMissingOp.Ok || envMissingOp.Code != "E-INVALID-ARGUMENT" {
+		t.Fatalf("expected E-INVALID-ARGUMENT for missing op, got: %+v", envMissingOp)
 	}
 
-	// Verify pipeline file content was NOT changed by guided overview
+	// Verify pipeline file content was NOT changed
 	pBytes, _ := os.ReadFile(filepath.Join(tmpDir, core.PipelineFile))
 	if strings.Contains(string(pBytes), "REPLAN HISTORY") {
 		t.Errorf("pipeline should not have replan history yet")
 	}
 
-	// 2. Concrete replan with reason and impact
+	// 2. Concrete replan with reason
 	_, envReplan, err := handleReplan(ctx, nil, ReplanInput{
+		Plan:         "PROJECT",
 		ProjectRoot:  tmpDir,
-		Operation:    "add_session",
+		Op:           "add_session",
 		SessionID:    "T2-01",
 		Topic:        "Security Hardening",
 		Prompt:       "Security audit prompt",
 		Reason:       "SOC2 compliance requirement",
-		Impact:       "Adds required security research session",
 		Dependencies: "T1-01",
 	})
-	if err != nil || !envReplan.Success {
+	if err != nil || !envReplan.Ok {
 		t.Fatalf("replan failed: %v, env: %+v", err, envReplan)
 	}
 
 	replanData := envReplan.Data.(map[string]any)
 	if replanData["reason"] != "SOC2 compliance requirement" {
 		t.Errorf("expected reason 'SOC2 compliance requirement' in replan data, got: %v", replanData["reason"])
-	}
-	if replanData["impact"] != "Adds required security research session" {
-		t.Errorf("expected impact in replan data, got: %v", replanData["impact"])
 	}
 
 	pUpdatedBytes, err := os.ReadFile(filepath.Join(tmpDir, core.PipelineFile))
@@ -747,8 +727,8 @@ func TestComprehensive_MultiSessionDecisionChallengePreservation(t *testing.T) {
 	tmpDir := t.TempDir()
 	ctx := context.Background()
 
-	_, envInit, err := handleInit(ctx, nil, InitInput{ProjectRoot: tmpDir, Scope: "decision"})
-	if err != nil || !envInit.Success {
+	_, envInit, err := handleStart(ctx, nil, StartInput{Question: "test", ProjectRoot: tmpDir, Scope: "decision"})
+	if err != nil || !envInit.Ok {
 		t.Fatalf("init failed: %v", err)
 	}
 
@@ -774,12 +754,12 @@ Confirmed PKCE requirement.
 	}
 
 	// Challenge D-001-S1
-	_, envChal, err := handleChallenge(ctx, nil, ChallengeInput{
+	_, envChal, err := handleReview(ctx, nil, ReviewInput{
 		ProjectRoot: tmpDir,
-		SessionID:   "D-001-S1",
+		ID:          "D-001-S1",
 		Mode:        "red_team",
 	})
-	if err != nil || !envChal.Success {
+	if err != nil || !envChal.Ok {
 		t.Fatalf("challenge D-001-S1 failed: %v, env: %+v", err, envChal)
 	}
 	chalResult, ok := envChal.Data.(*core.ChallengeResult)
@@ -828,10 +808,10 @@ Adopt session cookies. Grade A (https://owasp.org)
 `
 	_, envRec, err := handleRecordDecision(ctx, nil, RecordDecisionInput{
 		ProjectRoot: tmpDir,
-		DecisionID:  "D-001",
+		ID:          "D-001",
 		Content:     d1Content,
 	})
-	if err != nil || !envRec.Success {
+	if err != nil || !envRec.Ok {
 		t.Fatalf("record_decision D-001 failed: %v, env: %+v", err, envRec)
 	}
 
@@ -849,30 +829,30 @@ Adopt session cookies. Grade A (https://owasp.org)
 	}
 }
 
-// TestComprehensive_TrackFilterDecoupledGateClearance verifies that handleRunGate decouples Track A and Track B,
+// TestComprehensive_TrackFilterDecoupledGateClearance verifies that handleGate decouples Track A and Track B,
 // respects track filtering, and comparison scope receives zero-gate clearance with advisory.
 func TestComprehensive_TrackFilterDecoupledGateClearance(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("comparison scope receives zero-gate clearance", func(t *testing.T) {
 		tmpDir := t.TempDir()
-		_, envInit, _ := handleInit(ctx, nil, InitInput{ProjectRoot: tmpDir, Scope: "comparison"})
-		if !envInit.Success {
+		_, envInit, _ := handleStart(ctx, nil, StartInput{Question: "test", ProjectRoot: tmpDir, Scope: "comparison"})
+		if !envInit.Ok {
 			t.Fatalf("init failed: %s", envInit.Message)
 		}
 
-		_, envGate, err := handleRunGate(ctx, nil, RunGateInput{
+		_, envGate, err := handleGate(ctx, nil, GateInput{
 			ProjectRoot: tmpDir,
 		})
 		if err != nil {
 			t.Fatalf("run_gate failed: %v", err)
 		}
 		gateData, ok := envGate.Data.(map[string]any)
-		if !ok || gateData["gate_passed"] != true {
-			t.Errorf("comparison scope must always pass gate, got: %+v", gateData)
+		if !ok || gateData["verdict"] != "not_applicable" {
+			t.Errorf("comparison scope has no architecture gate (verdict not_applicable), got: %+v", gateData)
 		}
 		foundZeroReq := false
-		for _, adv := range envGate.Warnings {
+		for _, adv := range envWarningStrings(envGate) {
 			if strings.Contains(adv, "zero gate requirements") {
 				foundZeroReq = true
 				break
@@ -885,22 +865,22 @@ func TestComprehensive_TrackFilterDecoupledGateClearance(t *testing.T) {
 
 	t.Run("project scope track filters", func(t *testing.T) {
 		tmpDir := t.TempDir()
-		_, envInit, _ := handleInit(ctx, nil, InitInput{ProjectRoot: tmpDir, Scope: "project"})
-		if !envInit.Success {
+		_, envInit, _ := handleStart(ctx, nil, StartInput{Question: "test", ProjectRoot: tmpDir, Scope: "project"})
+		if !envInit.Ok {
 			t.Fatalf("init failed: %s", envInit.Message)
 		}
 
 		// Invalid track returns error envelope
-		_, envInvalid, err := handleRunGate(ctx, nil, RunGateInput{
+		_, envInvalid, err := handleGate(ctx, nil, GateInput{
 			ProjectRoot: tmpDir,
 			Track:       "invalid_track",
 		})
-		if err == nil && envInvalid.Success {
+		if err == nil && envInvalid.Ok {
 			t.Errorf("expected error for invalid track, got success")
 		}
 
 		// Track A filter on empty workspace
-		_, envTrackA, err := handleRunGate(ctx, nil, RunGateInput{
+		_, envTrackA, err := handleGate(ctx, nil, GateInput{
 			ProjectRoot: tmpDir,
 			Track:       "track_a",
 		})
@@ -920,8 +900,8 @@ func TestComprehensive_ComparisonScopeValidateAndVisualize(t *testing.T) {
 	tmpDir := t.TempDir()
 	ctx := context.Background()
 
-	_, envInit, err := handleInit(ctx, nil, InitInput{ProjectRoot: tmpDir, Scope: "comparison"})
-	if err != nil || !envInit.Success {
+	_, envInit, err := handleStart(ctx, nil, StartInput{Question: "test", ProjectRoot: tmpDir, Scope: "comparison"})
+	if err != nil || !envInit.Ok {
 		t.Fatalf("init failed: %v", err)
 	}
 
@@ -959,22 +939,24 @@ Varying Throughput weight keeps Fastify ahead.
 - Fastify docs: https://fastify.io [Grade A]
 - Express docs: https://expressjs.com [Grade A]
 `
-	_, envPlan, err := handleSavePlan(ctx, nil, SavePlanInput{
+	_, envPlan, err := handleSave(ctx, nil, SaveInput{
+		Kind:        "comparison",
 		ProjectRoot: tmpDir,
 		Scope:       "comparison",
-		DecisionID:  "C-01",
+		ID:          "C-01",
 		Slug:        "framework-shootout",
 		Content:     wepMatrix,
 	})
-	if err != nil || !envPlan.Success {
+	if err != nil || !envPlan.Ok {
 		t.Fatalf("save plan failed: %v, env: %+v", err, envPlan)
 	}
 
 	// 1. Validate comparison artifact via workspace validation
-	_, envVal, err := handleValidate(ctx, nil, ValidateInput{
+	_, envVal, err := handleReview(ctx, nil, ReviewInput{
+		Mode:        "validate",
 		ProjectRoot: tmpDir,
 	})
-	if err != nil || !envVal.Success {
+	if err != nil || !envVal.Ok {
 		t.Fatalf("workspace validate failed: %v, env: %+v", err, envVal)
 	}
 	valData := envVal.Data.(map[string]any)
@@ -989,11 +971,11 @@ Varying Throughput weight keeps Fastify ahead.
 	}
 
 	// 3. Visualize comparison workspace
-	_, envVis, err := handleVisualize(ctx, nil, VisualizeInput{
+	_, envVis, err := handleStatus(ctx, nil, StatusInput{
 		ProjectRoot: tmpDir,
 		Format:      "table",
 	})
-	if err != nil || !envVis.Success {
+	if err != nil || !envVis.Ok {
 		t.Fatalf("visualize table failed: %v, env: %+v", err, envVis)
 	}
 	visData := envVis.Data.(map[string]any)
@@ -1002,11 +984,11 @@ Varying Throughput weight keeps Fastify ahead.
 	}
 
 	// 4. Visualize comparison workspace as mermaid
-	_, envVisM, err := handleVisualize(ctx, nil, VisualizeInput{
+	_, envVisM, err := handleStatus(ctx, nil, StatusInput{
 		ProjectRoot: tmpDir,
 		Format:      "mermaid",
 	})
-	if err != nil || !envVisM.Success {
+	if err != nil || !envVisM.Ok {
 		t.Fatalf("visualize mermaid failed: %v, env: %+v", err, envVisM)
 	}
 }
@@ -1029,31 +1011,20 @@ func TestComprehensive_TrackBArithmeticAndAdversarialChallenge(t *testing.T) {
 
 	t.Run("Project Scope - Full Pass with Adversarial Challenge produces 4/4 and clears B11", func(t *testing.T) {
 		tmpDir := t.TempDir()
-		_, envInit, err := handleInit(ctx, nil, InitInput{ProjectRoot: tmpDir, Scope: "project"})
-		if err != nil || !envInit.Success {
+		_, envInit, err := handleStart(ctx, nil, StartInput{Question: "test", ProjectRoot: tmpDir, Scope: "project"})
+		if err != nil || !envInit.Ok {
 			t.Fatalf("init failed: %v", err)
 		}
 
-		pipelineContent := `# Research Pipeline
-### T1-01: Storage
-| **ID** | T1-01 |
-| **Dependencies** | None |
-` + "```prompt\nstorage prompt\n```\n" + `
-### T1-02: Transport
-| **ID** | T1-02 |
-| **Dependencies** | None |
-` + "```prompt\ntransport prompt\n```\n" + `
-### SYN-01: Synthesis
-| **ID** | SYN-01 |
-| **Dependencies** | T1-01, T1-02 |
-` + "```prompt\nsynthesis prompt\n```\n"
+		pipelineContent := threeSessionTestPlan("Storage", "storage prompt", "Transport", "transport prompt", "Synthesis", "synthesis prompt")
 
-		_, envPlan, err := handleSavePlan(ctx, nil, SavePlanInput{
+		_, envPlan, err := handleSave(ctx, nil, SaveInput{
+			Kind:             "plan",
 			ProjectRoot:      tmpDir,
 			Content:          pipelineContent,
 			DecisionsContent: "# Decisions\n",
 		})
-		if err != nil || !envPlan.Success {
+		if err != nil || !envPlan.Ok {
 			t.Fatalf("save plan failed: %v", err)
 		}
 
@@ -1078,12 +1049,13 @@ Concurrency limit on multi-writer transactions.
 ## Delta
 Confirmed WAL mode suitability.
 `
-		_, envSess1, err := handleSaveSession(ctx, nil, SaveSessionInput{
+		_, envSess1, err := handleSave(ctx, nil, SaveInput{
+			Kind:        "session",
 			ProjectRoot: tmpDir,
-			SessionID:   "T1-01",
+			ID:          "T1-01",
 			Content:     sess1Content,
 		})
-		if err != nil || !envSess1.Success {
+		if err != nil || !envSess1.Ok {
 			t.Fatalf("save session T1-01: %v", err)
 		}
 
@@ -1108,12 +1080,13 @@ UDP blocking.
 ## Delta
 Confirmed QUIC suitability.
 `
-		_, envSess2, err := handleSaveSession(ctx, nil, SaveSessionInput{
+		_, envSess2, err := handleSave(ctx, nil, SaveInput{
+			Kind:        "session",
 			ProjectRoot: tmpDir,
-			SessionID:   "T1-02",
+			ID:          "T1-02",
 			Content:     sess2Content,
 		})
-		if err != nil || !envSess2.Success {
+		if err != nil || !envSess2.Ok {
 			t.Fatalf("save session T1-02: %v", err)
 		}
 
@@ -1141,17 +1114,19 @@ System uses SQLite for local persistence and QUIC for high throughput event tran
 - T1-01 -> D-001
 - T1-02 -> Transport
 `
-		_, envFAD, err := handleSaveSession(ctx, nil, SaveSessionInput{
+		_, envFAD, err := handleSave(ctx, nil, SaveInput{
+			Kind:        "session",
 			ProjectRoot: tmpDir,
-			SessionID:   "SYN-01",
+			ID:          "SYN-01",
 			Content:     fadContent,
 		})
-		if err != nil || !envFAD.Success {
+		if err != nil || !envFAD.Ok {
 			t.Fatalf("save FAD: %v", err)
 		}
 
 		// One-Way Door with Grade A evidence, substantive rejected alternatives, and Red-Team Challenge section
-		adrContent := `---
+		adrContent := func(challenge string) string {
+			return `---
 id: D-001
 title: Storage Engine
 status: accepted
@@ -1165,43 +1140,38 @@ review_trigger: "Data exceeds 100 GB"
 # Context
 High performance embedded transactional store.
 # Decision Outcome
-Adopt SQLite with WAL mode backed by verified docs: Grade A (https://sqlite.org/wal.html | fetched)
-High concurrent throughput verified. Grade A (https://sqlite.org/benchmark.html | fetched)
+Adopt SQLite with WAL mode backed by verified docs [Grade A: https://sqlite.org/wal.html | fetched]
+High concurrent throughput verified [Grade A: https://sqlite.org/benchmark.html | fetched]
 ## Rejected Alternatives
 - PostgreSQL: rejected due to operational daemon footprint and excessive RAM usage for edge devices.
-## Challenge Findings
-Adversarial red-team challenge D-001-R1 completed. Challenged lock contention under 100 concurrent writers. WAL mode sustains required throughput with busy handler retry.
-## Red-Team Stress Test
-Challenged lock contention under 100 concurrent writers. WAL mode sustains required throughput with busy handler retry.
-## Reversal Triggers
+` + challenge + `## Reversal Triggers
 - Data size exceeds 100 GB.
 `
+		}
 		_, envADR, err := handleRecordDecision(ctx, nil, RecordDecisionInput{
 			ProjectRoot: tmpDir,
-			DecisionID:  "D-001",
-			Content:     adrContent,
+			ID:          "D-001",
+			Content:     adrContent(""),
 		})
-		if err != nil || !envADR.Success {
+		if err != nil || !envADR.Ok {
 			t.Fatalf("record decision: %v", err)
 		}
 
-		chalPath := filepath.Join(tmpDir, "research", "D-001-R1.md")
-		dBytes, _ := os.ReadFile(filepath.Join(tmpDir, "research", "D-001-decision.md"))
-		if len(dBytes) == 0 {
-			dBytes, _ = os.ReadFile(filepath.Join(tmpDir, "research", "D-001.md"))
+		// The red-team record comes from the real tool; the ADR then cites the record id it returns.
+		recID := redTeamRecordIDDirect(t, ctx, tmpDir, "D-001")
+		_, envCited, err := handleRecordDecision(ctx, nil, RecordDecisionInput{
+			ProjectRoot: tmpDir,
+			ID:          "D-001",
+			Content: adrContent(fmt.Sprintf(`## Challenge Findings
+Adversarial red-team challenge %s completed. Challenged lock contention under 100 concurrent writers. WAL mode sustains required throughput with busy handler retry.
+## Red-Team Stress Test
+Challenged lock contention under 100 concurrent writers. WAL mode sustains required throughput with busy handler retry.
+`, recID)),
+			Revise: true,
+		})
+		if err != nil || !envCited.Ok {
+			t.Fatalf("record decision citing %s: %v %s", recID, err, envCited.Message)
 		}
-		h := core.ComputeDecisionOutcomeHash(dBytes)
-		chalContent := fmt.Sprintf(`---
-decision_id: D-001
-round: 1
-decision_hash: %s
-target_outcome_hash: %s
-status: resolved
----
-# Red Team Challenge
-Outcome verified.
-`, h, h)
-		_ = os.WriteFile(chalPath, []byte(chalContent), 0o644)
 
 		ws, err := store.OpenWorkspace(tmpDir)
 		if err != nil {
@@ -1213,26 +1183,28 @@ Outcome verified.
 		}
 		ws.Close()
 
-		_, envGate, err := handleRunGate(ctx, nil, RunGateInput{ProjectRoot: tmpDir})
-		if err != nil || !envGate.Success {
+		_, envGate, err := handleGate(ctx, nil, GateInput{ProjectRoot: tmpDir})
+		if err != nil || !envGate.Ok {
 			t.Fatalf("run gate failed: %v", err)
 		}
 
 		gateData := envGate.Data.(map[string]any)
 		t.Logf("rules: %+v", gateData["rules"])
-		if gateData["gate_passed"] != true {
-			t.Fatalf("expected gate_passed true, got false. Warnings: %v", envGate.Warnings)
-		}
-		if gateData["gate_status"] != "PASS" {
-			t.Errorf("expected gate_status 'PASS', got: %v", gateData["gate_status"])
+		if gateData["verdict"] != "PASS" {
+			t.Fatalf("expected verdict PASS, got %v. Warnings: %v", gateData["verdict"], envGate.Warnings)
 		}
 
-		if gateData["rules"] == nil {
-			t.Errorf("expected rules list in gateData")
+		// Every one-way rule passes (G1-G11); with no two-way decision, G12 does not apply.
+		wantRules := map[string]string{
+			"G1": "PASS", "G2": "PASS", "G3": "PASS", "G4": "PASS", "G5": "PASS", "G6": "PASS",
+			"G7": "PASS", "G8": "PASS", "G9": "PASS", "G10": "PASS", "G11": "PASS", "G12": "n/a",
+		}
+		if got := gateRuleStatuses(t, gateData["rules"]); !reflect.DeepEqual(got, wantRules) {
+			t.Errorf("gate rules = %v, want %v", got, wantRules)
 		}
 
 		// Verify B11 advisory is NOT present because Red-Team Stress Test exists
-		for _, w := range envGate.Warnings {
+		for _, w := range envWarningStrings(envGate) {
 			if strings.Contains(w, "W-OWD-NO-CHALLENGE") {
 				t.Errorf("unexpected W-OWD-NO-CHALLENGE advisory when red-team challenge was documented: %s", w)
 			}
@@ -1241,16 +1213,16 @@ Outcome verified.
 
 	t.Run("Project Scope - Missing Challenge produces W-OWD-NO-CHALLENGE advisory but preserves 4/4 score", func(t *testing.T) {
 		tmpDir := t.TempDir()
-		_, _, _ = handleInit(ctx, nil, InitInput{ProjectRoot: tmpDir, Scope: "project"})
+		_, _, _ = handleStart(ctx, nil, StartInput{Question: "test", ProjectRoot: tmpDir, Scope: "project"})
 
-		pContent := "# Research Pipeline\n### T1-01: Storage\n| **ID** | T1-01 |\n| **Dependencies** | None |\n```prompt\nstorage\n```\n### T1-02: Transport\n| **ID** | T1-02 |\n| **Dependencies** | None |\n```prompt\ntransport\n```\n### SYN-01: Synthesis\n| **ID** | SYN-01 |\n| **Dependencies** | T1-01, T1-02 |\n```prompt\nsynthesis\n```\n"
-		_, _, _ = handleSavePlan(ctx, nil, SavePlanInput{ProjectRoot: tmpDir, Content: pContent, DecisionsContent: "# Decisions\n"})
+		pContent := threeSessionTestPlan("Storage", "storage", "Transport", "transport", "Synthesis", "synthesis")
+		_, _, _ = handleSave(ctx, nil, SaveInput{Kind: "plan", ProjectRoot: tmpDir, Content: pContent, DecisionsContent: "# Decisions\n"})
 
 		s1Content := "---\nsession_id: T1-01\ntitle: Storage\nstatus: complete\n---\n## Key Findings\n- Finding [Grade A] https://sqlite.org\n## Discovered Concerns\nLocking.\n## Delta\nUpdated.\n## Recommendation\nUse SQLite. Grade A (https://sqlite.org)\n"
-		_, _, _ = handleSaveSession(ctx, nil, SaveSessionInput{ProjectRoot: tmpDir, SessionID: "T1-01", Content: s1Content})
+		_, _, _ = handleSave(ctx, nil, SaveInput{Kind: "session", ProjectRoot: tmpDir, ID: "T1-01", Content: s1Content})
 
 		s2Content := "---\nsession_id: T1-02\ntitle: Transport\nstatus: complete\n---\n## Key Findings\n- Transport [Grade A] https://quicwg.org\n## Discovered Concerns\nUDP blocking.\n## Delta\nUpdated.\n## Recommendation\nUse QUIC. Grade A (https://quicwg.org)\n"
-		_, _, _ = handleSaveSession(ctx, nil, SaveSessionInput{ProjectRoot: tmpDir, SessionID: "T1-02", Content: s2Content})
+		_, _, _ = handleSave(ctx, nil, SaveInput{Kind: "session", ProjectRoot: tmpDir, ID: "T1-02", Content: s2Content})
 
 		fadContent := `---
 id: FAD-001
@@ -1264,7 +1236,7 @@ status: complete
 This comprehensive architectural blueprint synthesizes all session findings into an unified system design.
 All major subsystems, interfaces, data layers, and security controls are specified with inline evidence grades [Grade A: official docs https://sqlite.org].
 `
-		_, _, _ = handleSaveSession(ctx, nil, SaveSessionInput{ProjectRoot: tmpDir, SessionID: "SYN-01", Content: fadContent})
+		_, _, _ = handleSave(ctx, nil, SaveInput{Kind: "session", ProjectRoot: tmpDir, ID: "SYN-01", Content: fadContent})
 
 		// One-Way Door WITHOUT Red-Team Challenge
 		adrContent := `---
@@ -1287,7 +1259,7 @@ Adopt SQLite with WAL mode. Grade A (https://sqlite.org/wal.html)
 ## Reversal Triggers
 - Data size exceeds 100 GB.
 `
-		_, _, _ = handleRecordDecision(ctx, nil, RecordDecisionInput{ProjectRoot: tmpDir, DecisionID: "D-001", Content: adrContent})
+		_, _, _ = handleRecordDecision(ctx, nil, RecordDecisionInput{ProjectRoot: tmpDir, ID: "D-001", Content: adrContent})
 
 		ws, err := store.OpenWorkspace(tmpDir)
 		if err != nil {
@@ -1299,19 +1271,25 @@ Adopt SQLite with WAL mode. Grade A (https://sqlite.org/wal.html)
 		}
 		ws.Close()
 
-		_, envGate, err := handleRunGate(ctx, nil, RunGateInput{ProjectRoot: tmpDir})
-		if err != nil || !envGate.Success {
+		_, envGate, err := handleGate(ctx, nil, GateInput{ProjectRoot: tmpDir})
+		if err != nil || !envGate.Ok {
 			t.Fatalf("run gate failed: %v", err)
 		}
 
 		gateData := envGate.Data.(map[string]any)
-		if gateData["rules"] == nil {
-			t.Errorf("expected rules list in gateData")
+		// The sessions have no evidence ledger (G2), the FAD lacks its sections (G3), the ADR's evidence is one
+		// unlabelled bracket tag (G6, G7) and no red-team record exists (G10); the sign-off satisfies G11.
+		wantRules := map[string]string{
+			"G1": "PASS", "G2": "FAIL", "G3": "FAIL", "G4": "PASS", "G5": "PASS", "G6": "FAIL",
+			"G7": "FAIL", "G8": "PASS", "G9": "PASS", "G10": "FAIL", "G11": "PASS", "G12": "n/a",
+		}
+		if got := gateRuleStatuses(t, gateData["rules"]); gateData["verdict"] != "FAIL" || !reflect.DeepEqual(got, wantRules) {
+			t.Errorf("expected verdict FAIL with rules %v, got %v %v", wantRules, gateData["verdict"], got)
 		}
 
 		// Adversarial challenge advisory MUST be emitted
 		foundB11 := false
-		for _, w := range envGate.Warnings {
+		for _, w := range envWarningStrings(envGate) {
 			if strings.Contains(w, "W-OWD-NO-CHALLENGE") {
 				foundB11 = true
 				break
@@ -1324,7 +1302,7 @@ Adopt SQLite with WAL mode. Grade A (https://sqlite.org/wal.html)
 
 	t.Run("Decision Scope - Track B Arithmetic shows 3/3 on pass and Count < Total on failure", func(t *testing.T) {
 		tmpDir := t.TempDir()
-		_, _, _ = handleInit(ctx, nil, InitInput{ProjectRoot: tmpDir, Scope: "decision"})
+		_, _, _ = handleStart(ctx, nil, StartInput{Question: "test", ProjectRoot: tmpDir, Scope: "decision"})
 
 		// Session with weak Grade C evidence
 		sContent := "---\nsession_id: D-001-S1\ntitle: Auth\nstatus: complete\n---\n## Key Findings\n- Finding [Grade C] personal blog\n## Discovered Concerns\nSecurity.\n## Delta\nUpdated.\n## Recommendation\nUse Custom Auth. Grade C (unverified blog)\n"
@@ -1335,7 +1313,8 @@ Adopt SQLite with WAL mode. Grade A (https://sqlite.org/wal.html)
 		// Decision plan
 		_ = os.WriteFile(filepath.Join(tmpDir, core.ResearchDir, "D-001-plan.md"), []byte("# Plan\n"), 0o644)
 
-		// One-Way Door ADR
+		// One-Way Door ADR that claims a human review but carries no reviewed_hash: only `vck signoff` writes
+		// one, so G11 must FAIL (CRIT-13: the test no longer mints its own reviewed_hash).
 		adrContent := `---
 id: D-001
 title: Auth Architecture
@@ -1357,9 +1336,7 @@ Custom Auth.
 ## Reversal Triggers
 - Breach event occurs.
 `
-		adrHash := core.ComputeADRHash([]byte(adrContent))
-		adrContentWithHash := strings.Replace(adrContent, "reviewed_by: \"Security Architect\"", fmt.Sprintf("reviewed_by: \"Security Architect\"\nreviewed_hash: %s", adrHash), 1)
-		_ = os.WriteFile(filepath.Join(tmpDir, core.ResearchDir, "D-001.md"), []byte(adrContentWithHash), 0o644)
+		_ = os.WriteFile(filepath.Join(tmpDir, core.ResearchDir, "D-001.md"), []byte(adrContent), 0o644)
 
 		ws, err := store.OpenWorkspace(tmpDir)
 		if err != nil {
@@ -1391,14 +1368,29 @@ Custom Auth.
 		_ = os.WriteFile(filepath.Join(sDir, "D-001-S1.md"), []byte(sContentFixed), 0o644)
 
 		resFixed := core.EvaluateGate(ws, info, tmpDir)
-		if !resFixed.TrackBChecks.Passed {
-			t.Errorf("expected Track B to pass after fixing evidence, got issues: %v", resFixed.TrackBChecks.Issues)
+		// B3, B4 and B5 now all pass (3/3). With no sign-off written by `vck signoff`, the only Track B issue left is
+		// the G11 violation, so Track B still fails.
+		if resFixed.TrackBChecks.Passed || len(resFixed.TrackBChecks.Issues) != 1 || !strings.HasPrefix(resFixed.TrackBChecks.Issues[0], "G11 Violation") {
+			t.Errorf("expected Track B to fail only on the missing sign-off (G11) after fixing evidence, got passed=%v issues: %v", resFixed.TrackBChecks.Passed, resFixed.TrackBChecks.Issues)
 		}
 		if resFixed.TrackBChecks.Score != "3/3" {
 			t.Errorf("expected Track B score '3/3' on full pass, got: %s", resFixed.TrackBChecks.Score)
 		}
 		if resFixed.TrackBChecks.Count != 3 || resFixed.TrackBChecks.Total != 3 {
 			t.Errorf("expected Count=3 and Total=3, got Count=%d, Total=%d", resFixed.TrackBChecks.Count, resFixed.TrackBChecks.Total)
+		}
+
+		// Without a sign-off written by `vck signoff`, the gate FAILs G11 in both states.
+		for state, r := range map[string]*core.GateResult{"weak evidence": res, "fixed evidence": resFixed} {
+			g11 := ""
+			for _, rule := range r.Rules {
+				if rule.ID == "G11" {
+					g11 = rule.Status + ": " + rule.Reason
+				}
+			}
+			if r.Passed || !strings.HasPrefix(g11, "FAIL") || !strings.Contains(g11, "vck signoff") {
+				t.Errorf("%s: expected the gate to FAIL G11 without a reviewed_hash, got passed=%v, G11=%q", state, r.Passed, g11)
+			}
 		}
 	})
 }
@@ -1448,29 +1440,27 @@ func TestComprehensive_ScopeInferenceAndPrepositionStrippingMCP(t *testing.T) {
 		},
 	}
 
+	_ = cs
+	_ = tmpDir
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			res, err := cs.CallTool(ctx, &mcp.CallToolParams{
-				Name: "vivechak_start",
-				Arguments: map[string]any{
-					"project_root": tmpDir,
-					"question":     tc.inputContext,
-				},
+			_, env, err := handleStart(ctx, nil, StartInput{
+				ProjectRoot: t.TempDir(),
+				Question:    tc.inputContext,
 			})
 			if err != nil {
-				t.Fatalf("prepare_generator failed: %v", err)
+				t.Fatalf("handleStart failed: %v", err)
 			}
-			env := parseEnvelope(t, res)
-			if !env.Success {
-				t.Fatalf("prepare_generator returned error: %s", env.Message)
+			if !env.Ok {
+				t.Fatalf("handleStart returned error: %s", env.Message)
 			}
 			data := env.Data.(map[string]any)
-			if data["scope"] != tc.expectedScope {
+			if fmt.Sprint(data["scope"]) != tc.expectedScope {
 				t.Errorf("context %q: expected scope %q, got %q", tc.inputContext, tc.expectedScope, data["scope"])
 			}
-			prompt, _ := data["prompt"].(string)
+			prompt, _ := data["brief"].(string)
 			if !strings.Contains(prompt, tc.checkPromptSub) {
-				t.Errorf("context %q: expected prompt to contain %q, got: %s", tc.inputContext, tc.checkPromptSub, prompt[:300])
+				t.Errorf("context %q: expected brief to contain %q, got: %s", tc.inputContext, tc.checkPromptSub, prompt)
 			}
 		})
 	}
@@ -1497,14 +1487,8 @@ func TestComprehensive_WorkspaceAnchoringAcrossCalls(t *testing.T) {
 		t.Fatalf("start: %v", err)
 	}
 	env1 := parseEnvelope(t, res1)
-	if !env1.Success {
+	if !env1.Ok {
 		t.Fatalf("start returned error: %s", env1.Message)
-	}
-
-	// Verify project_root was anchored in session memory
-	lastResolved := core.GetLastResolvedWorkspace()
-	if !strings.EqualFold(lastResolved, tmpDir) {
-		t.Fatalf("core.GetLastResolvedWorkspace() = %q, want %q", lastResolved, tmpDir)
 	}
 
 	// 2. Call vivechak_save with project_root OMITTED
@@ -1516,7 +1500,7 @@ func TestComprehensive_WorkspaceAnchoringAcrossCalls(t *testing.T) {
 	res2, err := cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_save",
 		Arguments: map[string]any{
-			"kind":    "plan",
+			"kind":    "comparison",
 			"id":      "C-01",
 			"slug":    "pino-vs-winston",
 			"content": wepContent,
@@ -1526,7 +1510,7 @@ func TestComprehensive_WorkspaceAnchoringAcrossCalls(t *testing.T) {
 		t.Fatalf("save_plan: %v", err)
 	}
 	env2 := parseEnvelope(t, res2)
-	if !env2.Success {
+	if !env2.Ok {
 		t.Fatalf("save_plan without project_root failed: %s", env2.Message)
 	}
 
@@ -1549,7 +1533,7 @@ func TestComprehensive_WorkspaceAnchoringAcrossCalls(t *testing.T) {
 		t.Fatalf("status: %v", err)
 	}
 	env3 := parseEnvelope(t, res3)
-	if !env3.Success {
+	if !env3.Ok {
 		t.Fatalf("status without project_root failed: %s", env3.Message)
 	}
 	data3 := env3.Data.(map[string]any)
@@ -1558,7 +1542,7 @@ func TestComprehensive_WorkspaceAnchoringAcrossCalls(t *testing.T) {
 	}
 }
 
-// TestComprehensive_GateStatusTextAndTransitions tests that gate_status and next_step
+// TestComprehensive_GateStatusTextAndTransitions tests that the verdict and next_step
 // accurately transition through the state machine:
 // FAIL (structural failure) -> WARN (structural pass, quality failure) -> PASS (both pass).
 func TestComprehensive_GateStatusTextAndTransitions(t *testing.T) {
@@ -1566,28 +1550,25 @@ func TestComprehensive_GateStatusTextAndTransitions(t *testing.T) {
 
 	// State 1: FAIL — Empty workspace has structural failures
 	tmpDir1 := t.TempDir()
-	_, _, _ = handleInit(ctx, nil, InitInput{ProjectRoot: tmpDir1, Scope: "project"})
-	_, envGate1, _ := handleRunGate(ctx, nil, RunGateInput{ProjectRoot: tmpDir1})
+	_, _, _ = handleStart(ctx, nil, StartInput{Question: "test", ProjectRoot: tmpDir1, Scope: "project"})
+	_, envGate1, _ := handleGate(ctx, nil, GateInput{ProjectRoot: tmpDir1})
 	data1 := envGate1.Data.(map[string]any)
-	if data1["gate_status"] != "FAIL" {
-		t.Errorf("State 1: expected gate_status 'FAIL', got: %v", data1["gate_status"])
+	if data1["verdict"] != "FAIL" {
+		t.Errorf("State 1: expected verdict 'FAIL', got: %v", data1["verdict"])
 	}
-	if data1["gate_passed"] != false {
-		t.Errorf("State 1: expected gate_passed false, got: %v", data1["gate_passed"])
-	}
-	if !strings.Contains(envGate1.NextStep, "FAIL") {
-		t.Errorf("State 1: expected blocking next_step, got: %q", envGate1.NextStep)
+	if !strings.Contains(envGate1.Message, "FAIL") || !strings.Contains(envGuidance(envGate1), "DO NOT START IMPLEMENTATION") {
+		t.Errorf("State 1: expected blocking next_step, got msg=%q next=%q", envGate1.Message, envGuidance(envGate1))
 	}
 
 	// State 2: Structural pass, but Quality checks fail (One-Way Door missing B5 rejected alternatives)
 	tmpDir2 := t.TempDir()
-	_, _, _ = handleInit(ctx, nil, InitInput{ProjectRoot: tmpDir2, Scope: "project"})
-	pContent := "# Research Pipeline\n### T1-01: S1\n| **ID** | T1-01 |\n| **Dependencies** | None |\n```prompt\np1\n```\n### T1-02: S2\n| **ID** | T1-02 |\n| **Dependencies** | None |\n```prompt\np2\n```\n### SYN-01: FAD\n| **ID** | SYN-01 |\n| **Dependencies** | T1-01, T1-02 |\n```prompt\np3\n```\n"
-	_, _, _ = handleSavePlan(ctx, nil, SavePlanInput{ProjectRoot: tmpDir2, Content: pContent, DecisionsContent: "# Decisions\n"})
+	_, _, _ = handleStart(ctx, nil, StartInput{Question: "test", ProjectRoot: tmpDir2, Scope: "project"})
+	pContent := threeSessionTestPlan("S1", "p1", "S2", "p2", "FAD", "p3")
+	_, _, _ = handleSave(ctx, nil, SaveInput{Kind: "plan", ProjectRoot: tmpDir2, Content: pContent, DecisionsContent: "# Decisions\n"})
 	s1Content := "---\nsession_id: T1-01\ntitle: S1\nstatus: complete\n---\n## Key Findings\n- Finding [Grade A] https://sqlite.org\n## Discovered Concerns\nWrite contention.\n## Delta\nUpdated.\n## Recommendation\nUse SQLite. Grade A (https://sqlite.org)\n## Sources & Evidence Ledger\n- SQLite: https://sqlite.org [Grade A]\n"
-	_, _, _ = handleSaveSession(ctx, nil, SaveSessionInput{ProjectRoot: tmpDir2, SessionID: "T1-01", Content: s1Content})
+	_, _, _ = handleSave(ctx, nil, SaveInput{Kind: "session", ProjectRoot: tmpDir2, ID: "T1-01", Content: s1Content})
 	s2Content := "---\nsession_id: T1-02\ntitle: S2\nstatus: complete\n---\n## Key Findings\n- Finding 2 [Grade A] https://quicwg.org\n## Discovered Concerns\nUDP blocking.\n## Delta\nUpdated.\n## Recommendation\nUse QUIC. Grade A (https://quicwg.org)\n## Sources & Evidence Ledger\n- QUIC: https://quicwg.org [Grade A]\n"
-	_, _, _ = handleSaveSession(ctx, nil, SaveSessionInput{ProjectRoot: tmpDir2, SessionID: "T1-02", Content: s2Content})
+	_, _, _ = handleSave(ctx, nil, SaveInput{Kind: "session", ProjectRoot: tmpDir2, ID: "T1-02", Content: s2Content})
 	fadContent := `---
 id: FAD-001
 session_id: SYN-01
@@ -1615,7 +1596,7 @@ Edge container data tier.
 - T1-01 -> Storage
 - T1-02 -> Transport
 `
-	_, _, _ = handleSaveSession(ctx, nil, SaveSessionInput{ProjectRoot: tmpDir2, SessionID: "SYN-01", Content: fadContent})
+	_, _, _ = handleSave(ctx, nil, SaveInput{Kind: "session", ProjectRoot: tmpDir2, ID: "SYN-01", Content: fadContent})
 	// One-Way Door missing B5 (rejected alternatives)
 	adrBad := `---
 id: D-001
@@ -1634,7 +1615,7 @@ Adopt SQLite. Grade A (https://sqlite.org)
 ## Reversal Triggers
 - Data > 100 GB.
 `
-	_, _, _ = handleRecordDecision(ctx, nil, RecordDecisionInput{ProjectRoot: tmpDir2, DecisionID: "D-001", Content: adrBad})
+	_, _, _ = handleRecordDecision(ctx, nil, RecordDecisionInput{ProjectRoot: tmpDir2, ID: "D-001", Content: adrBad})
 
 	ws2, err := store.OpenWorkspace(tmpDir2)
 	if err != nil {
@@ -1661,7 +1642,8 @@ Adopt SQLite. Grade A (https://sqlite.org)
 	}
 
 	// State 3: PASS — Both Structural and Quality pass
-	adrGood := `---
+	adrGood := func(challenge string) string {
+		return `---
 id: D-001
 title: Storage
 status: accepted
@@ -1679,25 +1661,24 @@ Adopt SQLite backed by:
 - [Grade A: https://quicwg.org | fetched]
 ## Rejected Alternatives
 - PostgreSQL: rejected due to daemon resource footprint and high operational complexity.
-## Red-Team Stress Test
-### Challenge Findings
-Evaluated D-001-R1 write contention under 100 concurrent writers. WAL mode sustains throughput with busy retry.
-## Reversal Triggers
+` + challenge + `## Reversal Triggers
 - Data > 100 GB.
 `
-	_, envGood, err := handleRecordDecision(ctx, nil, RecordDecisionInput{ProjectRoot: tmpDir2, DecisionID: "D-001", Content: adrGood, Revise: true})
-	if err != nil || !envGood.Success {
+	}
+	_, envGood, err := handleRecordDecision(ctx, nil, RecordDecisionInput{ProjectRoot: tmpDir2, ID: "D-001", Content: adrGood(""), Revise: true})
+	if err != nil || !envGood.Ok {
 		t.Fatalf("record good decision: %v, msg: %s", err, envGood.Message)
 	}
-	chContent := fmt.Sprintf(`---
-decision_id: D-001
-decision_hash: %s
-date: 2026-10-18
----
-# Red Team Challenge D-001-R1
-Substantive challenge findings.
-`, core.ComputeDecisionOutcomeHash([]byte(adrGood)))
-	_ = os.WriteFile(filepath.Join(tmpDir2, core.ResearchDir, "D-001-R1.md"), []byte(chContent), 0o644)
+	// The red-team record comes from the real tool; the ADR then cites the record id it returns.
+	recID := redTeamRecordIDDirect(t, ctx, tmpDir2, "D-001")
+	_, envCited, err := handleRecordDecision(ctx, nil, RecordDecisionInput{ProjectRoot: tmpDir2, ID: "D-001", Revise: true,
+		Content: adrGood(fmt.Sprintf(`## Red-Team Stress Test
+### Challenge Findings
+Evaluated %s write contention under 100 concurrent writers. WAL mode sustains throughput with busy retry.
+`, recID))})
+	if err != nil || !envCited.Ok {
+		t.Fatalf("record decision citing %s: %v, msg: %s", recID, err, envCited.Message)
+	}
 	if _, err := core.SignoffDecision(ws2, "D-001", "Principal Architect"); err != nil {
 		t.Fatalf("signoff failed: %v", err)
 	}
@@ -1721,75 +1702,39 @@ func TestComprehensive_SavePlan_MultiDecisionRegistry_FullLifecycle(t *testing.T
 	ctx := context.Background()
 
 	// 1. Init workspace
-	_, envInit, err := handleInit(ctx, nil, InitInput{
+	_, envInit, err := handleStart(ctx, nil, StartInput{
+		Question:    "test",
 		ProjectRoot: tmpDir,
 		Scope:       "project",
 	})
-	if err != nil || !envInit.Success {
+	if err != nil || !envInit.Ok {
 		t.Fatalf("init failed: %v, message: %s", err, envInit.Message)
 	}
 
 	// 2. Prepare generator prompt and check nextStep guidance
-	_, envPrep, err := handlePrepareGenerator(ctx, nil, PrepareGeneratorInput{
+	_, envPrep, err := handleStart(ctx, nil, StartInput{
 		ProjectRoot: tmpDir,
 		Scope:       "project",
-		Context:     "Build high-performance real-time telemetry analytics platform in Go",
+		Question:    "Build high-performance real-time telemetry analytics platform in Go",
 	})
-	if err != nil || !envPrep.Success {
+	if err != nil || !envPrep.Ok {
 		t.Fatalf("prepare_generator failed: %v", err)
 	}
-	if !strings.Contains(envPrep.NextStep, "generate your research pipeline") {
-		t.Errorf("expected NextStep to contain 'generate your research pipeline', got: %s", envPrep.NextStep)
+	if !strings.Contains(envGuidance(envPrep), "research pipeline DAG") {
+		t.Errorf("expected NextStep to contain 'research pipeline DAG', got: %s", envGuidance(envPrep))
 	}
-	if !strings.Contains(envPrep.NextStep, "Do NOT write to local artifact/brain files") {
-		t.Errorf("expected NextStep to explicitly forbid brain artifact writes, got: %s", envPrep.NextStep)
+	if envPrep.Next == nil || envPrep.Next.Tool != "vivechak_save" || envPrep.Next.Args["kind"] != "plan" {
+		t.Errorf("expected structured Next pointing to vivechak_save(kind=plan), got: %+v", envPrep.Next)
 	}
 
 	// 3. Save plan with multi-decision registry containing valid proposed decisions and one invalid decision
-	pipelineContent := `# Research Pipeline: Telemetry Platform
-**Complexity Score:** 12 / 24 → **Tier 2 (9–16 Sessions)**
-
-## Sessions
-#### T0-01: Ingestion Protocols
-| Field | Value |
-|---|---|
-| ID | T0-01 |
-| Layer | 0 |
-| Door Type | Two-Way |
-| Dependencies | None |
-
-` + "```prompt" + `
-Investigate gRPC vs WebSocket for high-frequency telemetry.
-` + "```" + `
-
----
-
-#### T0-02: Storage Layer
-| Field | Value |
-|---|---|
-| ID | T0-02 |
-| Layer | 0 |
-| Door Type | One-Way |
-| Dependencies | None |
-
-` + "```prompt" + `
-Investigate ClickHouse vs TimescaleDB for telemetry timeseries.
-` + "```" + `
-
----
-
-#### SYN-01: Final Architecture Synthesis
-| Field | Value |
-|---|---|
-| ID | SYN-01 |
-| Layer | 1 |
-| Door Type | One-Way |
-| Dependencies | ALL prior sessions (hard) |
-
-` + "```prompt" + `
-Synthesize all telemetry architecture findings into FAD.
-` + "```" + `
-`
+	pipelineContent := testPlan("Research Pipeline: Telemetry Platform", "PROJECT", "**Complexity Score:** 12 / 24 → **Tier 2 (9–16 Sessions)**",
+		[]string{"{id: T0-01, title: Ingestion Protocols, layer: 0, door: two-way, depends: []}",
+			"{id: T0-02, title: Storage Layer, layer: 0, door: one-way, depends: []}",
+			"{id: SYN-01, title: Final Architecture Synthesis, layer: 1, kind: synthesis, depends: [ALL prior sessions (hard)]}"},
+		testSection("T0-01", "Ingestion Protocols", "Investigate gRPC vs WebSocket for high-frequency telemetry."),
+		testSection("T0-02", "Storage Layer", "Investigate ClickHouse vs TimescaleDB for telemetry timeseries."),
+		testSection("SYN-01", "Final Architecture Synthesis", "Synthesize all telemetry architecture findings into FAD."))
 
 	decisionsContentWithDefect := `# Architectural Decision Records
 
@@ -1835,7 +1780,8 @@ Missing title field in frontmatter above.
 <!-- /DECISION: D-003 -->
 `
 
-	_, envSave, err := handleSavePlan(ctx, nil, SavePlanInput{
+	_, envSave, err := handleSave(ctx, nil, SaveInput{
+		Kind:             "plan",
 		ProjectRoot:      tmpDir,
 		Scope:            "project",
 		Content:          pipelineContent,
@@ -1844,14 +1790,14 @@ Missing title field in frontmatter above.
 	if err != nil {
 		t.Fatalf("save_plan call error: %v", err)
 	}
-	if !envSave.Success {
+	if !envSave.Ok {
 		t.Fatalf("expected save_plan to succeed with warnings, got: %s", envSave.Message)
 	}
 
 	// Verify that D-001 and D-002 did not produce spurious warnings, and D-003 is tagged with ID
 	foundD003MissingTitle := false
-	for _, w := range envSave.Warnings {
-		if strings.Contains(w, "DECISION D-003: [L2-BLOCK] V-MISSING-FIELD: Required field \"title\" missing") {
+	for _, w := range envWarningStrings(envSave) {
+		if strings.Contains(w, "DECISION D-003:") && strings.Contains(w, "V-MISSING-FIELD") && strings.Contains(w, "Required field \"title\" missing") {
 			foundD003MissingTitle = true
 		}
 		if strings.Contains(w, "DECISION D-001") || strings.Contains(w, "DECISION D-002") {
@@ -1867,7 +1813,8 @@ Missing title field in frontmatter above.
 
 	// 4. Now fix D-003 and save again — verify 0 warnings
 	decisionsContentClean := strings.Replace(decisionsContentWithDefect, "id: D-003\nstatus: proposed", "id: D-003\ntitle: \"Query Engine Strategy\"\nstatus: proposed", 1)
-	_, envSaveClean, err := handleSavePlan(ctx, nil, SavePlanInput{
+	_, envSaveClean, err := handleSave(ctx, nil, SaveInput{
+		Kind:             "plan",
 		ProjectRoot:      tmpDir,
 		Scope:            "project",
 		Content:          pipelineContent,
@@ -1884,71 +1831,14 @@ Missing title field in frontmatter above.
 // TestComprehensive_DAG_AllPriorSessions_ComplexExpansion verifies multi-layer dependency expansion
 // and DAG scheduling invariance when multiple sessions use natural language dependencies.
 func TestComprehensive_DAG_AllPriorSessions_ComplexExpansion(t *testing.T) {
-	pipelineMD := `# Multi-Layer Research Pipeline
-## Sessions
-#### T0-01: Base 1
-| Field | Value |
-|---|---|
-| ID | T0-01 |
-| Layer | 0 |
-| Dependencies | None |
-
-` + "```prompt" + `
-Prompt T0-01
-` + "```" + `
-
----
-
-#### T0-02: Base 2
-| Field | Value |
-|---|---|
-| ID | T0-02 |
-| Layer | 0 |
-| Dependencies | None |
-
-` + "```prompt" + `
-Prompt T0-02
-` + "```" + `
-
----
-
-#### T1-01: Derived 1
-| Field | Value |
-|---|---|
-| ID | T1-01 |
-| Layer | 1 |
-| Dependencies | T0-01 |
-
-` + "```prompt" + `
-Prompt T1-01
-` + "```" + `
-
----
-
-#### T2-01: Cross-Layer Bridge
-| Field | Value |
-|---|---|
-| ID | T2-01 |
-| Layer | 2 |
-| Dependencies | all prior sessions |
-
-` + "```prompt" + `
-Prompt T2-01
-` + "```" + `
-
----
-
-#### SYN-01: Terminal Architecture
-| Field | Value |
-|---|---|
-| ID | SYN-01 |
-| Layer | 3 |
-| Dependencies | ALL prior sessions (hard) |
-
-` + "```prompt" + `
-Prompt SYN-01
-` + "```" + `
-`
+	pipelineMD := testPlan("Multi-Layer Research Pipeline", "PROJECT", "", []string{
+		"{id: T0-01, title: Base 1, layer: 0, depends: []}",
+		"{id: T0-02, title: Base 2, layer: 0, depends: []}",
+		"{id: T1-01, title: Derived 1, layer: 1, depends: [T0-01]}",
+		"{id: T2-01, title: Cross-Layer Bridge, layer: 2, depends: [all prior sessions]}",
+		"{id: SYN-01, title: Terminal Architecture, layer: 3, kind: synthesis, depends: [ALL prior sessions (hard)]}",
+	}, testSection("T0-01", "Base 1", "Prompt T0-01"), testSection("T0-02", "Base 2", "Prompt T0-02"), testSection("T1-01", "Derived 1", "Prompt T1-01"),
+		testSection("T2-01", "Cross-Layer Bridge", "Prompt T2-01"), testSection("SYN-01", "Terminal Architecture", "Prompt SYN-01"))
 
 	dag, err := core.ParsePipeline([]byte(pipelineMD))
 	if err != nil {
@@ -2099,11 +1989,9 @@ func TestComprehensive_SavePlan_MultiDecision_MixedStatuses(t *testing.T) {
 	tmpDir := t.TempDir()
 	ctx := context.Background()
 
-	pipelineContent := `# Research Pipeline
-### T0-01: Foundation
-| **ID** | T0-01 |
-| **Dependencies** | None |
-` + "```prompt\nfoundation prompt\n```\n"
+	pipelineContent := testPlan("Research Pipeline", "PROJECT", "", []string{"{id: T0-01, title: Foundation, depends: []}",
+		"{id: SYN-01, title: Synthesis, kind: synthesis, depends: [ALL]}"},
+		testSection("T0-01", "Foundation", "foundation prompt"), testSection("SYN-01", "Synthesis", "Synthesize."))
 
 	multiADR := `# Decision Registry
 
@@ -2145,24 +2033,25 @@ date: 2026-10-20
 We adopt Apache Kafka. Grade A (https://kafka.apache.org/documentation)
 `
 
-	_, envSave, err := handleSavePlan(ctx, nil, SavePlanInput{
+	_, envSave, err := handleSave(ctx, nil, SaveInput{
+		Kind:             "plan",
 		ProjectRoot:      tmpDir,
 		Scope:            "project",
 		Content:          pipelineContent,
 		DecisionsContent: multiADR,
 	})
 	if err != nil {
-		t.Fatalf("handleSavePlan error: %v", err)
+		t.Fatalf("handleSave error: %v", err)
 	}
-	if !envSave.Success {
-		t.Fatalf("expected handleSavePlan to succeed, got: %s", envSave.Message)
+	if !envSave.Ok {
+		t.Fatalf("expected handleSave to succeed, got: %s", envSave.Message)
 	}
 
 	// Should have warning for D-002 only
 	foundD2Warn := false
 	foundD1Warn := false
 	foundD3Warn := false
-	for _, w := range envSave.Warnings {
+	for _, w := range envWarningStrings(envSave) {
 		if strings.Contains(w, "DECISION D-002") && strings.Contains(w, "W-NO-EVIDENCE-GRADES") {
 			foundD2Warn = true
 		}
@@ -2192,37 +2081,30 @@ func TestComprehensive_DAG_AllPriorSessions_SerializeAndVisualizeRoundTrip(t *te
 	tmpDir := t.TempDir()
 	ctx := context.Background()
 
-	pipelineContent := `# Multi-Phase Pipeline
-### T0-01: Research Base 1
-| **ID** | T0-01 |
-| **Dependencies** | None |
-` + "```prompt\nBase 1 prompt\n```\n" + `
----
-### T0-02: Research Base 2
-| **ID** | T0-02 |
-| **Dependencies** | None |
-` + "```prompt\nBase 2 prompt\n```\n" + `
----
-### SYN-01: Architecture Synthesis
-| **ID** | SYN-01 |
-| **Dependencies** | ALL prior sessions (hard) |
-` + "```prompt\nSynthesis prompt\n```\n"
+	pipelineContent := testPlan("Multi-Phase Pipeline", "PROJECT", "", []string{
+		"{id: T0-01, title: Research Base 1, depends: []}",
+		"{id: T0-02, title: Research Base 2, depends: []}",
+		"{id: SYN-01, title: Architecture Synthesis, kind: synthesis, depends: [ALL prior sessions (hard)]}",
+	}, testSection("T0-01", "Research Base 1", "Base 1 prompt")+"---\n\n", testSection("T0-02", "Research Base 2", "Base 2 prompt")+"---\n\n",
+		testSection("SYN-01", "Architecture Synthesis", "Synthesis prompt"))
 
-	_, envSave, err := handleSavePlan(ctx, nil, SavePlanInput{
+	_, envSave, err := handleSave(ctx, nil, SaveInput{
+		Kind:        "plan",
 		ProjectRoot: tmpDir,
 		Scope:       "project",
 		Content:     pipelineContent,
 	})
-	if err != nil || !envSave.Success {
+	if err != nil || !envSave.Ok {
 		t.Fatalf("save plan failed: %v", err)
 	}
 
-	// Visualize pipeline via handleVisualize
-	resVis, envVis, err := handleVisualize(ctx, nil, VisualizeInput{
+	// Visualize pipeline via handleStatus
+	resVis, envVis, err := handleStatus(ctx, nil, StatusInput{
+		Format:      "mermaid",
 		ProjectRoot: tmpDir,
 	})
 	if err != nil || resVis.IsError {
-		t.Fatalf("handleVisualize failed: %v, env: %+v", err, envVis)
+		t.Fatalf("handleStatus failed: %v, env: %+v", err, envVis)
 	}
 
 	visData, ok := envVis.Data.(map[string]any)
@@ -2253,20 +2135,20 @@ func TestComprehensive_PrepareGenerator_AntiLocalSpillGuidance_AllScopes(t *test
 	for _, sc := range scopes {
 		t.Run(sc, func(t *testing.T) {
 			tmpDir := t.TempDir()
-			_, envPrep, err := handlePrepareGenerator(ctx, nil, PrepareGeneratorInput{
+			_, envPrep, err := handleStart(ctx, nil, StartInput{
 				ProjectRoot: tmpDir,
 				Scope:       sc,
-				Context:     "High-throughput event streaming platform",
+				Question:    "High-throughput event streaming platform",
 			})
-			if err != nil || !envPrep.Success {
+			if err != nil || !envPrep.Ok {
 				t.Fatalf("prepare generator (%s) failed: %v, env: %+v", sc, err, envPrep)
 			}
 
-			if !strings.Contains(envPrep.NextStep, "vivechak_save") && !strings.Contains(envPrep.NextStep, "vivechak_record_decision") {
-				t.Errorf("scope %s next_step missing vivechak_save / vivechak_record_decision: %s", sc, envPrep.NextStep)
+			if !strings.Contains(envGuidance(envPrep), "vivechak_save") && !strings.Contains(envGuidance(envPrep), "vivechak_record_decision") {
+				t.Errorf("scope %s next_step missing vivechak_save / vivechak_record_decision: %s", sc, envGuidance(envPrep))
 			}
-			if !strings.Contains(envPrep.NextStep, "Do NOT write to local artifact/brain files") {
-				t.Errorf("scope %s next_step missing anti-local spill directive: %s", sc, envPrep.NextStep)
+			if envPrep.Next == nil || envPrep.Next.Tool != "vivechak_save" {
+				t.Errorf("scope %s structured Next must direct to vivechak_save, got: %+v", sc, envPrep.Next)
 			}
 		})
 	}
@@ -2280,25 +2162,26 @@ func TestComprehensive_MultiDecisionRegistry_FullLifecycle_And_DetailsFrontmatte
 	tmpDir := t.TempDir()
 
 	// 1. Initialize project scope
-	_, envInit, err := handleInit(ctx, nil, InitInput{
+	_, envInit, err := handleStart(ctx, nil, StartInput{
+		Question:    "test",
 		ProjectRoot: tmpDir,
 		Scope:       "project",
 	})
-	if err != nil || !envInit.Success {
+	if err != nil || !envInit.Ok {
 		t.Fatalf("init failed: %v", err)
 	}
 
 	// 2. Prepare generator and verify Tier 3 scratch staging guidance
-	_, envPrep, err := handlePrepareGenerator(ctx, nil, PrepareGeneratorInput{
+	_, envPrep, err := handleStart(ctx, nil, StartInput{
 		ProjectRoot: tmpDir,
 		Scope:       "project",
-		Context:     "Enterprise career recommendation engine with distributed graph store",
+		Question:    "Enterprise career recommendation engine with distributed graph store",
 	})
-	if err != nil || !envPrep.Success {
+	if err != nil || !envPrep.Ok {
 		t.Fatalf("prepare generator failed: %v", err)
 	}
-	if !strings.Contains(envPrep.NextStep, "For large Tier 2/3 pipelines where output exceeds single-turn token limits") {
-		t.Errorf("expected Tier 2/3 scratch staging guidance in nextStep: %s", envPrep.NextStep)
+	if envPrep.Next == nil || envPrep.Next.Tool != "vivechak_save" || !strings.Contains(envGuidance(envPrep), "research pipeline DAG") {
+		t.Errorf("expected pipeline save guidance in Next: %+v", envPrep.Next)
 	}
 
 	// 3. Construct multi-decision registry with varied formats:
@@ -2365,28 +2248,30 @@ date: 2026-10-21
 Evaluating Neo4j vs Memgraph for knowledge graph traversal.
 `
 
-	// 4. Test direct validation via handleValidate with artifact_type="decisions"
-	_, envValDecisions, err := handleValidate(ctx, nil, ValidateInput{
+	// 4. Test direct validation via handleReview with artifact_type="decisions"
+	_, envValDecisions, err := handleReview(ctx, nil, ReviewInput{
+		Mode:         "validate",
 		ProjectRoot:  tmpDir,
 		ArtifactType: "decisions",
 		Content:      registryContent,
 	})
-	if err != nil || !envValDecisions.Success {
-		t.Fatalf("handleValidate with artifact_type=decisions failed: %v", err)
+	if err != nil || !envValDecisions.Ok {
+		t.Fatalf("handleReview with artifact_type=decisions failed: %v", err)
 	}
 	valData, _ := envValDecisions.Data.(map[string]any)
 	if valData["status"] != "valid" {
 		t.Errorf("expected status 'valid' for clean multi-decision registry, got: %v (warnings: %v)", valData["status"], envValDecisions.Warnings)
 	}
 
-	// 5. Test auto-detection via handleValidate with artifact_type="decision"
-	_, envValDecisionAuto, err := handleValidate(ctx, nil, ValidateInput{
+	// 5. Test auto-detection via handleReview with artifact_type="decision"
+	_, envValDecisionAuto, err := handleReview(ctx, nil, ReviewInput{
+		Mode:         "validate",
 		ProjectRoot:  tmpDir,
 		ArtifactType: "decision",
 		Content:      registryContent,
 	})
-	if err != nil || !envValDecisionAuto.Success {
-		t.Fatalf("handleValidate with artifact_type=decision auto-detect failed: %v", err)
+	if err != nil || !envValDecisionAuto.Ok {
+		t.Fatalf("handleReview with artifact_type=decision auto-detect failed: %v", err)
 	}
 	valDataAuto, _ := envValDecisionAuto.Data.(map[string]any)
 	if valDataAuto["status"] != "valid" {
@@ -2394,40 +2279,31 @@ Evaluating Neo4j vs Memgraph for knowledge graph traversal.
 	}
 
 	// 6. Save plan with multi-decision registry into workspace
-	pipelineContent := `# Research Pipeline: Career Platform
-**Complexity Score:** 18 / 24 → **Tier 3 (17–30 Sessions)**
-
-## Sessions
-#### T0-01: Graph Schema Definition
-| Field | Value |
-|---|---|
-| ID | T0-01 |
-| Layer | 0 |
-| Door Type | One-Way |
-| Dependencies | None |
-
-` + "```prompt" + `
-Define ontology and vertex relationships for career skills.
-` + "```" + `
-`
-	_, envSave, err := handleSavePlan(ctx, nil, SavePlanInput{
+	pipelineContent := testPlan("Research Pipeline: Career Platform", "PROJECT", "**Complexity Score:** 18 / 24 → **Tier 3 (17–30 Sessions)**",
+		[]string{"{id: T0-01, title: Graph Schema Definition, layer: 0, door: one-way, depends: []}",
+			"{id: SYN-01, title: Synthesis, kind: synthesis, depends: [ALL]}"},
+		testSection("T0-01", "Graph Schema Definition", "Define ontology and vertex relationships for career skills."),
+		testSection("SYN-01", "Synthesis", "Synthesize."))
+	_, envSave, err := handleSave(ctx, nil, SaveInput{
+		Kind:             "plan",
 		ProjectRoot:      tmpDir,
 		Scope:            "project",
 		Content:          pipelineContent,
 		DecisionsContent: registryContent,
 	})
-	if err != nil || !envSave.Success {
-		t.Fatalf("handleSavePlan failed: %v", err)
+	if err != nil || !envSave.Ok {
+		t.Fatalf("handleSave failed: %v", err)
 	}
 	if len(envSave.Warnings) != 0 {
 		t.Errorf("expected 0 warnings on clean plan save, got: %v", envSave.Warnings)
 	}
 
 	// 7. Test workspace-mode validation discovering DECISIONS.md
-	_, envWsVal, err := handleValidate(ctx, nil, ValidateInput{
+	_, envWsVal, err := handleReview(ctx, nil, ReviewInput{
+		Mode:        "validate",
 		ProjectRoot: tmpDir,
 	})
-	if err != nil || !envWsVal.Success {
+	if err != nil || !envWsVal.Ok {
 		t.Fatalf("workspace validate failed: %v", err)
 	}
 	wsData, _ := envWsVal.Data.(map[string]any)
@@ -2454,20 +2330,21 @@ date: 2026-10-21
 ---
 Body for D-04.
 `
-	_, envValMalformed, err := handleValidate(ctx, nil, ValidateInput{
+	_, envValMalformed, err := handleReview(ctx, nil, ReviewInput{
+		Mode:         "validate",
 		ProjectRoot:  tmpDir,
 		ArtifactType: "decisions",
 		Content:      registryWithMalformed,
 	})
-	if err != nil || !envValMalformed.Success {
-		t.Fatalf("handleValidate on malformed registry failed: %v", err)
+	if err != nil || !envValMalformed.Ok {
+		t.Fatalf("handleReview on malformed registry failed: %v", err)
 	}
 	malData, _ := envValMalformed.Data.(map[string]any)
 	if malData["status"] != "draft" && malData["status"] != "invalid" {
 		t.Errorf("expected draft or invalid status for malformed decision registry, got: %v", malData["status"])
 	}
 	foundD04Issue := false
-	for _, w := range envValMalformed.Warnings {
+	for _, w := range envWarningStrings(envValMalformed) {
 		if strings.Contains(w, "DECISION D-04:") && strings.Contains(w, "V-INVALID-FRONTMATTER") {
 			foundD04Issue = true
 			break
@@ -2486,19 +2363,18 @@ func TestComprehensive_SavePlan_AutoNormalizesDecisionsRegistry(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// 1. Initialize project scope
-	_, envInit, err := handleInit(ctx, nil, InitInput{
+	_, envInit, err := handleStart(ctx, nil, StartInput{
+		Question:    "test",
 		ProjectRoot: tmpDir,
 		Scope:       "project",
 	})
-	if err != nil || !envInit.Success {
+	if err != nil || !envInit.Ok {
 		t.Fatalf("init failed: %v", err)
 	}
 
-	pipelineContent := `# Research Pipeline
-### T0-01: Foundation
-| **ID** | T0-01 |
-| **Dependencies** | None |
-` + "```prompt\nfoundation prompt\n```\n"
+	pipelineContent := testPlan("Research Pipeline", "PROJECT", "", []string{"{id: T0-01, title: Foundation, depends: []}",
+		"{id: SYN-01, title: Synthesis, kind: synthesis, depends: [ALL]}"},
+		testSection("T0-01", "Foundation", "foundation prompt"), testSection("SYN-01", "Synthesis", "Synthesize."))
 
 	// Raw un-wrapped decision blocks as generated by smaller models
 	rawDecisions := `# Architectural Decisions Log
@@ -2538,14 +2414,15 @@ Evaluating Redis vs Dragonfly.
 `
 
 	// 2. Save plan with raw decisions
-	_, envSave, err := handleSavePlan(ctx, nil, SavePlanInput{
+	_, envSave, err := handleSave(ctx, nil, SaveInput{
+		Kind:             "plan",
 		ProjectRoot:      tmpDir,
 		Scope:            "project",
 		Content:          pipelineContent,
 		DecisionsContent: rawDecisions,
 	})
-	if err != nil || !envSave.Success {
-		t.Fatalf("handleSavePlan failed: %v, warnings: %v", err, envSave.Warnings)
+	if err != nil || !envSave.Ok {
+		t.Fatalf("handleSave failed: %v, warnings: %v", err, envSave.Warnings)
 	}
 
 	// 3. Inspect research/DECISIONS.md on disk
@@ -2570,14 +2447,15 @@ Evaluating Redis vs Dragonfly.
 	}
 
 	// 4. Test idempotency: saving the already-normalized content again does not double-wrap
-	_, envSave2, err := handleSavePlan(ctx, nil, SavePlanInput{
+	_, envSave2, err := handleSave(ctx, nil, SaveInput{
+		Kind:             "plan",
 		ProjectRoot:      tmpDir,
 		Scope:            "project",
 		Content:          pipelineContent,
 		DecisionsContent: diskContent,
 	})
-	if err != nil || !envSave2.Success {
-		t.Fatalf("second handleSavePlan failed: %v", err)
+	if err != nil || !envSave2.Ok {
+		t.Fatalf("second handleSave failed: %v", err)
 	}
 	diskBytes2, err := os.ReadFile(decisionsDiskPath)
 	if err != nil {
@@ -2589,10 +2467,11 @@ Evaluating Redis vs Dragonfly.
 	}
 
 	// 5. Run workspace validation and ensure decisions are valid
-	_, envVal, err := handleValidate(ctx, nil, ValidateInput{
+	_, envVal, err := handleReview(ctx, nil, ReviewInput{
+		Mode:        "validate",
 		ProjectRoot: tmpDir,
 	})
-	if err != nil || !envVal.Success {
+	if err != nil || !envVal.Ok {
 		t.Fatalf("workspace validate failed: %v", err)
 	}
 	valData, _ := envVal.Data.(map[string]any)
@@ -2606,7 +2485,7 @@ Evaluating Redis vs Dragonfly.
 }
 
 // TestComprehensive_DogfoodingHardening_E2ELifecycle exercises all Run 30 modifications:
-// 1. PipelineContent alias in handleSavePlan
+// 1. PipelineContent alias in handleSave
 // 2. Proper noun immunity in lowGradeRe during gate evaluation
 // 3. Proper noun immunity in gradeALineRe during quality evaluation
 // 4. Single-turn auto_draft_from + auto_save in handleRecordDecision
@@ -2616,20 +2495,19 @@ func TestComprehensive_DogfoodingHardening_E2ELifecycle(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// 1. Initialize project workspace
-	_, envInit, err := handleInit(ctx, nil, InitInput{
+	_, envInit, err := handleStart(ctx, nil, StartInput{
+		Question:    "test",
 		ProjectRoot: tmpDir,
 		Scope:       "project",
 	})
-	if err != nil || !envInit.Success {
-		t.Fatalf("handleInit failed: %v", err)
+	if err != nil || !envInit.Ok {
+		t.Fatalf("handleStart failed: %v", err)
 	}
 
 	// 2. Persist project plan using pipeline_content alias (instead of content)
-	pipelineContent := `# Research Pipeline
-### Session T1-01: Ingestion Engine
-| **ID** | T1-01 |
-| **Dependencies** | None |
-` + "```prompt\nIngestion engine research\n```\n"
+	pipelineContent := testPlan("Research Pipeline", "PROJECT", "", []string{"{id: T1-01, title: Ingestion Engine, depends: []}",
+		"{id: SYN-01, title: Synthesis, kind: synthesis, depends: [ALL]}"},
+		testSection("T1-01", "Ingestion Engine", "Ingestion engine research"), testSection("SYN-01", "Synthesis", "Synthesize."))
 
 	decisionsContent := `# Decisions
 <!-- DECISION: D-001 -->
@@ -2641,14 +2519,15 @@ func TestComprehensive_DogfoodingHardening_E2ELifecycle(t *testing.T) {
 <!-- /DECISION: D-001 -->
 `
 
-	_, envSavePlan, err := handleSavePlan(ctx, nil, SavePlanInput{
+	_, envSavePlan, err := handleSave(ctx, nil, SaveInput{
+		Kind:             "plan",
 		ProjectRoot:      tmpDir,
 		Scope:            "project",
-		PipelineContent:  pipelineContent, // Using the alias!
+		Content:          pipelineContent, // Using the alias!
 		DecisionsContent: decisionsContent,
 	})
-	if err != nil || !envSavePlan.Success {
-		t.Fatalf("handleSavePlan with PipelineContent failed: %v", err)
+	if err != nil || !envSavePlan.Ok {
+		t.Fatalf("handleSave with PipelineContent failed: %v", err)
 	}
 
 	// Verify RESEARCH-PIPELINE.md was persisted
@@ -2694,23 +2573,24 @@ Memory footprint increases under partition imbalances (>500 partitions per broke
 ## Challenge Findings
 Adversarial red-team stress test completed using Gary Klein premortem method.
 `
-	_, envSaveSess, err := handleSaveSession(ctx, nil, SaveSessionInput{
+	_, envSaveSess, err := handleSave(ctx, nil, SaveInput{
+		Kind:        "session",
 		ProjectRoot: tmpDir,
-		SessionID:   "T1-01",
+		ID:          "T1-01",
 		Content:     sessionContent,
 	})
-	if err != nil || !envSaveSess.Success {
-		t.Fatalf("handleSaveSession failed: %v, env: %+v", err, envSaveSess)
+	if err != nil || !envSaveSess.Ok {
+		t.Fatalf("handleSave failed: %v, env: %+v", err, envSaveSess)
 	}
 
 	// 4. Auto-draft and auto-save the decision in a single turn using auto_save: true
 	_, envRecDec, err := handleRecordDecision(ctx, nil, RecordDecisionInput{
 		ProjectRoot:   tmpDir,
-		DecisionID:    "D-001",
+		ID:            "D-001",
 		AutoDraftFrom: "T1-01",
 		AutoSave:      true,
 	})
-	if err != nil || !envRecDec.Success {
+	if err != nil || !envRecDec.Ok {
 		t.Fatalf("handleRecordDecision with auto_save failed: %v, env: %+v", err, envRecDec)
 	}
 
@@ -2725,12 +2605,12 @@ Adversarial red-team stress test completed using Gary Klein premortem method.
 	}
 
 	// 5. Evaluate Phase 0 Gate on the workspace
-	_, envGate, err := handleRunGate(ctx, nil, RunGateInput{
+	_, envGate, err := handleGate(ctx, nil, GateInput{
 		ProjectRoot: tmpDir,
 		Track:       "all",
 	})
-	if err != nil || !envGate.Success {
-		t.Fatalf("handleRunGate failed: %v, env: %+v", err, envGate)
+	if err != nil || !envGate.Ok {
+		t.Fatalf("handleGate failed: %v, env: %+v", err, envGate)
 	}
 	gateData, _ := envGate.Data.(map[string]any)
 
@@ -2801,11 +2681,11 @@ func TestComprehensive_PromptActionVerbsAndMiddlewareEquivalence(t *testing.T) {
 				"context":  "High-throughput messaging fabric",
 			},
 			mustSubstr: []string{
-				"OPTIONS: NATS vs Kafka vs RabbitMQ",
-				"CRITERIA: Throughput, Multi-Tenancy",
-				"CONTEXT: High-throughput messaging fabric",
+				"NATS vs Kafka vs RabbitMQ",
+				"Throughput, Multi-Tenancy",
+				"High-throughput messaging fabric",
+				"vivechak_start",
 				"vivechak_save",
-				"C-NNN-comparison.md",
 			},
 		},
 		{
@@ -2814,12 +2694,12 @@ func TestComprehensive_PromptActionVerbsAndMiddlewareEquivalence(t *testing.T) {
 			legacy:    "vivechak_decision",
 			shorthand: "vck_decision",
 			args: map[string]string{
-				"dilemma": "Migrate from REST to gRPC for inter-service communication",
-				"context": "Low-latency microservices cluster",
+				"question": "Migrate from REST to gRPC for inter-service communication",
+				"context":  "Low-latency microservices cluster",
 			},
 			mustSubstr: []string{
-				"DECISION: Migrate from REST to gRPC for inter-service communication",
-				"CONTEXT: Low-latency microservices cluster",
+				"Migrate from REST to gRPC for inter-service communication",
+				"Low-latency microservices cluster",
 				"vivechak_save",
 				"vivechak_record_decision",
 			},
@@ -2830,8 +2710,8 @@ func TestComprehensive_PromptActionVerbsAndMiddlewareEquivalence(t *testing.T) {
 			legacy:    "vivechak_project",
 			shorthand: "vck_project",
 			args: map[string]string{
-				"vision":  "Build next-generation distributed vector search engine",
-				"context": "Rust, SIMD optimizations, AWS Graviton3",
+				"vision":      "Build next-generation distributed vector search engine",
+				"constraints": "Rust, SIMD optimizations, AWS Graviton3",
 			},
 			mustSubstr: []string{
 				"Build next-generation distributed vector search engine",
@@ -2846,15 +2726,13 @@ func TestComprehensive_PromptActionVerbsAndMiddlewareEquivalence(t *testing.T) {
 			legacy:    "vivechak_gate",
 			shorthand: "vck_gate",
 			args: map[string]string{
-				"track":        "track_b",
-				"project_root": "/opt/workspace",
+				"decision": "D-001",
 			},
 			mustSubstr: []string{
-				`track="track_b"`,
-				`project_root="/opt/workspace"`,
+				`decision="D-001"`,
 				"vivechak_gate",
-				"track_a_result",
-				"track_b_result",
+				"`data.verdict`",
+				"`data.rules`",
 			},
 		},
 	}
@@ -2865,24 +2743,16 @@ func TestComprehensive_PromptActionVerbsAndMiddlewareEquivalence(t *testing.T) {
 			if err != nil {
 				t.Fatalf("canonical prompt %s: %v", tc.canonical, err)
 			}
-			rLeg, err := cs.GetPrompt(ctx, &mcp.GetPromptParams{Name: tc.legacy, Arguments: tc.args})
-			if err != nil {
-				t.Fatalf("legacy prompt %s: %v", tc.legacy, err)
+			if _, err := cs.GetPrompt(ctx, &mcp.GetPromptParams{Name: tc.legacy, Arguments: tc.args}); err == nil {
+				t.Errorf("expected removed legacy prompt %s to fail", tc.legacy)
 			}
-			rShort, err := cs.GetPrompt(ctx, &mcp.GetPromptParams{Name: tc.shorthand, Arguments: tc.args})
-			if err != nil {
-				t.Fatalf("shorthand prompt %s: %v", tc.shorthand, err)
+			if _, err := cs.GetPrompt(ctx, &mcp.GetPromptParams{Name: tc.shorthand, Arguments: tc.args}); err == nil {
+				t.Errorf("expected removed shorthand prompt %s to fail", tc.shorthand)
 			}
 
 			txtCanon := rCanon.Messages[0].Content.(*mcp.TextContent).Text
-			txtLeg := rLeg.Messages[0].Content.(*mcp.TextContent).Text
-			txtShort := rShort.Messages[0].Content.(*mcp.TextContent).Text
-
-			if txtCanon != txtLeg {
-				t.Errorf("expected canonical %q == legacy %q", tc.canonical, tc.legacy)
-			}
-			if txtCanon != txtShort {
-				t.Errorf("expected canonical %q == shorthand %q", tc.canonical, tc.shorthand)
+			if len(txtCanon) > 600 {
+				t.Errorf("prompt %s exceeds 600-char limit: %d chars", tc.canonical, len(txtCanon))
 			}
 
 			for _, sub := range tc.mustSubstr {
@@ -2914,6 +2784,7 @@ func TestComprehensive_AuditRemediations_LiveMCPLifecycle(t *testing.T) {
 		_, err := cs.CallTool(ctx, &mcp.CallToolParams{
 			Name: "vivechak_start",
 			Arguments: map[string]any{
+				"question":     "test",
 				"project_root": tmpDir,
 				"scope":        "project",
 			},
@@ -2922,8 +2793,17 @@ func TestComprehensive_AuditRemediations_LiveMCPLifecycle(t *testing.T) {
 			t.Fatalf("init failed: %v", err)
 		}
 
-		// 1.2 Save pipeline with bolded cells, custom OutputFile, AND arbitrary 4-column tables
+		// 1.2 Save a pipeline whose bolded session table (with an OutputFile column) and arbitrary 4-column table are
+		// prose: the vivechak-plan block is the only source of sessions (HIGH-07).
 		pipeContent := `# RESEARCH PIPELINE
+
+` + "```yaml vivechak-plan" + `
+plan: PROJECT
+sessions:
+  - {id: T1-01, title: Database Architecture, depends: []}
+  - {id: T1-02, title: Query Engine, depends: [T1-01]}
+  - {id: SYN-01, title: Synthesis, kind: synthesis, depends: [ALL]}
+` + "```" + `
 
 ## Project Constraints
 | Step | Action | Description | Notes |
@@ -2942,6 +2822,9 @@ func TestComprehensive_AuditRemediations_LiveMCPLifecycle(t *testing.T) {
 
 ### T1-02: Query Engine
 ` + "```prompt\nInvestigate queries\n```" + `
+
+### SYN-01: Synthesis
+` + "```prompt\nSynthesize\n```" + `
 `
 		saveRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
 			Name: "vivechak_save",
@@ -2997,8 +2880,9 @@ status: complete
 		}
 		s1Env := parseEnvelope(t, saveS1Res)
 		s1Data := s1Env.Data.(map[string]any)
-		if s1Data["file_path"] != "research/sessions/T1-01-database-selection.md" {
-			t.Errorf("expected file_path 'research/sessions/T1-01-database-selection.md', got: %v", s1Data["file_path"])
+		// The table's OutputFile column is prose; the session file is named after its id.
+		if s1Data["file_path"] != "research/sessions/T1-01.md" {
+			t.Errorf("expected file_path 'research/sessions/T1-01.md', got: %v", s1Data["file_path"])
 		}
 
 		// 1.5 Call next again — T1-01 with slugged frontmatter must be detected as complete,
@@ -3075,6 +2959,7 @@ scope_level: comparison
 		_, err := cs.CallTool(ctx, &mcp.CallToolParams{
 			Name: "vivechak_start",
 			Arguments: map[string]any{
+				"question":     "test",
 				"project_root": tmpDir,
 				"scope":        "decision",
 			},
@@ -3130,7 +3015,7 @@ Easy to switch to Redis if memory limits approached.
 			Name: "vivechak_record_decision",
 			Arguments: map[string]any{
 				"project_root": tmpDir,
-				"decision_id":  "D-001",
+				"id":           "D-001",
 				"content":      adrContent,
 			},
 		})
@@ -3150,8 +3035,8 @@ Easy to switch to Redis if memory limits approached.
 		}
 		gateEnv := parseEnvelope(t, gateRes)
 		gateData := gateEnv.Data.(map[string]any)
-		if gateData["gate_status"] != "PASS" || gateData["gate_passed"] != true {
-			t.Errorf("two-way door decision should PASS gate, got: %s (passed=%v)", gateData["gate_status"], gateData["gate_passed"])
+		if gateData["verdict"] != "PASS" {
+			t.Errorf("two-way door decision should PASS gate, got verdict: %v", gateData["verdict"])
 		}
 	})
 
@@ -3165,6 +3050,7 @@ Easy to switch to Redis if memory limits approached.
 		_, err := cs.CallTool(ctx, &mcp.CallToolParams{
 			Name: "vivechak_start",
 			Arguments: map[string]any{
+				"question":     "test",
 				"project_root": tmpDir,
 				"scope":        "decision",
 			},
@@ -3215,7 +3101,8 @@ HTTP/2. [Grade A: https://tools.ietf.org/html/rfc7540] [fetched]
 # Consequences
 Easily swappable with gRPC.
 `
-		d2 := `---
+		d2 := func(challenge string) string {
+			return `---
 decision_id: D-002
 title: Core Datastore
 status: accepted
@@ -3228,16 +3115,15 @@ date: 2026-10-25
 # Context
 Primary datastore selection for entity records.
 ## Decision Outcome
-[Grade A: https://postgresql.org] PostgreSQL selected [fetched].
-[Grade B: https://postgresql.org/docs] High concurrency tested [fetched].
+[Grade A: https://postgresql.org | fetched] PostgreSQL selected.
+[Grade B: https://postgresql.org/docs | fetched] High concurrency tested.
 ## Rejected Alternatives
 - MySQL: lacked required JSONB indexing performance.
 - MongoDB: lacks relational consistency model required.
-## Red-Team Stress Test
-### Challenge Findings
-Evaluated D-002-R1 write concurrency limits and serialization failure rates under 100 writers.
-`
-		d3 := `---
+` + challenge
+		}
+		d3 := func(challenge string) string {
+			return `---
 decision_id: D-003
 title: Consensus Algorithm
 status: accepted
@@ -3250,28 +3136,26 @@ date: 2026-10-25
 # Context
 Distributed consensus protocol selection.
 ## Decision Outcome
-[Grade A: https://raft.github.io] Raft selected [fetched].
-[Grade B: https://raft.github.io/raft.pdf] Formal verification checked [fetched].
+[Grade A: https://raft.github.io | fetched] Raft selected.
+[Grade B: https://raft.github.io/raft.pdf | fetched] Formal verification checked.
 ## Rejected Alternatives
 - Paxos: rejected due to implementation complexity and edge cases.
 - Gossip: insufficient linearizable consistency guarantees.
-## Red-Team Stress Test
-### Challenge Findings
-Evaluated D-003-R1 quorum loss behavior and leader re-election timing under partition.
-`
+` + challenge
+		}
 		for _, dec := range []struct {
 			id      string
 			content string
 		}{
 			{"D-001", d1},
-			{"D-002", d2},
-			{"D-003", d3},
+			{"D-002", d2("")},
+			{"D-003", d3("")},
 		} {
 			_, err := cs.CallTool(ctx, &mcp.CallToolParams{
 				Name: "vivechak_record_decision",
 				Arguments: map[string]any{
 					"project_root": tmpDir,
-					"decision_id":  dec.id,
+					"id":           dec.id,
 					"content":      dec.content,
 				},
 			})
@@ -3280,25 +3164,17 @@ Evaluated D-003-R1 quorum loss behavior and leader re-election timing under part
 			}
 		}
 
-		ch2 := fmt.Sprintf(`---
-decision_id: D-002
-decision_hash: %s
-date: 2026-10-25
----
-# Red Team Challenge D-002-R1
-Evaluated write concurrency limits under 100 writers.
-`, core.ComputeDecisionOutcomeHash([]byte(d2)))
-		_ = os.WriteFile(filepath.Join(tmpDir, core.ResearchDir, "D-002-R1.md"), []byte(ch2), 0o644)
-
-		ch3 := fmt.Sprintf(`---
-decision_id: D-003
-decision_hash: %s
-date: 2026-10-25
----
-# Red Team Challenge D-003-R1
-Evaluated quorum loss behavior and leader re-election timing.
-`, core.ComputeDecisionOutcomeHash([]byte(d3)))
-		_ = os.WriteFile(filepath.Join(tmpDir, core.ResearchDir, "D-003-R1.md"), []byte(ch3), 0o644)
+		// Red-team the one-way doors with the real tool, then cite the record ids it returns.
+		rec2 := redTeamRecordID(t, ctx, cs, tmpDir, "D-002")
+		recordDecisionRevise(t, ctx, cs, tmpDir, "D-002", d2(fmt.Sprintf(`## Red-Team Stress Test
+### Challenge Findings
+Evaluated %s write concurrency limits and serialization failure rates under 100 writers.
+`, rec2)))
+		rec3 := redTeamRecordID(t, ctx, cs, tmpDir, "D-003")
+		recordDecisionRevise(t, ctx, cs, tmpDir, "D-003", d3(fmt.Sprintf(`## Red-Team Stress Test
+### Challenge Findings
+Evaluated %s quorum loss behavior and leader re-election timing under partition.
+`, rec3)))
 
 		// 4.3 Gate must FAIL Track B because D-002 and D-003 lack human review
 		gateRes1, err := cs.CallTool(ctx, &mcp.CallToolParams{
@@ -3312,13 +3188,13 @@ Evaluated quorum loss behavior and leader re-election timing.
 		}
 		gateEnv1 := parseEnvelope(t, gateRes1)
 		gateData1 := gateEnv1.Data.(map[string]any)
-		if gateData1["gate_passed"] == true {
-			t.Fatalf("expected gate failure on unreviewed One-Way Doors D-002 & D-003, but passed")
+		if gateData1["verdict"] != "FAIL" {
+			t.Fatalf("expected gate failure on unreviewed One-Way Doors D-002 & D-003, got verdict %v", gateData1["verdict"])
 		}
 
 		// Verify warning message mentions both unreviewed decisions
 		foundG11 := false
-		for _, w := range gateEnv1.Warnings {
+		for _, w := range envWarningStrings(gateEnv1) {
 			if strings.Contains(w, "G11 Violation") && strings.Contains(w, "D-002") && strings.Contains(w, "D-003") {
 				foundG11 = true
 				break
@@ -3359,8 +3235,8 @@ Evaluated quorum loss behavior and leader re-election timing.
 		})
 		gateEnv2 := parseEnvelope(t, gateRes2)
 		gateData2 := gateEnv2.Data.(map[string]any)
-		if gateData2["gate_passed"] == true {
-			t.Fatalf("expected gate failure because D-003 is still unreviewed, but passed")
+		if gateData2["verdict"] != "FAIL" {
+			t.Fatalf("expected gate failure because D-003 is still unreviewed, got verdict %v", gateData2["verdict"])
 		}
 
 		// 4.7 Sign off D-003
@@ -3380,8 +3256,8 @@ Evaluated quorum loss behavior and leader re-election timing.
 		})
 		gateEnv3 := parseEnvelope(t, gateRes3)
 		gateData3 := gateEnv3.Data.(map[string]any)
-		if gateData3["gate_status"] != "PASS" || gateData3["gate_passed"] != true {
-			t.Fatalf("expected gate PASS after all signoffs, got: %s (passed=%v, warnings=%v, message=%s, rules=%v)", gateData3["gate_status"], gateData3["gate_passed"], gateEnv3.Warnings, gateEnv3.Message, gateData3["rules"])
+		if gateData3["verdict"] != "PASS" {
+			t.Fatalf("expected gate PASS after all signoffs, got: %v (warnings=%v, message=%s, rules=%v)", gateData3["verdict"], gateEnv3.Warnings, gateEnv3.Message, gateData3["rules"])
 		}
 	})
 
@@ -3389,18 +3265,21 @@ Evaluated quorum loss behavior and leader re-election timing.
 	// Part 5: ReplanInPlace Markdown Topology Table Full Roundtrip
 	// -------------------------------------------------------------------------
 	t.Run("ReplanInPlace_MarkdownTopologyTable_SequentialOperations", func(t *testing.T) {
+		topology := `| ID | Topic | Dependencies | Output File |
+|---|---|---|---|
+| T0-01 | Architecture Landscape | none | sessions/T0-01.md |
+| T1-01 | Data Tier | T0-01 | sessions/T1-01.md |
+`
 		initialPipeline := `# Research Pipeline
 
 ## Pipeline Topology
 
-| ID | Topic | Dependencies | Output File |
-|---|---|---|---|
-| T0-01 | Architecture Landscape | none | sessions/T0-01.md |
-| T1-01 | Data Tier | T0-01 | sessions/T1-01.md |
+` + topology + `
+` + "```yaml vivechak-plan\nplan: PROJECT\nsessions:\n  - {id: T0-01, title: Architecture Landscape, depends: []}\n  - {id: T1-01, title: Data Tier, depends: [T0-01]}\n  - {id: SYN-01, title: Synthesis, kind: synthesis, depends: [ALL]}\n```" + `
 
-## Session Prompts
+## Sessions
 
-### Session T0-01: Architecture Landscape
+### T0-01: Architecture Landscape
 | **Field** | **Value** |
 |---|---|
 | **ID** | T0-01 |
@@ -3408,7 +3287,7 @@ Evaluated quorum loss behavior and leader re-election timing.
 
 ` + "```prompt\nLandscape\n```" + `
 
-### Session T1-01: Data Tier
+### T1-01: Data Tier
 | **Field** | **Value** |
 |---|---|
 | **ID** | T1-01 |
@@ -3416,9 +3295,12 @@ Evaluated quorum loss behavior and leader re-election timing.
 
 ` + "```prompt\nData Tier\n```" + `
 
-` + "```yaml vivechak-plan\nsessions:\n  - id: T0-01\n    dependencies: []\n  - id: T1-01\n    dependencies: [T0-01]\n```"
+### SYN-01: Synthesis
 
-		// Operation 1: add_session T1-02
+` + "```prompt\nSynthesize\n```" + `
+`
+
+		// Operation 1: add_session T1-02 — a block entry and a prompt section, before the synthesis session.
 		updated1, err := core.ReplanInPlace([]byte(initialPipeline), "add_session", core.ReplanParams{
 			SessionID:    "T1-02",
 			Topic:        "Cache Tier",
@@ -3429,11 +3311,17 @@ Evaluated quorum loss behavior and leader re-election timing.
 			t.Fatalf("add_session failed: %v", err)
 		}
 		str1 := string(updated1)
-		if !strings.Contains(str1, "| T1-02 | Cache Tier | T0-01 | sessions/T1-02.md |") {
-			t.Errorf("expected added row in Pipeline Topology table, got:\n%s", str1)
+		if !strings.Contains(str1, "  - {id: T1-02, title: Cache Tier, door: two-way, depends: [T0-01]}\n  - {id: SYN-01") {
+			t.Errorf("expected a T1-02 entry before SYN-01 in the plan block, got:\n%s", str1)
+		}
+		if !strings.Contains(str1, "### T1-02: Cache Tier\n\n```prompt\nCache Tier prompt\n```\n\n### SYN-01: Synthesis") {
+			t.Errorf("expected a T1-02 prompt section before SYN-01, got:\n%s", str1)
+		}
+		if !strings.Contains(str1, topology) {
+			t.Errorf("the planner's topology table must stay as written, got:\n%s", str1)
 		}
 
-		// Operation 2: update_deps on T1-02 to depend on T1-01
+		// Operation 2: update_deps on T1-02 to depend on T1-01 — only its block entry changes.
 		updated2, err := core.ReplanInPlace(updated1, "update_deps", core.ReplanParams{
 			SessionID:    "T1-02",
 			Dependencies: []string{"T1-01"},
@@ -3442,26 +3330,33 @@ Evaluated quorum loss behavior and leader re-election timing.
 			t.Fatalf("update_deps failed: %v", err)
 		}
 		str2 := string(updated2)
-		if !strings.Contains(str2, "| T1-02 | Cache Tier | T1-01 | sessions/T1-02.md |") {
-			t.Errorf("expected updated row in Pipeline Topology table with T1-01, got:\n%s", str2)
+		if !strings.Contains(str2, "{id: T1-02, title: Cache Tier, door: two-way, depends: [T1-01]}") {
+			t.Errorf("expected T1-02's block entry to depend on T1-01, got:\n%s", str2)
+		}
+		if strings.Replace(str2, "depends: [T1-01]}\n  - {id: SYN-01", "depends: [T0-01]}\n  - {id: SYN-01", 1) != str1 {
+			t.Errorf("update_deps must change nothing but T1-02's depends value")
 		}
 
-		// Operation 3: remove_session T1-01
-		updated3, err := core.ReplanInPlace(updated2, "remove_session", core.ReplanParams{
+		// Operation 3: removing T1-01 while T1-02 depends on it would break the plan and is refused.
+		if _, err := core.ReplanInPlace(updated2, "remove_session", core.ReplanParams{SessionID: "T1-01"}); err == nil ||
+			!strings.Contains(err.Error(), core.CodePlanUnknownDependency) {
+			t.Fatalf("expected %s removing a session another one depends on, got %v", core.CodePlanUnknownDependency, err)
+		}
+		updated3, err := core.ReplanInPlace(updated1, "remove_session", core.ReplanParams{
 			SessionID: "T1-01",
 		})
 		if err != nil {
 			t.Fatalf("remove_session failed: %v", err)
 		}
 		str3 := string(updated3)
-		if strings.Contains(str3, "| T1-01 | Data Tier |") {
-			t.Errorf("expected T1-01 row to be removed from Pipeline Topology table, got:\n%s", str3)
+		if strings.Contains(str3, "{id: T1-01,") {
+			t.Errorf("expected T1-01's block entry to be removed, got:\n%s", str3)
 		}
-		if strings.Contains(str3, "Session T1-01: Data Tier") {
+		if strings.Contains(str3, "### T1-01: Data Tier") {
 			t.Errorf("expected T1-01 session prompt section to be removed, got:\n%s", str3)
 		}
-		if !strings.Contains(str3, "| T1-02 | Cache Tier |") {
-			t.Errorf("expected T1-02 row to still exist in Pipeline Topology table, got:\n%s", str3)
+		if !strings.Contains(str3, "{id: T1-02, title: Cache Tier") || !strings.Contains(str3, topology) {
+			t.Errorf("expected T1-02 and the planner's table to remain, got:\n%s", str3)
 		}
 	})
 }
@@ -3489,7 +3384,7 @@ func TestComprehensive_AuditRemediations_ZeroTrust_FullLifecycle(t *testing.T) {
 		t.Fatalf("vivechak_start root call failed: %v", err)
 	}
 	envRoot := parseEnvelope(t, resRoot)
-	if envRoot.Success {
+	if envRoot.Ok {
 		t.Errorf("expected failure when initializing at filesystem root '/', got success")
 	}
 	if !strings.Contains(envRoot.Message, "cannot be a filesystem root") && !strings.Contains(envRoot.Message, "cannot be used as workspace root") {
@@ -3509,7 +3404,7 @@ func TestComprehensive_AuditRemediations_ZeroTrust_FullLifecycle(t *testing.T) {
 		t.Fatalf("vivechak_start valid call failed: %v", err)
 	}
 	envStart := parseEnvelope(t, resStart)
-	if !envStart.Success {
+	if !envStart.Ok {
 		t.Fatalf("vivechak_start failed: %s", envStart.Message)
 	}
 
@@ -3524,9 +3419,9 @@ func TestComprehensive_AuditRemediations_ZeroTrust_FullLifecycle(t *testing.T) {
 | T1-01 | Event Broker Engine | T0-01 | sessions/T1-01.md |
 | T1-02 | Analytics Database | T1-01 | sessions/T1-02.md |
 
-## Session Prompts
+## Sessions
 
-### Session T0-01: Architecture Foundation
+### T0-01: Architecture Foundation
 | **Field** | **Value** |
 |---|---|
 | **ID** | T0-01 |
@@ -3536,7 +3431,7 @@ func TestComprehensive_AuditRemediations_ZeroTrust_FullLifecycle(t *testing.T) {
 		`# T0-01: Foundation
 Baseline architecture.
 ` + "````\n\n" +
-		`### Session T1-01: Event Broker Engine
+		`### T1-01: Event Broker Engine
 | **Field** | **Value** |
 |---|---|
 | **ID** | T1-01 |
@@ -3553,7 +3448,7 @@ Example usage:
 ` + "```\n" +
 		`Ensure throughput > 50k msg/sec.
 ` + "````\n\n" +
-		`### Session T1-02: Analytics Database
+		`### T1-02: Analytics Database
 | **Field** | **Value** |
 |---|---|
 | **ID** | T1-02 |
@@ -3563,25 +3458,33 @@ Example usage:
 		`# T1-02: Analytics Prompt
 Evaluate ClickHouse vs DuckDB.
 ` + "````\n\n" +
+		`### SYN-01: Founding Architecture Document
+
+` + "````prompt\n" +
+		`# SYN-01: Synthesis
+Synthesize the founding architecture. [ALL_SESSION_FINDINGS]
+` + "````\n\n" +
 		"```yaml vivechak-plan\n" +
-		`sessions:
+		`plan: PROJECT
+sessions:
   - id: T0-01
     title: Architecture Foundation
     door: two-way
-    dependencies: []
-    output_file: research/sessions/T0-01.md
+    depends: []
   - id: T1-01
     title: Event Broker Engine
     door: one-way
-    dependencies:
+    depends:
       - T0-01
-    output_file: research/sessions/T1-01.md
   - id: T1-02
     title: Analytics Database
     door: two-way
-    dependencies:
+    depends:
       - T1-01
-    output_file: research/sessions/T1-02.md
+  - id: SYN-01
+    title: Founding Architecture Document
+    kind: synthesis
+    depends: [ALL]
 ` + "```\n"
 
 	resSavePlan, err := cs.CallTool(ctx, &mcp.CallToolParams{
@@ -3596,7 +3499,7 @@ Evaluate ClickHouse vs DuckDB.
 		t.Fatalf("save plan failed: %v", err)
 	}
 	envSavePlan := parseEnvelope(t, resSavePlan)
-	if !envSavePlan.Success {
+	if !envSavePlan.Ok {
 		t.Fatalf("expected plan save to succeed, got: %s", envSavePlan.Message)
 	}
 
@@ -3605,19 +3508,19 @@ Evaluate ClickHouse vs DuckDB.
 	resReplanPrompt, err := cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_replan",
 		Arguments: map[string]any{
+			"plan":         "PROJECT",
 			"project_root": wsDir,
-			"operation":    "update_prompt",
+			"op":           "update_prompt",
 			"session_id":   "T1-01",
-			"new_prompt":   dollarPrompt,
+			"prompt":       dollarPrompt,
 			"reason":       "Incorporate cost constraints ($50/mo) and env var format",
-			"impact":       "Refines session T1-01 evaluation criteria",
 		},
 	})
 	if err != nil {
 		t.Fatalf("vivechak_replan update_prompt failed: %v", err)
 	}
 	envReplanPrompt := parseEnvelope(t, resReplanPrompt)
-	if !envReplanPrompt.Success {
+	if !envReplanPrompt.Ok {
 		t.Fatalf("expected update_prompt to succeed, got: %s", envReplanPrompt.Message)
 	}
 
@@ -3641,34 +3544,35 @@ Evaluate ClickHouse vs DuckDB.
 	resReplanDeps, err := cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_replan",
 		Arguments: map[string]any{
-			"project_root":     wsDir,
-			"operation":        "update_deps",
-			"session_id":       "T1-02",
-			"new_dependencies": "T0-01, T1-01",
-			"reason":           "Analytics database depends on both Foundation and Broker",
-			"impact":           "Updates topology row and machine block",
+			"plan":         "PROJECT",
+			"project_root": wsDir,
+			"op":           "update_deps",
+			"session_id":   "T1-02",
+			"dependencies": "T0-01, T1-01",
+			"reason":       "Analytics database depends on both Foundation and Broker",
 		},
 	})
 	if err != nil {
 		t.Fatalf("vivechak_replan update_deps failed: %v", err)
 	}
 	envReplanDeps := parseEnvelope(t, resReplanDeps)
-	if !envReplanDeps.Success {
+	if !envReplanDeps.Ok {
 		t.Fatalf("expected update_deps to succeed, got: %s", envReplanDeps.Message)
 	}
 
 	pipelineBytes2, _ := os.ReadFile(filepath.Join(wsDir, core.PipelineFile))
 	pipelineStr2 := string(pipelineBytes2)
-	if !strings.Contains(pipelineStr2, "T0-01, T1-01") {
-		t.Errorf("expected T0-01, T1-01 in topology table, got:\n%s", pipelineStr2)
+	if !strings.Contains(pipelineStr2, "    title: Analytics Database\n    door: two-way\n    depends:\n      - T0-01\n      - T1-01\n") {
+		t.Errorf("expected T1-02's block entry to list T0-01 and T1-01 in its own list style, got:\n%s", pipelineStr2)
 	}
 
 	// 5b. Add session with dollar signs in topic and prompt (F-03 dollar sign immunity)
 	resAddSess, err := cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_replan",
 		Arguments: map[string]any{
+			"plan":         "PROJECT",
 			"project_root": wsDir,
-			"operation":    "add_session",
+			"op":           "add_session",
 			"session_id":   "T1-03",
 			"layer":        "1",
 			"door_type":    "two-way",
@@ -3676,14 +3580,13 @@ Evaluate ClickHouse vs DuckDB.
 			"dependencies": "T0-01",
 			"prompt":       "# T1-03: Cost Budget\nEvaluate $50/mo hosting budget with $1/GB egress limits.",
 			"reason":       "Incorporate explicit budget modeling",
-			"impact":       "Adds downstream financial evaluation",
 		},
 	})
 	if err != nil {
 		t.Fatalf("add_session failed: %v", err)
 	}
 	envAddSess := parseEnvelope(t, resAddSess)
-	if !envAddSess.Success {
+	if !envAddSess.Ok {
 		t.Fatalf("expected add_session to succeed, got: %s", envAddSess.Message)
 	}
 
@@ -3727,7 +3630,7 @@ Kafka cluster operational overhead requires ZooKeeper or KRaft quorum monitoring
 		t.Fatalf("save session T1-01 failed: %v", err)
 	}
 	envSaveS1 := parseEnvelope(t, resSaveS1)
-	if !envSaveS1.Success {
+	if !envSaveS1.Ok {
 		t.Fatalf("expected session save to succeed, got: %s", envSaveS1.Message)
 	}
 
@@ -3736,7 +3639,7 @@ Kafka cluster operational overhead requires ZooKeeper or KRaft quorum monitoring
 		Name: "vivechak_record_decision",
 		Arguments: map[string]any{
 			"project_root":    wsDir,
-			"decision_id":     "D-001",
+			"id":              "D-001",
 			"auto_draft_from": "T1-01",
 			"auto_save":       true,
 		},
@@ -3745,12 +3648,12 @@ Kafka cluster operational overhead requires ZooKeeper or KRaft quorum monitoring
 		t.Fatalf("record_decision auto-draft failed: %v", err)
 	}
 	envAutoDraft := parseEnvelope(t, resAutoDraft)
-	if !envAutoDraft.Success {
+	if !envAutoDraft.Ok {
 		t.Fatalf("expected auto-save on proposed draft to succeed, got error: %s", envAutoDraft.Message)
 	}
 	// Verify warning about placeholders was emitted but did NOT block saving
 	foundWarning := false
-	for _, w := range envAutoDraft.Warnings {
+	for _, w := range envWarningStrings(envAutoDraft) {
 		if strings.Contains(w, "W-PLACEHOLDER-REMAINS") || strings.Contains(w, "placeholder") {
 			foundWarning = true
 			break
@@ -3781,7 +3684,7 @@ Kafka cluster operational overhead requires ZooKeeper or KRaft quorum monitoring
 		Name: "vivechak_record_decision",
 		Arguments: map[string]any{
 			"project_root": wsDir,
-			"decision_id":  "D-001",
+			"id":           "D-001",
 			"content":      badAcceptedD1,
 		},
 	})
@@ -3789,7 +3692,7 @@ Kafka cluster operational overhead requires ZooKeeper or KRaft quorum monitoring
 		t.Fatalf("record_decision bad accepted call failed: %v", err)
 	}
 	envBadAccepted := parseEnvelope(t, resBadAccepted)
-	if envBadAccepted.Success {
+	if envBadAccepted.Ok {
 		t.Fatalf("expected accepted decision with placeholders to FAIL, but got success")
 	}
 	if !strings.Contains(envBadAccepted.Message, "unexpanded placeholder") {
@@ -3827,7 +3730,7 @@ Requires dedicated operational monitoring for broker partition rebalances.
 		Name: "vivechak_record_decision",
 		Arguments: map[string]any{
 			"project_root": wsDir,
-			"decision_id":  "D-001",
+			"id":           "D-001",
 			"content":      cleanAcceptedD1,
 			"revise":       true,
 		},
@@ -3836,7 +3739,7 @@ Requires dedicated operational monitoring for broker partition rebalances.
 		t.Fatalf("clean accepted record_decision failed: %v", err)
 	}
 	envCleanAccepted := parseEnvelope(t, resCleanAccepted)
-	if !envCleanAccepted.Success {
+	if !envCleanAccepted.Ok {
 		t.Fatalf("expected clean accepted decision to succeed without link false positives, got error: %s (warnings: %v)", envCleanAccepted.Message, envCleanAccepted.Warnings)
 	}
 
@@ -3900,11 +3803,11 @@ ClickHouse cluster mutation limits require batching writes.
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_replan",
 		Arguments: map[string]any{
+			"plan":         "PROJECT",
 			"project_root": wsDir,
-			"operation":    "remove_session",
+			"op":           "remove_session",
 			"session_id":   "T1-03",
 			"reason":       "Prune auxiliary cost modeling session",
-			"impact":       "Refines pipeline",
 		},
 	})
 
@@ -3935,7 +3838,7 @@ This architecture establishes the primary event-driven backbone connecting high-
 		t.Fatalf("save FAD failed: %v", err)
 	}
 	envFad := parseEnvelope(t, saveFadRes)
-	if !envFad.Success {
+	if !envFad.Ok {
 		t.Fatalf("expected FAD save to succeed, got: %s", envFad.Message)
 	}
 
@@ -3955,8 +3858,8 @@ This architecture establishes the primary event-driven backbone connecting high-
 	if !ok {
 		t.Fatalf("expected gate Data map, got %T", envGate.Data)
 	}
-	if gateData["gate_passed"] != true {
-		t.Errorf("expected Track B gate to PASS, got gate_passed=%v, status=%v, warnings=%v", gateData["gate_passed"], gateData["gate_status"], envGate.Warnings)
+	if gateData["verdict"] != "PASS" {
+		t.Errorf("expected Track B gate to PASS, got verdict=%v, warnings=%v", gateData["verdict"], envGate.Warnings)
 	}
 }
 
@@ -3983,12 +3886,21 @@ func TestComprehensive_DogfoodingRefinements_LiveMCPLifecycle(t *testing.T) {
 		t.Fatalf("vivechak_start failed: %v", err)
 	}
 	envStart := parseEnvelope(t, resStart)
-	if !envStart.Success {
+	if !envStart.Ok {
 		t.Fatalf("expected vivechak_start to succeed, got: %s", envStart.Message)
 	}
 
-	// 2. vivechak_save(kind='plan') with backticks, brackets, asterisks, quotes in tables
+	// 2. vivechak_save(kind='plan'): tables with backticks, brackets, asterisks and quotes are prose; the
+	// vivechak-plan block gives the sessions (HIGH-07).
 	planContent := `# Research Pipeline: Event Broker System
+
+` + "```yaml vivechak-plan" + `
+plan: PROJECT
+sessions:
+  - {id: T0-01, title: Storage Engine, door: one-way, informs: [D-001], depends: []}
+  - {id: T1-01, title: Networking Protocol, door: one-way, informs: [D-002], depends: [T0-01]}
+  - {id: SYN-01, title: Architecture Synthesis, kind: synthesis, depends: [T0-01, T1-01]}
+` + "```" + `
 
 ## Pipeline Topology
 | ID | Topic | Dependencies | Output File |
@@ -3997,35 +3909,27 @@ func TestComprehensive_DogfoodingRefinements_LiveMCPLifecycle(t *testing.T) {
 | [T1-01] | *Networking Protocol* | ` + "`T0-01`" + ` | "sessions/T1-01.md" |
 | 'SYN-01' | Architecture Synthesis | ` + "`T0-01`, [T1-01]" + ` | ` + "`research/FAD.md`" + ` |
 
-## Session Prompts
+## Sessions
 
-### Session ` + "`T0-01`" + `: Storage Engine
+### T0-01: Storage Engine
 | **Field** | **Value** |
 |---|---|
 | **ID** | ` + "`T0-01`" + ` |
 | **Door Type** | ` + "`one-way`" + ` |
 | **Decision** | ` + "`D-001`" + ` |
-| **Dependencies** | None |
-| **Output File** | ` + "`sessions/T0-01.md`" + ` |
 
 ` + "```prompt\n# T0-01: Storage Engine\nEvaluate storage engines for append-only log.\n```\n\n" +
-		`### Session [T1-01]: Networking Protocol
+		`### T1-01: Networking Protocol
 | **Field** | **Value** |
 |---|---|
 | **ID** | [T1-01] |
 | **Door Type** | *one-way* |
-| **Decision** | "D-002" |
-| **Dependencies** | ` + "`T0-01`" + ` |
-| **Output File** | "sessions/T1-01.md" |
 
 ` + "```prompt\n# T1-01: Networking Protocol\nEvaluate TCP vs QUIC transport.\n```\n\n" +
-		`### Session 'SYN-01': Architecture Synthesis
+		`### SYN-01: Architecture Synthesis
 | **Field** | **Value** |
 |---|---|
 | **ID** | 'SYN-01' |
-| **Door Type** | 'one-way' |
-| **Dependencies** | ` + "`T0-01`, [T1-01]" + ` |
-| **Output File** | ` + "`research/FAD.md`" + ` |
 
 ` + "```prompt\n# SYN-01: Synthesis\nSynthesize architecture.\n```\n"
 
@@ -4041,7 +3945,7 @@ func TestComprehensive_DogfoodingRefinements_LiveMCPLifecycle(t *testing.T) {
 		t.Fatalf("save plan failed: %v", err)
 	}
 	envSavePlan := parseEnvelope(t, resSavePlan)
-	if !envSavePlan.Success {
+	if !envSavePlan.Ok {
 		t.Fatalf("expected plan save to succeed, got: %s", envSavePlan.Message)
 	}
 
@@ -4050,14 +3954,14 @@ func TestComprehensive_DogfoodingRefinements_LiveMCPLifecycle(t *testing.T) {
 		Name: "vivechak_next",
 		Arguments: map[string]any{
 			"project_root": wsDir,
-			"id":           "T0-01",
+			"session_id":   "T0-01",
 		},
 	})
 	if err != nil {
 		t.Fatalf("vivechak_next call failed: %v", err)
 	}
 	envNextT0 := parseEnvelope(t, resNextT0)
-	if !envNextT0.Success {
+	if !envNextT0.Ok {
 		t.Fatalf("expected vivechak_next to succeed with id alias: %s", envNextT0.Message)
 	}
 	dataNextT0, _ := envNextT0.Data.(map[string]any)
@@ -4094,7 +3998,7 @@ Background compaction stalls can induce tail latency spikes unless compaction co
 		t.Fatalf("save session T0-01 failed: %v", err)
 	}
 	envSaveS0 := parseEnvelope(t, resSaveS0)
-	if !envSaveS0.Success {
+	if !envSaveS0.Ok {
 		t.Fatalf("expected session T0-01 save to succeed, got: %s", envSaveS0.Message)
 	}
 
@@ -4104,14 +4008,14 @@ Background compaction stalls can induce tail latency spikes unless compaction co
 		Arguments: map[string]any{
 			"project_root": wsDir,
 			"id":           "T0-01",
-			"mode":         "challenge",
+			"mode":         "red_team",
 		},
 	})
 	if err != nil {
 		t.Fatalf("vivechak_review failed: %v", err)
 	}
 	envReview := parseEnvelope(t, resReview)
-	if !envReview.Success {
+	if !envReview.Ok {
 		t.Fatalf("expected vivechak_review to succeed with id alias, got: %s", envReview.Message)
 	}
 
@@ -4119,16 +4023,16 @@ Background compaction stalls can induce tail latency spikes unless compaction co
 	resAmend, err := cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_amend",
 		Arguments: map[string]any{
-			"project_root":   wsDir,
-			"id":             "T0-01",
-			"append_content": "\n### Additional Evaluation\nCompaction concurrency verified with benchmark tests. Grade A (https://rocksdb.org/benchmark)\n",
+			"project_root": wsDir,
+			"id":           "T0-01",
+			"note":         "\n### Additional Evaluation\nCompaction concurrency verified with benchmark tests. Grade A (https://rocksdb.org/benchmark)\n",
 		},
 	})
 	if err != nil {
 		t.Fatalf("vivechak_amend failed: %v", err)
 	}
 	envAmend := parseEnvelope(t, resAmend)
-	if !envAmend.Success {
+	if !envAmend.Ok {
 		t.Fatalf("expected vivechak_amend to succeed with id alias, got: %s", envAmend.Message)
 	}
 
@@ -4146,7 +4050,7 @@ Background compaction stalls can induce tail latency spikes unless compaction co
 		t.Fatalf("vivechak_record_decision auto-draft failed: %v", err)
 	}
 	envDraftD1 := parseEnvelope(t, resDraftD1)
-	if !envDraftD1.Success {
+	if !envDraftD1.Ok {
 		t.Fatalf("expected auto-draft record_decision to succeed, got: %s", envDraftD1.Message)
 	}
 
@@ -4185,7 +4089,7 @@ One-way door requiring data migration if changed. Direct I/O eliminates double-c
 		t.Fatalf("promoting D-001 failed: %v", err)
 	}
 	envPromoteD1 := parseEnvelope(t, resPromoteD1)
-	if !envPromoteD1.Success {
+	if !envPromoteD1.Ok {
 		t.Fatalf("expected D-001 promotion to succeed, got: %s", envPromoteD1.Message)
 	}
 
@@ -4238,7 +4142,7 @@ Kernel bypass requires dedicated NICs and non-root Linux capabilities which comp
 		t.Fatalf("save session T1-01 failed: %v", err)
 	}
 	envSaveS1 := parseEnvelope(t, resSaveS1)
-	if !envSaveS1.Success {
+	if !envSaveS1.Ok {
 		t.Fatalf("expected session T1-01 save to succeed, got: %s", envSaveS1.Message)
 	}
 
@@ -4275,7 +4179,7 @@ One-way door with hardware binding to high-performance NICs.
 		t.Fatalf("record D-002 failed: %v", err)
 	}
 	envPromoteD2 := parseEnvelope(t, resPromoteD2)
-	if !envPromoteD2.Success {
+	if !envPromoteD2.Ok {
 		t.Fatalf("expected record D-002 to succeed, got: %s", envPromoteD2.Message)
 	}
 
@@ -4284,23 +4188,23 @@ One-way door with hardware binding to high-performance NICs.
 		Name: "vivechak_next",
 		Arguments: map[string]any{
 			"project_root": wsDir,
-			"id":           "SYN-01",
+			"session_id":   "SYN-01",
 		},
 	})
 	if err != nil {
 		t.Fatalf("vivechak_next for SYN-01 failed: %v", err)
 	}
 	envNextSyn := parseEnvelope(t, resNextSyn)
-	if !envNextSyn.Success {
+	if !envNextSyn.Ok {
 		t.Fatalf("expected vivechak_next for SYN-01 to succeed, got: %s", envNextSyn.Message)
 	}
 
-	// Verify next_step specifies kind='fad'
-	if !strings.Contains(envNextSyn.NextStep, "kind='fad'") {
-		t.Errorf("expected next_step to recommend kind='fad', got: %s", envNextSyn.NextStep)
+	// Verify next_step specifies kind="fad"
+	if !strings.Contains(envGuidance(envNextSyn), `kind="fad"`) {
+		t.Errorf("expected next_step to recommend kind=\"fad\", got: %s", envGuidance(envNextSyn))
 	}
-	if strings.Contains(envNextSyn.NextStep, "kind='session'") {
-		t.Errorf("expected next_step NOT to recommend kind='session' for synthesis node, got: %s", envNextSyn.NextStep)
+	if strings.Contains(envGuidance(envNextSyn), `kind="session"`) {
+		t.Errorf("expected next_step NOT to recommend kind=\"session\" for synthesis node, got: %s", envGuidance(envNextSyn))
 	}
 
 	// Verify Next.Args["kind"] is "fad"
@@ -4338,7 +4242,7 @@ This architecture forms the core high-throughput backbone satisfying strict SLA 
 		t.Fatalf("save FAD failed: %v", err)
 	}
 	envSaveFad := parseEnvelope(t, resSaveFad)
-	if !envSaveFad.Success {
+	if !envSaveFad.Ok {
 		t.Fatalf("expected save FAD to succeed, got: %s", envSaveFad.Message)
 	}
 
@@ -4353,14 +4257,14 @@ This architecture forms the core high-throughput backbone satisfying strict SLA 
 		Arguments: map[string]any{
 			"project_root": wsDir,
 			"id":           "D-002",
-			"mode":         "challenge",
+			"mode":         "red_team",
 		},
 	})
 	if err != nil {
 		t.Fatalf("vivechak_review challenge D-002 failed: %v", err)
 	}
 	envRevD2 := parseEnvelope(t, resRevD2)
-	if !envRevD2.Success {
+	if !envRevD2.Ok {
 		t.Fatalf("expected review challenge to succeed: %s", envRevD2.Message)
 	}
 
@@ -4395,7 +4299,28 @@ This architecture forms the core high-throughput backbone satisfying strict SLA 
 	if !ok {
 		t.Fatalf("expected gate Data map, got %T", envGate.Data)
 	}
-	if gateData["gate_passed"] != true {
-		t.Errorf("expected Track B gate to PASS, got gate_passed=%v, warnings=%v", gateData["gate_passed"], envGate.Warnings)
+	if gateData["verdict"] != "PASS" {
+		t.Errorf("expected Track B gate to PASS, got verdict=%v, warnings=%v", gateData["verdict"], envGate.Warnings)
 	}
+}
+
+// gateRuleStatuses returns a vivechak_gate result's rules (typed or decoded from JSON) as id -> status.
+func gateRuleStatuses(t *testing.T, rules any) map[string]string {
+	t.Helper()
+	raw, err := json.Marshal(rules)
+	if err != nil {
+		t.Fatalf("encoding rules: %v", err)
+	}
+	var list []struct {
+		ID     string `json:"id"`
+		Status string `json:"status"`
+	}
+	if err := json.Unmarshal(raw, &list); err != nil {
+		t.Fatalf("decoding rules %s: %v", raw, err)
+	}
+	out := make(map[string]string, len(list))
+	for _, r := range list {
+		out[r.ID] = r.Status
+	}
+	return out
 }

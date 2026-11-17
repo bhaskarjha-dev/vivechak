@@ -295,4 +295,145 @@ Postgres chosen based on [Grade A: https://www.postgresql.org/docs/ | fetched do
 			t.Errorf("expected G6 to FAIL, rules: %+v", res.Rules)
 		}
 	})
+
+	// 7-12. CRIT-13: G7 reads each claim's own verification label, so labels other than fetched/human and prose that
+	// merely mentions "human" or "fetched" never count, while G6 still counts the same claims; the formats the
+	// templates teach (composite citation, ledger row) count when labelled fetched/human.
+	labelCases := []struct {
+		name     string
+		findings string
+		ledger   string
+		g7Pass   bool
+	}{
+		{"Fail_G7_UnverifiedLabels", `- PostgreSQL indexes JSONB documents with GIN [A · single · fresh · direct · unverified](https://www.postgresql.org/docs/current/datatype-json.html)
+- Logical replication supports zero-downtime upgrades [A · single · fresh · direct · unverified](https://www.postgresql.org/docs/current/logical-replication.html)
+`, "- PostgreSQL manual (see findings).\n", false},
+		{"Fail_G7_CachedLabels", `- PostgreSQL is best suited for durable ACID multi-table transactions [Grade A: https://www.postgresql.org/docs/ | cached].
+- Redis handles high-throughput in-memory caching [Grade B: https://redis.io/benchmarks | cached].
+`, "- PostgreSQL manual and Redis benchmarks (see findings).\n", false},
+		{"Fail_G7_HumanWrittenProse", `- A human architect fetched and read the PostgreSQL manual [Grade A: https://www.postgresql.org/docs/].
+- Human-provided benchmark notes were verified by hand [Grade B: https://redis.io/benchmarks].
+`, "- PostgreSQL manual and Redis benchmarks (see findings).\n", false},
+		{"Fail_G7_VerifiedLabels", `- PostgreSQL is best suited for durable ACID multi-table transactions (Grade A · corroborated · fresh | verified) https://www.postgresql.org/docs/
+- Redis handles high-throughput in-memory caching (Grade B · single · fresh | verified) https://redis.io/benchmarks
+`, "- PostgreSQL manual and Redis benchmarks (see findings).\n", false},
+		{"Fail_G7_LedgerRowsUnverified", `- **JSONB indexing:** GIN indexes JSONB documents (Grade A · corroborated · fresh · direct | unverified).
+- **Caching:** Redis Streams keep bounded memory (Grade B · single · fresh · direct | cached).
+`, `| # | Source | Grade | Modifiers | Verification | Used For |
+|---|---|---|---|---|---|
+| 1 | PostgreSQL manual https://www.postgresql.org/docs/current/datatype-json.html | A | corroborated · fresh | unverified | JSONB indexing |
+| 2 | Redis Streams https://redis.io/docs/data-types/streams/ | B | single · fresh | cached | Caching |
+`, false},
+		// SESSION.template.md exactly: inline findings carry the composite citation, the ledger carries the URLs.
+		{"Pass_G7_SessionTemplateLedger", `- **JSONB indexing:** GIN indexes JSONB documents (Grade A · corroborated · fresh · direct | fetched).
+- **Caching:** Redis Streams keep bounded memory (Grade B · single · fresh · direct | human-provided).
+`, `| # | Source | Grade | Modifiers | Verification | Used For |
+|---|---|---|---|---|---|
+| 1 | PostgreSQL manual https://www.postgresql.org/docs/current/datatype-json.html | A | corroborated · fresh | fetched | JSONB indexing |
+| 2 | Redis Streams https://redis.io/docs/data-types/streams/ | B | single · fresh | human-provided | Caching |
+`, true},
+		// FRAMEWORK.md §5.5's composite citation with the URL on the claim's line.
+		{"Pass_G7_CompositeCitationWithURL", `- GIN indexes JSONB documents https://www.postgresql.org/docs/current/datatype-json.html (Grade A · corroborated · fresh · direct | fetched).
+- Redis Streams keep bounded memory https://redis.io/docs/data-types/streams/ (Grade B · single · fresh · direct | human).
+`, "- PostgreSQL manual and Redis docs (see findings).\n", true},
+	}
+	for _, tc := range labelCases {
+		t.Run(tc.name, func(t *testing.T) {
+			dir, ws := setupPassingBase(t)
+			s1 := "---\nsession_id: T0-01\nstatus: complete\ninforms_decisions: [\"D-001\"]\n---\n## Key Findings\n" + tc.findings +
+				"\n## Recommendation\nAdopt PostgreSQL as the primary datastore with Redis Streams for caching.\n\n## Sources & Evidence Ledger\n" + tc.ledger
+			if err := os.WriteFile(filepath.Join(dir, SessionsDir, "T0-01.md"), []byte(s1), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			res := EvaluateGate(ws, InspectWorkspace(dir), dir)
+			status := map[string]GateRuleResult{}
+			for _, r := range res.Rules {
+				status[r.ID] = r
+				if r.ID != "G7" && r.Status == "FAIL" {
+					t.Errorf("expected only G7 to depend on the labels, but %s FAILs: %s", r.ID, r.Reason)
+				}
+			}
+			if status["G6"].Status != "PASS" {
+				t.Errorf("expected G6 to count these Grade A/B claims with URLs, got %s: %s", status["G6"].Status, status["G6"].Reason)
+			}
+			if tc.g7Pass {
+				if status["G7"].Status != "PASS" || !res.Passed {
+					t.Errorf("expected G7 and the gate to PASS for fetched/human labels, got G7 %s: %s (passed=%v)", status["G7"].Status, status["G7"].Reason, res.Passed)
+				}
+				return
+			}
+			if status["G7"].Status != "FAIL" || res.Passed {
+				t.Fatalf("expected G7 to FAIL, got G7 %s: %s (passed=%v)", status["G7"].Status, status["G7"].Reason, res.Passed)
+			}
+			for _, want := range []string{"D-001: 0 of 2 Grade A/B claims with URLs carry a fetched or human label", "labels as reported", "exactly fetched, human or human-provided"} {
+				if !strings.Contains(status["G7"].Reason, want) {
+					t.Errorf("expected G7 reason to contain %q, got: %s", want, status["G7"].Reason)
+				}
+			}
+		})
+	}
+}
+
+// TestGate_OneWay_ClaimRecognizer pins the claim formats G6 counts and the labels G7 accepts (CRIT-13): G7 counts
+// only claims G6 counts, and only when the claim's own label is exactly fetched, human or human-provided.
+func TestGate_OneWay_ClaimRecognizer(t *testing.T) {
+	cases := []struct {
+		line             string
+		graded, verified bool
+	}{
+		// Bracketed tags (the validator's hint, the Harness fixture, the gate tests' own form).
+		{"- GIN indexes JSONB [A · single · fresh · direct · fetched](https://www.postgresql.org/docs/current/datatype-json.html)", true, true},
+		{"- GIN indexes JSONB [a · single · fresh · direct · Fetched](https://www.postgresql.org/docs/)", true, true},
+		{"- Redis benchmark [Grade B: https://redis.io/benchmarks | fetched]", true, true},
+		{"- PostgreSQL docs: https://www.postgresql.org/docs/ [Grade A | fetched]", true, true},
+		{"- Raft safety [E-A: https://raft.github.io · fetched]", true, true},
+		{"- Raft safety [E-B: https://raft.github.io | human]", true, true},
+		{"- Operator runbook [Grade A: https://example.com/runbook | human-provided]", true, true},
+		// The parenthesized composite citation (SESSION.template.md, DECISIONS.template.md, FRAMEWORK.md §5.5).
+		{"- **JSONB:** GIN https://www.postgresql.org/docs/ (Grade A · corroborated · fresh · direct | fetched).", true, true},
+		{"- Streams https://redis.io/docs/ (B · single · fresh | human-provided)", true, true},
+		{"- Vendor benchmark https://example.com/bench (Grade: B | fetched)", true, true},
+		{"- Raft https://raft.github.io (E-A · fresh · human)", true, true},
+		// The Sources & Evidence Ledger row: grade cell, URL and label cell in the same row.
+		{"| 1 | PostgreSQL manual https://www.postgresql.org/docs/ | A | corroborated · fresh | fetched | JSONB |", true, true},
+		{"| 2 | https://redis.io/benchmarks | Grade B | fresh | human | cache |", true, true},
+		{"| 3 | https://raft.github.io | [A] | single | `fetched` | consensus |", true, true},
+		// Claims G6 counts whose label is not fetched or human: G7 must not count them.
+		{"- GIN [A · single · fresh · direct · unverified](https://www.postgresql.org/docs/)", true, false},
+		{"- Redis [Grade B: https://redis.io/benchmarks | cached]", true, false},
+		{"- PostgreSQL [Grade A: https://www.postgresql.org/docs/ | recalled]", true, false},
+		{"- PostgreSQL [Grade A: https://www.postgresql.org/docs/ | recalled memory]", true, false},
+		{"- PostgreSQL [Grade A: https://www.postgresql.org/docs/ | verified]", true, false},
+		{"- Binary size https://go.dev/doc (Grade A · source inspection | verified)", true, false},
+		{"- PostgreSQL [Grade A: https://www.postgresql.org/docs/ | secondhand]", true, false},
+		{"- PostgreSQL [Grade A: https://www.postgresql.org/docs/ | fetched docs]", true, false},
+		{"- PostgreSQL [Grade A: https://www.postgresql.org/docs/ | canonical source code]", true, false},
+		{"- A human architect fetched the manual [Grade A: https://www.postgresql.org/docs/]", true, false},
+		{"- Human-provided notes, verified and fetched [Grade B: https://redis.io/benchmarks] (unverified elsewhere)", true, false},
+		{"- PostgreSQL [Grade A: https://www.postgresql.org/docs/] [fetched]", true, false},
+		{"| 1 | https://www.postgresql.org/docs/ | A | fresh | fetched docs | JSONB |", true, false},
+		{"| 1 | https://www.postgresql.org/docs/ | A | fresh |  | JSONB |", true, false},
+		{"| 1 | https://www.postgresql.org/docs/ | A | fresh | unverified | JSONB |", true, false},
+		// Not Grade A/B claims with a URL: neither rule counts them.
+		{"- GIN indexes JSONB [A · single · fresh · direct · fetched]", false, false},
+		{"- (Grade A · corroborated · fresh | fetched) with no link", false, false},
+		{"- We chose option (A) after reading https://example.com/fetched", false, false},
+		{"- Grade A (https://sqlite.org) fetched by a human", false, false},
+		{"- [Benchmarks](https://example.com/bench) were fetched", false, false},
+		{"- Vendor whitepaper [Grade C: https://example.com/whitepaper | fetched]", false, false},
+		{"| # | Source | Grade | Modifiers | Verification | Used For |", false, false},
+		{"|---|---|---|---|---|---|", false, false},
+		{"| 1 | https://example.com/blog | C | fresh | fetched | blog |", false, false},
+		{"| Option A | https://example.com | fetched |", false, false},
+		{"| fetched | human |", false, false},
+	}
+	for _, tc := range cases {
+		graded, verified := classifyClaimLine(tc.line)
+		if graded != tc.graded || verified != tc.verified {
+			t.Errorf("classifyClaimLine(%q) = (graded %v, verified %v), want (%v, %v)", tc.line, graded, verified, tc.graded, tc.verified)
+		}
+		if verified && !graded {
+			t.Errorf("classifyClaimLine(%q): G7 counted a claim G6 does not count", tc.line)
+		}
+	}
 }

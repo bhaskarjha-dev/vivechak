@@ -85,32 +85,33 @@ func TestCompleteSolution_OmniFeature_EndToEnd(t *testing.T) {
 			}
 		}
 
-		// 1.3 Verify Prompt retrieval via Canonical, Legacy (vivechak_*), and Shorthand (vck_*)
+		// 1.3 Verify canonical Prompt retrieval and rejection of removed legacy/shorthand aliases
 		triplets := []struct {
 			canon, legacy, shorthand string
 			args                     map[string]string
 			mustContain              string
 		}{
-			{"compare", "vivechak_compare", "vck_compare", map[string]string{"options": "A vs B"}, "OPTIONS: A vs B"},
-			{"decision", "vivechak_decision", "vck_decision", map[string]string{"dilemma": "Migrate DB"}, "DECISION: Migrate DB"},
+			{"compare", "vivechak_compare", "vck_compare", map[string]string{"options": "A vs B"}, "Compare A vs B"},
+			{"decision", "vivechak_decision", "vck_decision", map[string]string{"question": "Migrate DB"}, "Migrate DB"},
 			{"project", "vivechak_project", "vck_project", map[string]string{"vision": "Build Platform"}, "Build Platform"},
-			{"gate", "vivechak_gate", "vck_gate", map[string]string{"track": "track_a"}, `track="track_a"`},
+			{"gate", "vivechak_gate", "vck_gate", map[string]string{"decision": "D-001"}, `decision="D-001"`},
 		}
 		for _, trip := range triplets {
 			r1, err1 := cs.GetPrompt(ctx, &mcp.GetPromptParams{Name: trip.canon, Arguments: trip.args})
-			r2, err2 := cs.GetPrompt(ctx, &mcp.GetPromptParams{Name: trip.legacy, Arguments: trip.args})
-			r3, err3 := cs.GetPrompt(ctx, &mcp.GetPromptParams{Name: trip.shorthand, Arguments: trip.args})
-			if err1 != nil || err2 != nil || err3 != nil {
-				t.Fatalf("GetPrompt failed for triplet (%s, %s, %s): %v, %v, %v", trip.canon, trip.legacy, trip.shorthand, err1, err2, err3)
+			_, err2 := cs.GetPrompt(ctx, &mcp.GetPromptParams{Name: trip.legacy, Arguments: trip.args})
+			_, err3 := cs.GetPrompt(ctx, &mcp.GetPromptParams{Name: trip.shorthand, Arguments: trip.args})
+			if err1 != nil {
+				t.Fatalf("GetPrompt(%s) failed: %v", trip.canon, err1)
+			}
+			if err2 == nil || err3 == nil {
+				t.Errorf("expected removed prompt aliases (%s, %s) to fail, got err2=%v, err3=%v", trip.legacy, trip.shorthand, err2, err3)
 			}
 			t1 := r1.Messages[0].Content.(*mcp.TextContent).Text
-			t2 := r2.Messages[0].Content.(*mcp.TextContent).Text
-			t3 := r3.Messages[0].Content.(*mcp.TextContent).Text
-			if t1 != t2 || t1 != t3 {
-				t.Errorf("prompt alias mismatch for %s", trip.canon)
+			if len(t1) > 600 {
+				t.Errorf("prompt %s exceeds 600-char limit: %d chars", trip.canon, len(t1))
 			}
 			if !strings.Contains(t1, trip.mustContain) {
-				t.Errorf("prompt %s missing expected substring %q", trip.canon, trip.mustContain)
+				t.Errorf("prompt %s missing expected substring %q: %s", trip.canon, trip.mustContain, t1)
 			}
 		}
 
@@ -173,13 +174,13 @@ func TestCompleteSolution_OmniFeature_EndToEnd(t *testing.T) {
 
 				res, err := cs.CallTool(ctx, &mcp.CallToolParams{
 					Name:      "vivechak_start",
-					Arguments: map[string]any{},
+					Arguments: map[string]any{"question": "test", "scope": "project"},
 				})
 				if err != nil {
 					t.Fatalf("vivechak_start with %s failed: %v", envVar, err)
 				}
 				env := parseEnvelope(t, res)
-				if !env.Success {
+				if !env.Ok {
 					t.Fatalf("expected init success with env %s, got: %s", envVar, env.Message)
 				}
 				if !core.WorkspaceExists(tmpDir) {
@@ -200,7 +201,7 @@ func TestCompleteSolution_OmniFeature_EndToEnd(t *testing.T) {
 				t.Setenv(envVar, tmpDir)
 				_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
 					Name:      "vivechak_start",
-					Arguments: map[string]any{},
+					Arguments: map[string]any{"question": "test", "scope": "project"},
 				})
 				if core.WorkspaceExists(tmpDir) {
 					t.Errorf("unsupported env var %s should not have created workspace in %s", envVar, tmpDir)
@@ -232,13 +233,13 @@ func TestCompleteSolution_OmniFeature_EndToEnd(t *testing.T) {
 			}
 			res, err := cs.CallTool(ctx, &mcp.CallToolParams{
 				Name:      "vivechak_start",
-				Arguments: map[string]any{"project_root": rootPath},
+				Arguments: map[string]any{"question": "test", "scope": "project", "project_root": rootPath},
 			})
 			if err != nil {
 				t.Fatalf("call error: %v", err)
 			}
 			env := parseEnvelope(t, res)
-			if env.Success {
+			if env.Ok {
 				t.Errorf("expected filesystem root %s to be rejected, but succeeded", rootPath)
 			}
 		})
@@ -249,13 +250,13 @@ func TestCompleteSolution_OmniFeature_EndToEnd(t *testing.T) {
 			if err == nil && homeDir != "" {
 				res, err := cs.CallTool(ctx, &mcp.CallToolParams{
 					Name:      "vivechak_start",
-					Arguments: map[string]any{"project_root": homeDir},
+					Arguments: map[string]any{"question": "test", "scope": "project", "project_root": homeDir},
 				})
 				if err != nil {
 					t.Fatalf("call error: %v", err)
 				}
 				env := parseEnvelope(t, res)
-				if env.Success {
+				if env.Ok {
 					t.Errorf("expected user home directory %s to be rejected, but succeeded", homeDir)
 				}
 			}
@@ -268,19 +269,20 @@ func TestCompleteSolution_OmniFeature_EndToEnd(t *testing.T) {
 	t.Run("3_ComparisonScope_FullLifecycle", func(t *testing.T) {
 		compDir := t.TempDir()
 
-		// 3.1 Prepare generator: auto-infers comparison from "Pino vs Winston"
+		// 3.1 Prepare generator for comparison scope
 		prepRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
 			Name: "vivechak_start",
 			Arguments: map[string]any{
+				"scope":        "comparison",
 				"project_root": compDir,
-				"context":      "Compare Pino vs Winston for high-throughput JSON logging in Express",
+				"question":     "Compare Pino vs Winston for high-throughput JSON logging in Express",
 			},
 		})
 		if err != nil {
 			t.Fatalf("prepare_generator failed: %v", err)
 		}
 		prepEnv := parseEnvelope(t, prepRes)
-		if !prepEnv.Success {
+		if !prepEnv.Ok {
 			t.Fatalf("prepare_generator returned error: %s", prepEnv.Message)
 		}
 		prepData := prepEnv.Data.(map[string]any)
@@ -316,7 +318,7 @@ Pino is recommended for high throughput.
 				"project_root": compDir,
 				"kind":         "comparison",
 				"scope":        "comparison",
-				"decision_id":  "C-01",
+				"id":           "C-01",
 				"slug":         "pino-vs-winston",
 				"content":      wepContent,
 			},
@@ -325,11 +327,11 @@ Pino is recommended for high throughput.
 			t.Fatalf("save_plan failed: %v", err)
 		}
 		saveEnv := parseEnvelope(t, saveRes)
-		if !saveEnv.Success {
+		if !saveEnv.Ok {
 			t.Fatalf("save_plan failed: %s", saveEnv.Message)
 		}
 
-		// Verify comparison file exists and template was auto-copied
+		// Verify comparison file exists; templates are MCP resources, never copied (HIGH-15)
 		saveData, _ := saveEnv.Data.(map[string]any)
 		compRelPath, _ := saveData["file_path"].(string)
 		if compRelPath == "" {
@@ -339,9 +341,9 @@ Pino is recommended for high throughput.
 		if _, err := os.Stat(compFile); err != nil {
 			t.Fatalf("expected comparison file %s to exist", compFile)
 		}
-		tmplFile := filepath.Join(compDir, "research", "templates", "COMPARISON-SESSION.template.md")
-		if _, err := os.Stat(tmplFile); err != nil {
-			t.Fatalf("expected template %s to exist after auto-init", tmplFile)
+		tmplDir := filepath.Join(compDir, "research", "templates")
+		if _, err := os.Stat(tmplDir); !os.IsNotExist(err) {
+			t.Fatalf("expected no %s after auto-init, got err=%v", tmplDir, err)
 		}
 
 		// 3.3 Status check: verifies scope is comparison and initialized
@@ -353,7 +355,7 @@ Pino is recommended for high throughput.
 			t.Fatalf("status call failed: %v", err)
 		}
 		statusEnv := parseEnvelope(t, statusRes)
-		if !statusEnv.Success {
+		if !statusEnv.Ok {
 			t.Fatalf("status call failed: %s", statusEnv.Message)
 		}
 		statusData := statusEnv.Data.(map[string]any)
@@ -370,7 +372,7 @@ Pino is recommended for high throughput.
 			t.Fatalf("visualize call failed: %v", err)
 		}
 		visEnv := parseEnvelope(t, visRes)
-		if !visEnv.Success {
+		if !visEnv.Ok {
 			t.Fatalf("visualize failed: %s", visEnv.Message)
 		}
 
@@ -378,6 +380,7 @@ Pino is recommended for high throughput.
 		valRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
 			Name: "vivechak_review",
 			Arguments: map[string]any{
+				"mode":          "validate",
 				"project_root":  compDir,
 				"content":       wepContent,
 				"artifact_type": "comparison",
@@ -387,7 +390,7 @@ Pino is recommended for high throughput.
 			t.Fatalf("validate call failed: %v", err)
 		}
 		valEnv := parseEnvelope(t, valRes)
-		if !valEnv.Success {
+		if !valEnv.Ok {
 			t.Fatalf("validate comparison artifact failed: %s", valEnv.Message)
 		}
 	})
@@ -402,6 +405,7 @@ Pino is recommended for high throughput.
 		initRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
 			Name: "vivechak_start",
 			Arguments: map[string]any{
+				"question":     "test",
 				"project_root": decDir,
 				"scope":        "decision",
 			},
@@ -410,27 +414,25 @@ Pino is recommended for high throughput.
 			t.Fatalf("init decision failed: %v", err)
 		}
 		initEnv := parseEnvelope(t, initRes)
-		if !initEnv.Success {
+		if !initEnv.Ok {
 			t.Fatalf("init decision returned error: %s", initEnv.Message)
 		}
-		for _, tmpl := range []string{"DECISIONS.template.md", "CONFLICT-RESOLUTION.template.md"} {
-			if _, err := os.Stat(filepath.Join(decDir, "research", "templates", tmpl)); err != nil {
-				t.Fatalf("expected decision template %s to exist: %v", tmpl, err)
-			}
+		if _, err := os.Stat(filepath.Join(decDir, "research", "templates")); !os.IsNotExist(err) {
+			t.Fatalf("expected no research/templates/ for decision scope (templates are MCP resources), got err=%v", err)
 		}
 
 		// 4.2 Save decision plan
-		decPlanContent := `# DECISION PLAN: D-01 (Database Migration)
-## Context
-Migrate primary datastore from PostgreSQL to ClickHouse for analytics event store.
-`
+		decPlanContent := testPlan("DECISION PLAN: D-01 (Database Migration)", "D-01",
+			"## Context\nMigrate primary datastore from PostgreSQL to ClickHouse for analytics event store.",
+			[]string{"{id: D-01-S1, title: Analytics store comparison, role: C, door: one-way, informs: [D-01], depends: []}"},
+			testSection("D-01-S1", "Analytics store comparison", "Compare PostgreSQL and ClickHouse for the analytics event store."))
 		savePlanRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
 			Name: "vivechak_save",
 			Arguments: map[string]any{
 				"project_root": decDir,
 				"kind":         "plan",
 				"scope":        "decision",
-				"decision_id":  "D-01",
+				"id":           "D-01",
 				"slug":         "db-migration",
 				"content":      decPlanContent,
 			},
@@ -439,7 +441,7 @@ Migrate primary datastore from PostgreSQL to ClickHouse for analytics event stor
 			t.Fatalf("save decision plan failed: %v", err)
 		}
 		savePlanEnv := parseEnvelope(t, savePlanRes)
-		if !savePlanEnv.Success {
+		if !savePlanEnv.Ok {
 			t.Fatalf("save decision plan failed: %s", savePlanEnv.Message)
 		}
 
@@ -478,7 +480,7 @@ Reversal trigger: If event volume drops below 500k events/day, revert to Postgre
 			Arguments: map[string]any{
 				"project_root": decDir,
 				"kind":         "session",
-				"session_id":   "S-01",
+				"id":           "S-01",
 				"content":      s01Content,
 			},
 		})
@@ -486,7 +488,7 @@ Reversal trigger: If event volume drops below 500k events/day, revert to Postgre
 			t.Fatalf("save session S-01 failed: %v", err)
 		}
 		saveSessEnv := parseEnvelope(t, saveSessRes)
-		if !saveSessEnv.Success {
+		if !saveSessEnv.Ok {
 			t.Fatalf("save session S-01 failed: %s", saveSessEnv.Message)
 		}
 
@@ -495,7 +497,7 @@ Reversal trigger: If event volume drops below 500k events/day, revert to Postgre
 			Name: "vivechak_review",
 			Arguments: map[string]any{
 				"project_root": decDir,
-				"decision_id":  "S-01",
+				"id":           "S-01",
 				"mode":         "red_team",
 			},
 		})
@@ -503,7 +505,7 @@ Reversal trigger: If event volume drops below 500k events/day, revert to Postgre
 			t.Fatalf("challenge call failed: %v", err)
 		}
 		chalEnv := parseEnvelope(t, chalRes)
-		if !chalEnv.Success {
+		if !chalEnv.Ok {
 			t.Fatalf("challenge failed: %s", chalEnv.Message)
 		}
 
@@ -512,7 +514,7 @@ Reversal trigger: If event volume drops below 500k events/day, revert to Postgre
 			Name: "vivechak_record_decision",
 			Arguments: map[string]any{
 				"project_root":    decDir,
-				"decision_id":     "D-01",
+				"id":              "D-01",
 				"auto_draft_from": "S-01",
 				"auto_save":       true,
 			},
@@ -521,7 +523,7 @@ Reversal trigger: If event volume drops below 500k events/day, revert to Postgre
 			t.Fatalf("record_decision failed: %v", err)
 		}
 		recEnv := parseEnvelope(t, recRes)
-		if !recEnv.Success {
+		if !recEnv.Ok {
 			t.Fatalf("record_decision failed: %s", recEnv.Message)
 		}
 		t.Logf("record_decision Data: %v", recEnv.Data)
@@ -546,8 +548,8 @@ Reversal trigger: If event volume drops below 500k events/day, revert to Postgre
 			Name: "vivechak_amend",
 			Arguments: map[string]any{
 				"project_root": decDir,
-				"session_id":   "D-001",
-				"content":      "Added note: verified compatibility with ClickHouse Cloud serverless tier.",
+				"id":           "D-001",
+				"note":         "Added note: verified compatibility with ClickHouse Cloud serverless tier.",
 				"reason":       "Cloud pricing update",
 			},
 		})
@@ -555,7 +557,7 @@ Reversal trigger: If event volume drops below 500k events/day, revert to Postgre
 			t.Fatalf("amend_session failed: %v", err)
 		}
 		amendEnv := parseEnvelope(t, amendRes)
-		if !amendEnv.Success {
+		if !amendEnv.Ok {
 			t.Fatalf("amend_session failed: %s", amendEnv.Message)
 		}
 
@@ -567,16 +569,17 @@ Reversal trigger: If event volume drops below 500k events/day, revert to Postgre
 		valRegRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
 			Name: "vivechak_review",
 			Arguments: map[string]any{
+				"mode":          "validate",
 				"project_root":  decDir,
 				"content":       string(regData),
-				"artifact_type": "decisions",
+				"artifact_type": "decision",
 			},
 		})
 		if err != nil {
 			t.Fatalf("validate registry failed: %v", err)
 		}
 		valRegEnv := parseEnvelope(t, valRegRes)
-		if !valRegEnv.Success {
+		if !valRegEnv.Ok {
 			t.Fatalf("validate registry failed: %s", valRegEnv.Message)
 		}
 	})
@@ -591,6 +594,7 @@ Reversal trigger: If event volume drops below 500k events/day, revert to Postgre
 		initRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
 			Name: "vivechak_start",
 			Arguments: map[string]any{
+				"question":     "test",
 				"project_root": projDir,
 				"scope":        "project",
 			},
@@ -599,56 +603,26 @@ Reversal trigger: If event volume drops below 500k events/day, revert to Postgre
 			t.Fatalf("init project failed: %v", err)
 		}
 		initEnv := parseEnvelope(t, initRes)
-		if !initEnv.Success {
+		if !initEnv.Ok {
 			t.Fatalf("init project failed: %s", initEnv.Message)
 		}
-		for _, tmpl := range core.TemplatesToCopy {
-			tPath := filepath.Join(projDir, "research", "templates", tmpl)
-			if _, err := os.Stat(tPath); err != nil {
-				t.Fatalf("missing project template %s", tmpl)
-			}
+		if _, err := os.Stat(filepath.Join(projDir, "research", "templates")); !os.IsNotExist(err) {
+			t.Fatalf("expected no research/templates/ for project scope (templates are MCP resources), got err=%v", err)
 		}
 
 		// 5.2 Save DAG pipeline with pipeline_content alias
-		pipelineContent := `# RESEARCH PIPELINE: Distributed Event Fabric
-
-## METADATA
+		pipelineContent := testPlan("RESEARCH PIPELINE: Distributed Event Fabric", "PROJECT", `## METADATA
 | Field | Value |
 |---|---|
 | Project | Distributed Event Fabric |
 | Scope | project |
-| Total Sessions | 2 |
-
-## SESSIONS
-
-#### S-01: Ingestion Engine Spike
-| Field | Value |
-|---|---|
-| **ID** | S-01 |
-| **Layer** | 0 |
-| **Door Type** | two-way |
-| **Dependencies** | none |
-| **Output File** | ` + "`sessions/S-01-ingestion.md`" + ` |
-
-` + "```prompt" + `
-Investigate ingestion options.
-` + "```" + `
-
----
-
-#### S-02: Sharding Topology
-| Field | Value |
-|---|---|
-| **ID** | S-02 |
-| **Layer** | 1 |
-| **Door Type** | one-way |
-| **Dependencies** | S-01 |
-| **Output File** | ` + "`sessions/S-02-sharding.md`" + ` |
-
-` + "```prompt" + `
-Investigate sharding topology.
-` + "```" + `
-`
+| Total Sessions | 2 |`, []string{
+			"{id: S-01, title: Ingestion Engine Spike, layer: 0, door: two-way, depends: []}",
+			"{id: S-02, title: Sharding Topology, layer: 1, door: one-way, depends: [S-01]}",
+			"{id: SYN-01, title: Founding Architecture, layer: 2, kind: synthesis, depends: [ALL]}",
+		}, testSection("S-01", "Ingestion Engine Spike", "Investigate ingestion options.")+"---\n\n",
+			testSection("S-02", "Sharding Topology", "Investigate sharding topology."),
+			testSection("SYN-01", "Founding Architecture", "Synthesize the founding architecture. [ALL_SESSION_FINDINGS]"))
 		savePipeRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
 			Name: "vivechak_save",
 			Arguments: map[string]any{
@@ -662,7 +636,7 @@ Investigate sharding topology.
 			t.Fatalf("save pipeline failed: %v", err)
 		}
 		savePipeEnv := parseEnvelope(t, savePipeRes)
-		if !savePipeEnv.Success {
+		if !savePipeEnv.Ok {
 			t.Fatalf("save pipeline failed: %s", savePipeEnv.Message)
 		}
 
@@ -675,7 +649,7 @@ Investigate sharding topology.
 			t.Fatalf("visualize failed: %v", err)
 		}
 		visEnv := parseEnvelope(t, visRes)
-		if !visEnv.Success {
+		if !visEnv.Ok {
 			t.Fatalf("visualize failed: %s", visEnv.Message)
 		}
 		visData := visEnv.Data.(map[string]any)
@@ -692,7 +666,7 @@ Investigate sharding topology.
 			t.Fatalf("next_session failed: %v", err)
 		}
 		nextEnv := parseEnvelope(t, nextRes)
-		if !nextEnv.Success {
+		if !nextEnv.Ok {
 			t.Fatalf("next_session failed: %s", nextEnv.Message)
 		}
 		nextData := nextEnv.Data.(map[string]any)
@@ -736,7 +710,7 @@ Monitor downstream TCP backpressure limits in session S-02.
 			Arguments: map[string]any{
 				"project_root": projDir,
 				"kind":         "session",
-				"session_id":   "S-01",
+				"id":           "S-01",
 				"content":      s01Output,
 			},
 		})
@@ -744,7 +718,7 @@ Monitor downstream TCP backpressure limits in session S-02.
 			t.Fatalf("save S-01 failed: %v", err)
 		}
 		saveS01Env := parseEnvelope(t, saveS01Res)
-		if !saveS01Env.Success {
+		if !saveS01Env.Ok {
 			t.Fatalf("save S-01 failed: %s", saveS01Env.Message)
 		}
 
@@ -752,21 +726,21 @@ Monitor downstream TCP backpressure limits in session S-02.
 		replanRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
 			Name: "vivechak_replan",
 			Arguments: map[string]any{
+				"plan":         "PROJECT",
 				"project_root": projDir,
-				"operation":    "add_session",
+				"op":           "add_session",
 				"session_id":   "S-01B",
 				"topic":        "Memory Profiling Under Spike Load",
 				"door_type":    "two-way",
 				"dependencies": "S-01",
 				"reason":       "Spike testing showed unexpected memory allocation",
-				"impact":       "Ingestion layer resilience",
 			},
 		})
 		if err != nil {
 			t.Fatalf("replan add_session failed: %v", err)
 		}
 		replanEnv := parseEnvelope(t, replanRes)
-		if !replanEnv.Success {
+		if !replanEnv.Ok {
 			t.Fatalf("replan add_session failed: %s", replanEnv.Message)
 		}
 
@@ -814,7 +788,7 @@ Reversal trigger: If cluster size never exceeds 3 nodes after 6 months, collapse
 			Arguments: map[string]any{
 				"project_root": projDir,
 				"kind":         "session",
-				"session_id":   "S-02",
+				"id":           "S-02",
 				"content":      s02Output,
 			},
 		})
@@ -822,24 +796,24 @@ Reversal trigger: If cluster size never exceeds 3 nodes after 6 months, collapse
 			t.Fatalf("save S-02 failed: %v", err)
 		}
 		saveS02Env := parseEnvelope(t, saveS02Res)
-		if !saveS02Env.Success {
+		if !saveS02Env.Ok {
 			t.Fatalf("save S-02 failed: %s", saveS02Env.Message)
 		}
 
-		// Run adversarial challenge on S-02 (mandatory for One-Way Door gate clearance B11)
+		// Run adversarial challenge on S-02 (mandatory for One-Way Door gate clearance G10)
 		chalS02Res, err := cs.CallTool(ctx, &mcp.CallToolParams{
 			Name: "vivechak_review",
 			Arguments: map[string]any{
 				"project_root": projDir,
-				"decision_id":  "S-02",
-				"mode":         "premortem",
+				"id":           "S-02",
+				"mode":         "red_team",
 			},
 		})
 		if err != nil {
 			t.Fatalf("challenge S-02 failed: %v", err)
 		}
 		chalS02Env := parseEnvelope(t, chalS02Res)
-		if !chalS02Env.Success {
+		if !chalS02Env.Ok {
 			t.Fatalf("challenge S-02 failed: %s", chalS02Env.Message)
 		}
 
@@ -848,7 +822,7 @@ Reversal trigger: If cluster size never exceeds 3 nodes after 6 months, collapse
 			Name: "vivechak_record_decision",
 			Arguments: map[string]any{
 				"project_root":    projDir,
-				"decision_id":     "D-02",
+				"id":              "D-02",
 				"auto_draft_from": "S-02",
 				"auto_save":       true,
 			},
@@ -857,7 +831,7 @@ Reversal trigger: If cluster size never exceeds 3 nodes after 6 months, collapse
 			t.Fatalf("record D-02 failed: %v", err)
 		}
 		recD02Env := parseEnvelope(t, recD02Res)
-		if !recD02Env.Success {
+		if !recD02Env.Ok {
 			t.Fatalf("record D-02 failed: %s", recD02Env.Message)
 		}
 
@@ -894,13 +868,23 @@ Distributed event fabric architecture.
 			t.Fatalf("run_gate failed: %v", err)
 		}
 		gateEnv := parseEnvelope(t, gateRes)
-		if !gateEnv.Success {
+		if !gateEnv.Ok {
 			t.Fatalf("run_gate failed: %s", gateEnv.Message)
 		}
 		gateData := gateEnv.Data.(map[string]any)
 		t.Logf("gate msg: %s, rules: %v", gateEnv.Message, gateData["rules"])
-		if gateData["track_a_result"] != "PASS" {
-			t.Errorf("expected Track A PASS, got: %v", gateData["track_a_result"])
+
+		// Track A clearance is the single verdict of a track_a run.
+		gateResA, err := cs.CallTool(ctx, &mcp.CallToolParams{
+			Name:      "vivechak_gate",
+			Arguments: map[string]any{"project_root": projDir, "track": "track_a"},
+		})
+		if err != nil {
+			t.Fatalf("run_gate track_a failed: %v", err)
+		}
+		gateDataA, _ := parseEnvelope(t, gateResA).Data.(map[string]any)
+		if gateDataA["verdict"] != "PASS" {
+			t.Errorf("expected Track A PASS, got: %v", gateDataA["verdict"])
 		}
 
 		// Verify PHASE-0-GATE.md was auto-persisted
@@ -920,11 +904,12 @@ Distributed event fabric architecture.
 		initRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
 			Name: "vivechak_start",
 			Arguments: map[string]any{
+				"question":     "test",
 				"project_root": concDir,
 				"scope":        "project",
 			},
 		})
-		if err != nil || !parseEnvelope(t, initRes).Success {
+		if err != nil || !parseEnvelope(t, initRes).Ok {
 			t.Fatalf("concurrency init failed: %v", err)
 		}
 
@@ -956,7 +941,7 @@ Sufficient concurrency resilience verified under worker %d.
 					Arguments: map[string]any{
 						"project_root": concDir,
 						"kind":         "session",
-						"session_id":   sessID,
+						"id":           sessID,
 						"content":      content,
 					},
 				})
@@ -965,7 +950,7 @@ Sufficient concurrency resilience verified under worker %d.
 					return
 				}
 				env := parseEnvelope(t, res)
-				if !env.Success {
+				if !env.Ok {
 					errs <- fmt.Errorf("worker %d save_session failed: %s", workerID, env.Message)
 					return
 				}
@@ -986,7 +971,7 @@ Decision content for worker %d
 					Name: "vivechak_record_decision",
 					Arguments: map[string]any{
 						"project_root": concDir,
-						"decision_id":  decID,
+						"id":           decID,
 						"content":      decContent,
 					},
 				})
@@ -995,7 +980,7 @@ Decision content for worker %d
 					return
 				}
 				recEnv := parseEnvelope(t, recRes)
-				if !recEnv.Success {
+				if !recEnv.Ok {
 					errs <- fmt.Errorf("worker %d record_decision failed: %s", workerID, recEnv.Message)
 					return
 				}

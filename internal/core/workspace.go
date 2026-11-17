@@ -88,15 +88,20 @@ const (
 type WorkspaceMeta = workspace.WorkspaceMeta
 type WorkspaceInfo = workspace.WorkspaceInfo
 
+// WorkspaceMemory is one MCP session's workspace memory (rule "session"); see workspace.Memory.
+type WorkspaceMemory = workspace.Memory
+
 var TemplatesToCopy = workspace.TemplatesToCopy
 
 func TemplatesForScope(scope Scope) []string { return workspace.TemplatesForScope(scope) }
 func IsSpecialResearchFile(name string) bool { return workspace.IsSpecialResearchFile(name) }
 func SafeRoot(dirPath string) error          { return workspace.SafeRoot(dirPath) }
 func IsSystemOrAppDir(dirPath string) bool   { return workspace.IsSystemOrAppDir(dirPath) }
-func SetLastResolvedWorkspace(ws string)     { workspace.SetLastResolvedWorkspace(ws) }
-func GetLastResolvedWorkspace() string       { return workspace.GetLastResolvedWorkspace() }
-func ResetLastResolvedWorkspace()            { workspace.ResetLastResolvedWorkspace() }
+
+// WithWorkspaceMemory returns a context whose workspace resolutions use m as the calling session's memory.
+func WithWorkspaceMemory(ctx context.Context, m *WorkspaceMemory) context.Context {
+	return workspace.WithMemory(ctx, m)
+}
 func ResolveWorkspace(explicit string) (string, error) {
 	return workspace.ResolveWorkspace(explicit)
 }
@@ -172,7 +177,8 @@ func ScanCompletedSessions(ws WorkspaceFS, knownIDs ...string) (map[string]bool,
 		}
 	}
 
-	// Also check for FAD at the research root
+	// Also check for FAD at the research root: it completes the session id it carries (and "FAD"); a plan's
+	// kind: synthesis session is completed by it through DAG.CompletedSessions.
 	if data, err := ws.ReadFile(FADFile); err == nil {
 		var fm Frontmatter
 		if parsed, _, err := ParseFrontmatter(data); err == nil {
@@ -182,15 +188,9 @@ func ScanCompletedSessions(ws WorkspaceFS, knownIDs ...string) (map[string]bool,
 			id := ExtractSessionID(filepath.Base(FADFile), fm)
 			if id != "" {
 				completed[id] = true
+				completed[strings.ToUpper(id)] = true
 			}
 			completed["FAD"] = true
-			completed["SYN-01"] = true
-			completed["SYN"] = true
-			for _, kid := range knownIDs {
-				if IsSynthesisSession(kid) {
-					completed[kid] = true
-				}
-			}
 		}
 	}
 

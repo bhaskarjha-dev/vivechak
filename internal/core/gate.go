@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -212,12 +213,7 @@ func EvaluateGateWithTarget(ws WorkspaceFS, info WorkspaceInfo, root string, tar
 								}
 							}
 						}
-						synthCount := 0
-						for _, s := range dag.Sessions {
-							if IsSynthesisSession(s.ID) {
-								synthCount++
-							}
-						}
+						synthCount := len(dag.SynthesisSessions())
 						if len(orphaned) > 0 {
 							rules = append(rules, GateRuleResult{
 								ID:     "G1",
@@ -228,7 +224,7 @@ func EvaluateGateWithTarget(ws WorkspaceFS, info WorkspaceInfo, root string, tar
 							rules = append(rules, GateRuleResult{
 								ID:     "G1",
 								Status: "FAIL",
-								Reason: fmt.Sprintf("Project pipeline requires exactly 1 synthesis session (found %d)", synthCount),
+								Reason: fmt.Sprintf("Project pipeline requires exactly 1 kind: synthesis session (found %d)", synthCount),
 							})
 						} else {
 							rules = append(rules, GateRuleResult{
@@ -241,6 +237,13 @@ func EvaluateGateWithTarget(ws WorkspaceFS, info WorkspaceInfo, root string, tar
 				}
 			}
 		}
+	} else if problems := decisionPlanProblems(ws, planFiles, targetDecision); len(problems) > 0 {
+		// Target is a decision: each of its plans must be a valid plan (HIGH-07).
+		rules = append(rules, GateRuleResult{
+			ID:     "G1",
+			Status: "FAIL",
+			Reason: "Decision plan is not a valid plan: " + strings.Join(problems, "; "),
+		})
 	} else {
 		// Target is decision plan
 		rules = append(rules, GateRuleResult{
@@ -256,7 +259,7 @@ func EvaluateGateWithTarget(ws WorkspaceFS, info WorkspaceInfo, root string, tar
 	var targetSessions []string
 	if target == "project" && dag != nil {
 		for _, s := range dag.Sessions {
-			if !IsSynthesisSession(s.ID) {
+			if !s.IsSynthesis() {
 				targetSessions = append(targetSessions, s.ID)
 			}
 		}
@@ -491,6 +494,7 @@ func EvaluateGateWithTarget(ws WorkspaceFS, info WorkspaceInfo, root string, tar
 			}
 		}
 	}
+	noOneWay := noAcceptedOneWayReason(targetADRs)
 
 	// -------------------------------------------------------------------------
 	// G6: One-Way Door Evidence Depth (>=2 Grade A/B claims with URLs)
@@ -499,12 +503,12 @@ func EvaluateGateWithTarget(ws WorkspaceFS, info WorkspaceInfo, root string, tar
 		rules = append(rules, GateRuleResult{
 			ID:     "G6",
 			Status: "n/a",
-			Reason: "No One-Way Door decisions in target.",
+			Reason: noOneWay,
 		})
 	} else {
 		var g6Failing []string
 		for _, adr := range acceptedOneWay {
-			count := countGradeABClaimsWithURLs(ws, adr)
+			count, _ := countADRClaims(ws, adr)
 			if count < 2 {
 				if len(adr.InformedBy) == 0 {
 					g6Failing = append(g6Failing, fmt.Sprintf("%s (no sessions linked to %s via informed_by_sessions or informs_decisions)", adr.ID, adr.ID))
@@ -517,7 +521,7 @@ func EvaluateGateWithTarget(ws WorkspaceFS, info WorkspaceInfo, root string, tar
 			rules = append(rules, GateRuleResult{
 				ID:     "G6",
 				Status: "FAIL",
-				Reason: fmt.Sprintf("One-Way Door evidence depth insufficient: %s", strings.Join(g6Failing, "; ")),
+				Reason: fmt.Sprintf("One-Way Door evidence depth insufficient: %s. %s", strings.Join(g6Failing, "; "), claimFormatHint),
 			})
 		} else {
 			rules = append(rules, GateRuleResult{
@@ -529,23 +533,24 @@ func EvaluateGateWithTarget(ws WorkspaceFS, info WorkspaceInfo, root string, tar
 	}
 
 	// -------------------------------------------------------------------------
-	// G7: One-Way Door Verification Provenance (fetched/human labels as reported)
+	// G7: One-Way Door Verification Provenance (of the claims G6 counts, >=2 whose own verification label is
+	// exactly fetched or human; labels as reported)
 	// -------------------------------------------------------------------------
 	if len(acceptedOneWay) == 0 {
 		rules = append(rules, GateRuleResult{
 			ID:     "G7",
 			Status: "n/a",
-			Reason: "No One-Way Door decisions in target.",
+			Reason: noOneWay,
 		})
 	} else {
 		var g7Failing []string
 		for _, adr := range acceptedOneWay {
-			verifiedCount := countVerifiedClaimsForADR(ws, adr)
+			gradedCount, verifiedCount := countADRClaims(ws, adr)
 			if verifiedCount < 2 {
 				if len(adr.InformedBy) == 0 {
 					g7Failing = append(g7Failing, fmt.Sprintf("%s (no sessions linked to %s via informed_by_sessions or informs_decisions)", adr.ID, adr.ID))
 				} else {
-					g7Failing = append(g7Failing, fmt.Sprintf("%s has %d verified (fetched/human) Grade A/B claims (want >=2)", adr.ID, verifiedCount))
+					g7Failing = append(g7Failing, fmt.Sprintf("%s: %d of %d Grade A/B claims with URLs carry a fetched or human label (want >=2)", adr.ID, verifiedCount, gradedCount))
 				}
 			}
 		}
@@ -553,7 +558,7 @@ func EvaluateGateWithTarget(ws WorkspaceFS, info WorkspaceInfo, root string, tar
 			rules = append(rules, GateRuleResult{
 				ID:     "G7",
 				Status: "FAIL",
-				Reason: fmt.Sprintf("One-Way Door evidence provenance unverified: %s (labels as reported; sources not fetched or verified)", strings.Join(g7Failing, "; ")),
+				Reason: fmt.Sprintf("One-Way Door evidence provenance unverified: %s (labels as reported; sources not fetched or verified). %s", strings.Join(g7Failing, "; "), claimLabelHint),
 			})
 		} else {
 			rules = append(rules, GateRuleResult{
@@ -571,7 +576,7 @@ func EvaluateGateWithTarget(ws WorkspaceFS, info WorkspaceInfo, root string, tar
 		rules = append(rules, GateRuleResult{
 			ID:     "G8",
 			Status: "n/a",
-			Reason: "No One-Way Door decisions in target.",
+			Reason: noOneWay,
 		})
 	} else {
 		var g8Failing []string
@@ -616,7 +621,7 @@ func EvaluateGateWithTarget(ws WorkspaceFS, info WorkspaceInfo, root string, tar
 		rules = append(rules, GateRuleResult{
 			ID:     "G9",
 			Status: "n/a",
-			Reason: "No One-Way Door decisions in target.",
+			Reason: noOneWay,
 		})
 	} else {
 		var g9Failing []string
@@ -649,14 +654,14 @@ func EvaluateGateWithTarget(ws WorkspaceFS, info WorkspaceInfo, root string, tar
 		rules = append(rules, GateRuleResult{
 			ID:     "G10",
 			Status: "n/a",
-			Reason: "No One-Way Door decisions in target.",
+			Reason: noOneWay,
 		})
 	} else {
 		var g10Failing []string
 		for _, adr := range acceptedOneWay {
 			chID, chHash := findLatestChallengeRecord(ws, adr.ID)
 			if chID == "" {
-				g10Failing = append(g10Failing, fmt.Sprintf("%s lacks an adversarial red-team challenge record (%s-R1.md); run vivechak_review(mode=\"red_team\", target=\"%s\")", adr.ID, adr.ID, adr.ID))
+				g10Failing = append(g10Failing, fmt.Sprintf("%s lacks an adversarial red-team challenge record (%s-R1.md); run vivechak_review(mode=\"red_team\", id=\"%s\")", adr.ID, adr.ID, adr.ID))
 				advisories = append(advisories, fmt.Sprintf("W-OWD-NO-CHALLENGE: One-Way Door %s lacks an adversarial challenge record", adr.ID))
 				continue
 			}
@@ -695,7 +700,7 @@ func EvaluateGateWithTarget(ws WorkspaceFS, info WorkspaceInfo, root string, tar
 		rules = append(rules, GateRuleResult{
 			ID:     "G11",
 			Status: "n/a",
-			Reason: "No One-Way Door decisions in target.",
+			Reason: noOneWay,
 		})
 	} else {
 		var g11Failing []string
@@ -889,7 +894,7 @@ func computeStructuralChecks(ws WorkspaceFS, info WorkspaceInfo, rules []GateRul
 			if pipeBytes, err := ws.ReadFile(PipelineFile); err == nil && len(pipeBytes) > 0 {
 				if parsedDAG, pErr := ParsePipeline(pipeBytes); pErr == nil && parsedDAG != nil {
 					for _, s := range parsedDAG.Sessions {
-						if IsSynthesisSession(s.ID) {
+						if s.IsSynthesis() {
 							continue
 						}
 						sData, _, sErr := ReadSessionFileFS(ws, SessionsDir, s.ID)
@@ -1275,19 +1280,11 @@ func findDecisionTargetSessions(ws WorkspaceFS, did string) []string {
 	didUpper := strings.ToUpper(did)
 	for _, planName := range []string{fmt.Sprintf("%s-plan.md", did), fmt.Sprintf("%s.plan.md", did)} {
 		if pData, err := ws.ReadFile(filepath.Join(ResearchDir, planName)); err == nil && len(pData) > 0 {
+			// The plan's vivechak-plan block is the only source of its sessions (HIGH-07).
 			if block, bErr := ParsePlanMachineBlock(pData); bErr == nil && block != nil && len(block.Sessions) > 0 {
 				for _, s := range block.Sessions {
 					sessions = append(sessions, s.ID)
 				}
-				return sessions
-			}
-			reSess := regexp.MustCompile(`(?m)^\s*(?:\d+\.|\-|\*)\s+([A-Za-z0-9_-]+)\s*:`)
-			for _, m := range reSess.FindAllSubmatch(pData, -1) {
-				if len(m) > 1 {
-					sessions = append(sessions, string(m[1]))
-				}
-			}
-			if len(sessions) > 0 {
 				return sessions
 			}
 		}
@@ -1304,67 +1301,165 @@ func findDecisionTargetSessions(ws WorkspaceFS, did string) []string {
 	return sessions
 }
 
+// findPlanSessions returns the sessions a decision plan's vivechak-plan block lists (HIGH-07: tables and lists in
+// the plan are never read).
 func findPlanSessions(ws WorkspaceFS, planFile string) []string {
 	if ws == nil {
 		return nil
 	}
 	var sessions []string
 	if pData, err := ws.ReadFile(filepath.Join(ResearchDir, planFile)); err == nil {
-		if block, bErr := ParsePlanMachineBlock(pData); bErr == nil && block != nil && len(block.Sessions) > 0 {
+		if block, bErr := ParsePlanMachineBlock(pData); bErr == nil && block != nil {
 			for _, s := range block.Sessions {
 				sessions = append(sessions, s.ID)
-			}
-			return sessions
-		}
-		reSess := regexp.MustCompile(`(?m)^\s*(?:\d+\.|\-|\*)\s+([A-Za-z0-9_-]+)\s*:`)
-		for _, m := range reSess.FindAllSubmatch(pData, -1) {
-			if len(m) > 1 {
-				sessions = append(sessions, string(m[1]))
 			}
 		}
 	}
 	return sessions
 }
 
-func countGradeABClaimsWithURLs(ws WorkspaceFS, adr adrRecord) int {
-	count := 0
-	checkText := func(text string) {
-		lines := strings.Split(text, "\n")
-		for _, l := range lines {
-			if regexp.MustCompile(`(?i)\[(?:Grade\s+[AB]|E-[AB]|[AB])\b`).MatchString(l) && strings.Contains(l, "http") {
-				count++
+// decisionPlanProblems names each decision plan the gate evaluates (the target decision's research/*-plan.md files,
+// or all of them when there is no target) that is not a valid plan, with its V-PLAN-* problem and fix.
+func decisionPlanProblems(ws WorkspaceFS, planFiles []string, targetDecision string) []string {
+	if ws == nil {
+		return nil
+	}
+	var problems []string
+	for _, name := range planFiles {
+		upper := strings.ToUpper(name)
+		if t := strings.ToUpper(targetDecision); t != "" && !strings.HasPrefix(upper, t+"-") && !strings.HasPrefix(upper, t+".") {
+			continue
+		}
+		data, err := ws.ReadFile(filepath.Join(ResearchDir, name))
+		if err != nil {
+			problems = append(problems, fmt.Sprintf("%s can't be read", name))
+			continue
+		}
+		if _, err := ParsePipeline(data); err != nil {
+			problem := fmt.Sprintf("%s: %v", name, err)
+			if fix := PlanFix(err); fix != "" {
+				problem += " (" + fix + ")"
 			}
+			problems = append(problems, problem)
 		}
 	}
-
-	checkText(string(adr.RawData))
-	if ws != nil {
-		for _, sid := range adr.InformedBy {
-			if sData, _, err := ReadSessionFileFS(ws, SessionsDir, sid); err == nil {
-				checkText(sData)
-			}
-		}
-	}
-	return count
+	return problems
 }
 
-func countVerifiedClaimsForADR(ws WorkspaceFS, adr adrRecord) int {
-	count := 0
-	gradeRe := regexp.MustCompile(`(?i)(?:\[(?:Grade\s+[AB]|E-[AB]|[AB])\b|\bGrade\s+[AB]\b)`)
+// The Grade A/B claims G6 and G7 count (one shared recognizer, so G7 judges exactly the claims G6 counts) are lines
+// with a URL and one of:
+//   - a bracketed tag that starts with the grade: [A · single · fresh · direct · fetched](url),
+//     [Grade A: url | fetched], [E-B: url · fetched], [Grade B];
+//   - the parenthesized composite citation SESSION.template.md, DECISIONS.template.md and FRAMEWORK.md §5.5 teach:
+//     (Grade A · corroborated · fresh · direct | fetched), (Grade: B | fetched), (E-A: url · fetched),
+//     (A · single | fetched). A bare "(A)" is not a tag;
+//   - a Markdown table row (the templates' Sources & Evidence Ledger) with a cell that is exactly the grade
+//     (A, B, Grade A, Grade B, E-A, E-B).
+//
+// The tag regexps' capture group holds the rest of the tag, which carries its verification label.
+var (
+	bracketGradeABTagRe = regexp.MustCompile(`(?i)\[(?:Grade\s+|E-)?[AB]\b([^\]\n]*)`)
+	parenGradeABTagRe   = regexp.MustCompile(`(?i)\((?:(?:Grade\s*:?\s*|E-)[AB]\b|[AB]\s*·)([^)\n]*)`)
+	gradeABCellRe       = regexp.MustCompile(`^(?:grade\s*:?\s*|e-)?[ab]$`)
+	claimURLRe          = regexp.MustCompile(`https?://\S`)
+)
+
+// verificationLabels are the verification labels the generators, FRAMEWORK.md §5.3, SKILL.md and the evidence
+// taxonomy define. gateVerifiedLabels are the ones G7 accepts: fetched, or human (the generators spell it
+// human-provided). Labels are as reported by the agent; Vivechak does not fetch or verify sources.
+var (
+	verificationLabels = map[string]bool{
+		"fetched": true, "cached": true, "recalled": true, "secondhand": true,
+		"human": true, "human-provided": true, "verified": true, "unverified": true,
+	}
+	gateVerifiedLabels = map[string]bool{"fetched": true, "human": true, "human-provided": true}
+)
+
+// claimFormatHint and claimLabelHint end the G6 and G7 FAIL reasons so an agent can fix its output.
+const (
+	claimFormatHint = "Counted: a Grade A/B claim on the same line as its URL, tagged [A · single · fresh · direct · fetched](url), [Grade A: url | fetched] or (Grade A · corroborated · fresh | fetched), or a ledger table row whose Grade cell is A or B."
+	claimLabelHint  = "Counted: of those claims, the ones whose label (the tag's last field, or the ledger row's Verification cell) is exactly fetched, human or human-provided."
+)
+
+// normalizeClaimField trims the whitespace and Markdown decoration around a tag field or table cell and lower-cases it.
+func normalizeClaimField(s string) string {
+	return strings.ToLower(strings.Trim(s, " \t`*_\"'.,;:[]()"))
+}
+
+// tagVerificationLabel returns the verification label a grade tag carries: the field after its last "|", or else
+// after its last "·", when that whole field is one of verificationLabels; otherwise "".
+func tagVerificationLabel(rest string) string {
+	field := ""
+	if i := strings.LastIndex(rest, "|"); i >= 0 {
+		field = rest[i+1:]
+	} else if i := strings.LastIndex(rest, "·"); i >= 0 {
+		field = rest[i+len("·"):]
+	}
+	if l := normalizeClaimField(field); verificationLabels[l] {
+		return l
+	}
+	return ""
+}
+
+// tableCells returns the cells of a Markdown table row, or nil when the line is not one.
+func tableCells(line string) []string {
+	t := strings.TrimSpace(line)
+	if !strings.HasPrefix(t, "|") {
+		return nil
+	}
+	return strings.Split(strings.Trim(t, "|"), "|")
+}
+
+// classifyClaimLine reports whether a line holds a Grade A/B claim with a URL (a claim G6 counts), and whether that
+// claim's own verification label is fetched or human (a claim G7 counts). The label is the tag's own; a table row
+// whose tags carry none takes the cell that is exactly a verification label. Words elsewhere on the line ("human",
+// "fetched", "verified") never count.
+func classifyClaimLine(line string) (graded, verified bool) {
+	if !claimURLRe.MatchString(line) {
+		return false, false
+	}
+	tagged, labelled := false, false
+	for _, re := range []*regexp.Regexp{bracketGradeABTagRe, parenGradeABTagRe} {
+		for _, m := range re.FindAllStringSubmatch(line, -1) {
+			tagged = true
+			if l := tagVerificationLabel(m[1]); l != "" {
+				labelled = true
+				if gateVerifiedLabels[l] {
+					verified = true
+				}
+			}
+		}
+	}
+	cells := tableCells(line)
+	for _, c := range cells {
+		if !tagged && gradeABCellRe.MatchString(normalizeClaimField(c)) {
+			tagged = true
+		}
+	}
+	if !tagged {
+		return false, false
+	}
+	if !labelled {
+		for _, c := range cells {
+			if l := normalizeClaimField(c); verificationLabels[l] {
+				verified = gateVerifiedLabels[l]
+			}
+		}
+	}
+	return true, verified
+}
+
+// countADRClaims counts, across the ADR and the sessions that inform it, the Grade A/B claim lines with a URL (G6)
+// and how many of them carry a fetched or human verification label (G7).
+func countADRClaims(ws WorkspaceFS, adr adrRecord) (graded, verified int) {
 	checkText := func(text string) {
-		lines := strings.Split(text, "\n")
-		for _, l := range lines {
-			if !gradeRe.MatchString(l) {
-				continue
+		for _, l := range strings.Split(text, "\n") {
+			g, v := classifyClaimLine(l)
+			if g {
+				graded++
 			}
-			lower := strings.ToLower(l)
-			// Must NOT be unverified / recalled / parametric memory
-			if strings.Contains(lower, "recalled") || strings.Contains(lower, "parametric") || strings.Contains(lower, "model memory") || strings.Contains(lower, "ai memory") {
-				continue
-			}
-			// Must have verified provenance label: fetched, verified, or human (human-provided, etc.)
-			if strings.Contains(lower, "fetched") || strings.Contains(lower, "verified") || strings.Contains(lower, "human") {
-				count++
+			if v {
+				verified++
 			}
 		}
 	}
@@ -1377,7 +1472,7 @@ func countVerifiedClaimsForADR(ws WorkspaceFS, adr adrRecord) int {
 			}
 		}
 	}
-	return count
+	return graded, verified
 }
 
 func resolveBidirectionalInformingSessions(ws WorkspaceFS, records []adrRecord) {
@@ -1500,4 +1595,21 @@ func findLatestChallengeRecord(ws WorkspaceFS, did string) (string, string) {
 		hash = fm.GetString("target_outcome_hash")
 	}
 	return recordID, hash
+}
+
+// noAcceptedOneWayReason explains why the one-way rules (G6–G11) did not run: there is no one-way
+// decision in the target, or the one-way ADRs there are not accepted yet (they are checked once
+// accepted, and G5 reports their status meanwhile).
+func noAcceptedOneWayReason(targetADRs []adrRecord) string {
+	var pending []string
+	for _, adr := range targetADRs {
+		if strings.EqualFold(adr.DoorType, "one-way") && !strings.EqualFold(adr.Status, "accepted") {
+			pending = append(pending, adr.ID)
+		}
+	}
+	if len(pending) == 0 {
+		return "No One-Way Door decisions in target."
+	}
+	sort.Strings(pending)
+	return fmt.Sprintf("No accepted One-Way Door decisions in target; checked once accepted: %s.", strings.Join(pending, ", "))
 }

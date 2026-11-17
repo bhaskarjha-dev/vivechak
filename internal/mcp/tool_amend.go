@@ -12,40 +12,32 @@ import (
 	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-// AmendInput holds the arguments for vivechak_amend.
+// AmendInput holds the canonical arguments for vivechak_amend.
 type AmendInput struct {
-	ProjectRoot       string `json:"project_root,omitempty"       jsonschema:"workspace root path"`
-	SessionID         string `json:"session_id,omitempty"        jsonschema:"session ID, decision ID, or comparison ID to amend (e.g. R-01, D-001)"`
-	Target            string `json:"target,omitempty"            jsonschema:"alias for session_id"`
-	ID                string `json:"id,omitempty"                jsonschema:"alias for session_id (e.g. T1-01, D-001)"`
-	AmendingSessionID string `json:"amending_session_id,omitempty" jsonschema:"session ID that discovered the amendment (optional, for traceability)"`
-	Amendment         string `json:"amendment,omitempty"           jsonschema:"amendment content to append"`
-	Content           string `json:"content,omitempty"             jsonschema:"alias for amendment content"`
-	AppendContent     string `json:"append_content,omitempty"      jsonschema:"alias for amendment content"`
-	Append            string `json:"append,omitempty"              jsonschema:"alias for amendment content"`
-	Reason            string `json:"reason,omitempty"              jsonschema:"optional reason or summary for the amendment"`
+	ProjectRoot       string `json:"project_root,omitempty"`
+	ID                string `json:"id"`
+	Note              string `json:"note"`
+	Reason            string `json:"reason,omitempty"`
+	AmendingSessionID string `json:"amending_session_id,omitempty"`
 }
 
-// AmendSessionInput provides backward compatibility for unit tests calling handleAmendSession.
-type AmendSessionInput = AmendInput
-
 func registerAmend(server *sdkmcp.Server) {
-	sdkmcp.AddTool(server,
-		&sdkmcp.Tool{
-			Name:  "vivechak_amend",
-			Title: "Amend Research Session or Decision",
-			Description: "Append a post-hoc amendment note to an existing session, decision, or comparison matrix. " +
-				"Preserves original findings while documenting evolved understanding and notifying downstream stale sessions. " +
-				"Use when later sessions reveal earlier findings were incomplete or superseded.",
-			Annotations: &sdkmcp.ToolAnnotations{
-				ReadOnlyHint:    false,
-				IdempotentHint:  false,
-				DestructiveHint: BoolPtr(true),
-				OpenWorldHint:   BoolPtr(false),
-			},
+	registerTool(server, ToolSpec{
+		Name:        "vivechak_amend",
+		Description: "Append a dated amendment to a saved session, ADR, FAD, or comparison and flag stale dependents.",
+		Annotations: &sdkmcp.ToolAnnotations{
+			ReadOnlyHint:    false,
+			IdempotentHint:  false,
+			DestructiveHint: BoolPtr(true),
 		},
-		handleAmend,
-	)
+		Params: []ParamSpec{
+			{Name: "id", Type: "string", Required: true, Description: "Target ID", Doc: "Session, decision, comparison, or synthesis ID to amend."},
+			{Name: "note", Type: "string", Required: true, Description: "Amendment note", Doc: "Amendment Markdown note to append."},
+			{Name: "reason", Type: "string", Doc: "Short summary of why the artifact is being amended."},
+			{Name: "amending_session_id", Type: "string", Description: "Source session", Doc: "Session ID that discovered the amendment."},
+			{Name: "project_root", Type: "string", Doc: "Absolute path to the target project directory."},
+		},
+	}, handleAmend)
 }
 
 func handleAmend(ctx context.Context, req *sdkmcp.CallToolRequest, in AmendInput) (*sdkmcp.CallToolResult, Envelope, error) {
@@ -55,58 +47,57 @@ func handleAmend(ctx context.Context, req *sdkmcp.CallToolRequest, in AmendInput
 	if strings.TrimSpace(in.ProjectRoot) == "" {
 		roots = getClientRoots(ctx, req)
 	}
-	root, _, err := core.ResolveWorkspaceWithRoots(ctx, in.ProjectRoot, roots)
+	root, rule, err := core.ResolveWorkspaceWithRoots(ctx, in.ProjectRoot, roots)
 	if err != nil {
 		return ErrorResult(tool, err, "Initialize a workspace first with vivechak_start.")
 	}
 
-	targetID := strings.TrimSpace(in.SessionID)
+	targetID := strings.TrimSpace(in.ID)
 	if targetID == "" {
-		targetID = strings.TrimSpace(in.Target)
-	}
-	if targetID == "" {
-		targetID = strings.TrimSpace(in.ID)
+		return ErrorResult(tool, fmt.Errorf("E-INVALID-ARGUMENT: id is required"),
+			"Provide the ID to amend in id (e.g. 'T1-01', 'D-001').")
 	}
 
-	if targetID == "" {
-		return ErrorResult(tool, fmt.Errorf("session_id (or target) is required"),
-			"Provide the ID to amend (e.g. 'T1-01', 'D-001').")
+	ws, err := store.OpenWorkspace(root)
+	if err != nil {
+		return ErrorResult(tool, fmt.Errorf("E-IO: opening workspace: %w", err),
+			"Provide a valid workspace.")
+	}
+	defer ws.Close()
+
+	var warnings []Warning
+	if resolved, mapped, idErr := resolvePlaceholderRef(sessionOf(req), ws, root, targetID, true); idErr != nil {
+		return ErrorResult(tool, idErr, placeholderRefFix)
+	} else if mapped {
+		warnings = append(warnings, NewWarning("W-ID-ALLOCATED", fmt.Sprintf("id %s resolved to %s", targetID, resolved), ""))
+		targetID = resolved
+	}
+	if in.AmendingSessionID != "" {
+		if resolved, mapped, idErr := resolvePlaceholderRef(sessionOf(req), ws, root, in.AmendingSessionID, false); idErr != nil {
+			return ErrorResult(tool, idErr, placeholderRefFix)
+		} else if mapped {
+			warnings = append(warnings, NewWarning("W-ID-ALLOCATED", fmt.Sprintf("amending_session_id %s resolved to %s", in.AmendingSessionID, resolved), ""))
+			in.AmendingSessionID = resolved
+		}
 	}
 
 	if !isValidID(targetID) {
-		return ErrorResult(tool, fmt.Errorf("invalid identifier %q", targetID),
+		return ErrorResult(tool, fmt.Errorf("E-ID-INVALID: invalid identifier %q", targetID),
 			"Use a valid ID like 'T1-01' or 'D-001'.")
 	}
 
-	amendmentContent := in.Amendment
-	if amendmentContent == "" {
-		amendmentContent = in.Content
-	}
-	if amendmentContent == "" {
-		amendmentContent = in.AppendContent
-	}
-	if amendmentContent == "" {
-		amendmentContent = in.Append
-	}
+	amendmentContent := in.Note
 	if strings.TrimSpace(amendmentContent) == "" {
-		return ErrorResult(tool, fmt.Errorf("amendment content is required"),
-			"Provide the amendment text explaining the new finding or correction.")
+		return ErrorResult(tool, fmt.Errorf("E-INVALID-ARGUMENT: note is required"),
+			"Provide the amendment text in note.")
 	}
 
 	if err := core.CheckHumanOnlyField([]byte(amendmentContent)); err != nil {
 		return ErrorResult(tool, err, "Ask the human architect to run 'vck signoff <decision-id>' in an interactive terminal.")
 	}
 
-	ws, err := store.OpenWorkspace(root)
-	if err != nil {
-		return ErrorResult(tool, fmt.Errorf("opening workspace: %w", err),
-			"Provide a valid workspace.")
-	}
-	defer ws.Close()
-
-	// Locate target file (sessions, FAD, decisions, or comparisons)
 	var relPath string
-	if core.IsSynthesisSession(targetID) {
+	if isSynthesisTarget(ws, targetID) || strings.EqualFold(targetID, "FAD") {
 		relPath = core.FADFile
 	} else {
 		normID := core.NormalizeDecisionID(targetID)
@@ -115,10 +106,9 @@ func handleAmend(ctx context.Context, req *sdkmcp.CallToolRequest, in AmendInput
 			tLower := strings.ToLower(targetID)
 			nLower := strings.ToLower(normID)
 			return strings.EqualFold(stem, targetID) || strings.HasPrefix(sLower, tLower+"-") ||
-				strings.EqualFold(stem, normID) || strings.HasPrefix(sLower, nLower+"-")
+				(nLower != "" && (strings.EqualFold(stem, normID) || strings.HasPrefix(sLower, nLower+"-")))
 		}
 
-		// Look in sessions first
 		matches, _ := ws.ListDir(core.SessionsDir)
 		for _, m := range matches {
 			stem := strings.TrimSuffix(m.Name(), ".md")
@@ -128,25 +118,48 @@ func handleAmend(ctx context.Context, req *sdkmcp.CallToolRequest, in AmendInput
 			}
 		}
 
-		// If not in sessions, check research root (for D-*.md or C-*.md)
+		if relPath == "" {
+			if fadBytes, fErr := ws.ReadFile(core.FADFile); fErr == nil && len(fadBytes) > 0 {
+				if fm, _, _ := core.ParseFrontmatter(fadBytes); fm != nil {
+					fid := fm.GetString("id")
+					if fid == "" {
+						fid = fm.GetString("session_id")
+					}
+					if strings.EqualFold(fid, targetID) {
+						relPath = core.FADFile
+					}
+				}
+			}
+		}
+
 		if relPath == "" {
 			rootMatches, _ := ws.ListDir(core.ResearchDir)
 			for _, m := range rootMatches {
+				lowerName := strings.ToLower(m.Name())
+				if m.IsDir() || !strings.HasSuffix(lowerName, ".md") ||
+					lowerName == "research-pipeline.md" || lowerName == "decisions.md" || lowerName == "phase-0-gate.md" ||
+					strings.HasSuffix(lowerName, "-plan.md") || strings.HasSuffix(lowerName, ".plan.md") {
+					continue
+				}
 				stem := strings.TrimSuffix(m.Name(), ".md")
-				if matchesID(stem) {
+				if matchesID(stem) && !reSessionOrReview.MatchString(strings.ToUpper(stem)) {
 					relPath = filepath.Join(core.ResearchDir, m.Name())
 					break
 				}
 			}
 		}
 
-		// Also check research/decisions/
 		if relPath == "" {
-			decMatches, _ := ws.ListDir(core.DecisionsDir)
-			for _, m := range decMatches {
-				stem := strings.TrimSuffix(m.Name(), ".md")
-				if matchesID(stem) {
-					relPath = filepath.Join(core.DecisionsDir, m.Name())
+			for _, subDir := range []string{core.DecisionsDir, core.ComparisonsDir} {
+				subMatches, _ := ws.ListDir(subDir)
+				for _, m := range subMatches {
+					stem := strings.TrimSuffix(m.Name(), ".md")
+					if matchesID(stem) {
+						relPath = filepath.Join(subDir, m.Name())
+						break
+					}
+				}
+				if relPath != "" {
 					break
 				}
 			}
@@ -154,16 +167,15 @@ func handleAmend(ctx context.Context, req *sdkmcp.CallToolRequest, in AmendInput
 	}
 
 	if relPath == "" {
-		return ErrorResult(tool, fmt.Errorf("target file for %s not found in workspace", targetID),
+		return ErrorResult(tool, fmt.Errorf("E-NOT-FOUND: target file for %s not found in workspace", targetID),
 			"Check the ID against existing sessions or decisions.")
 	}
 
 	existingBytes, err := ws.ReadFile(relPath)
 	if err != nil {
-		return ErrorResult(tool, fmt.Errorf("reading %s: %w", relPath, err), "Check file permissions.")
+		return ErrorResult(tool, fmt.Errorf("E-IO: reading %s: %w", relPath, err), "Check file permissions.")
 	}
 
-	// Format amendment section
 	now := time.Now().UTC().Format("2006-01-02 15:04:05 UTC")
 	by := in.AmendingSessionID
 	if by == "" {
@@ -190,40 +202,35 @@ func handleAmend(ctx context.Context, req *sdkmcp.CallToolRequest, in AmendInput
 
 	unlock, lockErr := store.LockFile(ctx, filepath.Join(root, relPath), 5*time.Second)
 	if lockErr != nil {
-		return ErrorResult(tool, fmt.Errorf("could not acquire lock for %s: %w", relPath, lockErr), "Try again.")
+		return ErrorResult(tool, fmt.Errorf("E-LOCK-TIMEOUT: could not acquire lock for %s: %w", relPath, lockErr), "Try again.")
 	}
 	defer func() { _ = unlock() }()
 
-	if err := store.WriteFileAtomic(ws.Root(), relPath, updatedContent, 0o644); err != nil {
-		return ErrorResult(tool, fmt.Errorf("writing amended %s: %w", relPath, err), "Check file permissions.")
+	if err := ws.WriteArtifact(relPath, updatedContent, 0o644, true); err != nil {
+		return ErrorResult(tool, fmt.Errorf("E-IO: writing amended %s: %w", relPath, err), "Check file permissions.")
 	}
 
 	dataMap := map[string]any{
+		"workspace":    map[string]any{"root": root, "rule": rule},
 		"target_id":    targetID,
-		"amended_file": relPath,
+		"id":           targetID,
+		"amended_file": filepath.ToSlash(relPath),
 	}
-	var warnings []string
 
-	// If amending an ADR, recompile DECISIONS.md
 	isADR := (filepath.Clean(filepath.Dir(relPath)) == filepath.Clean(core.ResearchDir) || filepath.Clean(filepath.Dir(relPath)) == filepath.Clean(core.DecisionsDir)) && strings.HasPrefix(strings.ToUpper(filepath.Base(relPath)), "D-")
 	if isADR {
 		if compileErr := compileDecisionsRegistry(ctx, ws, root); compileErr != nil {
-			warnings = append(warnings, fmt.Sprintf("W-DECISIONS-COMPILE: failed to recompile DECISIONS.md: %v", compileErr))
+			warnings = append(warnings, NewWarning("W-DECISIONS-COMPILE", fmt.Sprintf("failed to recompile DECISIONS.md: %v", compileErr), ""))
 		} else {
 			dataMap["registry_recompiled"] = core.DecisionsFile
 		}
 	}
 
-	// Check downstream sessions for staleness
 	if pipelineData, err := ws.ReadFile(core.PipelineFile); err == nil {
 		if dag, err := core.ParsePipeline(pipelineData); err == nil && dag != nil {
 			dependents := dag.TransitiveDependents(targetID)
 			if len(dependents) > 0 {
-				var knownIDs []string
-				for _, s := range dag.Sessions {
-					knownIDs = append(knownIDs, s.ID)
-				}
-				completedIDs, _ := scanCompletedSessions(ws, knownIDs...)
+				completedIDs, _ := dag.CompletedSessions(ws)
 				var staleDependents []string
 				for _, depID := range dependents {
 					if completedIDs[depID] {
@@ -232,34 +239,26 @@ func handleAmend(ctx context.Context, req *sdkmcp.CallToolRequest, in AmendInput
 				}
 				if len(staleDependents) > 0 {
 					dataMap["potentially_stale_sessions"] = staleDependents
-					warnings = append(warnings, fmt.Sprintf(
-						"W-STALE-DOWNSTREAM: %d downstream session(s) were completed before this amendment: %s. "+
-							"Review whether their conclusions still hold given the amended findings.",
-						len(staleDependents), strings.Join(staleDependents, ", ")))
+					warnings = append(warnings, NewWarning(
+						"W-STALE-DOWNSTREAM",
+						fmt.Sprintf("%d downstream session(s) were completed before this amendment: %s.", len(staleDependents), strings.Join(staleDependents, ", ")),
+						"",
+					))
 				}
 			}
 		}
 	}
 
-	next := &NextAction{
-		Tool: "vivechak_next",
-		Why:  "Amendment recorded. Continue with next ready session using vivechak_next.",
-	}
-
 	env := Envelope{
 		Ok:       true,
-		Success:  true,
-		Message:  fmt.Sprintf("Amendment appended to %s (%s).", targetID, relPath),
+		Message:  fmt.Sprintf("Amendment appended to %s (%s).", targetID, filepath.ToSlash(relPath)),
 		Data:     dataMap,
 		Warnings: warnings,
-		Next:     next,
-		NextStep: next.Why,
-		Meta:     NewMeta(tool),
+		Next: &NextAction{
+			Tool: "vivechak_next",
+			Args: map[string]any{},
+			Why:  "Amendment recorded. Continue with next ready session using vivechak_next.",
+		},
 	}
 	return env.ToResult()
-}
-
-// handleAmendSession provides backward compatibility for unit tests calling handleAmendSession.
-func handleAmendSession(ctx context.Context, req *sdkmcp.CallToolRequest, in AmendSessionInput) (*sdkmcp.CallToolResult, Envelope, error) {
-	return handleAmend(ctx, req, in)
 }

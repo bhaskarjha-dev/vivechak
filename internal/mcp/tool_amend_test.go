@@ -17,8 +17,8 @@ func TestHandleAmend_Validation(t *testing.T) {
 	// 1. Missing target ID
 	res, env, err := handleAmend(ctx, nil, AmendInput{
 		ProjectRoot: tmpDir,
-		SessionID:   "",
-		Content:     "Some amendment",
+		ID:          "",
+		Note:        "Some amendment",
 	})
 	if err != nil {
 		t.Fatalf("unexpected go error: %v", err)
@@ -30,8 +30,8 @@ func TestHandleAmend_Validation(t *testing.T) {
 	// 2. Invalid target ID format
 	res, env, err = handleAmend(ctx, nil, AmendInput{
 		ProjectRoot: tmpDir,
-		SessionID:   "invalid..id!",
-		Content:     "Some amendment",
+		ID:          "invalid..id!",
+		Note:        "Some amendment",
 	})
 	if err != nil {
 		t.Fatalf("unexpected go error: %v", err)
@@ -43,8 +43,8 @@ func TestHandleAmend_Validation(t *testing.T) {
 	// 3. Missing amendment content
 	res, env, err = handleAmend(ctx, nil, AmendInput{
 		ProjectRoot: tmpDir,
-		SessionID:   "T1-01",
-		Content:     "",
+		ID:          "T1-01",
+		Note:        "",
 	})
 	if err != nil {
 		t.Fatalf("unexpected go error: %v", err)
@@ -83,14 +83,14 @@ func TestHandleAmend_Success(t *testing.T) {
 	amendmentNote := "PostgreSQL connection limits under spike loads require PgBouncer pooler."
 	res, env, err := handleAmend(ctx, nil, AmendInput{
 		ProjectRoot: tmpDir,
-		SessionID:   "T1-01",
-		Content:     amendmentNote,
+		ID:          "T1-01",
+		Note:        amendmentNote,
 		Reason:      "Spike load connection exhaustion discovery",
 	})
 	if err != nil {
 		t.Fatalf("handleAmend failed: %v", err)
 	}
-	if res.IsError || !env.Ok || !env.Success {
+	if res.IsError || !env.Ok {
 		t.Fatalf("expected success, got res.IsError=%v, env=%+v", res.IsError, env)
 	}
 

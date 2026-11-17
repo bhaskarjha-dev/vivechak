@@ -5,7 +5,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/bhaskarjha-dev/vivechak/internal/core"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -52,14 +51,19 @@ func TestStart_AnchorsProjectRootWithScope(t *testing.T) {
 		t.Fatalf("vivechak_start: %v", err)
 	}
 	env := parseEnvelope(t, res)
-	if !env.Success {
+	if !env.Ok {
 		t.Fatalf("expected success, got: %s", env.Message)
 	}
 
-	// Verify project_root was anchored in session memory
-	lastResolved := core.GetLastResolvedWorkspace()
-	if !strings.EqualFold(lastResolved, tmpDir) {
-		t.Errorf("core.GetLastResolvedWorkspace() = %q, want %q", lastResolved, tmpDir)
+	// Verify project_root was anchored in this session's memory: a later call without project_root resolves it
+	statusRes, err := cs.CallTool(ctx, &mcp.CallToolParams{Name: "vivechak_status", Arguments: map[string]any{}})
+	if err != nil {
+		t.Fatalf("vivechak_status: %v", err)
+	}
+	statusData, _ := parseEnvelope(t, statusRes).Data.(map[string]any)
+	wsInfo, _ := statusData["workspace"].(map[string]any)
+	if root, _ := wsInfo["root"].(string); !strings.EqualFold(root, tmpDir) || wsInfo["rule"] != "session" {
+		t.Errorf("expected the session to remember %q (rule session), got %v", tmpDir, wsInfo)
 	}
 
 	// Verify the generated prompt contains the cleaned options
@@ -67,7 +71,7 @@ func TestStart_AnchorsProjectRootWithScope(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected data map in envelope")
 	}
-	prompt, _ := dataMap["prompt"].(string)
+	prompt, _ := dataMap["brief"].(string)
 	if !strings.Contains(prompt, "Pino, Winston") {
 		t.Errorf("expected generator prompt to contain extracted options 'Pino, Winston', got:\n%s", prompt)
 	}

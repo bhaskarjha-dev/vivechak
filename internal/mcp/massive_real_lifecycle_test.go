@@ -24,19 +24,20 @@ func TestMassive_ComparisonLifecycle_RealE2E(t *testing.T) {
 	ctx := context.Background()
 	tmpDir := t.TempDir()
 
-	// 1. Prepare generator with NO scope parameter — should auto-infer "comparison"
+	// 1. Prepare generator for comparison scope
 	prepRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_start",
 		Arguments: map[string]any{
+			"scope":        "comparison",
 			"project_root": tmpDir,
-			"context":      "Winston vs Pino for high throughput JSON logging in Express API",
+			"question":     "Winston vs Pino for high throughput JSON logging in Express API",
 		},
 	})
 	if err != nil {
 		t.Fatalf("prepare_generator failed: %v", err)
 	}
 	prepEnv := parseEnvelope(t, prepRes)
-	if !prepEnv.Success {
+	if !prepEnv.Ok {
 		t.Fatalf("prepare_generator returned error: %s", prepEnv.Message)
 	}
 	prepData := prepEnv.Data.(map[string]any)
@@ -59,7 +60,7 @@ Compare Winston vs Pino for high throughput JSON logging.
 			"project_root": tmpDir,
 			"kind":         "comparison",
 			"scope":        "comparison",
-			"decision_id":  "C-01",
+			"id":           "C-01",
 			"slug":         "logging-shootout",
 			"content":      compPlanContent,
 		},
@@ -68,13 +69,13 @@ Compare Winston vs Pino for high throughput JSON logging.
 		t.Fatalf("save_plan failed: %v", err)
 	}
 	savePlanEnv := parseEnvelope(t, savePlanRes)
-	if !savePlanEnv.Success {
+	if !savePlanEnv.Ok {
 		t.Fatalf("save_plan returned error: %s", savePlanEnv.Message)
 	}
 
-	// Verify workspace structure was auto-created and templates copied
-	if _, err := os.Stat(filepath.Join(tmpDir, "research", "templates", "COMPARISON-SESSION.template.md")); err != nil {
-		t.Fatalf("auto-init failed to create comparison template: %v", err)
+	// Verify the workspace was auto-created; templates are MCP resources, never copied (HIGH-15)
+	if _, err := os.Stat(filepath.Join(tmpDir, "research", "templates")); !os.IsNotExist(err) {
+		t.Fatalf("expected no research/templates/ after auto-init, got err=%v", err)
 	}
 	savedPath, ok := savePlanEnv.Data.(map[string]any)["file_path"].(string)
 	if !ok || savedPath == "" {
@@ -95,7 +96,7 @@ Compare Winston vs Pino for high throughput JSON logging.
 		t.Fatalf("next_session failed: %v", err)
 	}
 	nextEnv := parseEnvelope(t, nextRes)
-	if !nextEnv.Success {
+	if !nextEnv.Ok {
 		t.Fatalf("next_session returned error: %s", nextEnv.Message)
 	}
 	nextData := nextEnv.Data.(map[string]any)
@@ -169,7 +170,7 @@ Reversal trigger: If enterprise compliance mandates proprietary on-prem transpor
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"kind":         "comparison",
-			"session_id":   "C-01",
+			"id":           "C-01",
 			"slug":         "logging-shootout",
 			"revise":       true,
 			"content":      sessionOutput,
@@ -179,7 +180,7 @@ Reversal trigger: If enterprise compliance mandates proprietary on-prem transpor
 		t.Fatalf("save_session failed: %v", err)
 	}
 	saveSessEnv := parseEnvelope(t, saveSessRes)
-	if !saveSessEnv.Success {
+	if !saveSessEnv.Ok {
 		t.Fatalf("save_session returned error: %s", saveSessEnv.Message)
 	}
 
@@ -195,8 +196,9 @@ Reversal trigger: If enterprise compliance mandates proprietary on-prem transpor
 	}
 	gateEnv := parseEnvelope(t, gateRes)
 	gateData := gateEnv.Data.(map[string]any)
-	if gateData["gate_passed"] != true {
-		t.Errorf("expected comparison gate to pass, got gate_passed=false, issues: %v", gateData["blocking_issues"])
+	// A comparison-only workspace has no architecture gate: exactly not_applicable, never PASS.
+	if gateData["verdict"] != "not_applicable" {
+		t.Errorf("expected comparison gate verdict not_applicable, got %v (message: %s)", gateData["verdict"], gateEnv.Message)
 	}
 
 	// 6. Inspect workspace directly — should reflect ScopeComparison and 1 session completed
@@ -223,8 +225,9 @@ func TestMassive_DecisionLifecycle_RealE2E(t *testing.T) {
 	prepRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_start",
 		Arguments: map[string]any{
+			"scope":        "decision",
 			"project_root": tmpDir,
-			"context":      "decision: PostgreSQL vs MongoDB for SaaS clinic medical billing records",
+			"question":     "decision: PostgreSQL vs MongoDB for SaaS clinic medical billing records",
 		},
 	})
 	if err != nil {
@@ -237,18 +240,12 @@ func TestMassive_DecisionLifecycle_RealE2E(t *testing.T) {
 	}
 
 	// 2. Save decision plan and proposed ADR
-	decPlan := `# Decision Plan: D-001
-
-| Parameter | Value |
+	decPlan := testPlan("Decision Plan: D-001", "D-001", `| Parameter | Value |
 |---|---|
 | **ID** | D-001 |
 | **Door** | one-way |
-| **Reversal Cost** | 3 (data migration & compliance) |
-
-### D-001-S1: Datastore Selection
-- **Role**: Comparison
-- **Filename**: research/sessions/D-001-S1.md
-`
+| **Reversal Cost** | 3 (data migration & compliance) |`, []string{"{id: D-001-S1, title: Datastore Selection, role: C, door: one-way, informs: [D-001], depends: []}"},
+		testSection("D-001-S1", "Datastore Selection", "- **Role**: Comparison\n- **Filename**: research/sessions/D-001-S1.md\nCompare datastores for clinic medical billing."))
 	adrDraft := `---
 id: D-001
 title: Primary Datastore for Clinic Medical Billing
@@ -273,7 +270,7 @@ PostgreSQL with pgaudit is chosen as the primary datastore.
 			"project_root":      tmpDir,
 			"kind":              "plan",
 			"scope":             "decision",
-			"decision_id":       "D-001",
+			"id":                "D-001",
 			"slug":              "clinic-datastore",
 			"content":           decPlan,
 			"decisions_content": adrDraft,
@@ -283,7 +280,7 @@ PostgreSQL with pgaudit is chosen as the primary datastore.
 		t.Fatalf("save_plan failed: %v", err)
 	}
 	savePlanEnv := parseEnvelope(t, savePlanRes)
-	if !savePlanEnv.Success {
+	if !savePlanEnv.Ok {
 		t.Fatalf("save_plan error: %s", savePlanEnv.Message)
 	}
 
@@ -302,9 +299,9 @@ informs_decisions: ["D-001"]
 Postgres vs MongoDB for medical billing records.
 
 ## Key Findings
-- PostgreSQL provides strict ACID compliance with row-level locks [Grade A: https://www.postgresql.org/docs/current/mvcc.html] [fetched].
-- MongoDB ACID transactions introduce high latency on sharded clusters [Grade B: https://www.mongodb.com/docs/manual/core/transactions/] [fetched].
-- HIPAA audit logging in PostgreSQL is mature with pgaudit extension [Grade A: https://github.com/pgaudit/pgaudit] [fetched].
+- PostgreSQL provides strict ACID compliance with row-level locks [Grade A: https://www.postgresql.org/docs/current/mvcc.html | fetched].
+- MongoDB ACID transactions introduce high latency on sharded clusters [Grade B: https://www.mongodb.com/docs/manual/core/transactions/ | fetched].
+- HIPAA audit logging in PostgreSQL is mature with pgaudit extension [Grade A: https://github.com/pgaudit/pgaudit | fetched].
 
 ## Recommendation
 PostgreSQL is recommended for compliance and transactional integrity.
@@ -313,15 +310,15 @@ PostgreSQL is recommended for compliance and transactional integrity.
 Substantive concern: HIPAA compliance requires encrypted tablespaces with pg_crypto and dedicated audit trail partitioning.
 
 ## Sources
-1. PostgreSQL Documentation [Grade A: https://www.postgresql.org/docs/current/mvcc.html] [fetched]
-2. MongoDB Documentation [Grade B: https://www.mongodb.com/docs/manual/core/transactions/] [fetched]
+1. PostgreSQL Documentation [Grade A: https://www.postgresql.org/docs/current/mvcc.html | fetched]
+2. MongoDB Documentation [Grade B: https://www.mongodb.com/docs/manual/core/transactions/ | fetched]
 `
 	_, err = cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"kind":         "session",
-			"session_id":   "D-001-S1",
+			"id":           "D-001-S1",
 			"content":      sessionOutput,
 		},
 	})
@@ -333,16 +330,16 @@ Substantive concern: HIPAA compliance requires encrypted tablespaces with pg_cry
 	chalRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_review",
 		Arguments: map[string]any{
-			"project_root":   tmpDir,
-			"decision_id":    "D-001",
-			"challenge_type": "premortem",
+			"mode":         "red_team",
+			"project_root": tmpDir,
+			"id":           "D-001",
 		},
 	})
 	if err != nil {
 		t.Fatalf("challenge failed: %v", err)
 	}
 	chalEnv := parseEnvelope(t, chalRes)
-	if !chalEnv.Success {
+	if !chalEnv.Ok {
 		t.Fatalf("challenge returned error: %s", chalEnv.Message)
 	}
 
@@ -383,7 +380,7 @@ If write volume exceeds 100k tx/sec requiring horizontal write sharding, re-eval
 		Name: "vivechak_record_decision",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
-			"decision_id":  "D-001",
+			"id":           "D-001",
 			"slug":         "clinic-datastore",
 			"revise":       true,
 			"content":      finalADR,
@@ -393,7 +390,7 @@ If write volume exceeds 100k tx/sec requiring horizontal write sharding, re-eval
 		t.Fatalf("record_decision failed: %v", err)
 	}
 	recEnv := parseEnvelope(t, recRes)
-	if !recEnv.Success {
+	if !recEnv.Ok {
 		t.Fatalf("record_decision error: %s", recEnv.Message)
 	}
 
@@ -420,8 +417,8 @@ If write volume exceeds 100k tx/sec requiring horizontal write sharding, re-eval
 	}
 	gateEnv := parseEnvelope(t, gateRes)
 	gateData := gateEnv.Data.(map[string]any)
-	if gateData["gate_passed"] != true {
-		t.Errorf("expected decision gate to pass, got gate_passed=false: msg=%s, rules=%v", gateEnv.Message, gateData["rules"])
+	if gateData["verdict"] != "PASS" {
+		t.Errorf("expected decision gate to pass, got verdict=%v: msg=%s, rules=%v", gateData["verdict"], gateEnv.Message, gateData["rules"])
 	}
 }
 
@@ -507,6 +504,7 @@ func TestMassive_ProjectLifecycle_RealE2E(t *testing.T) {
 	initRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_start",
 		Arguments: map[string]any{
+			"question":     "test",
 			"project_root": tmpDir,
 			"scope":        "project",
 		},
@@ -515,7 +513,7 @@ func TestMassive_ProjectLifecycle_RealE2E(t *testing.T) {
 		t.Fatalf("vivechak_start failed: %v", err)
 	}
 	initEnv := parseEnvelope(t, initRes)
-	if !initEnv.Success {
+	if !initEnv.Ok {
 		t.Fatalf("vivechak_start error: %s", initEnv.Message)
 	}
 
@@ -524,47 +522,22 @@ func TestMassive_ProjectLifecycle_RealE2E(t *testing.T) {
 	// T1-02 (Transcription Dispatcher) -> no deps
 	// T2-01 (Vector Storage) -> depends on T1-01
 	// FAD (Synthesis) -> depends on T1-01, T1-02, T2-01
-	projectPipeline := `# RESEARCH PIPELINE: Katha AI Audio Platform
-
-## Pipeline Topology
+	projectPipeline := testPlan("RESEARCH PIPELINE: Katha AI Audio Platform", "PROJECT", `## Pipeline Topology
 
 | Session | Topic | Dependencies | Output File |
 |---|---|---|---|
 | T1-01 | Audio Ingestion Engine | none | research/sessions/T1-01.md |
 | T1-02 | Transcription Dispatcher | none | research/sessions/T1-02.md |
 | T2-01 | Vector Storage & Retrieval | T1-01 | research/sessions/T2-01.md |
-| FAD | Founding Architecture Document | T1-01, T1-02, T2-01 | research/FAD.md |
-
-## Session Prompts
-
-### T1-01: Audio Ingestion Engine
-| **ID** | T1-01 |
-| **Dependencies** | none |
-| **Door** | one-way |
-
-Research high-throughput PCM audio stream processing.
-
-### T1-02: Transcription Dispatcher
-| **ID** | T1-02 |
-| **Dependencies** | none |
-| **Door** | two-way |
-
-Research worker queue architectures for Whisper inference.
-
-### T2-01: Vector Storage & Retrieval
-| **ID** | T2-01 |
-| **Dependencies** | T1-01 |
-| **Door** | one-way |
-
-Research Milvus vs Qdrant vs pgvector.
-
-### FAD: Founding Architecture Document
-| **ID** | FAD |
-| **Dependencies** | T1-01, T1-02, T2-01 |
-| **Door** | one-way |
-
-Synthesize all sessions into FAD.
-`
+| FAD | Founding Architecture Document | T1-01, T1-02, T2-01 | research/FAD.md |`, []string{
+		"{id: T1-01, title: Audio Ingestion Engine, door: one-way, depends: []}",
+		"{id: T1-02, title: Transcription Dispatcher, door: two-way, depends: []}",
+		"{id: T2-01, title: Vector Storage & Retrieval, door: one-way, depends: [T1-01]}",
+		"{id: FAD, title: Founding Architecture Document, kind: synthesis, depends: [T1-01, T1-02, T2-01]}",
+	}, testSection("T1-01", "Audio Ingestion Engine", "Research high-throughput PCM audio stream processing."),
+		testSection("T1-02", "Transcription Dispatcher", "Research worker queue architectures for Whisper inference."),
+		testSection("T2-01", "Vector Storage & Retrieval", "Research Milvus vs Qdrant vs pgvector."),
+		testSection("FAD", "Founding Architecture Document", "Synthesize all sessions into FAD."))
 	decisionsRegistry := `# DECISION REGISTRY
 
 | ID | Title | Status | Door | Reversal Cost |
@@ -588,7 +561,7 @@ Synthesize all sessions into FAD.
 		t.Fatalf("save_plan failed: %v", err)
 	}
 	savePlanEnv := parseEnvelope(t, savePlanRes)
-	if !savePlanEnv.Success {
+	if !savePlanEnv.Ok {
 		t.Fatalf("save_plan error: %s", savePlanEnv.Message)
 	}
 
@@ -631,8 +604,8 @@ informs_decisions: ["D-001"]
 Optimal streaming architecture for low-latency audio capture.
 
 ## Key Findings
-- WebRTC with Opus codec achieves sub-100ms transmission latency [Grade A: https://datatracker.ietf.org/doc/html/rfc7845] [fetched].
-- Memory zero-copy buffers reduce CPU utilization by 40% [Grade B: https://www.kernel.org/doc/html/latest/] [fetched].
+- WebRTC with Opus codec achieves sub-100ms transmission latency [Grade A: https://datatracker.ietf.org/doc/html/rfc7845 | fetched].
+- Memory zero-copy buffers reduce CPU utilization by 40% [Grade B: https://www.kernel.org/doc/html/latest/ | fetched].
 
 ## Recommendation
 Adopt WebRTC data channels with custom Go Opus decoders.
@@ -641,14 +614,14 @@ Adopt WebRTC data channels with custom Go Opus decoders.
 Audio retention compliance requires strict transient in-memory ring buffers without disk caching.
 
 ## Sources
-1. RFC 7845 Opus Codec [Grade A: https://datatracker.ietf.org/doc/html/rfc7845] [fetched]
+1. RFC 7845 Opus Codec [Grade A: https://datatracker.ietf.org/doc/html/rfc7845 | fetched]
 `
 	saveS1Res, err := cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"kind":         "session",
-			"session_id":   "T1-01",
+			"id":           "T1-01",
 			"content":      s1Content,
 		},
 	})
@@ -656,7 +629,7 @@ Audio retention compliance requires strict transient in-memory ring buffers with
 		t.Fatalf("save_session T1-01 failed: %v", err)
 	}
 	saveS1Env := parseEnvelope(t, saveS1Res)
-	if !saveS1Env.Success {
+	if !saveS1Env.Ok {
 		t.Fatalf("save_session T1-01 error: %s", saveS1Env.Message)
 	}
 
@@ -720,7 +693,7 @@ Worker backpressure during peak traffic requires dynamic scaling.
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"kind":         "session",
-			"session_id":   "T1-02",
+			"id":           "T1-02",
 			"content":      s2Content,
 		},
 	})
@@ -743,8 +716,8 @@ informs_decisions: ["D-003"]
 Dedicated vector DB vs pgvector for audio transcript embeddings.
 
 ## Key Findings
-- Qdrant provides HNSW indexing with fast filtered search and payload storage [Grade A: https://qdrant.tech/documentation/] [fetched].
-- pgvector IVFFlat requires frequent index rebuilding as embeddings scale beyond 10M [Grade B: https://github.com/pgvector/pgvector] [fetched].
+- Qdrant provides HNSW indexing with fast filtered search and payload storage [Grade A: https://qdrant.tech/documentation/ | fetched].
+- pgvector IVFFlat requires frequent index rebuilding as embeddings scale beyond 10M [Grade B: https://github.com/pgvector/pgvector | fetched].
 
 ## Recommendation
 Adopt Qdrant for dedicated vector indexing.
@@ -753,14 +726,14 @@ Adopt Qdrant for dedicated vector indexing.
 Cold starts on serverless nodes can increase p99 latency to 250ms.
 
 ## Sources
-1. Qdrant Documentation [Grade A: https://qdrant.tech/documentation/] [fetched]
+1. Qdrant Documentation [Grade A: https://qdrant.tech/documentation/ | fetched]
 `
 	_, err = cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"kind":         "session",
-			"session_id":   "T2-01",
+			"id":           "T2-01",
 			"content":      s3Content,
 		},
 	})
@@ -798,7 +771,8 @@ Cold starts on serverless nodes can increase p99 latency to 250ms.
 	}
 
 	// 9. Record decisions D-001, D-002, D-003
-	d1Content := `---
+	d1Content := func(challenge string) string {
+		return `---
 id: D-001
 title: WebRTC Audio Ingestion
 status: accepted
@@ -816,12 +790,10 @@ Real-time audio streaming.
 Adopt WebRTC data channels.
 ## Rejected Alternatives
 - WebSockets: Higher jitter under network loss.
-## Red-Team Stress Test
-### Challenge Findings
-Evaluated D-001-R1 packet loss resilience tested with forward error correction, acceptable under simulated 15% drop.
-## Reversal Triggers
+` + challenge + `## Reversal Triggers
 If audio streaming bandwidth exceeds 500 MB/s.
 `
+	}
 	d2Content := `---
 id: D-002
 title: Redis Streams Worker Dispatcher
@@ -837,7 +809,8 @@ Task queuing for transcription.
 ## Decision
 Use Redis Streams.
 `
-	d3Content := `---
+	d3Content := func(challenge string) string {
+		return `---
 id: D-003
 title: Qdrant Vector Store
 status: accepted
@@ -855,22 +828,20 @@ Vector similarity search.
 Adopt Qdrant.
 ## Rejected Alternatives
 - Milvus: Higher operational footprint for early-stage workload.
-## Red-Team Stress Test
-### Challenge Findings
-Evaluated D-003-R1 sharding latency verified under heavy insert load, remains sub-50ms with distributed collections.
-## Reversal Triggers
+` + challenge + `## Reversal Triggers
 If vector collection exceeds 100M embeddings.
 `
+	}
 	for id, content := range map[string]string{
-		"D-001": d1Content,
+		"D-001": d1Content(""),
 		"D-002": d2Content,
-		"D-003": d3Content,
+		"D-003": d3Content(""),
 	} {
 		recRes, rErr := cs.CallTool(ctx, &mcp.CallToolParams{
 			Name: "vivechak_record_decision",
 			Arguments: map[string]any{
 				"project_root": tmpDir,
-				"decision_id":  id,
+				"id":           id,
 				"content":      content,
 			},
 		})
@@ -878,30 +849,22 @@ If vector collection exceeds 100M embeddings.
 			t.Fatalf("record_decision %s: %v", id, rErr)
 		}
 		recEnv := parseEnvelope(t, recRes)
-		if !recEnv.Success {
+		if !recEnv.Ok {
 			t.Fatalf("record_decision %s failed: %s", id, recEnv.Message)
 		}
 	}
 
-	ch1 := fmt.Sprintf(`---
-decision_id: D-001
-decision_hash: %s
-date: 2026-10-15
----
-# Red Team Challenge D-001-R1
-Packet loss resilience tested with forward error correction.
-`, core.ComputeDecisionOutcomeHash([]byte(d1Content)))
-	_ = os.WriteFile(filepath.Join(tmpDir, "research", "D-001-R1.md"), []byte(ch1), 0o644)
-
-	ch3 := fmt.Sprintf(`---
-decision_id: D-003
-decision_hash: %s
-date: 2026-10-15
----
-# Red Team Challenge D-003-R1
-Sharding latency verified under heavy insert load.
-`, core.ComputeDecisionOutcomeHash([]byte(d3Content)))
-	_ = os.WriteFile(filepath.Join(tmpDir, "research", "D-003-R1.md"), []byte(ch3), 0o644)
+	// Red-team the one-way doors with the real tool, then cite the record ids it returns.
+	rec1 := redTeamRecordID(t, ctx, cs, tmpDir, "D-001")
+	recordDecisionRevise(t, ctx, cs, tmpDir, "D-001", d1Content(fmt.Sprintf(`## Red-Team Stress Test
+### Challenge Findings
+Evaluated %s packet loss resilience tested with forward error correction, acceptable under simulated 15%% drop.
+`, rec1)))
+	rec3 := redTeamRecordID(t, ctx, cs, tmpDir, "D-003")
+	recordDecisionRevise(t, ctx, cs, tmpDir, "D-003", d3Content(fmt.Sprintf(`## Red-Team Stress Test
+### Challenge Findings
+Evaluated %s sharding latency verified under heavy insert load, remains sub-50ms with distributed collections.
+`, rec3)))
 
 	// Sign off one-way door decisions
 	wsProj, err := store.OpenWorkspace(tmpDir)
@@ -974,7 +937,7 @@ Katha ingests streaming audio via WebRTC [Grade A: https://datatracker.ietf.org/
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"kind":         "session",
-			"session_id":   "FAD",
+			"id":           "FAD",
 			"content":      fadContent,
 		},
 	})
@@ -982,11 +945,11 @@ Katha ingests streaming audio via WebRTC [Grade A: https://datatracker.ietf.org/
 		t.Fatalf("save_session FAD failed: %v", err)
 	}
 	saveFadEnv := parseEnvelope(t, saveFadRes)
-	if !saveFadEnv.Success {
+	if !saveFadEnv.Ok {
 		t.Fatalf("save_session FAD error: %s", saveFadEnv.Message)
 	}
-	if !strings.Contains(saveFadEnv.NextStep, "vivechak_gate") {
-		t.Errorf("expected next_step to suggest vivechak_gate, got: %s", saveFadEnv.NextStep)
+	if !strings.Contains(envGuidance(saveFadEnv), "vivechak_gate") {
+		t.Errorf("expected next_step to suggest vivechak_gate, got: %s", envGuidance(saveFadEnv))
 	}
 
 	// 11. Run Phase 0 Gate
@@ -1001,8 +964,8 @@ Katha ingests streaming audio via WebRTC [Grade A: https://datatracker.ietf.org/
 	}
 	gateEnv := parseEnvelope(t, gateRes)
 	gateData := gateEnv.Data.(map[string]any)
-	if gateData["gate_passed"] != true {
-		t.Errorf("expected gate to pass, got gate_passed=false: %v", gateData["blocking_issues"])
+	if gateData["verdict"] != "PASS" {
+		t.Errorf("expected gate to pass, got verdict=%v (message: %s, rules: %v)", gateData["verdict"], gateEnv.Message, gateData["rules"])
 	}
 
 	// 12. Verify filesystem artifacts
@@ -1057,6 +1020,7 @@ func TestMassive_Doctor_RealCLI(t *testing.T) {
 	initCompRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_start",
 		Arguments: map[string]any{
+			"question":     "test",
 			"project_root": compDir,
 			"scope":        "comparison",
 		},
@@ -1065,7 +1029,7 @@ func TestMassive_Doctor_RealCLI(t *testing.T) {
 		t.Fatalf("vivechak_start comp: %v", err)
 	}
 	initCompEnv := parseEnvelope(t, initCompRes)
-	if !initCompEnv.Success {
+	if !initCompEnv.Ok {
 		t.Fatalf("init comp failed: %s", initCompEnv.Message)
 	}
 
@@ -1107,17 +1071,16 @@ func TestMassive_QualityCoaching_RealWorkflow(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// 1. Auto-init workspace via direct plan save
-	planContent := `# RESEARCH BRIEF: Quality Coaching Test
-## DECISION
-Test quality coaching observations on one-way door session.
-`
+	planContent := testPlan("RESEARCH BRIEF: Quality Coaching Test", "D-001", "## DECISION\nTest quality coaching observations on one-way door session.",
+		[]string{"{id: D-001-S1, title: Quality coaching, role: C, door: one-way, informs: [D-001], depends: []}"},
+		testSection("D-001-S1", "Quality coaching", "Research a one-way door decision with graded evidence."))
 	savePlanRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"kind":         "plan",
 			"scope":        "decision",
-			"decision_id":  "D-001",
+			"id":           "D-001",
 			"slug":         "quality-coaching",
 			"content":      planContent,
 		},
@@ -1126,7 +1089,7 @@ Test quality coaching observations on one-way door session.
 		t.Fatalf("save_plan failed: %v", err)
 	}
 	savePlanEnv := parseEnvelope(t, savePlanRes)
-	if !savePlanEnv.Success {
+	if !savePlanEnv.Ok {
 		t.Fatalf("save_plan error: %s", savePlanEnv.Message)
 	}
 
@@ -1159,7 +1122,7 @@ Substantive architectural concern: Garbage collection pauses during high heap al
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"kind":         "session",
-			"session_id":   "D-001-S1",
+			"id":           "D-001-S1",
 			"content":      inflatedSession,
 		},
 	})
@@ -1167,13 +1130,13 @@ Substantive architectural concern: Garbage collection pauses during high heap al
 		t.Fatalf("save_session failed: %v", err)
 	}
 	saveEnv := parseEnvelope(t, saveRes)
-	if !saveEnv.Success {
+	if !saveEnv.Ok {
 		t.Fatalf("save_session failed unexpectedly: %s", saveEnv.Message)
 	}
 
 	// Coaching warnings should be present in warnings and next_step
 	hasCoachingWarning := false
-	for _, w := range saveEnv.Warnings {
+	for _, w := range envWarningStrings(saveEnv) {
 		if strings.HasPrefix(w, "Q-") {
 			hasCoachingWarning = true
 			break
@@ -1182,8 +1145,8 @@ Substantive architectural concern: Garbage collection pauses during high heap al
 	if !hasCoachingWarning {
 		t.Errorf("expected quality coaching observation (Q-*) in warnings, got: %v", saveEnv.Warnings)
 	}
-	if !strings.Contains(saveEnv.NextStep, "QUALITY ADVISORIES") && !strings.Contains(saveEnv.NextStep, "[Q-") {
-		t.Errorf("expected coaching guidance in NextStep, got: %s", saveEnv.NextStep)
+	if !strings.Contains(envGuidance(saveEnv), "QUALITY ADVISORIES") && !strings.Contains(envGuidance(saveEnv), "[Q-") {
+		t.Errorf("expected coaching guidance in NextStep, got: %s", envGuidance(saveEnv))
 	}
 }
 
@@ -1198,6 +1161,7 @@ func TestMassive_ConcurrentSubagent_Locking(t *testing.T) {
 	initRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_start",
 		Arguments: map[string]any{
+			"question":     "test",
 			"project_root": tmpDir,
 			"scope":        "project",
 		},
@@ -1206,7 +1170,7 @@ func TestMassive_ConcurrentSubagent_Locking(t *testing.T) {
 		t.Fatalf("init failed: %v", err)
 	}
 	initEnv := parseEnvelope(t, initRes)
-	if !initEnv.Success {
+	if !initEnv.Ok {
 		t.Fatalf("init failed: %s", initEnv.Message)
 	}
 
@@ -1248,7 +1212,7 @@ Concern from agent %d.
 				Arguments: map[string]any{
 					"project_root": tmpDir,
 					"kind":         "session",
-					"session_id":   sid,
+					"id":           sid,
 					"content":      content,
 				},
 			})
@@ -1257,7 +1221,7 @@ Concern from agent %d.
 				return
 			}
 			env := parseEnvelope(t, res)
-			if !env.Success {
+			if !env.Ok {
 				errCh <- fmt.Errorf("agent %d returned failure: %s", agentID, env.Message)
 				return
 			}
@@ -1312,6 +1276,7 @@ func TestMassive_HybridManual_AutoSync(t *testing.T) {
 	initRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_start",
 		Arguments: map[string]any{
+			"question":     "test",
 			"project_root": tmpDir,
 			"scope":        "project",
 		},
@@ -1320,36 +1285,20 @@ func TestMassive_HybridManual_AutoSync(t *testing.T) {
 		t.Fatalf("init failed: %v", err)
 	}
 	initEnv := parseEnvelope(t, initRes)
-	if !initEnv.Success {
+	if !initEnv.Ok {
 		t.Fatalf("init error: %s", initEnv.Message)
 	}
 
 	// 1. Manually write pipeline directly to disk
-	manualPipeline := `# RESEARCH PIPELINE
-
-## Pipeline Topology
+	manualPipeline := testPlan("RESEARCH PIPELINE", "PROJECT", `## Pipeline Topology
 
 | Session | Topic | Dependencies | Output File |
 |---|---|---|---|
 | T1-01 | Manual Session 1 | none | research/sessions/T1-01.md |
-| T2-01 | Manual Session 2 | T1-01 | research/sessions/T2-01.md |
-
-## Session Prompts
-
-### T1-01: Manual Session 1
-| **ID** | T1-01 |
-| **Dependencies** | none |
-| **Door** | two-way |
-
-Prompt 1.
-
-### T2-01: Manual Session 2
-| **ID** | T2-01 |
-| **Dependencies** | T1-01 |
-| **Door** | one-way |
-
-Prompt 2.
-`
+| T2-01 | Manual Session 2 | T1-01 | research/sessions/T2-01.md |`, []string{
+		"{id: T1-01, title: Manual Session 1, door: two-way, depends: []}",
+		"{id: T2-01, title: Manual Session 2, door: one-way, depends: [T1-01]}",
+	}, testSection("T1-01", "Manual Session 1", "Prompt 1."), testSection("T2-01", "Manual Session 2", "Prompt 2."))
 	if err := os.WriteFile(filepath.Join(tmpDir, "research", "RESEARCH-PIPELINE.md"), []byte(manualPipeline), 0o644); err != nil {
 		t.Fatalf("write pipeline: %v", err)
 	}

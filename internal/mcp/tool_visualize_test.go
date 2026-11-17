@@ -15,11 +15,12 @@ func TestHandleVisualize_MermaidAndTable(t *testing.T) {
 	ctx := context.Background()
 
 	// 1. Mermaid format (default)
-	res, env, err := handleVisualize(ctx, nil, VisualizeInput{
+	res, env, err := handleStatus(ctx, nil, StatusInput{
+		Format:      "mermaid",
 		ProjectRoot: tmpDir,
 	})
 	if err != nil {
-		t.Fatalf("handleVisualize failed: %v", err)
+		t.Fatalf("handleStatus failed: %v", err)
 	}
 	if res.IsError {
 		t.Fatalf("expected success, got error: %s", env.Message)
@@ -35,12 +36,12 @@ func TestHandleVisualize_MermaidAndTable(t *testing.T) {
 	}
 
 	// 2. Table format
-	resTable, envTable, err := handleVisualize(ctx, nil, VisualizeInput{
+	resTable, envTable, err := handleStatus(ctx, nil, StatusInput{
 		ProjectRoot: tmpDir,
 		Format:      "table",
 	})
 	if err != nil {
-		t.Fatalf("handleVisualize table failed: %v", err)
+		t.Fatalf("handleStatus table failed: %v", err)
 	}
 	if resTable.IsError {
 		t.Fatalf("expected success, got error: %s", envTable.Message)
@@ -53,7 +54,7 @@ func TestHandleVisualize_MermaidAndTable(t *testing.T) {
 	}
 
 	// 3. Unsupported format
-	resBad, envBad, _ := handleVisualize(ctx, nil, VisualizeInput{
+	resBad, envBad, _ := handleStatus(ctx, nil, StatusInput{
 		ProjectRoot: tmpDir,
 		Format:      "invalid_format",
 	})
@@ -83,12 +84,12 @@ Findings here.
 		t.Fatalf("failed to write slugged session file: %v", err)
 	}
 
-	res, env, err := handleVisualize(ctx, nil, VisualizeInput{
+	res, env, err := handleStatus(ctx, nil, StatusInput{
 		ProjectRoot: tmpDir,
 		Format:      "table",
 	})
 	if err != nil || res.IsError {
-		t.Fatalf("handleVisualize failed: err=%v, env=%+v", err, env)
+		t.Fatalf("handleStatus failed: err=%v, env=%+v", err, env)
 	}
 	dataMap := env.Data.(map[string]any)
 	renderedTable := dataMap["rendered"].(string)
@@ -129,7 +130,7 @@ Pino is recommended.
 	ctx := context.Background()
 
 	// 1. Mermaid format
-	resM, envM, err := handleVisualize(ctx, nil, VisualizeInput{
+	resM, envM, err := handleStatus(ctx, nil, StatusInput{
 		ProjectRoot: tmpDir,
 		Format:      "mermaid",
 	})
@@ -143,7 +144,7 @@ Pino is recommended.
 	}
 
 	// 2. Table format
-	resT, envT, err := handleVisualize(ctx, nil, VisualizeInput{
+	resT, envT, err := handleStatus(ctx, nil, StatusInput{
 		ProjectRoot: tmpDir,
 		Format:      "table",
 	})

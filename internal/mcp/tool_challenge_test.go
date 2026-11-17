@@ -36,13 +36,13 @@ SQLite in WAL mode is recommended for embedded storage.
 	}
 
 	ctx := context.Background()
-	res, env, err := handleChallenge(ctx, nil, ChallengeInput{
+	res, env, err := handleReview(ctx, nil, ReviewInput{
 		ProjectRoot: tmpDir,
-		SessionID:   "T1-01",
+		ID:          "T1-01",
 		Mode:        "red_team",
 	})
 	if err != nil {
-		t.Fatalf("handleChallenge failed: %v", err)
+		t.Fatalf("handleReview failed: %v", err)
 	}
 	if res.IsError {
 		t.Fatalf("expected success, got error: %s", env.Message)
@@ -55,7 +55,7 @@ SQLite in WAL mode is recommended for embedded storage.
 	if len(data.Prompts) != 4 {
 		t.Errorf("expected 4 prompts, got %d", len(data.Prompts))
 	}
-	if env.NextStep == "" {
+	if envGuidance(env) == "" {
 		t.Errorf("expected non-empty next_step")
 	}
 }
@@ -67,9 +67,10 @@ func TestHandleChallenge_NotFound(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	res, env, err := handleChallenge(ctx, nil, ChallengeInput{
+	res, env, err := handleReview(ctx, nil, ReviewInput{
+		Mode:        "red_team",
 		ProjectRoot: tmpDir,
-		SessionID:   "T9-99",
+		ID:          "T9-99",
 	})
 	if err != nil {
 		t.Fatalf("unexpected handler err: %v", err)
@@ -111,13 +112,13 @@ Recommendation: Option B.
 	}
 
 	ctx := context.Background()
-	res, env, err := handleChallenge(ctx, nil, ChallengeInput{
+	res, env, err := handleReview(ctx, nil, ReviewInput{
 		ProjectRoot: tmpDir,
-		SessionID:   "D-001-S1",
-		Mode:        "cross_session",
+		ID:          "D-001-S1",
+		Mode:        "consistency",
 	})
 	if err != nil {
-		t.Fatalf("handleChallenge failed: %v", err)
+		t.Fatalf("handleReview failed: %v", err)
 	}
 	if res.IsError {
 		t.Fatalf("expected success, got error: %s", env.Message)

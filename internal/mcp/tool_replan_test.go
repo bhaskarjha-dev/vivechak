@@ -10,6 +10,13 @@ import (
 	"github.com/bhaskarjha-dev/vivechak/internal/core"
 )
 
+// replanTopologyTable is planner prose in the test pipeline; replan leaves it as written (HIGH-07).
+const replanTopologyTable = `| ID | Topic | Dependencies | Output File |
+|---|---|---|---|
+| T0-01 | Landscape | none | sessions/T0-01.md |
+| T1-01 | Database | T0-01 | sessions/T1-01.md |
+`
+
 func setupTestPipelineWorkspace(t *testing.T) string {
 	tmpDir := t.TempDir()
 	researchDir := filepath.Join(tmpDir, core.ResearchDir)
@@ -22,16 +29,20 @@ func setupTestPipelineWorkspace(t *testing.T) string {
 
 ## Pipeline Topology
 
-| ID | Topic | Dependencies | Output File |
-|---|---|---|---|
-| T0-01 | Landscape | none | sessions/T0-01.md |
-| T1-01 | Database | T0-01 | sessions/T1-01.md |
+` + replanTopologyTable + `
+` + "```yaml vivechak-plan" + `
+plan: PROJECT
+sessions:
+  - {id: T0-01, title: Landscape, layer: 0, depends: []}
+  - {id: T1-01, title: Database, layer: 1, depends: [T0-01]}
+  - {id: SYN-01, title: Synthesis, layer: 2, kind: synthesis, depends: [ALL]}
+` + "```" + `
 
 ---
 
-## Session Prompts
+## Sessions
 
-### Session T0-01: Landscape
+### T0-01: Landscape
 
 | **Field** | **Value** |
 |---|---|
@@ -44,7 +55,7 @@ func setupTestPipelineWorkspace(t *testing.T) string {
 
 ---
 
-### Session T1-01: Database
+### T1-01: Database
 
 | **Field** | **Value** |
 |---|---|
@@ -53,7 +64,11 @@ func setupTestPipelineWorkspace(t *testing.T) string {
 | **Dependencies** | T0-01 |
 | **Output** | sessions/T1-01.md |
 
-` + "```prompt\n# T1-01\nBRIEF:\nDatabase research.\n```\n"
+` + "```prompt\n# T1-01\nBRIEF:\nDatabase research.\n```\n" + `
+
+### SYN-01: Synthesis
+
+` + "```prompt\n# SYN-01\nBRIEF:\nSynthesize. [ALL_SESSION_FINDINGS]\n```\n"
 
 	if err := os.WriteFile(filepath.Join(researchDir, "RESEARCH-PIPELINE.md"), []byte(pipelineContent), 0o644); err != nil {
 		t.Fatalf("failed to write pipeline: %v", err)
@@ -67,8 +82,9 @@ func TestHandleReplan_AddSession(t *testing.T) {
 	ctx := context.Background()
 
 	res, env, err := handleReplan(ctx, nil, ReplanInput{
+		Plan:         "PROJECT",
 		ProjectRoot:  tmpDir,
-		Operation:    "add_session",
+		Op:           "add_session",
 		SessionID:    "T1-02",
 		Topic:        "Caching Layer",
 		Layer:        "1",
@@ -97,13 +113,14 @@ func TestHandleReplan_AddSession_AllPriorSessions(t *testing.T) {
 	ctx := context.Background()
 
 	res, env, err := handleReplan(ctx, nil, ReplanInput{
+		Plan:         "PROJECT",
 		ProjectRoot:  tmpDir,
-		Operation:    "add_session",
-		SessionID:    "SYN-01",
-		Topic:        "Synthesis",
+		Op:           "add_session",
+		SessionID:    "T2-01",
+		Topic:        "Integration",
 		Layer:        "2",
 		Dependencies: "ALL prior sessions (hard)",
-		Prompt:       "# SYN-01: Synthesis\nBRIEF:\nSynthesize architecture.\n",
+		Prompt:       "# T2-01: Integration\nBRIEF:\nIntegrate the architecture.\n",
 	})
 	if err != nil {
 		t.Fatalf("handleReplan failed: %v", err)
@@ -121,13 +138,17 @@ func TestHandleReplan_AddSession_AllPriorSessions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to parse updated pipeline: %v", err)
 	}
-	syn := dag.SessionByID("SYN-01")
-	if syn == nil {
-		t.Fatal("SYN-01 not found in parsed pipeline")
+	added := dag.SessionByID("T2-01")
+	if added == nil {
+		t.Fatal("T2-01 not found in parsed pipeline")
 	}
-	// setupTestPipelineWorkspace has T0-01 and T1-01
-	if len(syn.Dependencies) != 2 || syn.Dependencies[0] != "T0-01" || syn.Dependencies[1] != "T1-01" {
-		t.Fatalf("expected dependencies [T0-01, T1-01], got %v", syn.Dependencies)
+	// setupTestPipelineWorkspace has T0-01 and T1-01 before its synthesis session SYN-01; the new session goes
+	// before SYN-01, so ALL is those two and SYN-01 (depends: [ALL]) now waits for T2-01 too.
+	if len(added.Dependencies) != 2 || added.Dependencies[0] != "T0-01" || added.Dependencies[1] != "T1-01" {
+		t.Fatalf("expected dependencies [T0-01, T1-01], got %v", added.Dependencies)
+	}
+	if got := dag.SessionByID("SYN-01").Dependencies; strings.Join(got, ",") != "T0-01,T1-01,T2-01" {
+		t.Fatalf("expected SYN-01 to depend on [T0-01 T1-01 T2-01], got %v", got)
 	}
 }
 
@@ -137,8 +158,9 @@ func TestHandleReplan_RemoveSession(t *testing.T) {
 
 	// 1. Remove uncompleted session T1-01
 	res, env, err := handleReplan(ctx, nil, ReplanInput{
+		Plan:        "PROJECT",
 		ProjectRoot: tmpDir,
-		Operation:   "remove_session",
+		Op:          "remove_session",
 		SessionID:   "T1-01",
 	})
 	if err != nil {
@@ -149,8 +171,8 @@ func TestHandleReplan_RemoveSession(t *testing.T) {
 	}
 
 	data, _ := os.ReadFile(filepath.Join(tmpDir, core.PipelineFile))
-	if strings.Contains(string(data), "Session T1-01:") {
-		t.Errorf("expected T1-01 prompt to be removed from pipeline file")
+	if strings.Contains(string(data), "### T1-01:") || strings.Contains(string(data), "{id: T1-01,") {
+		t.Errorf("expected T1-01's prompt section and block entry to be removed from pipeline file")
 	}
 
 	// 2. Mark T0-01 as completed by creating its session file
@@ -159,8 +181,9 @@ func TestHandleReplan_RemoveSession(t *testing.T) {
 
 	// Attempt to remove completed session T0-01 -> must error
 	resComp, _, errComp := handleReplan(ctx, nil, ReplanInput{
+		Plan:        "PROJECT",
 		ProjectRoot: tmpDir,
-		Operation:   "remove_session",
+		Op:          "remove_session",
 		SessionID:   "T0-01",
 	})
 	if errComp != nil {
@@ -177,10 +200,11 @@ func TestHandleReplan_UpdateDepsAndPrompt(t *testing.T) {
 
 	// Update prompt
 	res, env, err := handleReplan(ctx, nil, ReplanInput{
+		Plan:        "PROJECT",
 		ProjectRoot: tmpDir,
-		Operation:   "update_prompt",
+		Op:          "update_prompt",
 		SessionID:   "T1-01",
-		NewPrompt:   "# T1-01 Updated\nBRIEF:\nUpdated brief.\n",
+		Prompt:      "# T1-01 Updated\nBRIEF:\nUpdated brief.\n",
 	})
 	if err != nil {
 		t.Fatalf("handleReplan failed: %v", err)
@@ -205,8 +229,9 @@ func TestHandleReplan_RemoveSession_SluggedWithoutFrontmatterID(t *testing.T) {
 
 	// Attempt to remove T0-01 -> should be recognized as completed via knownIDs and rejected
 	resComp, envComp, errComp := handleReplan(ctx, nil, ReplanInput{
+		Plan:        "PROJECT",
 		ProjectRoot: tmpDir,
-		Operation:   "remove_session",
+		Op:          "remove_session",
 		SessionID:   "T0-01",
 	})
 	if errComp != nil {
@@ -220,55 +245,34 @@ func TestHandleReplan_RemoveSession_SluggedWithoutFrontmatterID(t *testing.T) {
 	}
 }
 
-func TestHandleReplan_GuidedMode_EmptyOperation(t *testing.T) {
+func TestHandleReplan_MissingOperationRefused(t *testing.T) {
 	tmpDir := setupTestPipelineWorkspace(t)
 	ctx := context.Background()
 
-	// Calling replan with empty operation should return a guided response
 	res, env, err := handleReplan(ctx, nil, ReplanInput{
+		Plan:        "PROJECT",
 		ProjectRoot: tmpDir,
 		Reason:      "Company directive: no MongoDB allowed",
-		Impact:      "Switch database evaluation session",
 	})
 	if err != nil {
 		t.Fatalf("unexpected handler err: %v", err)
 	}
-	if res.IsError {
-		t.Fatalf("expected guided success, got error: %s", env.Message)
-	}
-	data, ok := env.Data.(map[string]any)
-	if !ok {
-		t.Fatalf("expected map data in envelope")
-	}
-	if data["status"] != "guided" {
-		t.Errorf("expected status 'guided', got %v", data["status"])
-	}
-	if !strings.Contains(env.NextStep, "Call vivechak_replan with operation") {
-		t.Errorf("expected guided next_step, got: %s", env.NextStep)
-	}
-	if data["reason"] != "Company directive: no MongoDB allowed" {
-		t.Errorf("expected reason preserved in data, got %v", data["reason"])
-	}
-	if data["impact"] != "Switch database evaluation session" {
-		t.Errorf("expected impact preserved in data, got %v", data["impact"])
-	}
-	uncompleted, ok := data["uncompleted_sessions"].([]string)
-	if !ok || len(uncompleted) == 0 {
-		t.Errorf("expected uncompleted sessions list in data, got %v", data["uncompleted_sessions"])
+	if !res.IsError || env.Ok || env.Code != "E-INVALID-ARGUMENT" {
+		t.Fatalf("expected E-INVALID-ARGUMENT for missing op, got: %+v", env)
 	}
 }
 
-func TestHandleReplan_WithReasonAndImpact(t *testing.T) {
+func TestHandleReplan_WithReason(t *testing.T) {
 	tmpDir := setupTestPipelineWorkspace(t)
 	ctx := context.Background()
 
 	res, env, err := handleReplan(ctx, nil, ReplanInput{
+		Plan:        "PROJECT",
 		ProjectRoot: tmpDir,
-		Operation:   "update_prompt",
+		Op:          "update_prompt",
 		SessionID:   "T1-01",
 		Reason:      "Strict enterprise compliance requirements",
-		Impact:      "Broaden scope to include Oracle",
-		NewPrompt:   "# T1-01 Oracle Evaluation\nBRIEF:\nResearch Oracle.\n",
+		Prompt:      "# T1-01 Oracle Evaluation\nBRIEF:\nResearch Oracle.\n",
 	})
 	if err != nil {
 		t.Fatalf("unexpected handler err: %v", err)
@@ -283,19 +287,20 @@ func TestHandleReplan_WithReasonAndImpact(t *testing.T) {
 	if data["reason"] != "Strict enterprise compliance requirements" {
 		t.Errorf("expected reason in resData, got %v", data["reason"])
 	}
-	if data["impact"] != "Broaden scope to include Oracle" {
-		t.Errorf("expected impact in resData, got %v", data["impact"])
-	}
 }
 
-func TestHandleReplan_SynchronizesTopologyTable(t *testing.T) {
+// Replan edits the session's block entry and its one prompt section in place; the planner's topology table is
+// prose and stays exactly as written (HIGH-07).
+func TestHandleReplan_EditsBlockAndPromptSectionInPlace(t *testing.T) {
 	tmpDir := setupTestPipelineWorkspace(t)
 	ctx := context.Background()
+	original, _ := os.ReadFile(filepath.Join(tmpDir, core.PipelineFile))
 
 	// 1. Update deps for T1-01 to "none"
 	res, env, err := handleReplan(ctx, nil, ReplanInput{
+		Plan:         "PROJECT",
 		ProjectRoot:  tmpDir,
-		Operation:    "update_deps",
+		Op:           "update_deps",
 		SessionID:    "T1-01",
 		Dependencies: "none",
 	})
@@ -305,14 +310,16 @@ func TestHandleReplan_SynchronizesTopologyTable(t *testing.T) {
 
 	data, _ := os.ReadFile(filepath.Join(tmpDir, core.PipelineFile))
 	pStr := string(data)
-	if !strings.Contains(pStr, "| T1-01 | Database | none | sessions/T1-01.md |") {
-		t.Errorf("expected topology table row to be updated with 'none', got:\n%s", pStr)
+	want := strings.Replace(string(original), "{id: T1-01, title: Database, layer: 1, depends: [T0-01]}", "{id: T1-01, title: Database, layer: 1, depends: []}", 1)
+	if pStr != want {
+		t.Errorf("update_deps must change only T1-01's depends value, got:\n%s", pStr)
 	}
 
 	// 2. Add session T2-01
 	resAdd, envAdd, errAdd := handleReplan(ctx, nil, ReplanInput{
+		Plan:         "PROJECT",
 		ProjectRoot:  tmpDir,
-		Operation:    "add_session",
+		Op:           "add_session",
 		SessionID:    "T2-01",
 		Topic:        "Observability Tier",
 		Layer:        "2",
@@ -324,14 +331,18 @@ func TestHandleReplan_SynchronizesTopologyTable(t *testing.T) {
 
 	dataAdd, _ := os.ReadFile(filepath.Join(tmpDir, core.PipelineFile))
 	pAddStr := string(dataAdd)
-	if !strings.Contains(pAddStr, "| T2-01 | Observability Tier | T1-01 | sessions/T2-01.md |") {
-		t.Errorf("expected topology table to contain new row for T2-01, got:\n%s", pAddStr)
+	if !strings.Contains(pAddStr, "  - {id: T2-01, title: Observability Tier, layer: 2, door: two-way, depends: [T1-01]}\n  - {id: SYN-01") {
+		t.Errorf("expected a T2-01 block entry before SYN-01, got:\n%s", pAddStr)
+	}
+	if !strings.Contains(pAddStr, "### T2-01: Observability Tier\n\n```prompt\n") || !strings.Contains(pAddStr, replanTopologyTable) {
+		t.Errorf("expected a T2-01 prompt section and the topology table as written, got:\n%s", pAddStr)
 	}
 
 	// 3. Remove session T2-01
 	resDel, envDel, errDel := handleReplan(ctx, nil, ReplanInput{
+		Plan:        "PROJECT",
 		ProjectRoot: tmpDir,
-		Operation:   "remove_session",
+		Op:          "remove_session",
 		SessionID:   "T2-01",
 	})
 	if errDel != nil || resDel.IsError {
@@ -339,8 +350,24 @@ func TestHandleReplan_SynchronizesTopologyTable(t *testing.T) {
 	}
 
 	dataDel, _ := os.ReadFile(filepath.Join(tmpDir, core.PipelineFile))
-	pDelStr := string(dataDel)
-	if strings.Contains(pDelStr, "| T2-01 |") {
-		t.Errorf("expected topology table row for T2-01 to be removed, got:\n%s", pDelStr)
+	if string(dataDel) != want {
+		t.Errorf("removing T2-01 must restore the plan as it was before it was added, got:\n%s", string(dataDel))
+	}
+}
+
+// Removing the synthesis session of a project plan would leave it without one: refused with V-PLAN-SYNTHESIS.
+func TestHandleReplan_RemoveSynthesisSessionRefused(t *testing.T) {
+	tmpDir := setupTestPipelineWorkspace(t)
+	before, _ := os.ReadFile(filepath.Join(tmpDir, core.PipelineFile))
+	res, env, err := handleReplan(context.Background(), nil, ReplanInput{Plan: "PROJECT", ProjectRoot: tmpDir, Op: "remove_session", SessionID: "SYN-01"})
+	if err != nil {
+		t.Fatalf("handleReplan: %v", err)
+	}
+	if !res.IsError || !strings.Contains(env.Message, core.CodePlanSynthesis) || envGuidance(env) == "" {
+		t.Fatalf("expected %s with a fix, got: %+v", core.CodePlanSynthesis, env)
+	}
+	after, _ := os.ReadFile(filepath.Join(tmpDir, core.PipelineFile))
+	if string(after) != string(before) {
+		t.Fatal("a refused replan must leave the plan unchanged")
 	}
 }

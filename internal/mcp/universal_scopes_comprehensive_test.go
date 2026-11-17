@@ -16,10 +16,10 @@ func TestUniversal_PrepareGenerator_AllScopes(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// 1. Comparison Scope — AI Models (Explicit Scope)
-	resComp, envComp, err := handlePrepareGenerator(ctx, nil, PrepareGeneratorInput{
+	resComp, envComp, err := handleStart(ctx, nil, StartInput{
 		ProjectRoot: tmpDir,
 		Scope:       "comparison",
-		Context:     "Claude 3.5 Sonnet vs GPT-4o for complex multi-turn coding agent workflows",
+		Question:    "Claude 3.5 Sonnet vs GPT-4o for complex multi-turn coding agent workflows",
 	})
 	if err != nil || resComp.IsError {
 		t.Fatalf("prepare_generator comparison failed: %v, env: %+v", err, envComp)
@@ -28,15 +28,15 @@ func TestUniversal_PrepareGenerator_AllScopes(t *testing.T) {
 	if dataComp["scope"] != core.ScopeComparison {
 		t.Errorf("expected scope comparison, got %v", dataComp["scope"])
 	}
-	promptComp := dataComp["prompt"].(string)
+	promptComp := dataComp["brief"].(string)
 	if !strings.Contains(promptComp, "Claude 3.5 Sonnet vs GPT-4o") {
 		t.Errorf("expected options injected into prompt, got: %s", promptComp[:200])
 	}
 
 	// 2. Decision Scope — Strategic Business Decision (Auto-inferred Scope)
-	resDec, envDec, err := handlePrepareGenerator(ctx, nil, PrepareGeneratorInput{
+	resDec, envDec, err := handleStart(ctx, nil, StartInput{
 		ProjectRoot: tmpDir,
-		Context:     "strategic decision: build in-house sales team vs partner agency for US enterprise market entry",
+		Question:    "strategic decision: build in-house sales team vs partner agency for US enterprise market entry",
 	})
 	if err != nil || resDec.IsError {
 		t.Fatalf("prepare_generator decision failed: %v, env: %+v", err, envDec)
@@ -47,9 +47,9 @@ func TestUniversal_PrepareGenerator_AllScopes(t *testing.T) {
 	}
 
 	// 3. Project Scope — Business Venture Pipeline (Auto-inferred Scope)
-	resProj, envProj, err := handlePrepareGenerator(ctx, nil, PrepareGeneratorInput{
+	resProj, envProj, err := handleStart(ctx, nil, StartInput{
 		ProjectRoot: tmpDir,
-		Context:     "we are planning a new business venture for global freight brokerage and logistics marketplace",
+		Question:    "we are planning a new business venture for global freight brokerage and logistics marketplace",
 	})
 	if err != nil || resProj.IsError {
 		t.Fatalf("prepare_generator project failed: %v, env: %+v", err, envProj)
@@ -65,27 +65,16 @@ func TestUniversal_SavePlan_DecisionAutoRecovery(t *testing.T) {
 	ctx := context.Background()
 	tmpDir := t.TempDir()
 
-	planContent := `# Decision Plan: Distributed Cache Architecture
-## Routing
+	planContent := testPlan("Decision Plan: Distributed Cache Architecture", "D-05", `## Routing
 | Field | Value |
 |---|---|
 | Decision | D-05 |
-| Door | one-way |
+| Door | one-way |`, []string{"{id: D-05-S1, title: Cache Shootout, role: C, layer: 1, door: one-way, informs: [D-05], depends: []}"},
+		testSection("D-05-S1", "Cache Shootout", "Evaluate Redis vs KeyDB."))
 
-## Session DAG
-### Session D-05-S1: Cache Shootout
-| Field | Value |
-|---|---|
-| ID | D-05-S1 |
-| Layer | 1 |
-| Door Type | one-way |
-| Dependencies | none |
-| Output File | research/sessions/D-05-S1.md |
-
-` + "```prompt\nEvaluate Redis vs KeyDB.\n```\n"
-
-	// Intentionally omit decision_id; verify it auto-recovers to D-05
-	res, env, err := handleSavePlan(ctx, nil, SavePlanInput{
+	// Intentionally omit decision_id; verify it auto-recovers to D-05 from the plan block's plan: field
+	res, env, err := handleSave(ctx, nil, SaveInput{
+		Kind:        "plan",
 		ProjectRoot: tmpDir,
 		Scope:       "decision",
 		Content:     planContent,
@@ -109,7 +98,7 @@ func TestUniversal_Challenge_ADRInResearchDir(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Initialize workspace
-	_, _, err := handleInit(ctx, nil, InitInput{ProjectRoot: tmpDir, Scope: "decision"})
+	_, _, err := handleStart(ctx, nil, StartInput{Question: "test", ProjectRoot: tmpDir, Scope: "decision"})
 	if err != nil {
 		t.Fatalf("init failed: %v", err)
 	}
@@ -135,9 +124,9 @@ Build in-house enterprise sales team. A (SaaS Metrics Survey) [direct]
 	}
 
 	// Challenge by decision_id; should resolve directly from research/
-	res, env, err := handleChallenge(ctx, nil, ChallengeInput{
+	res, env, err := handleReview(ctx, nil, ReviewInput{
 		ProjectRoot: tmpDir,
-		SessionID:   "D-01",
+		ID:          "D-01",
 		Mode:        "red_team",
 	})
 	if err != nil || res.IsError {
@@ -154,7 +143,7 @@ func TestUniversal_AmendSession_ResearchDirFiles(t *testing.T) {
 	ctx := context.Background()
 	tmpDir := t.TempDir()
 
-	_, _, err := handleInit(ctx, nil, InitInput{ProjectRoot: tmpDir, Scope: "comparison"})
+	_, _, err := handleStart(ctx, nil, StartInput{Question: "test", ProjectRoot: tmpDir, Scope: "comparison"})
 	if err != nil {
 		t.Fatalf("init failed: %v", err)
 	}
@@ -174,10 +163,10 @@ Initial comparison notes.
 	}
 
 	// Amend comparison in research/
-	res, env, err := handleAmendSession(ctx, nil, AmendSessionInput{
+	res, env, err := handleAmend(ctx, nil, AmendInput{
 		ProjectRoot: tmpDir,
-		SessionID:   "C-01",
-		Amendment:   "### Update 2026-10-17\nVerified sub-millisecond inference latency on H100s.\n",
+		ID:          "C-01",
+		Note:        "### Update 2026-10-17\nVerified sub-millisecond inference latency on H100s.\n",
 	})
 	if err != nil || res.IsError {
 		t.Fatalf("amend comparison failed: %v, env: %+v", err, env)
@@ -198,7 +187,7 @@ func TestUniversal_WorkspaceValidate_AllScopes(t *testing.T) {
 
 	// 1. Decision Scope Workspace Validation
 	tmpDec := t.TempDir()
-	_, _, _ = handleInit(ctx, nil, InitInput{ProjectRoot: tmpDec, Scope: "decision"})
+	_, _, _ = handleStart(ctx, nil, StartInput{Question: "test", ProjectRoot: tmpDec, Scope: "decision"})
 	decPlan := `# Decision Plan
 ### Session D-01-S1: Shortlist
 | Field | Value |
@@ -212,7 +201,7 @@ func TestUniversal_WorkspaceValidate_AllScopes(t *testing.T) {
 ` + "```prompt\nShortlist candidates.\n```\n"
 	_ = os.WriteFile(filepath.Join(tmpDec, core.ResearchDir, "D-01-plan.md"), []byte(decPlan), 0o644)
 
-	resDec, envDec, err := handleValidate(ctx, nil, ValidateInput{ProjectRoot: tmpDec})
+	resDec, envDec, err := handleReview(ctx, nil, ReviewInput{Mode: "validate", ProjectRoot: tmpDec})
 	if err != nil || resDec.IsError {
 		t.Fatalf("validate decision workspace failed: %v, env: %+v", err, envDec)
 	}
@@ -223,7 +212,7 @@ func TestUniversal_WorkspaceValidate_AllScopes(t *testing.T) {
 
 	// 2. Comparison Scope Workspace Validation
 	tmpComp := t.TempDir()
-	_, _, _ = handleInit(ctx, nil, InitInput{ProjectRoot: tmpComp, Scope: "comparison"})
+	_, _, _ = handleStart(ctx, nil, StartInput{Question: "test", ProjectRoot: tmpComp, Scope: "comparison"})
 	compMD := `---
 id: C-01
 title: Model Shootout
@@ -235,7 +224,7 @@ Candidate A outperforms Candidate B. A (Benchmark Report) [direct]
 `
 	_ = os.WriteFile(filepath.Join(tmpComp, core.ResearchDir, "C-01-comparison.md"), []byte(compMD), 0o644)
 
-	resComp, envComp, err := handleValidate(ctx, nil, ValidateInput{ProjectRoot: tmpComp})
+	resComp, envComp, err := handleReview(ctx, nil, ReviewInput{Mode: "validate", ProjectRoot: tmpComp})
 	if err != nil || resComp.IsError {
 		t.Fatalf("validate comparison workspace failed: %v, env: %+v", err, envComp)
 	}

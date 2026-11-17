@@ -22,21 +22,21 @@ func TestSavePlanComparisonTerminalNextStep(t *testing.T) {
 			"project_root": tmpDir,
 			"kind":         "comparison",
 			"scope":        "comparison",
-			"decision_id":  "C-01",
-			"content":      "# Weighted Evaluation Protocol\n\n| Option | Score |\n|---|---|\n| Pino | 8.5 [A] (pino.dev) |\n| Winston | 7.0 [B] (github.com) |\n",
+			"id":           "C-001",
+			"content":      "---\nid: C-001\ntitle: Pino vs Winston\nquestion: Pino vs Winston\noptions: [Pino, Winston]\ndate: 2026-04-01\nstatus: complete\n---\n\n## Key Findings\n- Pino achieves 5x higher JSON throughput than Winston via low-overhead serialization [A · single · fresh · direct · fetched](https://getpino.io).\n- Winston provides richer built-in transport ecosystems [B · single · fresh · direct · fetched](https://github.com/winstonjs/winston).\n\n## Weighted Evaluation Matrix\n| Criterion | Weight | Pino | Winston |\n|---|---|---|---|\n| Throughput | 60% | 4.5 | 3.0 |\n| Ecosystem | 40% | 4.0 | 4.5 |\n| **Weighted Total** | **100%** | **4.3** | **3.6** |\n\n## Recommendation\nChoose Pino for high-throughput Node.js JSON logging.\n\n## Sources & Evidence Ledger\n- [A · single · fresh · direct · fetched](https://getpino.io)\n- [B · single · fresh · direct · fetched](https://github.com/winstonjs/winston)\n",
 		},
 	})
 	if err != nil {
 		t.Fatalf("save_plan comparison: %v", err)
 	}
 	env := parseEnvelope(t, res)
-	if !env.Success {
+	if !env.Ok {
 		t.Fatalf("expected success, got error: %s", env.Message)
 	}
-	if !strings.Contains(env.NextStep, "Comparison scope is complete") {
-		t.Errorf("expected terminal next_step for comparison scope, got: %s", env.NextStep)
+	if !strings.Contains(envGuidance(env), "Comparison scope is complete") {
+		t.Errorf("expected terminal next_step for comparison scope, got: %s", envGuidance(env))
 	}
-	if strings.Contains(env.NextStep, "vivechak_next") {
+	if strings.Contains(envGuidance(env), "vivechak_next") {
 		t.Errorf("comparison scope next_step must not mandate vivechak_next")
 	}
 }
@@ -46,18 +46,24 @@ func TestSavePlanAutoInitGitignore(t *testing.T) {
 	ctx := context.Background()
 	tmpDir := t.TempDir() // Fresh directory without vivechak_start
 
-	_, err := cs.CallTool(ctx, &mcp.CallToolParams{
+	res, err := cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"kind":         "plan",
 			"scope":        "decision",
-			"decision_id":  "D-01",
-			"content":      "# Decision Plan\n\n## S1: Landscape\n## S2: Comparison\n",
+			"id":           "D-01",
+			"content": testPlan("D-01-PLAN: Decision Plan", "D-01", "", []string{
+				"{id: D-01-S1, title: Landscape, role: L, depends: []}",
+				"{id: D-01-S2, title: Comparison, role: C, depends: [D-01-S1]}",
+			}, testSection("D-01-S1", "Landscape", "Map the options."), testSection("D-01-S2", "Comparison", "Compare them.")),
 		},
 	})
 	if err != nil {
 		t.Fatalf("save_plan: %v", err)
+	}
+	if env := parseEnvelope(t, res); !env.Ok {
+		t.Fatalf("expected the plan save to succeed, got: %s", env.Message)
 	}
 	gitIgnorePath := filepath.Join(tmpDir, "research", ".gitignore")
 	data, err := os.ReadFile(gitIgnorePath)
@@ -78,6 +84,7 @@ func TestRunGateTrackFiltering(t *testing.T) {
 	_, err := cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_start",
 		Arguments: map[string]any{
+			"question":     "test",
 			"project_root": tmpDir,
 			"scope":        "project",
 		},
@@ -98,7 +105,7 @@ func TestRunGateTrackFiltering(t *testing.T) {
 		t.Fatalf("run_gate call: %v", err)
 	}
 	envErr := parseEnvelope(t, resErr)
-	if envErr.Success {
+	if envErr.Ok {
 		t.Errorf("expected failure envelope on invalid track parameter, got success")
 	}
 
@@ -118,7 +125,7 @@ func TestRunGateTrackFiltering(t *testing.T) {
 	if dataA["track_filter"] != "track_a" {
 		t.Errorf("expected track_filter == 'track_a', got: %v", dataA["track_filter"])
 	}
-	if !strings.Contains(envA.Message, "Track A requirements not met") {
+	if !strings.Contains(envA.Message, "Track A FAIL") {
 		t.Errorf("expected Track A failure message, got: %s", envA.Message)
 	}
 
@@ -138,7 +145,7 @@ func TestRunGateTrackFiltering(t *testing.T) {
 	if dataB["track_filter"] != "track_b" {
 		t.Errorf("expected track_filter == 'track_b', got: %v", dataB["track_filter"])
 	}
-	if !strings.Contains(envB.Message, "Track B requirements not met") {
+	if !strings.Contains(envB.Message, "Track B FAIL") {
 		t.Errorf("expected Track B failure message, got: %s", envB.Message)
 	}
 }
@@ -151,6 +158,7 @@ func TestAmendADRRecompilesRegistry(t *testing.T) {
 	_, err := cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_start",
 		Arguments: map[string]any{
+			"question":     "test",
 			"project_root": tmpDir,
 			"scope":        "decision",
 		},
@@ -165,7 +173,7 @@ func TestAmendADRRecompilesRegistry(t *testing.T) {
 		Name: "vivechak_record_decision",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
-			"decision_id":  "D-01",
+			"id":           "D-01",
 			"content":      adrContent,
 		},
 	})
@@ -173,7 +181,7 @@ func TestAmendADRRecompilesRegistry(t *testing.T) {
 		t.Fatalf("record_decision: %v", err)
 	}
 	envRec := parseEnvelope(t, resRec)
-	if !envRec.Success {
+	if !envRec.Ok {
 		t.Fatalf("record_decision failed: %s", envRec.Message)
 	}
 
@@ -193,15 +201,15 @@ func TestAmendADRRecompilesRegistry(t *testing.T) {
 		Name: "vivechak_amend",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
-			"session_id":   "D-01",
-			"content":      amendment,
+			"id":           "D-01",
+			"note":         amendment,
 		},
 	})
 	if err != nil {
 		t.Fatalf("amend_session: %v", err)
 	}
 	envAmend := parseEnvelope(t, resAmend)
-	if !envAmend.Success {
+	if !envAmend.Ok {
 		t.Fatalf("amend_session failed: %s", envAmend.Message)
 	}
 	amendData := envAmend.Data.(map[string]any)
@@ -231,7 +239,7 @@ func TestStatusMultiScopeNextStep(t *testing.T) {
 			"project_root": cmpDir,
 			"kind":         "comparison",
 			"scope":        "comparison",
-			"decision_id":  "C-01",
+			"id":           "C-01",
 			"content":      "# Weighted Evaluation Protocol\n\n| Option | Score |\n|---|---|\n| Pino | 8.5 [A] |\n",
 		},
 	})
@@ -245,10 +253,10 @@ func TestStatusMultiScopeNextStep(t *testing.T) {
 		t.Fatalf("status cmp: %v", err)
 	}
 	envCmpStatus := parseEnvelope(t, resCmpStatus)
-	if !strings.Contains(envCmpStatus.NextStep, "Comparison scope is finished") {
-		t.Errorf("expected finished nextStep for comparison scope status, got: %s", envCmpStatus.NextStep)
+	if !strings.Contains(envGuidance(envCmpStatus), "Comparison scope is complete") {
+		t.Errorf("expected finished nextStep for comparison scope status, got: %s", envGuidance(envCmpStatus))
 	}
-	if strings.Contains(envCmpStatus.NextStep, "vivechak_gate") {
+	if strings.Contains(envGuidance(envCmpStatus), "vivechak_gate") {
 		t.Errorf("comparison scope status must never mandate vivechak_gate")
 	}
 
@@ -257,6 +265,7 @@ func TestStatusMultiScopeNextStep(t *testing.T) {
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_start",
 		Arguments: map[string]any{
+			"question":     "test",
 			"project_root": decDir,
 			"scope":        "decision",
 		},
@@ -265,7 +274,7 @@ func TestStatusMultiScopeNextStep(t *testing.T) {
 		Name: "vivechak_record_decision",
 		Arguments: map[string]any{
 			"project_root": decDir,
-			"decision_id":  "D-01",
+			"id":           "D-01",
 			"content":      "---\ndecision_id: D-01\ntitle: Caching\ndoor_type: two-way\nstatus: accepted\n---\n\n## Context\nRedis choice.\n",
 		},
 	})
@@ -279,8 +288,8 @@ func TestStatusMultiScopeNextStep(t *testing.T) {
 		t.Fatalf("status dec: %v", err)
 	}
 	envDecStatus := parseEnvelope(t, resDecStatus)
-	if !strings.Contains(envDecStatus.NextStep, "Decision scope is complete") {
-		t.Errorf("expected complete nextStep for decision scope with recorded ADR, got: %s", envDecStatus.NextStep)
+	if !strings.Contains(envGuidance(envDecStatus), "Decision ADR is recorded") {
+		t.Errorf("expected complete nextStep for decision scope with recorded ADR, got: %s", envGuidance(envDecStatus))
 	}
 }
 
@@ -296,7 +305,7 @@ func TestComparisonScopeSessionCountingAndGate(t *testing.T) {
 			"project_root": cmpDir,
 			"kind":         "comparison",
 			"scope":        "comparison",
-			"decision_id":  "C-01",
+			"id":           "C-01",
 			"content":      "# Weighted Evaluation Protocol\n\n| Option | Score |\n|---|---|\n| Pino | 8.5 [Grade: A] (https://github.com/pinojs/pino) |\n| Winston | 7.0 [Grade: B] (https://github.com/winstonjs/winston) |\n",
 		},
 	})
@@ -329,8 +338,8 @@ func TestComparisonScopeSessionCountingAndGate(t *testing.T) {
 	if dataGate["scope"] != "comparison" {
 		t.Errorf("expected scope 'comparison', got: %v", dataGate["scope"])
 	}
-	if dataGate["verdict"] != "not_applicable" && dataGate["gate_passed"] != true {
-		t.Errorf("expected comparison gate to be not_applicable and passed, got: %v", dataGate)
+	if dataGate["verdict"] != "not_applicable" {
+		t.Errorf("expected comparison gate verdict to be exactly not_applicable, got: %v", dataGate)
 	}
 }
 
@@ -343,6 +352,7 @@ func TestRunGateTrackPassingIsolation(t *testing.T) {
 	_, err := cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_start",
 		Arguments: map[string]any{
+			"question":     "test",
 			"project_root": tmpDir,
 			"scope":        "project",
 		},
@@ -378,11 +388,12 @@ func TestRunGateTrackPassingIsolation(t *testing.T) {
 	}
 	envA := parseEnvelope(t, resA)
 	dataA := envA.Data.(map[string]any)
-	if dataA["gate_passed"] != true {
-		t.Errorf("expected track_a to pass structurally, got: %v (msg: %s)", dataA["gate_passed"], envA.Message)
+	if dataA["verdict"] != "PASS" {
+		t.Errorf("expected track_a verdict PASS, got: %v (msg: %s)", dataA["verdict"], envA.Message)
 	}
-	if dataA["gate_status"] != "PASS" {
-		t.Errorf("expected gate_status PASS for track_a, got: %v", dataA["gate_status"])
+	// The track filter narrows the listed rules: Track A is G12 only.
+	if ids := gateRuleIDs(dataA); strings.Join(ids, ",") != "G12" {
+		t.Errorf("expected track_a to list only G12, got: %v", ids)
 	}
 
 	// 2. Evaluate with track_b
@@ -398,14 +409,20 @@ func TestRunGateTrackPassingIsolation(t *testing.T) {
 	}
 	envB := parseEnvelope(t, resB)
 	dataB := envB.Data.(map[string]any)
-	if dataB["gate_passed"] != false {
-		t.Errorf("expected track_b to fail quality checks, got: %v", dataB["gate_passed"])
+	if dataB["verdict"] != "FAIL" {
+		t.Errorf("expected track_b verdict FAIL (quality checks), got: %v", dataB["verdict"])
 	}
-	if dataB["gate_status"] != "FAIL" {
-		t.Errorf("expected gate_status FAIL for track_b, got: %v", dataB["gate_status"])
+	// Track B lists G1-G11 and never G12.
+	if ids := gateRuleIDs(dataB); len(ids) != 11 || strings.Contains(","+strings.Join(ids, ",")+",", ",G12,") {
+		t.Errorf("expected track_b to list G1-G11 only, got: %v", ids)
 	}
-	if !strings.Contains(envB.Message, "Track B requirements not met") {
-		t.Errorf("expected 'Track B requirements not met', got: %s", envB.Message)
+	for _, k := range []string{"gate_passed", "gate_status", "track_a_result", "track_b_result"} {
+		if _, dup := dataB[k]; dup {
+			t.Errorf("the gate result must state the verdict once; found the copy %q", k)
+		}
+	}
+	if !strings.Contains(envB.Message, "Track B FAIL") {
+		t.Errorf("expected 'Track B FAIL', got: %s", envB.Message)
 	}
 }
 
@@ -426,8 +443,9 @@ func TestSavePlanGitignorePreservesExisting(t *testing.T) {
 		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
+			"kind":         "comparison",
 			"scope":        "comparison",
-			"decision_id":  "C-01",
+			"id":           "C-01",
 			"content":      "# WEP Matrix\n\n| Option | Score |\n|---|---|\n| Pino | 8.5 [A] |\n",
 		},
 	})
@@ -452,6 +470,7 @@ func TestAmendNonADRDoesNotRecompileRegistry(t *testing.T) {
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_start",
 		Arguments: map[string]any{
+			"question":     "test",
 			"project_root": tmpDir,
 			"scope":        "project",
 		},
@@ -464,7 +483,7 @@ func TestAmendNonADRDoesNotRecompileRegistry(t *testing.T) {
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"kind":         "session",
-			"session_id":   "T1-01",
+			"id":           "T1-01",
 			"content":      sessContent,
 		},
 	})
@@ -474,8 +493,8 @@ func TestAmendNonADRDoesNotRecompileRegistry(t *testing.T) {
 		Name: "vivechak_amend",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
-			"session_id":   "T1-01",
-			"content":      "Amended observation.",
+			"id":           "T1-01",
+			"note":         "Amended observation.",
 		},
 	})
 	if err != nil {
@@ -505,4 +524,18 @@ func TestInspectWorkspaceMultipleComparisonFiles(t *testing.T) {
 	if info.SessionCount != 2 {
 		t.Errorf("expected SessionCount == 2 for two comparison files, got: %d", info.SessionCount)
 	}
+}
+
+// gateRuleIDs returns the rule ids a vivechak_gate result lists, in order.
+func gateRuleIDs(data map[string]any) []string {
+	var ids []string
+	rules, _ := data["rules"].([]any)
+	for _, r := range rules {
+		if m, ok := r.(map[string]any); ok {
+			if id, ok := m["id"].(string); ok {
+				ids = append(ids, id)
+			}
+		}
+	}
+	return ids
 }

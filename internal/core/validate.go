@@ -1093,65 +1093,35 @@ func isSeparatorRow(parts []string) bool {
 	return true
 }
 
-// ValidatePlan validates a research plan or pipeline DAG.
-// Unlike sessions and decisions, plans do not require YAML frontmatter or evidence grades.
+// ValidatePlan validates a research plan: the project pipeline or a decision plan (see ParsePipeline for the plan
+// format). Every problem that makes the plan unusable is a blocking V-PLAN-* issue with its fix; a project plan
+// (plan: PROJECT) must also have exactly one kind: synthesis session. Plans need no frontmatter or evidence grades.
 func ValidatePlan(data []byte) *ValidationResult {
+	return ValidatePlanForScope(data, "")
+}
+
+// ValidatePlanForScope is ValidatePlan for a plan saved as scope: "project" (the block must say plan: PROJECT and
+// have exactly one kind: synthesis session), "decision" (the block must name the decision), or "" (the block's
+// plan field decides).
+func ValidatePlanForScope(data []byte, scope string) *ValidationResult {
 	result := &ValidationResult{Status: "valid"}
 
-	trimmed := bytes.TrimSpace(data)
-	if len(trimmed) == 0 {
-		result.AddIssue(L2Block, "V-EMPTY", "Plan content is empty")
+	if len(bytes.TrimSpace(data)) == 0 {
+		result.AddIssueWithHint(L2Block, "V-EMPTY", "Plan content is empty", fixMissingBlock)
 		result.Status = "invalid"
 		return result
 	}
 
-	// Try parsing as a pipeline DAG
-	dag, err := ParsePipeline(data)
-	if err == nil && len(dag.Sessions) > 0 {
-		// Validate DAG structure (cycles, dangling dependencies)
-		if valErr := dag.ValidateDAG(); valErr != nil {
-			result.AddIssueWithHint(L2Block, "V-INVALID-DAG",
-				fmt.Sprintf("Pipeline DAG validation failed: %v", valErr),
-				"Fix dependency cycles or dangling session references")
-		}
-		// Warn if any session lacks prompt instructions
-		for _, s := range dag.Sessions {
-			if strings.TrimSpace(s.Prompt) == "" {
-				result.AddIssueWithHint(L3Warn, "W-EMPTY-PROMPT",
-					fmt.Sprintf("Session %s has no prompt block", s.ID),
-					"Include an execution prompt block for each session")
-			}
-		}
-
-		// Cross-check declared topology sessions against parsed sessions
-		declared := ExtractDeclaredSessionIDs(string(data))
-		parsedMap := make(map[string]bool)
-		for _, s := range dag.Sessions {
-			parsedMap[strings.ToUpper(s.ID)] = true
-		}
-		for _, declID := range declared {
-			if IsSynthesisSession(declID) && (parsedMap["SYN-01"] || parsedMap["FAD"]) {
-				continue
-			}
-			if !parsedMap[declID] {
-				result.AddIssueWithHint(L3Warn, "W-PARSER-SESSION-MISMATCH",
-					fmt.Sprintf("Session %s is declared in pipeline topology or DAG diagram, but lacks a parsed session entry with prompt block", declID),
-					"Ensure every declared session has a '### [ID]: [Title]' header and a complete '```prompt' block")
-			}
-		}
-	} else {
-		// Decision-level, comparison, or generic plan without full DAG sessions
-		if len(trimmed) < 100 {
-			result.AddIssueWithHint(L3Warn, "W-SHORT-PLAN",
-				"Plan is very short (< 100 characters)",
-				"Ensure the plan includes clear research questions, scope, and objectives")
-		}
+	dag, issues := parsePlan(data)
+	if dag != nil {
+		issues = append(issues, planScopeIssues(dag, scope)...)
+	}
+	for _, issue := range issues {
+		result.AddIssueWithHint(L2Block, issue.Code, issue.Message, issue.Fix)
 	}
 
 	if result.HasBlocking() {
 		result.Status = "draft"
-	} else if result.WarningCount() > 0 {
-		result.Status = "valid-with-warnings"
 	}
 
 	return result

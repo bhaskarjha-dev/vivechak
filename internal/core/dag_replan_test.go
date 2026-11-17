@@ -199,59 +199,23 @@ func TestDAG_UpdatePrompt(t *testing.T) {
 	}
 }
 
-func TestDAG_Serialize_RoundTrip(t *testing.T) {
-	dag := &DAG{
-		Archetype:       "Desktop Agent",
-		Tier:            "Tier 2",
-		ComplexityScore: 18,
-		Sessions: []Session{
-			{
-				ID:           "T0-01",
-				Title:        "System Architecture Landscape",
-				Layer:        0,
-				Dependencies: nil,
-				DecisionRef:  "D-001",
-				DoorType:     "one-way",
-				Prompt:       "# T0-01: System Architecture\n\nBRIEF:\nConduct research.",
-			},
-			{
-				ID:           "T1-01",
-				Title:        "Embedded Database Spike",
-				Layer:        1,
-				Dependencies: []string{"T0-01"},
-				DecisionRef:  "D-002",
-				DoorType:     "two-way",
-				Prompt:       "# T1-01: Database Spike\n\nBRIEF:\nResearch SQLite vs BadgerDB.",
-			},
-		},
-	}
-
-	serialized := dag.Serialize()
-	if len(serialized) == 0 {
-		t.Fatalf("serialized output is empty")
-	}
-
-	// Parse it back
-	reparsed, err := ParsePipeline(serialized)
+// A dependency that comes only from depends: [ALL] does not stop a session from being removed (the synthesis
+// session's ALL simply no longer includes it); a dependency the plan names does.
+func TestDAG_RemoveSession_DependsOnAll(t *testing.T) {
+	plan := projectPlan([]string{"{id: T0-01}", "{id: T1-01, depends: [T0-01]}", "{id: T1-02}", "{id: SYN-01, kind: synthesis, depends: [ALL]}"},
+		section("T0-01", "A", "a")+section("T1-01", "B", "b")+section("T1-02", "C", "c")+section("SYN-01", "S", "s"))
+	dag, err := ParsePipeline([]byte(plan))
 	if err != nil {
-		t.Fatalf("failed to re-parse serialized pipeline: %v\nContent:\n%s", err, string(serialized))
+		t.Fatalf("ParsePipeline: %v", err)
 	}
-
-	if len(reparsed.Sessions) != 2 {
-		t.Fatalf("expected 2 sessions after round-trip, got %d", len(reparsed.Sessions))
+	if err := dag.RemoveSession("T1-02"); err != nil {
+		t.Fatalf("removing a session only ALL depends on: %v", err)
 	}
-
-	s0 := reparsed.SessionByID("T0-01")
-	if s0 == nil || s0.Title != "System Architecture Landscape" {
-		t.Errorf("session T0-01 lost or corrupted: %+v", s0)
+	if got := dag.SessionByID("SYN-01").Dependencies; strings.Join(got, ",") != "T0-01,T1-01" {
+		t.Errorf("SYN-01 dependencies after removing T1-02 = %v", got)
 	}
-
-	s1 := reparsed.SessionByID("T1-01")
-	if s1 == nil || len(s1.Dependencies) != 1 || s1.Dependencies[0] != "T0-01" {
-		t.Errorf("session T1-01 dependencies corrupted: %+v", s1)
-	}
-	if !strings.Contains(s1.Prompt, "SQLite vs BadgerDB") {
-		t.Errorf("session T1-01 prompt corrupted: %s", s1.Prompt)
+	if err := dag.RemoveSession("T0-01"); err == nil {
+		t.Error("expected an error removing T0-01, which T1-01 names as a dependency")
 	}
 }
 
@@ -260,7 +224,7 @@ func TestDAG_ToMermaid_And_ToStatusTable(t *testing.T) {
 		Sessions: []Session{
 			{ID: "T0-01", Title: "Landscape", Layer: 0},
 			{ID: "T1-01", Title: "Database", Layer: 1, Dependencies: []string{"T0-01"}},
-			{ID: "SYN-01", Title: "Synthesis", Layer: 2, Dependencies: []string{"T1-01"}},
+			{ID: "SYN-01", Title: "Synthesis", Layer: 2, Kind: SynthesisKind, Dependencies: []string{"T1-01"}},
 		},
 	}
 
@@ -281,7 +245,7 @@ func TestDAG_ToMermaid_And_ToStatusTable(t *testing.T) {
 	if !strings.Contains(mermaid, "style T1-01 fill:#f59e0b") {
 		t.Errorf("expected ready amber style for T1-01")
 	}
-	// SYN-01 is synthesis -> blue
+	// SYN-01 is the kind: synthesis session -> blue
 	if !strings.Contains(mermaid, "style SYN-01 fill:#3b82f6") {
 		t.Errorf("expected synthesis blue style for SYN-01")
 	}

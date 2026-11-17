@@ -18,34 +18,30 @@ func plural(n int) string {
 	return "s"
 }
 
-// GateInput defines the input parameters for vivechak_gate.
+// GateInput defines the canonical input parameters for vivechak_gate.
 type GateInput struct {
-	ProjectRoot string `json:"project_root,omitempty" jsonschema:"root directory of the project (defaults to working directory)"`
-	Verbose     bool   `json:"verbose,omitempty"       jsonschema:"if true, return full gate details instead of summary"`
-	Track       string `json:"track,omitempty"         jsonschema:"optional track filter ('track_a', 'track_b', or 'all')"`
+	ProjectRoot string `json:"project_root,omitempty"`
+	Decision    string `json:"decision,omitempty"`
+	Track       string `json:"track,omitempty"`
+	Verbose     bool   `json:"verbose,omitempty"`
 }
 
-// RunGateInput provides backward compatibility for unit tests calling handleRunGate.
-type RunGateInput = GateInput
-
 func registerGate(server *sdkmcp.Server) {
-	sdkmcp.AddTool(server,
-		&sdkmcp.Tool{
-			Name:  "vivechak_gate",
-			Title: "Run Phase 0 Exit Gate",
-			Description: "Mechanically evaluate Phase 0 pre-coding exit criteria across Track A (Two-Way Doors) and Track B (One-Way Doors). " +
-				"Evaluates structural pipeline completeness, FAD compilation, evidence grades, ADR lock status, and adversarial stress-testing. " +
-				"Persists research/PHASE-0-GATE.md preserving human sign-offs. " +
-				"Must PASS before codebase implementation begins.",
-			Annotations: &sdkmcp.ToolAnnotations{
-				ReadOnlyHint:    false,
-				IdempotentHint:  false,
-				DestructiveHint: BoolPtr(true),
-				OpenWorldHint:   BoolPtr(false),
-			},
+	registerTool(server, ToolSpec{
+		Name:        "vivechak_gate",
+		Description: "Evaluate Phase 0 exit criteria (G1-G12) for the workspace or one ADR and write PHASE-0-GATE.md (one-way needs vck signoff).",
+		Annotations: &sdkmcp.ToolAnnotations{
+			ReadOnlyHint:    false,
+			IdempotentHint:  false,
+			DestructiveHint: BoolPtr(true),
 		},
-		handleGate,
-	)
+		Params: []ParamSpec{
+			{Name: "decision", Type: "string", Description: "D-ID", Doc: "Specific decision ID to evaluate (e.g. D-001)."},
+			{Name: "track", Type: "string", Enum: []string{"all", "track_a", "track_b"}, Doc: "Track filter: all (default), track_a, or track_b."},
+			{Name: "verbose", Type: "boolean", Doc: "Include verbose rule diagnostics."},
+			{Name: "project_root", Type: "string", Doc: "Absolute path to the target project directory."},
+		},
+	}, handleGate)
 }
 
 func handleGate(ctx context.Context, req *sdkmcp.CallToolRequest, in GateInput) (*sdkmcp.CallToolResult, Envelope, error) {
@@ -61,12 +57,12 @@ func handleGate(ctx context.Context, req *sdkmcp.CallToolRequest, in GateInput) 
 	}
 
 	if !core.WorkspaceExists(root) {
-		return ErrorResult(tool, fmt.Errorf("workspace not initialized at %s", root), "Run vivechak_start first.")
+		return ErrorResult(tool, fmt.Errorf("E-NOT-INITIALIZED: workspace not initialized at %s", root), "Run vivechak_start first.")
 	}
 
 	ws, err := store.OpenWorkspace(root)
 	if err != nil {
-		return ErrorResult(tool, fmt.Errorf("opening workspace: %w", err), "Provide a valid workspace.")
+		return ErrorResult(tool, fmt.Errorf("E-IO: opening workspace: %w", err), "Provide a valid workspace.")
 	}
 	defer ws.Close()
 
@@ -75,12 +71,25 @@ func handleGate(ctx context.Context, req *sdkmcp.CallToolRequest, in GateInput) 
 		trackFilter = "all"
 	}
 	if trackFilter != "track_a" && trackFilter != "track_b" && trackFilter != "all" {
-		return ErrorResult(tool, fmt.Errorf("invalid track filter %q: must be 'track_a', 'track_b', or 'all'", in.Track),
+		return ErrorResult(tool, fmt.Errorf("E-INVALID-ARGUMENT: invalid track filter %q: must be 'track_a', 'track_b', or 'all'", in.Track),
 			"Specify 'track_a', 'track_b', or omit for all.")
 	}
 
+	var rawWarnings []string
+	targetDecision := strings.TrimSpace(in.Decision)
+	if targetDecision != "" {
+		if resolved, mapped, idErr := resolvePlaceholderRef(sessionOf(req), ws, root, targetDecision, true); idErr != nil {
+			return ErrorResult(tool, idErr, placeholderRefFix)
+		} else if mapped {
+			rawWarnings = append(rawWarnings, fmt.Sprintf("W-ID-ALLOCATED: decision %s resolved to %s", targetDecision, resolved))
+			targetDecision = resolved
+		} else {
+			targetDecision = core.NormalizeDecisionID(targetDecision)
+		}
+	}
+
 	info := core.InspectWorkspace(root)
-	gateResult := core.EvaluateGate(ws, info, root)
+	gateResult := core.EvaluateGateWithTarget(ws, info, root, targetDecision)
 
 	pass := gateResult.Passed
 	verdict := gateResult.Verdict
@@ -101,13 +110,12 @@ func handleGate(ctx context.Context, req *sdkmcp.CallToolRequest, in GateInput) 
 		}
 	}
 
-	trackAResult := "FAIL"
-	if gateResult.TrackAChecks.Passed {
-		trackAResult = "PASS"
-	}
-	trackBResult := "FAIL"
-	if gateResult.TrackBChecks.Passed {
-		trackBResult = "PASS"
+	listedRules := make([]core.GateRuleResult, 0, len(gateResult.Rules))
+	for _, r := range gateResult.Rules {
+		if (trackFilter == "track_a" && r.ID != "G12") || (trackFilter == "track_b" && r.ID == "G12") {
+			continue
+		}
+		listedRules = append(listedRules, r)
 	}
 
 	data := map[string]any{
@@ -119,25 +127,23 @@ func handleGate(ctx context.Context, req *sdkmcp.CallToolRequest, in GateInput) 
 		"scope":             info.Scope,
 		"verdict":           verdict,
 		"target":            gateResult.Target,
-		"rules":             gateResult.Rules,
+		"rules":             listedRules,
 		"advisories":        gateResult.Advisories,
 		"decisions":         gateResult.Decisions,
-		"gate_passed":       pass,
-		"gate_status":       verdict,
 		"track_filter":      trackFilter,
-		"track_a_result":    trackAResult,
-		"track_b_result":    trackBResult,
 		"track_a":           gateResult.TrackAChecks,
 		"structural_checks": gateResult.StructuralChecks,
 		"scope_note":        "Evidence grades and verification labels are as reported by the agent; Vivechak did not fetch or verify sources.",
 	}
 
-	warnings := gateResult.Warnings
-	warnings = append(warnings, gateResult.Advisories...)
-	warnings = append(warnings, gateResult.TrackBChecks.Issues...)
-	warnings = append(warnings, gateResult.StructuralChecks.Issues...)
-	if gateResult.Verdict == "not_applicable" || info.Scope == core.ScopeComparison {
-		warnings = append(warnings, "Comparison scope: zero gate requirements. Proceed to implementation.")
+	rawWarnings = append(rawWarnings, gateResult.Warnings...)
+	rawWarnings = append(rawWarnings, gateResult.Advisories...)
+	rawWarnings = append(rawWarnings, gateResult.TrackBChecks.Issues...)
+	rawWarnings = append(rawWarnings, gateResult.StructuralChecks.Issues...)
+
+	warnings := ParseWarnings(rawWarnings)
+	if gateResult.Verdict == "not_applicable" {
+		warnings = append(warnings, NewWarning("W-CMP-GATE-NA", "Comparison scope: zero gate requirements. Proceed to implementation.", ""))
 	}
 
 	if gateResult.Verdict != "not_applicable" {
@@ -151,7 +157,7 @@ func handleGate(ctx context.Context, req *sdkmcp.CallToolRequest, in GateInput) 
 			mergedContent := core.MergeGateArtifactContent(existingGate, gateContent)
 			_ = ws.MkdirAll(core.ResearchDir, 0o755)
 			if writeErr := store.WriteFileAtomic(ws.Root(), core.GateFile, mergedContent, 0o644); writeErr != nil {
-				warnings = append(warnings, fmt.Sprintf("W-GATE-WRITE: failed to write gate artifact: %v", writeErr))
+				warnings = append(warnings, NewWarning("W-GATE-WRITE", fmt.Sprintf("failed to write gate artifact: %v", writeErr), ""))
 			} else {
 				data["gate_artifact"] = core.GateFile
 			}
@@ -160,34 +166,65 @@ func handleGate(ctx context.Context, req *sdkmcp.CallToolRequest, in GateInput) 
 
 	if !pass {
 		var failingRules []string
-		for _, r := range gateResult.Rules {
+		nextTool := "vivechak_status"
+		nextArgs := map[string]any{"format": "summary"}
+		for _, r := range listedRules {
 			if r.Status == "FAIL" {
 				failingRules = append(failingRules, fmt.Sprintf("%s: %s", r.ID, r.Reason))
+				if nextTool == "vivechak_status" {
+					switch r.ID {
+					case "G1":
+						nextTool = "vivechak_save"
+						nextArgs = map[string]any{"kind": "plan"}
+					case "G2":
+						nextTool = "vivechak_next"
+						nextArgs = map[string]any{}
+					case "G3":
+						nextTool = "vivechak_save"
+						nextArgs = map[string]any{"kind": "fad"}
+					case "G4", "G5", "G8", "G9", "G12":
+						nextTool = "vivechak_record_decision"
+						did := "D-NEW"
+						if len(gateResult.Decisions) > 0 {
+							did = gateResult.Decisions[0].ID
+						}
+						nextArgs = map[string]any{"id": did, "revise": true}
+					case "G6", "G7", "G10":
+						nextTool = "vivechak_review"
+						did := "D-001"
+						if len(gateResult.Decisions) > 0 {
+							did = gateResult.Decisions[0].ID
+						}
+						nextArgs = map[string]any{"mode": "red_team", "id": did}
+					}
+				}
+			}
+		}
+		if len(failingRules) == 0 && trackFilter == "track_a" && len(gateResult.TrackAChecks.Issues) > 0 {
+			failingRules = append(failingRules, gateResult.TrackAChecks.Issues...)
+			if info.Scope == core.ScopeProject {
+				nextTool = "vivechak_save"
+				nextArgs = map[string]any{"kind": "plan"}
 			}
 		}
 		issueCount := len(failingRules)
-		msg := fmt.Sprintf("❌ PHASE 0 GATE FAILED (%d failing rule%s). Implementation is strictly prohibited until resolved.", issueCount, plural(issueCount))
+		msg := fmt.Sprintf("Phase 0 Gate: FAIL (%d failing rule%s). Implementation is prohibited until resolved.", issueCount, plural(issueCount))
 		switch trackFilter {
 		case "track_a":
-			msg = fmt.Sprintf("❌ Phase 0 Gate: Track A requirements not met (%d failing rule%s). Implementation is strictly prohibited until resolved.", issueCount, plural(issueCount))
+			msg = fmt.Sprintf("Phase 0 Gate: Track A FAIL (%d failing rule%s). Implementation is prohibited until resolved.", issueCount, plural(issueCount))
 		case "track_b":
-			msg = fmt.Sprintf("❌ Phase 0 Gate: Track B requirements not met (%d failing rule%s). Implementation is strictly prohibited until resolved.", issueCount, plural(issueCount))
-		}
-		nextStep := "⛔ DO NOT PROCEED TO CODE. Phase 0 Gate failed: resolve all failing rules above before beginning implementation."
-		if gateResult.NextStep != "" {
-			nextStep = fmt.Sprintf("⛔ DO NOT PROCEED TO CODE. %s", gateResult.NextStep)
+			msg = fmt.Sprintf("Phase 0 Gate: Track B FAIL (%d failing rule%s). Implementation is prohibited until resolved.", issueCount, plural(issueCount))
 		}
 		env := Envelope{
 			Ok:       true,
-			Success:  true,
 			Message:  msg,
 			Data:     data,
 			Warnings: warnings,
 			Next: &NextAction{
-				Why: fmt.Sprintf("DO NOT START IMPLEMENTATION. Resolve %d failing rule(s): %s", issueCount, strings.Join(failingRules, "; ")),
+				Tool: nextTool,
+				Args: nextArgs,
+				Why:  fmt.Sprintf("DO NOT START IMPLEMENTATION. Resolve %d failing rule(s): %s", issueCount, strings.Join(failingRules, "; ")),
 			},
-			NextStep: nextStep,
-			Meta:     NewMeta(tool),
 		}
 		return env.ToResult()
 	}
@@ -195,36 +232,33 @@ func handleGate(ctx context.Context, req *sdkmcp.CallToolRequest, in GateInput) 
 	if gateResult.Verdict == "not_applicable" {
 		env := Envelope{
 			Ok:       true,
-			Success:  true,
 			Message:  "Phase 0 Gate: not applicable (Comparison scope only; no architecture gate required).",
 			Data:     data,
 			Warnings: warnings,
 			Next: &NextAction{
-				Why: "Comparison scope complete. WEP matrix generated. Proceed to implementation.",
+				Tool: "vivechak_status",
+				Args: map[string]any{"format": "summary"},
+				Why:  "Comparison scope complete. WEP matrix generated. Proceed to implementation.",
 			},
-			NextStep: gateResult.NextStep,
-			Meta:     NewMeta(tool),
 		}
 		return env.ToResult()
 	}
 
-	// PASS
+	// PASS: gateResult.NextStep already begins with "Phase 0 Gate: PASS." — do not repeat it (HIGH-06).
+	passMsg := gateResult.NextStep
+	if !strings.HasPrefix(passMsg, "Phase 0 Gate: PASS") {
+		passMsg = "Phase 0 Gate: PASS. " + passMsg
+	}
 	env := Envelope{
 		Ok:       true,
-		Success:  true,
-		Message:  fmt.Sprintf("Phase 0 Gate: PASS. %s", gateResult.NextStep),
+		Message:  passMsg,
 		Data:     data,
 		Warnings: warnings,
 		Next: &NextAction{
-			Why: gateResult.NextStep,
+			Tool: "vivechak_status",
+			Args: map[string]any{"format": "summary"},
+			Why:  passMsg,
 		},
-		NextStep: gateResult.NextStep,
-		Meta:     NewMeta(tool),
 	}
 	return env.ToResult()
-}
-
-// handleRunGate provides backward compatibility for unit tests calling handleRunGate.
-func handleRunGate(ctx context.Context, req *sdkmcp.CallToolRequest, in RunGateInput) (*sdkmcp.CallToolResult, Envelope, error) {
-	return handleGate(ctx, req, in)
 }

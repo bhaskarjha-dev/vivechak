@@ -194,7 +194,6 @@ func TestResolveWorkspace_And_Exists(t *testing.T) {
 	}
 
 	// 4. Failure when not found
-	SetLastResolvedWorkspace("")
 	emptyDir := t.TempDir()
 	if err := os.Chdir(emptyDir); err != nil {
 		t.Fatal(err)

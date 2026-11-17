@@ -17,50 +17,34 @@ import (
 	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-// StartInput holds the arguments for vivechak_start.
+// StartInput holds the canonical arguments for vivechak_start.
 type StartInput struct {
-	ProjectRoot string   `json:"project_root,omitempty" jsonschema:"workspace root path (optional; auto-discovered if omitted)"`
-	Scope       string   `json:"scope,omitempty"        jsonschema:"research scope: 'comparison' (comparing 2-5 options) | 'decision' (single architectural decision/ADR) | 'project' (full system architecture pipeline)"`
-	Question    string   `json:"question,omitempty"     jsonschema:"the technical dilemma, comparison options, or project vision"`
-	Context     string   `json:"context,omitempty"      jsonschema:"additional project context, constraints, or architecture brief (alias for question)"`
-	Options     []string `json:"options,omitempty"      jsonschema:"optional list of named options to compare (e.g. ['Pino', 'Winston'])"`
-	Criteria    string   `json:"criteria,omitempty"     jsonschema:"optional key evaluation criteria or constraints"`
-	Part        int      `json:"part,omitempty"         jsonschema:"optional 1-based part index for multi-part delivery of large project briefs"`
-}
-
-// InitInput provides backward compatibility for unit tests calling handleInit.
-type InitInput struct {
-	ProjectRoot string `json:"project_root,omitempty"`
-	Scope       string `json:"scope,omitempty"`
-}
-
-// PrepareGeneratorInput provides backward compatibility for unit tests calling handlePrepareGenerator.
-type PrepareGeneratorInput struct {
-	ProjectRoot string `json:"project_root,omitempty"`
-	Scope       string `json:"scope,omitempty"`
-	Context     string `json:"context,omitempty"`
+	ProjectRoot string   `json:"project_root,omitempty"`
+	Scope       string   `json:"scope"`
+	Question    string   `json:"question"`
+	Options     []string `json:"options,omitempty"`
+	Criteria    string   `json:"criteria,omitempty"`
+	Part        int      `json:"part,omitempty"`
 }
 
 func registerStart(server *sdkmcp.Server) {
-	sdkmcp.AddTool(server,
-		&sdkmcp.Tool{
-			Name:  "vivechak_start",
-			Title: "Start Research Workspace & Brief",
-			Description: "Entry point for all Vivechak operations. Initializes research workspace in the user's project " +
-				"and returns an executable research brief with an allocated identifier. " +
-				"Scopes: 'comparison' (rapid evaluation between 2-5 options -> WEP matrix), " +
-				"'decision' (architectural decision in an active codebase -> ADR), " +
-				"or 'project' (greenfield architecture -> full session DAG pipeline). " +
-				"Pass the user's technical dilemma or options as 'question'.",
-			Annotations: &sdkmcp.ToolAnnotations{
-				ReadOnlyHint:    false,
-				IdempotentHint:  false,
-				DestructiveHint: BoolPtr(true),
-				OpenWorldHint:   BoolPtr(false),
-			},
+	registerTool(server, ToolSpec{
+		Name:        "vivechak_start",
+		Description: "Start technical research (comparison, decision, or project). Returns a research brief to run with web search and an ID. Not for coding.",
+		Annotations: &sdkmcp.ToolAnnotations{
+			ReadOnlyHint:    false,
+			IdempotentHint:  false,
+			DestructiveHint: BoolPtr(true),
 		},
-		handleStart,
-	)
+		Params: []ParamSpec{
+			{Name: "scope", Type: "string", Enum: []string{"comparison", "decision", "project"}, Required: true, Doc: "Research scope: comparison (2-5 options), decision (ADR), or project (pipeline -> FAD)."},
+			{Name: "question", Type: "string", Required: true, Description: "Choice or vision", Doc: "Technical dilemma, options to compare, or project vision."},
+			{Name: "options", Type: "array", ItemType: "string", Doc: "Named options for comparison scope."},
+			{Name: "criteria", Type: "string", Doc: "Optional evaluation criteria or constraints."},
+			{Name: "part", Type: "integer", Description: "Brief part", Doc: "1-based part index for multi-part project briefs."},
+			{Name: "project_root", Type: "string", Doc: "Absolute path to the target project directory."},
+		},
+	}, handleStart)
 }
 
 func handleStart(ctx context.Context, req *sdkmcp.CallToolRequest, in StartInput) (*sdkmcp.CallToolResult, Envelope, error) {
@@ -73,22 +57,12 @@ func handleStart(ctx context.Context, req *sdkmcp.CallToolRequest, in StartInput
 	root, rule, err := core.ResolveWorkspaceWithRoots(ctx, in.ProjectRoot, roots)
 	if err != nil {
 		if in.ProjectRoot == "" {
-			if cwd, cwdErr := os.Getwd(); cwdErr == nil && core.SafeRoot(cwd) == nil && !core.IsSystemOrAppDir(cwd) {
-				root = cwd
-				rule = "cwd"
-				core.SetLastResolvedWorkspace(cwd)
-			} else {
-				return ErrorResult(tool, err, "Pass project_root explicitly with your target project directory path.")
-			}
-		} else {
-			return ErrorResult(tool, err, "Pass a valid project_root directory path.")
+			return ErrorResult(tool, err, "Pass project_root=<absolute path of the user's project> explicitly.")
 		}
+		return ErrorResult(tool, err, "Pass a valid project_root directory path.")
 	}
 
 	question := strings.TrimSpace(in.Question)
-	if question == "" && strings.TrimSpace(in.Context) != "" {
-		question = strings.TrimSpace(in.Context)
-	}
 
 	rawScope := strings.ToLower(strings.TrimSpace(in.Scope))
 	if rawScope == "" {
@@ -100,41 +74,71 @@ func handleStart(ctx context.Context, req *sdkmcp.CallToolRequest, in StartInput
 	}
 	scope, ok := core.ScopeFromString(rawScope)
 	if !ok {
-		return ErrorResult(tool, fmt.Errorf("invalid scope %q", in.Scope),
-			"Provide 'scope': 'comparison' (comparing 2-5 options), 'decision' (single decision/ADR), or 'project' (full research pipeline).")
+		return ErrorResult(tool, fmt.Errorf("E-INVALID-ARGUMENT: invalid scope %q", in.Scope),
+			"Provide scope: 'comparison', 'decision', or 'project'.")
 	}
 
 	ws, err := store.OpenWorkspace(root)
 	if err != nil {
-		return ErrorResult(tool, fmt.Errorf("opening workspace %q: %w", root, err),
+		return ErrorResult(tool, fmt.Errorf("E-IO: opening workspace %q: %w", root, err),
 			"Ensure workspace directory is accessible.")
 	}
 	defer ws.Close()
 
-	core.SetLastResolvedWorkspace(root)
+	// If a project pipeline already exists and no explicit part was requested, return its status instead of a fresh planning brief (HIGH-06).
+	if scope == core.ScopeProject && in.Part == 0 && ws.FileExists(core.PipelineFile) {
+		if pipeData, rErr := ws.ReadFile(core.PipelineFile); rErr == nil && len(strings.TrimSpace(string(pipeData))) > 0 {
+			dag, pErr := core.ParsePipeline(pipeData)
+			totalSessions := 0
+			completedCount := 0
+			if pErr == nil && dag != nil {
+				totalSessions = len(dag.Sessions)
+				completedIDs, _ := dag.CompletedSessions(ws)
+				completedCount = len(completedIDs)
+			}
+			hasFAD := false
+			if _, sErr := os.Stat(filepath.Join(root, core.FADFile)); sErr == nil {
+				hasFAD = true
+			}
+			nextTool := "vivechak_next"
+			nextWhy := "Pipeline already exists. Call vivechak_next to execute the next ready session."
+			if hasFAD && totalSessions > 0 && completedCount == totalSessions {
+				nextTool = "vivechak_gate"
+				nextWhy = "All pipeline sessions and FAD.md exist. Call vivechak_gate to verify Phase 0 exit criteria."
+			}
+			env := Envelope{
+				Ok:      true,
+				Message: fmt.Sprintf("Project pipeline already exists at %s (%d/%d sessions completed).", core.PipelineFile, completedCount, totalSessions),
+				Data: map[string]any{
+					"workspace":          map[string]any{"root": root, "rule": rule},
+					"workspace_root":     root,
+					"scope":              scope,
+					"initialized":        true,
+					"existing_pipeline":  true,
+					"pipeline_file":      core.PipelineFile,
+					"total_sessions":     totalSessions,
+					"completed_sessions": completedCount,
+					"has_fad":            hasFAD,
+				},
+				Next: &NextAction{
+					Tool: nextTool,
+					Args: map[string]any{},
+					Why:  nextWhy,
+				},
+			}
+			return env.ToResult()
+		}
+	}
 
-	// Initialize workspace directory structure
 	dirs := []string{
 		core.ResearchDir,
 		core.SessionsDir,
-		core.TemplatesDir,
 	}
 	for _, dir := range dirs {
 		if err := ws.MkdirAll(dir, 0o755); err != nil {
-			return ErrorResult(tool, fmt.Errorf("creating %s: %w", dir, err),
+			return ErrorResult(tool, fmt.Errorf("E-IO: creating %s: %w", dir, err),
 				"Check filesystem permissions and try again.")
 		}
-	}
-
-	var tmplsCopied []string
-	for _, tmpl := range core.TemplatesForScope(scope) {
-		relPath := filepath.Join(core.TemplatesDir, tmpl)
-		if !ws.FileExists(relPath) {
-			if tmplBytes, err := vembed.ReadTemplate(tmpl); err == nil {
-				_ = store.WriteFileAtomic(ws.Root(), relPath, tmplBytes, 0o644)
-			}
-		}
-		tmplsCopied = append(tmplsCopied, tmpl)
 	}
 
 	gitignoreRel := filepath.Join(core.ResearchDir, ".gitignore")
@@ -159,7 +163,6 @@ func handleStart(ctx context.Context, req *sdkmcp.CallToolRequest, in StartInput
 				if existingMeta.Counters != nil {
 					meta.Counters = existingMeta.Counters
 				}
-				// Preserve existing Project or Decision scope if a comparison is started in an active workspace (CRIT-12)
 				if existingMeta.Scope == core.ScopeProject || existingMeta.Scope == core.ScopeDecision {
 					meta.Scope = existingMeta.Scope
 				}
@@ -176,10 +179,9 @@ func handleStart(ctx context.Context, req *sdkmcp.CallToolRequest, in StartInput
 			"root": root,
 			"rule": rule,
 		},
-		"workspace_root":   root,
-		"scope":            scope,
-		"initialized":      true,
-		"templates_copied": tmplsCopied,
+		"workspace_root": root,
+		"scope":          scope,
+		"initialized":    true,
 	}
 
 	genFile := core.GeneratorFile(scope)
@@ -227,6 +229,7 @@ func handleStart(ctx context.Context, req *sdkmcp.CallToolRequest, in StartInput
 						placeholderContextDecision := "CONTEXT: [what's being built; workload, team, constraints, what's already decided]"
 						placeholderContextComparison := "CONTEXT: [what's being built, compared, or decided; workload, requirements, team, constraints, stage]"
 						placeholderOptions := "OPTIONS: [2-5 named options]"
+						placeholderCriteria := "CRITERIA: [optional; weights if known]"
 
 						newBlock := blockContent
 						switch scope {
@@ -245,6 +248,9 @@ func handleStart(ctx context.Context, req *sdkmcp.CallToolRequest, in StartInput
 								if opts != "" {
 									newBlock = strings.Replace(newBlock, placeholderOptions, "OPTIONS: "+opts, 1)
 								}
+							}
+							if strings.TrimSpace(in.Criteria) != "" && strings.Contains(newBlock, placeholderCriteria) {
+								newBlock = strings.Replace(newBlock, placeholderCriteria, "CRITERIA: "+strings.TrimSpace(in.Criteria), 1)
 							}
 						}
 
@@ -277,7 +283,7 @@ func handleStart(ctx context.Context, req *sdkmcp.CallToolRequest, in StartInput
 
 	if in.Part > 0 {
 		if in.Part > totalParts {
-			return ErrorResult(tool, fmt.Errorf("invalid part %d: brief has %d total parts", in.Part, totalParts),
+			return ErrorResult(tool, fmt.Errorf("E-INVALID-ARGUMENT: invalid part %d: brief has %d total parts", in.Part, totalParts),
 				fmt.Sprintf("Request a part between 1 and %d.", totalParts))
 		}
 		currentPart = in.Part
@@ -290,7 +296,6 @@ func handleStart(ctx context.Context, req *sdkmcp.CallToolRequest, in StartInput
 	}
 
 	data["brief"] = activeBrief
-	data["prompt"] = activeBrief
 	data["part"] = currentPart
 	data["total_parts"] = totalParts
 	data["has_more"] = hasMore
@@ -306,11 +311,13 @@ func handleStart(ctx context.Context, req *sdkmcp.CallToolRequest, in StartInput
 	case core.ScopeComparison:
 		cid, allocErr := store.AllocateID(ws, "C")
 		if allocErr != nil {
-			return ErrorResult(tool, fmt.Errorf("allocating comparison ID: %w", allocErr), "Ensure research/.vivechak.json is accessible.")
+			return ErrorResult(tool, fmt.Errorf("E-IO: allocating comparison ID: %w", allocErr), "Ensure research/.vivechak.json is accessible.")
+		}
+		if st := stateForSession(sessionOf(req)); st != nil {
+			st.reserveID(root, "C", cid)
 		}
 		data["id"] = cid
 
-		// Format comparison brief for direct execution (HIGH-05)
 		metaInstruction := "From the context block, output a SCOPE CHECK line, then ONE research prompt in a `prompt` code fence: fill {slots} ({a | b} = pick one; {filename} = {ID}-cmp-{slug}.md), keep the rest verbatim. No plan, ADR, personas, search queries or search-count minimums."
 		directInstruction := "Execute this evidence-calibrated research brief with live web search to compare the options below and produce the Weighted Evaluation Protocol (WEP) matrix. Do not output a prompt template; execute the comparison research directly."
 		if strings.Contains(activeBrief, metaInstruction) {
@@ -322,7 +329,6 @@ func handleStart(ctx context.Context, req *sdkmcp.CallToolRequest, in StartInput
 		activeBrief = strings.Replace(activeBrief, "ID: [optional; default C-01]", fmt.Sprintf("ID: %s (persisted to research/%s-comparison.md)", cid, cid), 1)
 		activeBrief = strings.Replace(activeBrief, "{filename} = {ID}-cmp-{slug}.md", fmt.Sprintf("filename = research/%s-comparison.md", cid), 1)
 		data["brief"] = activeBrief
-		data["prompt"] = activeBrief
 
 		options := in.Options
 		if len(options) == 0 && question != "" {
@@ -349,24 +355,24 @@ func handleStart(ctx context.Context, req *sdkmcp.CallToolRequest, in StartInput
 		next = &NextAction{
 			Tool: "vivechak_save",
 			Args: map[string]any{
-				"kind":    "comparison",
-				"id":      cid,
-				"content": "<matrix markdown>",
+				"kind": "comparison",
+				"id":   cid,
 			},
-			Why: fmt.Sprintf("Run web search to evaluate %s, then save the WEP comparison matrix using vivechak_save (kind='comparison', id='%s', content=...). Do NOT write to local artifact/brain files or external paths first.", optsStr, cid),
+			Why: fmt.Sprintf("Run web search to evaluate %s, then save the WEP comparison matrix using vivechak_save(kind=\"comparison\", id=%q, content=...).", optsStr, cid),
 		}
 
 	case core.ScopeDecision:
 		did, allocErr := store.AllocateID(ws, "D")
 		if allocErr != nil {
-			return ErrorResult(tool, fmt.Errorf("allocating decision ID: %w", allocErr), "Ensure research/.vivechak.json is accessible.")
+			return ErrorResult(tool, fmt.Errorf("E-IO: allocating decision ID: %w", allocErr), "Ensure research/.vivechak.json is accessible.")
+		}
+		if st := stateForSession(sessionOf(req)); st != nil {
+			st.reserveID(root, "D", did)
 		}
 		data["id"] = did
 
-		// Format decision brief with allocated ID (HIGH-15)
 		activeBrief = strings.Replace(activeBrief, "IDS: [optional: decision ID (default D-NEW), session prefix]", fmt.Sprintf("IDS: %s (session prefix %s-S)", did, did), 1)
 		data["brief"] = activeBrief
-		data["prompt"] = activeBrief
 
 		topic := question
 		if topic == "" {
@@ -375,12 +381,13 @@ func handleStart(ctx context.Context, req *sdkmcp.CallToolRequest, in StartInput
 
 		msg = fmt.Sprintf("Decision workspace initialized. Allocated ID %s for %s.", did, topic)
 		next = &NextAction{
-			Tool: "vivechak_record_decision",
+			Tool: "vivechak_save",
 			Args: map[string]any{
-				"decision_id": did,
-				"content":     "<ADR markdown>",
+				"kind":  "plan",
+				"scope": "decision",
+				"id":    did,
 			},
-			Why: fmt.Sprintf("Execute the brief with web search, then create the decision plan and ADR skeleton using vivechak_record_decision (decision_id='%s', content=...). Do NOT write to local artifact/brain files or external paths first.", did),
+			Why: fmt.Sprintf("Generate the decision plan from the brief and save it via vivechak_save(kind=\"plan\", id=%q, content=...).", did),
 		}
 
 	case core.ScopeProject:
@@ -395,51 +402,32 @@ func handleStart(ctx context.Context, req *sdkmcp.CallToolRequest, in StartInput
 			next = &NextAction{
 				Tool: "vivechak_start",
 				Args: map[string]any{
-					"scope": "project",
-					"part":  nextPart,
+					"scope":    "project",
+					"question": question,
+					"part":     nextPart,
 				},
 				Why: fmt.Sprintf("Retrieve part %d of %d of the project brief before generating the research pipeline DAG.", nextPart, totalParts),
 			}
 		} else {
-			msg = fmt.Sprintf("Project workspace initialized for %s. All 6 templates ready.", projName)
+			msg = fmt.Sprintf("Project workspace initialized for %s.", projName)
 			next = &NextAction{
 				Tool: "vivechak_save",
 				Args: map[string]any{
-					"kind":    "plan",
-					"content": "<RESEARCH-PIPELINE.md content>",
+					"kind":  "plan",
+					"scope": "project",
 				},
-				Why: "Decompose the project vision to generate your research pipeline DAG, then save via vivechak_save (kind='plan', content=...). Do NOT write to local artifact/brain files or workspace files outside research/. (For large Tier 2/3 pipelines where output exceeds single-turn token limits, you may assemble sections in internal scratch before passing to vivechak_save).",
+				Why: "Decompose the project vision into a research pipeline DAG and save it via vivechak_save(kind=\"plan\", content=...).",
 			}
 		}
 	}
 
 	env := Envelope{
-		Ok:       true,
-		Success:  true,
-		Message:  msg,
-		Data:     data,
-		Next:     next,
-		NextStep: next.Why,
-		Meta:     NewMeta(tool),
+		Ok:      true,
+		Message: msg,
+		Data:    data,
+		Next:    next,
 	}
 	return env.ToResult()
-}
-
-// handleInit provides backward compatibility for existing tests.
-func handleInit(ctx context.Context, req *sdkmcp.CallToolRequest, in InitInput) (*sdkmcp.CallToolResult, Envelope, error) {
-	return handleStart(ctx, req, StartInput{
-		ProjectRoot: in.ProjectRoot,
-		Scope:       in.Scope,
-	})
-}
-
-// handlePrepareGenerator provides backward compatibility for existing tests.
-func handlePrepareGenerator(ctx context.Context, req *sdkmcp.CallToolRequest, in PrepareGeneratorInput) (*sdkmcp.CallToolResult, Envelope, error) {
-	return handleStart(ctx, req, StartInput{
-		ProjectRoot: in.ProjectRoot,
-		Scope:       in.Scope,
-		Question:    in.Context,
-	})
 }
 
 var (
@@ -459,15 +447,12 @@ func extractComparisonOptions(ctx string) string {
 	left := strings.TrimSpace(ctx[:loc[0]])
 	right := strings.TrimSpace(ctx[loc[1]:])
 
-	// Strip leading comparison verbs
 	left = comparisonPrefixRe.ReplaceAllString(left, "")
 	left = strings.TrimSpace(left)
 
-	// Strip trailing prepositional context
 	right = comparisonSuffixRe.ReplaceAllString(right, "")
 	right = strings.TrimSpace(right)
 
-	// Normalize additional intermediate delimiters (e.g., A vs B vs C)
 	right = comparisonMidRe.ReplaceAllString(right, ", ")
 
 	left = strings.Trim(left, "?!.,:;")
@@ -478,7 +463,6 @@ func extractComparisonOptions(ctx string) string {
 	return ""
 }
 
-// splitBriefIntoParts partitions a large brief into clean parts at markdown section boundaries.
 func splitBriefIntoParts(prompt string, targetPartSize int) []string {
 	if len(prompt) <= targetPartSize {
 		return []string{prompt}

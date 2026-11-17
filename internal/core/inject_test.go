@@ -148,9 +148,11 @@ date: 2026-09-27
 Clerk recommended. B (docs)
 `), 0o644)
 
+	// A session named FAD gathers every finding because the plan marks it kind: synthesis, not because of its id.
 	sessionFAD := Session{
 		ID:     "FAD",
 		Title:  "Founding Architecture Document",
+		Kind:   SynthesisKind,
 		Prompt: "# FAD Synthesis\n\n[ALL_SESSION_FINDINGS]",
 	}
 
@@ -790,6 +792,7 @@ SQLite WAL + SQLCipher
 	synSession := Session{
 		ID:     "SYN-01",
 		Title:  "Synthesis",
+		Kind:   SynthesisKind,
 		Prompt: "# FAD Prompt\n\n[ALL_SESSION_FINDINGS]",
 	}
 	completed := map[string]bool{"R-01": true, "R-02": true, "R-03": true}

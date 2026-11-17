@@ -66,6 +66,94 @@ func parseEnvelope(t *testing.T, result *mcp.CallToolResult) Envelope {
 	return env
 }
 
+func envGuidance(env Envelope) string {
+	if env.Fix != "" {
+		return env.Fix
+	}
+	if env.Next != nil {
+		return env.Next.Why
+	}
+	return ""
+}
+
+func envWarningStrings(env Envelope) []string {
+	out := make([]string, len(env.Warnings))
+	for i, w := range env.Warnings {
+		out[i] = w.Code + ": " + w.Message
+	}
+	return out
+}
+
+func envWarningsJoined(env Envelope) string {
+	return strings.Join(envWarningStrings(env), "\n")
+}
+
+// redTeamRecordID makes the real red-team call, vivechak_review(mode="red_team", id=decisionID), over the MCP client
+// and returns the record_id it reports, after checking the challenge record it wrote. Gate tests cite this id in
+// the ADR instead of writing a record with a hash they compute themselves (CRIT-13).
+func redTeamRecordID(t *testing.T, ctx context.Context, cs *mcp.ClientSession, root, decisionID string) string {
+	t.Helper()
+	res, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "vivechak_review",
+		Arguments: map[string]any{"project_root": root, "mode": "red_team", "id": decisionID},
+	})
+	if err != nil {
+		t.Fatalf("vivechak_review red_team %s: %v", decisionID, err)
+	}
+	return checkRedTeamRecord(t, root, decisionID, parseEnvelope(t, res))
+}
+
+// redTeamRecordIDDirect is redTeamRecordID for tests that drive the tool handlers directly.
+func redTeamRecordIDDirect(t *testing.T, ctx context.Context, root, decisionID string) string {
+	t.Helper()
+	_, env, err := handleReview(ctx, nil, ReviewInput{ProjectRoot: root, Mode: "red_team", ID: decisionID})
+	if err != nil {
+		t.Fatalf("vivechak_review red_team %s: %v", decisionID, err)
+	}
+	return checkRedTeamRecord(t, root, decisionID, env)
+}
+
+func checkRedTeamRecord(t *testing.T, root, decisionID string, env Envelope) string {
+	t.Helper()
+	if !env.Ok {
+		t.Fatalf("vivechak_review red_team %s failed: %s", decisionID, env.Message)
+	}
+	raw, err := json.Marshal(env.Data)
+	if err != nil {
+		t.Fatalf("marshal red_team data: %v", err)
+	}
+	var data struct {
+		RecordID     string `json:"record_id"`
+		DecisionHash string `json:"decision_hash"`
+	}
+	if err := json.Unmarshal(raw, &data); err != nil || data.RecordID == "" || data.DecisionHash == "" {
+		t.Fatalf("vivechak_review red_team %s returned no record_id/decision_hash (err=%v): %s", decisionID, err, raw)
+	}
+	rec, err := os.ReadFile(filepath.Join(root, core.ResearchDir, data.RecordID+".md"))
+	if err != nil {
+		t.Fatalf("challenge record %s was not written: %v", data.RecordID, err)
+	}
+	if !strings.Contains(string(rec), "type: challenge") || !strings.Contains(string(rec), "decision_hash: "+data.DecisionHash) {
+		t.Fatalf("challenge record %s lacks type: challenge or the reported decision_hash:\n%s", data.RecordID, rec)
+	}
+	return data.RecordID
+}
+
+// recordDecisionRevise records or revises an ADR through vivechak_record_decision and fails the test if it is refused.
+func recordDecisionRevise(t *testing.T, ctx context.Context, cs *mcp.ClientSession, root, decisionID, content string) {
+	t.Helper()
+	res, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "vivechak_record_decision",
+		Arguments: map[string]any{"project_root": root, "id": decisionID, "content": content, "revise": true},
+	})
+	if err != nil {
+		t.Fatalf("record_decision %s: %v", decisionID, err)
+	}
+	if env := parseEnvelope(t, res); !env.Ok {
+		t.Fatalf("record_decision %s refused: %s", decisionID, env.Message)
+	}
+}
+
 // TestToolListing verifies all 9 consolidated tools are registered.
 func TestToolListing(t *testing.T) {
 	cs := testServer(t)
@@ -111,33 +199,108 @@ func TestToolListing(t *testing.T) {
 	}
 }
 
-// TestP4_ContextBudget verifies the server instructions and 9 tool schemas fit within 10 KB budget.
+// TestP4_ContextBudget verifies the HIGH-06 wire context budgets and schema invariants:
+// - ServerInstructions <= 900 bytes (and <= 600 per P4.4), no MANDATORY or ALWAYS
+// - tools/list <= 7168 bytes (7 KB), no outputSchema, required list present on all 9 tools, no alias params
+// - always-loaded context (instructions + tools/list + prompts/list + resources/list) <= 10240 bytes (10 KB)
+// - unknown argument ignored with W-UNKNOWN-ARG
 func TestP4_ContextBudget(t *testing.T) {
 	instructionsLen := len(ServerInstructions)
 	if instructionsLen > 600 {
 		t.Errorf("ServerInstructions length is %d, want <= 600", instructionsLen)
 	}
+	if strings.Contains(ServerInstructions, "MANDATORY") || strings.Contains(ServerInstructions, "ALWAYS") {
+		t.Errorf("ServerInstructions must not contain MANDATORY or ALWAYS")
+	}
 
 	cs := testServer(t)
 	ctx := context.Background()
 
-	var totalSchemaBytes int
-	for tool, err := range cs.Tools(ctx, nil) {
-		if err != nil {
-			t.Fatalf("listing tools: %v", err)
-		}
-		b, err := json.Marshal(tool)
-		if err != nil {
-			t.Fatalf("marshaling tool %s: %v", tool.Name, err)
-		}
-		t.Logf("Tool %-25s: %d bytes (desc: %d)", tool.Name, len(b), len(tool.Description))
-		totalSchemaBytes += len(b)
+	listToolsRes, err := cs.ListTools(ctx, nil)
+	if err != nil {
+		t.Fatalf("ListTools: %v", err)
+	}
+	toolsBytes, err := json.Marshal(listToolsRes)
+	if err != nil {
+		t.Fatalf("marshaling ListTools: %v", err)
 	}
 
-	totalBudget := instructionsLen + totalSchemaBytes
-	t.Logf("Context budget: instructions=%d bytes, schemas=%d bytes, total=%d bytes", instructionsLen, totalSchemaBytes, totalBudget)
-	if totalBudget > 20480 { // 20 KB ceiling (down from 35 KB with 13 tools)
-		t.Errorf("total context budget %d exceeds budget limit", totalBudget)
+	forbiddenAliases := map[string][]string{
+		"vivechak_start":           {"context"},
+		"vivechak_save":            {"session_id", "decision_id", "pipeline_content"},
+		"vivechak_record_decision": {"decision_id"},
+		"vivechak_next":            {"id"},
+		"vivechak_status":          {"root"},
+		"vivechak_review":          {"target", "session_id", "decision_id", "challenge_type"},
+		"vivechak_amend":           {"session_id", "target", "amendment", "content", "append_content", "append"},
+		"vivechak_replan":          {"operation", "new_prompt", "new_dependencies"},
+	}
+
+	for _, tool := range listToolsRes.Tools {
+		if tool.OutputSchema != nil {
+			t.Errorf("%s must not carry outputSchema", tool.Name)
+		}
+		if len(tool.Description) > 350 {
+			t.Errorf("%s description length %d > 350", tool.Name, len(tool.Description))
+		}
+		if strings.Contains(tool.Description, "MANDATORY") || strings.Contains(tool.Description, "ALWAYS") {
+			t.Errorf("%s description contains MANDATORY or ALWAYS", tool.Name)
+		}
+		rawSchema, _ := json.Marshal(tool.InputSchema)
+		var schemaMap map[string]any
+		_ = json.Unmarshal(rawSchema, &schemaMap)
+		if _, hasReq := schemaMap["required"]; !hasReq {
+			t.Errorf("%s inputSchema missing required list", tool.Name)
+		}
+		props, _ := schemaMap["properties"].(map[string]any)
+		for _, alias := range forbiddenAliases[tool.Name] {
+			if _, exists := props[alias]; exists {
+				t.Errorf("%s inputSchema still exposes removed alias %q", tool.Name, alias)
+			}
+		}
+		for pname, pval := range props {
+			if pm, ok := pval.(map[string]any); ok {
+				if desc, _ := pm["description"].(string); len(desc) > 100 {
+					t.Errorf("%s.%s description length %d > 100", tool.Name, pname, len(desc))
+				}
+			}
+		}
+	}
+
+	promptsRes, err := cs.ListPrompts(ctx, nil)
+	if err != nil {
+		t.Fatalf("ListPrompts: %v", err)
+	}
+	promptsBytes, _ := json.Marshal(promptsRes)
+
+	resourcesRes, err := cs.ListResources(ctx, nil)
+	if err != nil {
+		t.Fatalf("ListResources: %v", err)
+	}
+	resourcesBytes, _ := json.Marshal(resourcesRes)
+
+	// Account for Python json.dumps ", " and ": " spacing (~8% larger than compact json.Marshal) by keeping strict headroom.
+	if len(toolsBytes) > 7168 {
+		t.Errorf("tools/list size %d exceeds 7 KB (7168 bytes)", len(toolsBytes))
+	}
+	alwaysLoaded := instructionsLen + len(toolsBytes) + len(promptsBytes) + len(resourcesBytes)
+	t.Logf("Context budget (compact): instructions=%d, tools/list=%d, prompts/list=%d, resources/list=%d, always_loaded=%d",
+		instructionsLen, len(toolsBytes), len(promptsBytes), len(resourcesBytes), alwaysLoaded)
+	if alwaysLoaded > 10240 {
+		t.Errorf("always-loaded context %d exceeds 10 KB (10240 bytes)", alwaysLoaded)
+	}
+
+	// Verify unknown argument emits W-UNKNOWN-ARG without failing
+	extraRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "vivechak_status",
+		Arguments: map[string]any{"project_root": t.TempDir(), "bogus_extra": 1},
+	})
+	if err != nil || extraRes.IsError {
+		t.Fatalf("vivechak_status(bogus_extra=1) failed: err=%v, isError=%v", err, extraRes.IsError)
+	}
+	extraEnv := parseEnvelope(t, extraRes)
+	if !strings.Contains(envWarningsJoined(extraEnv), "W-UNKNOWN-ARG") {
+		t.Errorf("expected W-UNKNOWN-ARG on extra argument, got warnings=%v", extraEnv.Warnings)
 	}
 }
 
@@ -262,10 +425,10 @@ func TestStatusNoWorkspace(t *testing.T) {
 	}
 
 	env := parseEnvelope(t, result)
-	if !env.Success {
+	if !env.Ok {
 		t.Error("status should succeed even without workspace")
 	}
-	if env.NextStep == "" {
+	if envGuidance(env) == "" {
 		t.Error("status must always provide next_step (Guided Worker)")
 	}
 }
@@ -280,6 +443,7 @@ func TestInitAndStatus(t *testing.T) {
 	result, err := cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_start",
 		Arguments: map[string]any{
+			"question":     "test",
 			"project_root": tmpDir,
 			"scope":        "project",
 		},
@@ -289,12 +453,12 @@ func TestInitAndStatus(t *testing.T) {
 	}
 
 	env := parseEnvelope(t, result)
-	if !env.Success {
+	if !env.Ok {
 		t.Fatalf("init failed: %s", env.Message)
 	}
 
 	// Verify directory structure
-	dirs := []string{"research", "research/sessions", "research/templates"}
+	dirs := []string{"research", "research/sessions"}
 	for _, dir := range dirs {
 		path := filepath.Join(tmpDir, dir)
 		if _, err := os.Stat(path); os.IsNotExist(err) {
@@ -302,19 +466,9 @@ func TestInitAndStatus(t *testing.T) {
 		}
 	}
 
-	// Verify templates copied
-	templateFiles := []string{
-		"DECISIONS.template.md",
-		"CONFLICT-RESOLUTION.template.md",
-		"COMPARISON-SESSION.template.md",
-		"FOUNDING-ARCHITECTURE.template.md",
-		"PHASE-0-GATE.template.md",
-	}
-	for _, tmpl := range templateFiles {
-		path := filepath.Join(tmpDir, "research", "templates", tmpl)
-		if _, err := os.Stat(path); os.IsNotExist(err) {
-			t.Errorf("missing template: %s", tmpl)
-		}
+	// Templates are served as MCP resources, never copied into research/templates/ (HIGH-15)
+	if _, err := os.Stat(filepath.Join(tmpDir, "research", "templates")); !os.IsNotExist(err) {
+		t.Errorf("expected no research/templates/, got err=%v", err)
 	}
 
 	// Status should now show initialized
@@ -329,7 +483,7 @@ func TestInitAndStatus(t *testing.T) {
 	}
 
 	env2 := parseEnvelope(t, result2)
-	if !env2.Success {
+	if !env2.Ok {
 		t.Error("status should succeed after init")
 	}
 }
@@ -345,7 +499,7 @@ func TestPrepareGenerator(t *testing.T) {
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"scope":        "project",
-			"context":      "A web application for managing research projects",
+			"question":     "A web application for managing research projects",
 		},
 	})
 	if err != nil {
@@ -353,7 +507,7 @@ func TestPrepareGenerator(t *testing.T) {
 	}
 
 	env := parseEnvelope(t, result)
-	if !env.Success {
+	if !env.Ok {
 		t.Fatalf("prepare_generator failed: %s", env.Message)
 	}
 
@@ -362,47 +516,36 @@ func TestPrepareGenerator(t *testing.T) {
 		t.Fatal("data should be a map")
 	}
 
-	prompt, _ := data["prompt"].(string)
+	prompt, _ := data["brief"].(string)
 	if prompt == "" {
-		t.Error("prompt should not be empty")
+		t.Error("brief should not be empty")
 	}
 	if len(prompt) < 100 {
-		t.Errorf("prompt seems too short: %d chars", len(prompt))
+		t.Errorf("brief seems too short: %d chars", len(prompt))
 	}
 }
 
 func TestPrepareGenerator_ScopeAutoDetect(t *testing.T) {
-	cs := testServer(t)
 	ctx := context.Background()
 	tmpDir := t.TempDir()
 
 	// Initialize decision-scope workspace
-	_, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_start",
-		Arguments: map[string]any{
-			"project_root": tmpDir,
-			"scope":        "decision",
-		},
+	_, envInit, err := handleStart(ctx, nil, StartInput{
+		ProjectRoot: tmpDir,
+		Scope:       "decision",
+		Question:    "test",
 	})
-	if err != nil {
-		t.Fatalf("vivechak_start: %v", err)
+	if err != nil || !envInit.Ok {
+		t.Fatalf("handleStart init: %v", err)
 	}
 
-	// Call prepare_generator without scope, providing project_root
-	result, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_start",
-		Arguments: map[string]any{
-			"project_root": tmpDir,
-			"context":      "Choose between PostgreSQL and DynamoDB",
-		},
+	// Call handleStart without scope, providing project_root
+	_, env, err := handleStart(ctx, nil, StartInput{
+		ProjectRoot: tmpDir,
+		Question:    "Choose between PostgreSQL and DynamoDB",
 	})
-	if err != nil {
-		t.Fatalf("vivechak_start: %v", err)
-	}
-
-	env := parseEnvelope(t, result)
-	if !env.Success {
-		t.Fatalf("prepare_generator failed: %s", env.Message)
+	if err != nil || !env.Ok {
+		t.Fatalf("handleStart: %v %s", err, env.Message)
 	}
 
 	data, ok := env.Data.(map[string]any)
@@ -410,11 +553,11 @@ func TestPrepareGenerator_ScopeAutoDetect(t *testing.T) {
 		t.Fatal("data should be a map")
 	}
 
-	if data["scope"] != "decision" {
+	if data["scope"] != core.ScopeDecision {
 		t.Errorf("expected scope 'decision' auto-detected from workspace, got %v", data["scope"])
 	}
 
-	prompt, _ := data["prompt"].(string)
+	prompt, _ := data["brief"].(string)
 	if strings.Contains(prompt, "[the question, as you'd ask it]") {
 		t.Errorf("prompt still contains unreplaced DECISION placeholder")
 	}
@@ -425,24 +568,17 @@ func TestPrepareGenerator_ScopeAutoDetect(t *testing.T) {
 		t.Errorf("prompt does not contain injected context")
 	}
 
-	// Call prepare_generator without scope or project_root, using env var
+	// Call handleStart without scope or project_root, using env var
 	t.Setenv("VIVECHAK_PROJECT_ROOT", tmpDir)
-	resultEnv, err := cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_start",
-		Arguments: map[string]any{
-			"context": "Choose between Redis and Memcached",
-		},
+	_, envFromEnv, err := handleStart(ctx, nil, StartInput{
+		Question: "Choose between Redis and Memcached",
 	})
-	if err != nil {
-		t.Fatalf("vivechak_start with env var: %v", err)
+	if err != nil || !envFromEnv.Ok {
+		t.Fatalf("handleStart with env var: %v %s", err, envFromEnv.Message)
 	}
-	envFromVar := parseEnvelope(t, resultEnv)
-	if !envFromVar.Success {
-		t.Fatalf("prepare_generator failed: %s", envFromVar.Message)
-	}
-	dataEnv, _ := envFromVar.Data.(map[string]any)
-	if dataEnv["scope"] != "decision" {
-		t.Errorf("expected scope 'decision' auto-detected from env var workspace, got %v", dataEnv["scope"])
+	dataEnv, _ := envFromEnv.Data.(map[string]any)
+	if dataEnv["scope"] != core.ScopeDecision {
+		t.Errorf("expected scope 'decision' from env workspace, got %v", dataEnv["scope"])
 	}
 }
 
@@ -455,7 +591,7 @@ func TestSaveSessionValidation(t *testing.T) {
 	// Init workspace first
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
 		Name:      "vivechak_start",
-		Arguments: map[string]any{"project_root": tmpDir, "scope": "project"},
+		Arguments: map[string]any{"question": "test", "project_root": tmpDir, "scope": "project"},
 	})
 
 	// Save a session with proper frontmatter
@@ -481,7 +617,7 @@ Use this approach for production.
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"kind":         "session",
-			"session_id":   "R-01",
+			"id":           "R-01",
 			"content":      content,
 		},
 	})
@@ -490,7 +626,7 @@ Use this approach for production.
 	}
 
 	env := parseEnvelope(t, result)
-	if !env.Success {
+	if !env.Ok {
 		t.Fatalf("save_session failed: %s", env.Message)
 	}
 
@@ -535,7 +671,7 @@ Short body.
 	}
 
 	env := parseEnvelope(t, result)
-	if !env.Success {
+	if !env.Ok {
 		t.Fatalf("validate failed: %s", env.Message)
 	}
 
@@ -557,9 +693,9 @@ func TestGuidedWorkerPattern(t *testing.T) {
 		args map[string]any
 	}{
 		{"vivechak_status", map[string]any{"project_root": tmpDir}},
-		{"vivechak_start", map[string]any{"project_root": tmpDir, "scope": "project"}},
+		{"vivechak_start", map[string]any{"question": "test", "project_root": tmpDir, "scope": "project"}},
 		{"vivechak_start", map[string]any{"project_root": tmpDir, "scope": "project", "question": "test project"}},
-		{"vivechak_review", map[string]any{"content": "# test", "artifact_type": "session"}},
+		{"vivechak_review", map[string]any{"mode": "validate", "content": "# test", "artifact_type": "session"}},
 	}
 
 	for _, tc := range calls {
@@ -572,13 +708,11 @@ func TestGuidedWorkerPattern(t *testing.T) {
 		}
 
 		env := parseEnvelope(t, result)
-		if env.NextStep == "" {
-			t.Errorf("%s: missing next_step — violates Guided Worker pattern", tc.name)
+		if envGuidance(env) == "" {
+			t.Errorf("%s: missing next/fix guidance — violates Guided Worker pattern", tc.name)
 		}
-		if env.Meta == nil {
-			t.Errorf("%s: missing meta", tc.name)
-		} else if env.Meta.Tool != tc.name {
-			t.Errorf("%s: meta.tool=%q, want %q", tc.name, env.Meta.Tool, tc.name)
+		if env.Ok && (env.Next == nil || env.Next.Tool == "") {
+			t.Errorf("%s: success envelope missing structured Next.Tool", tc.name)
 		}
 	}
 }
@@ -593,84 +727,24 @@ func TestEndToEndPipelineFlow(t *testing.T) {
 	// Step 1: Init workspace
 	result, err := cs.CallTool(ctx, &mcp.CallToolParams{
 		Name:      "vivechak_start",
-		Arguments: map[string]any{"project_root": tmpDir, "scope": "project"},
+		Arguments: map[string]any{"question": "test", "project_root": tmpDir, "scope": "project"},
 	})
 	if err != nil {
 		t.Fatalf("init: %v", err)
 	}
 	env := parseEnvelope(t, result)
-	if !env.Success {
+	if !env.Ok {
 		t.Fatalf("init failed: %s", env.Message)
 	}
 
 	// Step 2: Save a research pipeline
-	pipeline := `# Research Pipeline
-
-## Sessions
-
-#### T1-01: Database Selection
-
-| Field | Value |
-|---|---|
-| **ID** | T1-01 |
-| **Layer** | 0 |
-| **Door Type** | One-Way |
-| **Decision** | D-001 |
-| **Dependencies** | None |
-| **Output File** | ` + "`sessions/T1-01.md`" + ` |
-
-` + "```prompt" + `
-# RESEARCH BRIEF: T1-01
-
-## BRIEF
-Investigate database options.
-
-## DELIVERABLE
-Recommendation with evidence grades.
-` + "```" + `
-
----
-
-#### T1-02: Auth Strategy
-
-| Field | Value |
-|---|---|
-| **ID** | T1-02 |
-| **Layer** | 0 |
-| **Door Type** | Two-Way |
-| **Decision** | D-002 |
-| **Dependencies** | None |
-| **Output File** | ` + "`sessions/T1-02.md`" + ` |
-
-` + "```prompt" + `
-# RESEARCH BRIEF: T1-02
-
-## BRIEF
-Evaluate auth approaches.
-
-## DELIVERABLE
-Comparison matrix.
-` + "```" + `
-
----
-
-#### SYN-01: Synthesis
-
-| Field | Value |
-|---|---|
-| **ID** | SYN-01 |
-| **Layer** | 1 |
-| **Dependencies** | T1-01, T1-02 |
-| **Output File** | ` + "`research/FAD.md`" + ` |
-
-` + "```prompt" + `
-# SYNTHESIS
-
-Compile findings.
-
-[ALL_SESSION_FINDINGS]
-` + "```" + `
-`
+	pipeline := testPlan("Research Pipeline", "PROJECT", "", []string{
+		"{id: T1-01, title: Database Selection, layer: 0, door: one-way, informs: [D-001], depends: []}",
+		"{id: T1-02, title: Auth Strategy, layer: 0, door: two-way, informs: [D-002], depends: []}",
+		"{id: SYN-01, title: Synthesis, layer: 1, kind: synthesis, depends: [T1-01, T1-02]}",
+	}, testSection("T1-01", "Database Selection", "# RESEARCH BRIEF: T1-01\n\n## BRIEF\nInvestigate database options.\n\n## DELIVERABLE\nRecommendation with evidence grades.")+"---\n\n",
+		testSection("T1-02", "Auth Strategy", "# RESEARCH BRIEF: T1-02\n\n## BRIEF\nEvaluate auth approaches.\n\n## DELIVERABLE\nComparison matrix.")+"---\n\n",
+		testSection("SYN-01", "Synthesis", "# SYNTHESIS\n\nCompile findings.\n\n[ALL_SESSION_FINDINGS]"))
 	result, err = cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_save",
 		Arguments: map[string]any{
@@ -683,7 +757,7 @@ Compile findings.
 		t.Fatalf("save_plan: %v", err)
 	}
 	env = parseEnvelope(t, result)
-	if !env.Success {
+	if !env.Ok {
 		t.Fatalf("save_plan failed: %s", env.Message)
 	}
 
@@ -696,7 +770,7 @@ Compile findings.
 		t.Fatalf("next_session: %v", err)
 	}
 	env = parseEnvelope(t, result)
-	if !env.Success {
+	if !env.Ok {
 		t.Fatalf("next_session failed: %s", env.Message)
 	}
 
@@ -745,7 +819,7 @@ Found connection limits and memory spikes under high concurrency requiring conne
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"kind":         "session",
-			"session_id":   "T1-01",
+			"id":           "T1-01",
 			"content":      t101Output,
 		},
 	})
@@ -753,7 +827,7 @@ Found connection limits and memory spikes under high concurrency requiring conne
 		t.Fatalf("save_session T1-01: %v", err)
 	}
 	env = parseEnvelope(t, result)
-	if !env.Success {
+	if !env.Ok {
 		t.Fatalf("save_session T1-01 failed: %s", env.Message)
 	}
 
@@ -780,7 +854,7 @@ Use Clerk for authentication.
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"kind":         "session",
-			"session_id":   "T1-02",
+			"id":           "T1-02",
 			"content":      t102Output,
 		},
 	})
@@ -797,7 +871,7 @@ Use Clerk for authentication.
 		t.Fatalf("next_session for SYN-01: %v", err)
 	}
 	env = parseEnvelope(t, result)
-	if !env.Success {
+	if !env.Ok {
 		t.Fatalf("next_session SYN-01 failed: %s", env.Message)
 	}
 
@@ -822,14 +896,13 @@ Use Clerk for authentication.
 		t.Fatalf("run_gate: %v", err)
 	}
 	env = parseEnvelope(t, result)
-	if !env.Success {
+	if !env.Ok {
 		t.Fatalf("run_gate failed: %s", env.Message)
 	}
 
 	data, _ = env.Data.(map[string]any)
-	gateStatus, _ := data["gate_status"].(string)
-	if gateStatus == "PASS" {
-		t.Error("gate should not pass without FAD")
+	if data["verdict"] != "FAIL" {
+		t.Errorf("gate should FAIL without FAD, got verdict %v", data["verdict"])
 	}
 }
 
@@ -844,80 +917,20 @@ func TestFADSaveAndGatePass(t *testing.T) {
 	// Step 1: Init workspace
 	_, err := cs.CallTool(ctx, &mcp.CallToolParams{
 		Name:      "vivechak_start",
-		Arguments: map[string]any{"project_root": tmpDir, "scope": "project"},
+		Arguments: map[string]any{"question": "test", "project_root": tmpDir, "scope": "project"},
 	})
 	if err != nil {
 		t.Fatalf("init: %v", err)
 	}
 
 	// Step 2: Save a research pipeline
-	pipeline := `# Research Pipeline
-
-## Sessions
-
-#### T1-01: Database Selection
-
-| Field | Value |
-|---|---|
-| **ID** | T1-01 |
-| **Layer** | 0 |
-| **Door Type** | Two-Way |
-| **Decision** | D-001 |
-| **Dependencies** | None |
-| **Output File** | ` + "`sessions/T1-01.md`" + ` |
-
-` + "```prompt" + `
-# RESEARCH BRIEF: T1-01
-
-## BRIEF
-Investigate database options.
-
-## DELIVERABLE
-Recommendation with evidence grades.
-` + "```" + `
-
----
-
-#### T1-02: Auth Strategy
-
-| Field | Value |
-|---|---|
-| **ID** | T1-02 |
-| **Layer** | 0 |
-| **Door Type** | Two-Way |
-| **Decision** | D-002 |
-| **Dependencies** | None |
-| **Output File** | ` + "`sessions/T1-02.md`" + ` |
-
-` + "```prompt" + `
-# RESEARCH BRIEF: T1-02
-
-## BRIEF
-Evaluate auth approaches.
-
-## DELIVERABLE
-Comparison matrix.
-` + "```" + `
-
----
-
-#### SYN-01: Synthesis
-
-| Field | Value |
-|---|---|
-| **ID** | SYN-01 |
-| **Layer** | 1 |
-| **Dependencies** | T1-01, T1-02 |
-| **Output File** | ` + "`research/FAD.md`" + ` |
-
-` + "```prompt" + `
-# SYNTHESIS
-
-Compile findings.
-
-[ALL_SESSION_FINDINGS]
-` + "```" + `
-`
+	pipeline := testPlan("Research Pipeline", "PROJECT", "", []string{
+		"{id: T1-01, title: Database Selection, layer: 0, door: two-way, informs: [D-001], depends: []}",
+		"{id: T1-02, title: Auth Strategy, layer: 0, door: two-way, informs: [D-002], depends: []}",
+		"{id: SYN-01, title: Synthesis, layer: 1, kind: synthesis, depends: [T1-01, T1-02]}",
+	}, testSection("T1-01", "Database Selection", "# RESEARCH BRIEF: T1-01\n\n## BRIEF\nInvestigate database options.\n\n## DELIVERABLE\nRecommendation with evidence grades.")+"---\n\n",
+		testSection("T1-02", "Auth Strategy", "# RESEARCH BRIEF: T1-02\n\n## BRIEF\nEvaluate auth approaches.\n\n## DELIVERABLE\nComparison matrix.")+"---\n\n",
+		testSection("SYN-01", "Synthesis", "# SYNTHESIS\n\nCompile findings.\n\n[ALL_SESSION_FINDINGS]"))
 	_, err = cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_save",
 		Arguments: map[string]any{
@@ -953,7 +966,7 @@ Connection pool saturation under burst traffic can exhaust file descriptors in h
 `
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
 		Name:      "vivechak_save",
-		Arguments: map[string]any{"project_root": tmpDir, "kind": "session", "session_id": "T1-01", "content": t101Output},
+		Arguments: map[string]any{"project_root": tmpDir, "kind": "session", "id": "T1-01", "content": t101Output},
 	})
 
 	t102Output := `---
@@ -975,7 +988,7 @@ Clerk provides comprehensive multi-tenant auth out of the box. [Grade B: https:/
 `
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
 		Name:      "vivechak_save",
-		Arguments: map[string]any{"project_root": tmpDir, "kind": "session", "session_id": "T1-02", "content": t102Output},
+		Arguments: map[string]any{"project_root": tmpDir, "kind": "session", "id": "T1-02", "content": t102Output},
 	})
 
 	// Step 5: Save SYN-01 output (writes to research/FAD.md and mirrors to FOUNDING-ARCHITECTURE.md)
@@ -1011,7 +1024,7 @@ PostgreSQL 16 selected as primary datastore. [Grade A: https://postgresql.org] [
 `
 	_, err = cs.CallTool(ctx, &mcp.CallToolParams{
 		Name:      "vivechak_save",
-		Arguments: map[string]any{"project_root": tmpDir, "kind": "fad", "session_id": "SYN-01", "content": syn01Output},
+		Arguments: map[string]any{"project_root": tmpDir, "kind": "fad", "id": "SYN-01", "content": syn01Output},
 	})
 	if err != nil {
 		t.Fatalf("save_session SYN-01: %v", err)
@@ -1041,7 +1054,7 @@ We evaluated MySQL and MongoDB; rejected due to lack of native vector indexing s
 		Name: "vivechak_record_decision",
 		Arguments: map[string]any{
 			"project_root":  tmpDir,
-			"decision_id":   "D-001",
+			"id":            "D-001",
 			"artifact_type": "decision",
 			"content":       decisionContent,
 		},
@@ -1067,7 +1080,7 @@ Tied to Clerk.
 		Arguments: map[string]any{
 			"project_root":  tmpDir,
 			"artifact_type": "decision",
-			"decision_id":   "D-002",
+			"id":            "D-002",
 			"content":       decisionOutput,
 		},
 	})
@@ -1075,7 +1088,7 @@ Tied to Clerk.
 		t.Fatalf("record_decision: %v", err)
 	}
 	decEnv := parseEnvelope(t, result)
-	if !decEnv.Success {
+	if !decEnv.Ok {
 		t.Fatalf("record_decision failed: %s", decEnv.Message)
 	}
 
@@ -1088,14 +1101,13 @@ Tied to Clerk.
 		t.Fatalf("run_gate: %v", err)
 	}
 	env := parseEnvelope(t, result)
-	if !env.Success {
+	if !env.Ok {
 		t.Fatalf("run_gate failed: %s", env.Message)
 	}
 
 	data, _ := env.Data.(map[string]any)
-	gateStatus, _ := data["gate_status"].(string)
-	if gateStatus != "PASS" {
-		t.Errorf("expected gate to PASS with FAD, got %s. Issues: %v", gateStatus, data)
+	if data["verdict"] != "PASS" {
+		t.Errorf("expected gate to PASS with FAD, got %v. Issues: %v", data["verdict"], data)
 	}
 }
 
@@ -1107,7 +1119,7 @@ func TestSaveSession_FADCaseInsensitive(t *testing.T) {
 	// Init workspace
 	_, err := cs.CallTool(ctx, &mcp.CallToolParams{
 		Name:      "vivechak_start",
-		Arguments: map[string]any{"project_root": tmpDir, "scope": "project"},
+		Arguments: map[string]any{"question": "test", "project_root": tmpDir, "scope": "project"},
 	})
 	if err != nil {
 		t.Fatalf("init: %v", err)
@@ -1129,7 +1141,7 @@ Synthesis of all research findings. Grade A (official documentation).
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"kind":         "fad",
-			"session_id":   "fad",
+			"id":           "fad",
 			"content":      fadContent,
 		},
 	})
@@ -1137,7 +1149,7 @@ Synthesis of all research findings. Grade A (official documentation).
 		t.Fatalf("save_session fad: %v", err)
 	}
 	env := parseEnvelope(t, res)
-	if !env.Success {
+	if !env.Ok {
 		t.Fatalf("expected success saving fad session: %s", env.Message)
 	}
 
@@ -1160,13 +1172,13 @@ func TestRecordDecision_ConflictResolution(t *testing.T) {
 	// 1. Initialize workspace
 	initRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
 		Name:      "vivechak_start",
-		Arguments: map[string]any{"project_root": tmpDir, "scope": "project"},
+		Arguments: map[string]any{"question": "test", "project_root": tmpDir, "scope": "project"},
 	})
 	if err != nil {
 		t.Fatalf("init call: %v", err)
 	}
 	initEnv := parseEnvelope(t, initRes)
-	if !initEnv.Success {
+	if !initEnv.Ok {
 		t.Fatalf("init failed: %s", initEnv.Message)
 	}
 
@@ -1202,7 +1214,7 @@ Adopt PostgreSQL with jsonb columns for flexible document attributes.
 		Name: "vivechak_record_decision",
 		Arguments: map[string]any{
 			"project_root":  tmpDir,
-			"decision_id":   "CHK-01",
+			"id":            "CHK-01",
 			"artifact_type": "conflict-resolution",
 			"content":       crContent,
 		},
@@ -1211,7 +1223,7 @@ Adopt PostgreSQL with jsonb columns for flexible document attributes.
 		t.Fatalf("record_decision conflict-resolution: %v", err)
 	}
 	env := parseEnvelope(t, res)
-	if !env.Success {
+	if !env.Ok {
 		t.Fatalf("expected success, got message: %s, warnings: %v", env.Message, env.Warnings)
 	}
 
@@ -1245,7 +1257,7 @@ func TestIDValidationRejectsTraversal(t *testing.T) {
 	// Init workspace
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
 		Name:      "vivechak_start",
-		Arguments: map[string]any{"project_root": tmpDir, "scope": "project"},
+		Arguments: map[string]any{"question": "test", "project_root": tmpDir, "scope": "project"},
 	})
 
 	invalidIDs := []string{"../../etc/passwd", "../evil"}
@@ -1255,7 +1267,7 @@ func TestIDValidationRejectsTraversal(t *testing.T) {
 			Arguments: map[string]any{
 				"project_root": tmpDir,
 				"kind":         "session",
-				"session_id":   id,
+				"id":           id,
 				"content":      "content",
 			},
 		})
@@ -1270,7 +1282,7 @@ func TestIDValidationRejectsTraversal(t *testing.T) {
 					continue
 				}
 				env := parseEnvelope(t, result)
-				if env.Success {
+				if env.Ok {
 					t.Errorf("expected save_session to fail for ID %s", id)
 				}
 			}
@@ -1282,7 +1294,7 @@ func TestIDValidationRejectsTraversal(t *testing.T) {
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"kind":         "session",
-			"session_id":   "T1-01",
+			"id":           "T1-01",
 			"content":      "---\nsession_id: T1-01\ntitle: test\ndate: 2026-09-27\nstatus: complete\n---\n# test\nA (doc)",
 		},
 	})
@@ -1290,7 +1302,7 @@ func TestIDValidationRejectsTraversal(t *testing.T) {
 		t.Fatalf("save_session with T1-01: %v", err)
 	}
 	env := parseEnvelope(t, result)
-	if !env.Success {
+	if !env.Ok {
 		t.Errorf("expected save_session to succeed for T1-01, got: %s", env.Message)
 	}
 
@@ -1299,7 +1311,7 @@ func TestIDValidationRejectsTraversal(t *testing.T) {
 		Arguments: map[string]any{
 			"project_root":  tmpDir,
 			"artifact_type": "decision",
-			"decision_id":   "../../../hack",
+			"id":            "../../../hack",
 			"content":       "content",
 		},
 	})
@@ -1310,7 +1322,7 @@ func TestIDValidationRejectsTraversal(t *testing.T) {
 		if tc, ok := result.Content[0].(*mcp.TextContent); ok {
 			if !strings.HasPrefix(tc.Text, "validation error") {
 				env = parseEnvelope(t, result)
-				if env.Success {
+				if env.Ok {
 					t.Errorf("expected record_decision to fail for ../../../hack")
 				}
 			}
@@ -1326,7 +1338,7 @@ func TestContentSizeLimit(t *testing.T) {
 	// Init workspace
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
 		Name:      "vivechak_start",
-		Arguments: map[string]any{"project_root": tmpDir, "scope": "project"},
+		Arguments: map[string]any{"question": "test", "project_root": tmpDir, "scope": "project"},
 	})
 
 	// 10MB + 1 string
@@ -1337,7 +1349,7 @@ func TestContentSizeLimit(t *testing.T) {
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"kind":         "session",
-			"session_id":   "T1-01",
+			"id":           "T1-01",
 			"content":      hugeContent,
 		},
 	})
@@ -1345,7 +1357,7 @@ func TestContentSizeLimit(t *testing.T) {
 		t.Fatalf("save_session with huge content: %v", err)
 	}
 	env := parseEnvelope(t, result)
-	if env.Success {
+	if env.Ok {
 		t.Error("expected save_session to fail for huge content")
 	}
 }
@@ -1364,6 +1376,8 @@ func TestInit_RejectsFilesystemRoot(t *testing.T) {
 		result, err := cs.CallTool(ctx, &mcp.CallToolParams{
 			Name: "vivechak_start",
 			Arguments: map[string]any{
+				"question":     "test",
+				"scope":        "project",
 				"project_root": root,
 			},
 		})
@@ -1371,7 +1385,7 @@ func TestInit_RejectsFilesystemRoot(t *testing.T) {
 			t.Fatalf("call init with %s: %v", root, err)
 		}
 		env := parseEnvelope(t, result)
-		if env.Success {
+		if env.Ok {
 			t.Errorf("expected vivechak_start to reject filesystem root %q", root)
 		}
 		if !strings.Contains(env.Message, "cannot be a filesystem root") && !strings.Contains(env.Message, "cannot be used as workspace root") {
@@ -1388,36 +1402,17 @@ func TestNextSession_InjectionSizeWarning(t *testing.T) {
 	// 1. Init workspace
 	_, err := cs.CallTool(ctx, &mcp.CallToolParams{
 		Name:      "vivechak_start",
-		Arguments: map[string]any{"project_root": tmpDir, "scope": "project"},
+		Arguments: map[string]any{"question": "test", "project_root": tmpDir, "scope": "project"},
 	})
 	if err != nil {
 		t.Fatalf("init: %v", err)
 	}
 
 	// 2. Save pipeline with T1-01 and SYN-01
-	pipeline := `# Research Pipeline
-## Sessions
-### Session T1-01
-| Field | Value |
-|---|---|
-| **ID** | T1-01 |
-| **Dependencies** | None |
-
-` + "```prompt" + `
-Prompt T1-01
-` + "```" + `
-
-### Session T2-01
-| Field | Value |
-|---|---|
-| **ID** | T2-01 |
-| **Dependencies** | T1-01 |
-
-` + "```prompt" + `
-Investigate based on:
-[UPSTREAM_FINDINGS]
-` + "```" + `
-`
+	pipeline := testPlan("Research Pipeline", "PROJECT", "", []string{"{id: T1-01, depends: []}", "{id: T2-01, depends: [T1-01]}",
+		"{id: SYN-01, kind: synthesis, depends: [ALL]}"},
+		testSection("T1-01", "Session T1-01", "Prompt T1-01"), testSection("T2-01", "Session T2-01", "Investigate based on:\n[UPSTREAM_FINDINGS]"),
+		testSection("SYN-01", "Synthesis", "Synthesize."))
 	saveRes, err := cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_save",
 		Arguments: map[string]any{
@@ -1430,7 +1425,7 @@ Investigate based on:
 		t.Fatalf("save_plan: %v", err)
 	}
 	saveEnv := parseEnvelope(t, saveRes)
-	if !saveEnv.Success {
+	if !saveEnv.Ok {
 		t.Fatalf("save_plan failed: %s", saveEnv.Message)
 	}
 
@@ -1449,7 +1444,7 @@ status: complete
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"kind":         "session",
-			"session_id":   "T1-01",
+			"id":           "T1-01",
 			"content":      t101Content,
 		},
 	})
@@ -1470,12 +1465,12 @@ status: complete
 	}
 
 	env := parseEnvelope(t, res)
-	if !env.Success {
+	if !env.Ok {
 		t.Fatalf("next_session failed: %s", env.Message)
 	}
 
 	foundWarning := false
-	for _, w := range env.Warnings {
+	for _, w := range envWarningStrings(env) {
 		if strings.Contains(w, "W-INJECTION-SIZE") {
 			foundWarning = true
 			break
@@ -1495,6 +1490,7 @@ func TestDecisionScope_EndToEnd(t *testing.T) {
 	res, err := cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_start",
 		Arguments: map[string]any{
+			"question":     "test",
 			"project_root": tmpDir,
 			"scope":        "decision",
 		},
@@ -1503,25 +1499,13 @@ func TestDecisionScope_EndToEnd(t *testing.T) {
 		t.Fatalf("init decision scope: %v", err)
 	}
 	env := parseEnvelope(t, res)
-	if !env.Success {
+	if !env.Ok {
 		t.Fatalf("init failed: %s", env.Message)
 	}
 
 	// 2. Save Plan with DecisionsContent (ADR)
-	planContent := `# Research Plan: D-015 Cache Layer
-
-### D-015-S1: Cache Layer Comparison
-
-| Field | Value |
-|---|---|
-| **ID** | D-015-S1 |
-| **Output File** | ` + "`sessions/D-015-S1-cache-comparison.md`" + ` |
-
-` + "```prompt" + `
-# RESEARCH BRIEF: Cache Layer
-Compare Redis vs Dragonfly. A (benchmark)
-` + "```" + `
-`
+	planContent := testPlan("Research Plan: D-015 Cache Layer", "D-015", "", []string{"{id: D-015-S1, title: Cache Layer Comparison, role: C, door: two-way, informs: [D-015], depends: []}"},
+		testSection("D-015-S1", "Cache Layer Comparison", "# RESEARCH BRIEF: Cache Layer\nCompare Redis vs Dragonfly. A (benchmark)"))
 	adrContent := `---
 id: D-015
 title: Cache Layer Selection
@@ -1543,7 +1527,7 @@ Pending research.
 		Arguments: map[string]any{
 			"project_root":      tmpDir,
 			"kind":              "plan",
-			"decision_id":       "D-015",
+			"id":                "D-015",
 			"slug":              "cache-layer",
 			"content":           planContent,
 			"decisions_content": adrContent,
@@ -1553,7 +1537,7 @@ Pending research.
 		t.Fatalf("save_plan: %v", err)
 	}
 	env = parseEnvelope(t, res)
-	if !env.Success {
+	if !env.Ok {
 		t.Fatalf("save_plan failed: %s", env.Message)
 	}
 
@@ -1568,7 +1552,7 @@ Pending research.
 		t.Fatalf("next_session: %v", err)
 	}
 	env = parseEnvelope(t, res)
-	if !env.Success {
+	if !env.Ok {
 		t.Fatalf("next_session failed: %s", env.Message)
 	}
 	data, _ := env.Data.(map[string]any)
@@ -1599,7 +1583,7 @@ Redis provides cluster mode and automatic failover for high availability. [Grade
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"kind":         "session",
-			"session_id":   "D-015-S1",
+			"id":           "D-015-S1",
 			"content":      sessionContent,
 		},
 	})
@@ -1629,7 +1613,7 @@ Redis chosen for cluster stability. A (official documentation)
 		Arguments: map[string]any{
 			"project_root":  tmpDir,
 			"artifact_type": "decision",
-			"decision_id":   "D-015",
+			"id":            "D-015",
 			"content":       acceptedADR,
 			"revise":        true,
 		},
@@ -1638,7 +1622,7 @@ Redis chosen for cluster stability. A (official documentation)
 		t.Fatalf("record_decision: %v", err)
 	}
 	envDec := parseEnvelope(t, resDec)
-	if !envDec.Success {
+	if !envDec.Ok {
 		t.Fatalf("record_decision failed: %s", envDec.Message)
 	}
 
@@ -1655,8 +1639,8 @@ Redis chosen for cluster stability. A (official documentation)
 	}
 	env = parseEnvelope(t, res)
 	gateData, _ := env.Data.(map[string]any)
-	if gateData["gate_status"] != "PASS" || gateData["gate_passed"] != true {
-		t.Fatalf("expected gate PASS, got status=%v passed=%v (message=%s)", gateData["gate_status"], gateData["gate_passed"], env.Message)
+	if gateData["verdict"] != "PASS" {
+		t.Fatalf("expected gate PASS, got verdict=%v (message=%s)", gateData["verdict"], env.Message)
 	}
 }
 
@@ -1669,6 +1653,7 @@ func TestComparisonScope_EndToEnd(t *testing.T) {
 	res, err := cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_start",
 		Arguments: map[string]any{
+			"question":     "test",
 			"project_root": tmpDir,
 			"scope":        "comparison",
 		},
@@ -1677,11 +1662,11 @@ func TestComparisonScope_EndToEnd(t *testing.T) {
 		t.Fatalf("init comparison scope: %v", err)
 	}
 	env := parseEnvelope(t, res)
-	if !env.Success {
+	if !env.Ok {
 		t.Fatalf("init failed: %s", env.Message)
 	}
 
-	// 2. Save comparison plan/prompt
+	// 2. Save the comparison (kind="comparison"; kind="plan" never saves a comparison)
 	comparisonPrompt := `# RESEARCH BRIEF: Queue Selection
 Compare Kafka vs RabbitMQ. A (benchmark)
 `
@@ -1689,8 +1674,7 @@ Compare Kafka vs RabbitMQ. A (benchmark)
 		Name: "vivechak_save",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
-			"kind":         "plan",
-			"decision_id":  "D-020",
+			"kind":         "comparison",
 			"slug":         "queue-tech",
 			"content":      comparisonPrompt,
 		},
@@ -1710,7 +1694,7 @@ Compare Kafka vs RabbitMQ. A (benchmark)
 		t.Fatalf("next_session: %v", err)
 	}
 	env = parseEnvelope(t, res)
-	if !env.Success {
+	if !env.Ok {
 		t.Fatalf("next_session comparison failed: %s", env.Message)
 	}
 
@@ -1729,7 +1713,7 @@ Kafka chosen for stream retention. A (official docs)
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"kind":         "session",
-			"session_id":   "D-020-cmp-queue-tech",
+			"id":           "D-020-cmp-queue-tech",
 			"content":      cmpOutput,
 		},
 	})
@@ -1750,8 +1734,10 @@ Kafka chosen for stream retention. A (official docs)
 	}
 	env = parseEnvelope(t, res)
 	gateData, _ := env.Data.(map[string]any)
-	if (gateData["gate_status"] != "PASS" && gateData["gate_status"] != "not_applicable") || gateData["gate_passed"] != true {
-		t.Fatalf("expected gate PASS or not_applicable, got status=%v passed=%v (message=%s)", gateData["gate_status"], gateData["gate_passed"], env.Message)
+	// A comparison-only workspace has no architecture gate: exactly not_applicable, never PASS (CRIT-12). The
+	// comparison is saved with kind="comparison" since CRIT-19, so no decision target exists.
+	if gateData["verdict"] != "not_applicable" {
+		t.Fatalf("expected gate verdict not_applicable for a comparison-only workspace, got verdict=%v (message=%s)", gateData["verdict"], env.Message)
 	}
 }
 
@@ -1763,17 +1749,10 @@ func TestNextSession_NotFound_SessionIDList(t *testing.T) {
 	// Init
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
 		Name:      "vivechak_start",
-		Arguments: map[string]any{"project_root": tmpDir, "scope": "project"},
+		Arguments: map[string]any{"question": "test", "project_root": tmpDir, "scope": "project"},
 	})
 
-	pipeline := `# Pipeline
-#### T1-01: Session One
-| **ID** | T1-01 |
-| **Output File** | sessions/T1-01.md |
-` + "```prompt" + `
-Prompt one
-` + "```" + `
-`
+	pipeline := oneSessionTestPlan("Session One", "Prompt one")
 	// Save pipeline
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_save",
@@ -1796,11 +1775,11 @@ Prompt one
 		t.Fatalf("unexpected call error: %v", err)
 	}
 	env := parseEnvelope(t, res)
-	if env.Success {
+	if env.Ok {
 		t.Errorf("expected error for nonexistent session ID")
 	}
-	if !strings.Contains(env.NextStep, "T1-01") {
-		t.Errorf("expected available sessions list in NextStep, got: %s", env.NextStep)
+	if !strings.Contains(envGuidance(env), "T1-01") {
+		t.Errorf("expected available sessions list in NextStep, got: %s", envGuidance(env))
 	}
 }
 
@@ -1842,7 +1821,7 @@ Adopt PostgreSQL for primary ACID datastore. A (benchmarks)
 		t.Fatalf("validate conflict-resolution: %v", err)
 	}
 	env := parseEnvelope(t, res)
-	if !env.Success {
+	if !env.Ok {
 		t.Fatalf("expected validate success: %s", env.Message)
 	}
 	data, _ := env.Data.(map[string]any)
@@ -1851,14 +1830,7 @@ Adopt PostgreSQL for primary ACID datastore. A (benchmarks)
 	}
 
 	// 2. Plan artifact
-	plan := `# Research Pipeline
-### Session T1-01: Benchmark
-| **ID** | T1-01 |
-| **Dependencies** | None |
-` + "````prompt" + `
-Execute benchmark
-` + "````" + `
-`
+	plan := oneSessionTestPlan("Benchmark", "Execute benchmark")
 	resPlan, err := cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_review",
 		Arguments: map[string]any{
@@ -1871,7 +1843,7 @@ Execute benchmark
 		t.Fatalf("validate plan: %v", err)
 	}
 	envPlan := parseEnvelope(t, resPlan)
-	if !envPlan.Success {
+	if !envPlan.Ok {
 		t.Fatalf("expected validate plan success: %s", envPlan.Message)
 	}
 	dataPlan, _ := envPlan.Data.(map[string]any)
@@ -1888,35 +1860,11 @@ func TestRunGate_Mechanics(t *testing.T) {
 	// 1. Initialize
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
 		Name:      "vivechak_start",
-		Arguments: map[string]any{"project_root": tmpDir, "scope": "project"},
+		Arguments: map[string]any{"question": "test", "project_root": tmpDir, "scope": "project"},
 	})
 
 	// 2. Save pipeline with 3 sessions (meeting recommended minimum for project scope)
-	pipe := `# Pipeline
-#### T1-01: Core Architecture
-| **ID** | T1-01 |
-| **Dependencies** | None |
-| **Output File** | sessions/T1-01.md |
-` + "```prompt" + `
-Brief 1
-` + "```" + `
-
-#### T1-02: Storage Layer
-| **ID** | T1-02 |
-| **Dependencies** | None |
-| **Output File** | sessions/T1-02.md |
-` + "```prompt" + `
-Brief 2
-` + "```" + `
-
-#### SYN-01: Synthesis
-| **ID** | SYN-01 |
-| **Dependencies** | T1-01, T1-02 |
-| **Output File** | research/FAD.md |
-` + "```prompt" + `
-Synthesis brief
-` + "```" + `
-`
+	pipe := threeSessionTestPlan("Core Architecture", "Brief 1", "Storage Layer", "Brief 2", "Synthesis", "Synthesis brief")
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_save",
 		Arguments: map[string]any{
@@ -1932,7 +1880,7 @@ Synthesis brief
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"kind":         "session",
-			"session_id":   "T1-01",
+			"id":           "T1-01",
 			"content": `---
 session_id: T1-01
 title: Core Architecture
@@ -1956,7 +1904,7 @@ Recommended SQLite in WAL mode for lightweight single-node performance. [Grade A
 		t.Fatalf("save T1-01 failed: %v", errT1)
 	}
 	envT1 := parseEnvelope(t, resT1)
-	if !envT1.Success {
+	if !envT1.Ok {
 		t.Fatalf("save T1-01 envelope failed: %s", envT1.Message)
 	}
 
@@ -1970,8 +1918,8 @@ Recommended SQLite in WAL mode for lightweight single-node performance. [Grade A
 	}
 	envGate1 := parseEnvelope(t, resGate1)
 	gate1Data, _ := envGate1.Data.(map[string]any)
-	if gate1Data["gate_status"] == "PASS" {
-		t.Error("gate should fail when DAG sessions are incomplete")
+	if gate1Data["verdict"] != "FAIL" {
+		t.Errorf("gate should fail when DAG sessions are incomplete, got verdict %v", gate1Data["verdict"])
 	}
 
 	// 5. Complete T1-02
@@ -1980,7 +1928,7 @@ Recommended SQLite in WAL mode for lightweight single-node performance. [Grade A
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"kind":         "session",
-			"session_id":   "T1-02",
+			"id":           "T1-02",
 			"content": `---
 session_id: T1-02
 title: Storage Layer
@@ -2033,7 +1981,7 @@ The architecture utilizes SQLite with WAL mode backed by high-IOPS storage. [Gra
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"kind":         "session",
-			"session_id":   "SYN-01",
+			"id":           "SYN-01",
 			"content":      fadContent,
 		},
 	})
@@ -2055,7 +2003,7 @@ Use SQLite in WAL mode. [Grade A: https://sqlite.org] [fetched]
 		Arguments: map[string]any{
 			"project_root":  tmpDir,
 			"artifact_type": "decision",
-			"decision_id":   "D-001",
+			"id":            "D-001",
 			"content":       untriggeredADR,
 		},
 	})
@@ -2070,12 +2018,13 @@ Use SQLite in WAL mode. [Grade A: https://sqlite.org] [fetched]
 	}
 	envGate2 := parseEnvelope(t, resGate2)
 	gate2Data, _ := envGate2.Data.(map[string]any)
-	if gate2Data["gate_status"] == "PASS" {
-		t.Error("gate should fail when one-way door decision lacks reversal triggers")
+	if gate2Data["verdict"] != "FAIL" {
+		t.Errorf("gate should fail when one-way door decision lacks reversal triggers, got verdict %v", gate2Data["verdict"])
 	}
 
 	// 9. Add reversal trigger to the one-way door
-	triggeredADR := `<!-- DECISION: D-001 -->
+	triggeredADR := func(challenge string) string {
+		return `<!-- DECISION: D-001 -->
 ---
 decision_id: D-001
 title: Database Selection
@@ -2089,37 +2038,22 @@ review_trigger: "Throughput exceeds 50k ops"
 Embedded operational storage selection for local client execution.
 
 ## Decision
-Use SQLite in WAL mode. [Grade A: https://sqlite.org] [fetched]
-[Grade B: https://sqlite.org/wal.html] [fetched]
+Use SQLite in WAL mode. [Grade A: https://sqlite.org | fetched]
+WAL mode lets readers proceed during writes. [Grade B: https://sqlite.org/wal.html | fetched]
 
 ## Evaluated Alternatives
 We evaluated DuckDB and PostgreSQL; rejected due to client-side embedded deployment requirements.
-
-## Challenge Findings & Red-Team Stress Test
-Evaluated D-001-R1 adversarial red-team probe confirms single-writer lock contention during bulk transaction processing.
-<!-- /DECISION: D-001 -->
+` + challenge + `<!-- /DECISION: D-001 -->
 `
-	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_record_decision",
-		Arguments: map[string]any{
-			"project_root":  tmpDir,
-			"artifact_type": "decision",
-			"decision_id":   "D-001",
-			"content":       triggeredADR,
-			"revise":        true,
-		},
-	})
+	}
+	recordDecisionRevise(t, ctx, cs, tmpDir, "D-001", triggeredADR(""))
 
-	chHash := core.ComputeDecisionOutcomeHash([]byte(triggeredADR))
-	chContent := fmt.Sprintf(`---
-decision_id: D-001
-decision_hash: %s
-date: 2026-10-24
----
-# Adversarial Challenge D-001-R1
-Substantive challenge findings for D-001.
-`, chHash)
-	_ = os.WriteFile(filepath.Join(tmpDir, "research", "D-001-R1.md"), []byte(chContent), 0o644)
+	// The red-team record comes from the real tool; the ADR then cites the record id it returns.
+	recID := redTeamRecordID(t, ctx, cs, tmpDir, "D-001")
+	recordDecisionRevise(t, ctx, cs, tmpDir, "D-001", triggeredADR(fmt.Sprintf(`
+## Challenge Findings & Red-Team Stress Test
+Evaluated %s adversarial red-team probe confirms single-writer lock contention during bulk transaction processing.
+`, recID)))
 
 	// Perform human signoff on D-001
 	wsSign, err := store.OpenWorkspace(tmpDir)
@@ -2142,9 +2076,9 @@ Substantive challenge findings for D-001.
 	}
 	envGate3 := parseEnvelope(t, resGate3)
 	gate3Data, _ := envGate3.Data.(map[string]any)
-	if gate3Data["gate_status"] != "PASS" || gate3Data["gate_passed"] != true {
-		t.Fatalf("expected gate PASS after human signoff, got status=%v passed=%v (message=%s, warnings=%v, rules=%v)",
-			gate3Data["gate_status"], gate3Data["gate_passed"], envGate3.Message, envGate3.Warnings, gate3Data["rules"])
+	if gate3Data["verdict"] != "PASS" {
+		t.Fatalf("expected gate PASS after human signoff, got verdict=%v (message=%s, warnings=%v, rules=%v)",
+			gate3Data["verdict"], envGate3.Message, envGate3.Warnings, gate3Data["rules"])
 	}
 }
 
@@ -2156,7 +2090,7 @@ func TestRunGate_DecisionScope_ADRValidation(t *testing.T) {
 	// 1. Initialize decision scope
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
 		Name:      "vivechak_start",
-		Arguments: map[string]any{"project_root": tmpDir, "scope": "decision"},
+		Arguments: map[string]any{"question": "test", "project_root": tmpDir, "scope": "decision"},
 	})
 
 	// 2. Save decision plan with 1 session
@@ -2186,7 +2120,7 @@ Compare auth options.
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"kind":         "session",
-			"session_id":   "S1-01",
+			"id":           "S1-01",
 			"content": `---
 session_id: S1-01
 title: Auth Strategy Comparison
@@ -2217,7 +2151,7 @@ We propose OAuth2 with PKCE.`
 		Arguments: map[string]any{
 			"project_root":  tmpDir,
 			"artifact_type": "decision",
-			"decision_id":   "D-001",
+			"id":            "D-001",
 			"content":       proposedADR,
 		},
 	})
@@ -2229,8 +2163,8 @@ We propose OAuth2 with PKCE.`
 	})
 	env1 := parseEnvelope(t, res1)
 	data1, _ := env1.Data.(map[string]any)
-	if data1["gate_status"] == "PASS" {
-		t.Error("gate should fail when decision status is proposed")
+	if data1["verdict"] != "FAIL" {
+		t.Errorf("gate should fail when decision status is proposed, got verdict %v", data1["verdict"])
 	}
 
 	// 6. Record decision as one-way door without review trigger
@@ -2247,7 +2181,7 @@ Accepted OAuth2 with PKCE.`
 		Arguments: map[string]any{
 			"project_root":  tmpDir,
 			"artifact_type": "decision",
-			"decision_id":   "D-001",
+			"id":            "D-001",
 			"content":       untriggeredOneWay,
 			"revise":        true,
 		},
@@ -2260,12 +2194,13 @@ Accepted OAuth2 with PKCE.`
 	})
 	env2 := parseEnvelope(t, res2)
 	data2, _ := env2.Data.(map[string]any)
-	if data2["gate_status"] == "PASS" {
-		t.Error("gate should fail when one-way door decision lacks review trigger")
+	if data2["verdict"] != "FAIL" {
+		t.Errorf("gate should fail when one-way door decision lacks review trigger, got verdict %v", data2["verdict"])
 	}
 
 	// 8. Record decision as accepted with review trigger
-	validOneWay := `---
+	validOneWay := func(challenge string) string {
+		return `---
 id: D-001
 title: Auth Strategy
 status: accepted
@@ -2278,36 +2213,21 @@ review_trigger: 6 months or major breaking RFC change
 We need a robust, secure authentication mechanism for client-facing identity federation across multi-tenant cloud environments.
 
 ## Decision Outcome
-[Grade A: https://auth0.com] Accepted OAuth2 with PKCE [fetched].
-[Grade B: https://oauth.net] Verified token exchange semantics [fetched].
+[Grade A: https://auth0.com | fetched] Accepted OAuth2 with PKCE.
+[Grade B: https://oauth.net | fetched] Verified token exchange semantics.
 
 ## Rejected Alternatives
 We evaluated basic auth and API tokens; rejected due to security considerations.
+` + challenge
+	}
+	recordDecisionRevise(t, ctx, cs, tmpDir, "D-001", validOneWay(""))
 
+	// The red-team record comes from the real tool; the ADR then cites the record id it returns.
+	recID := redTeamRecordID(t, ctx, cs, tmpDir, "D-001")
+	recordDecisionRevise(t, ctx, cs, tmpDir, "D-001", validOneWay(fmt.Sprintf(`
 ## Challenge Findings & Red-Team Stress Test
-Evaluated D-001-R1 adversarial red-team probe confirms token leakage vectors mitigated with PKCE code challenges.
-`
-	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_record_decision",
-		Arguments: map[string]any{
-			"project_root":  tmpDir,
-			"artifact_type": "decision",
-			"decision_id":   "D-001",
-			"content":       validOneWay,
-			"revise":        true,
-		},
-	})
-
-	chHash := core.ComputeDecisionOutcomeHash([]byte(validOneWay))
-	chContent := fmt.Sprintf(`---
-decision_id: D-001
-decision_hash: %s
-date: 2026-10-24
----
-# Adversarial Challenge D-001-R1
-Substantive challenge findings for D-001.
-`, chHash)
-	_ = os.WriteFile(filepath.Join(tmpDir, "research", "D-001-R1.md"), []byte(chContent), 0o644)
+Evaluated %s adversarial red-team probe confirms token leakage vectors mitigated with PKCE code challenges.
+`, recID)))
 
 	// Perform human signoff on D-001
 	wsSign, err := store.OpenWorkspace(tmpDir)
@@ -2327,8 +2247,8 @@ Substantive challenge findings for D-001.
 	})
 	env3 := parseEnvelope(t, res3)
 	data3, _ := env3.Data.(map[string]any)
-	if data3["gate_status"] != "PASS" || data3["gate_passed"] != true {
-		t.Errorf("gate should pass with valid accepted ADR, got status=%v (issues: %v)", data3["gate_status"], data3)
+	if data3["verdict"] != "PASS" {
+		t.Errorf("gate should pass with valid accepted ADR, got verdict=%v (issues: %v)", data3["verdict"], data3)
 	}
 }
 
@@ -2339,25 +2259,13 @@ func TestSavePlan_Validation(t *testing.T) {
 
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
 		Name:      "vivechak_start",
-		Arguments: map[string]any{"project_root": tmpDir, "scope": "project"},
+		Arguments: map[string]any{"question": "test", "project_root": tmpDir, "scope": "project"},
 	})
 
 	// 1. Pipeline with dependency cycle (T1-01 -> T1-02 -> T1-01)
-	cyclePipeline := `# Pipeline
-#### T1-01: Session 1
-| **ID** | T1-01 |
-| **Dependencies** | T1-02 |
-` + "```prompt" + `
-Prompt 1
-` + "```" + `
-
-#### T1-02: Session 2
-| **ID** | T1-02 |
-| **Dependencies** | T1-01 |
-` + "```prompt" + `
-Prompt 2
-` + "```" + `
-`
+	cyclePipeline := testPlan("Pipeline", "PROJECT", "", []string{"{id: T1-01, title: Session 1, depends: [T1-02]}",
+		"{id: T1-02, title: Session 2, depends: [T1-01]}", "{id: SYN-01, title: Synthesis, kind: synthesis, depends: [ALL]}"},
+		testSection("T1-01", "Session 1", "Prompt 1"), testSection("T1-02", "Session 2", "Prompt 2"), testSection("SYN-01", "Synthesis", "Synthesize."))
 	res1, _ := cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_save",
 		Arguments: map[string]any{
@@ -2367,11 +2275,11 @@ Prompt 2
 		},
 	})
 	env1 := parseEnvelope(t, res1)
-	if env1.Success {
+	if env1.Ok {
 		t.Error("expected save_plan to fail on pipeline with dependency cycle")
 	}
-	if !strings.Contains(env1.Message, "cycle detected") && !strings.Contains(env1.Message, "validation failed") {
-		t.Errorf("expected cycle detection error message, got: %s", env1.Message)
+	if !strings.Contains(env1.Message, core.CodePlanCycle) || !strings.Contains(env1.Message, "T1-01 -> T1-02 -> T1-01") {
+		t.Errorf("expected a %s error naming the cycle, got: %s", core.CodePlanCycle, env1.Message)
 	}
 
 	// Verify file was NOT written
@@ -2380,14 +2288,7 @@ Prompt 2
 	}
 
 	// 2. Valid pipeline
-	validPipeline := `# Pipeline
-#### T1-01: Session 1
-| **ID** | T1-01 |
-| **Dependencies** | None |
-` + "```prompt" + `
-Prompt 1
-` + "```" + `
-`
+	validPipeline := oneSessionTestPlan("Session 1", "Prompt 1")
 	res2, _ := cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_save",
 		Arguments: map[string]any{
@@ -2397,7 +2298,7 @@ Prompt 1
 		},
 	})
 	env2 := parseEnvelope(t, res2)
-	if !env2.Success {
+	if !env2.Ok {
 		t.Fatalf("expected valid pipeline to succeed, got: %s", env2.Message)
 	}
 	data2, _ := env2.Data.(map[string]any)
@@ -2415,6 +2316,7 @@ func TestSavePlan_MultiDecisionRegistry(t *testing.T) {
 	_, err := cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_start",
 		Arguments: map[string]any{
+			"question":     "test",
 			"project_root": tmpDir,
 			"scope":        "project",
 		},
@@ -2423,18 +2325,9 @@ func TestSavePlan_MultiDecisionRegistry(t *testing.T) {
 		t.Fatalf("init: %v", err)
 	}
 
-	pipelineMD := `# Research Pipeline: Multi Decision Test
-## Sessions
-#### T0-01: Session 1
-| Field | Value |
-|---|---|
-| ID | T0-01 |
-| Dependencies | None |
-
-` + "```prompt" + `
-Prompt 1
-` + "```" + `
-`
+	pipelineMD := testPlan("Research Pipeline: Multi Decision Test", "PROJECT", "", []string{"{id: T0-01, title: Session 1, depends: []}",
+		"{id: SYN-01, title: Synthesis, kind: synthesis, depends: [ALL]}"},
+		testSection("T0-01", "Session 1", "Prompt 1"), testSection("SYN-01", "Synthesis", "Synthesize."))
 
 	decisionsMD := `# Architectural Decision Records
 
@@ -2480,7 +2373,7 @@ Zero-shot LLM vs BERT.
 		t.Fatalf("save_plan failed: %v", err)
 	}
 	env := parseEnvelope(t, res)
-	if !env.Success {
+	if !env.Ok {
 		t.Fatalf("expected save_plan to succeed, got: %s", env.Message)
 	}
 
@@ -2493,7 +2386,7 @@ Zero-shot LLM vs BERT.
 	if decVal["status"] != "valid" {
 		t.Errorf("decisions_validation status = %v; want 'valid'", decVal["status"])
 	}
-	for _, w := range env.Warnings {
+	for _, w := range envWarningStrings(env) {
 		if strings.Contains(w, "V-MISSING-FIELD") {
 			t.Errorf("spurious V-MISSING-FIELD warning found in save_plan: %s", w)
 		}
@@ -2518,13 +2411,13 @@ func TestInit_HomeDirGuard(t *testing.T) {
 
 	res, err := cs.CallTool(ctx, &mcp.CallToolParams{
 		Name:      "vivechak_start",
-		Arguments: map[string]any{}, // project_root omitted
+		Arguments: map[string]any{"question": "test", "scope": "project"}, // project_root omitted
 	})
 	if err != nil {
 		t.Fatalf("unexpected call error: %v", err)
 	}
 	env := parseEnvelope(t, res)
-	if env.Success {
+	if env.Ok {
 		t.Error("expected error when initializing directly in home directory with omitted project_root")
 	}
 	if !strings.Contains(env.Message, "user home directory") && !strings.Contains(env.Message, "E-ROOT-UNRESOLVED") {
@@ -2534,13 +2427,13 @@ func TestInit_HomeDirGuard(t *testing.T) {
 	// project_root: "." must also be blocked (MED-06)
 	resDot, err := cs.CallTool(ctx, &mcp.CallToolParams{
 		Name:      "vivechak_start",
-		Arguments: map[string]any{"project_root": "."},
+		Arguments: map[string]any{"question": "test", "scope": "project", "project_root": "."},
 	})
 	if err != nil {
 		t.Fatalf("unexpected call error: %v", err)
 	}
 	envDot := parseEnvelope(t, resDot)
-	if envDot.Success {
+	if envDot.Ok {
 		t.Error("expected error when initializing directly in home directory with project_root='.'")
 	}
 	if !strings.Contains(envDot.Message, "user home directory") {
@@ -2562,13 +2455,13 @@ func TestInit_SystemOrAppDirGuard(t *testing.T) {
 	for _, p := range testPaths {
 		res, err := cs.CallTool(ctx, &mcp.CallToolParams{
 			Name:      "vivechak_start",
-			Arguments: map[string]any{"project_root": p},
+			Arguments: map[string]any{"question": "test", "scope": "project", "project_root": p},
 		})
 		if err != nil {
 			t.Fatalf("unexpected call error for %s: %v", p, err)
 		}
 		env := parseEnvelope(t, res)
-		if env.Success {
+		if env.Ok {
 			t.Errorf("expected error when initializing in system/app dir %q, got success", p)
 		}
 		if !strings.Contains(env.Message, "application or system directory") {
@@ -2588,13 +2481,13 @@ func TestInit_EnvironmentVariables(t *testing.T) {
 
 		res, err := cs.CallTool(ctx, &mcp.CallToolParams{
 			Name:      "vivechak_start",
-			Arguments: map[string]any{},
+			Arguments: map[string]any{"question": "test", "scope": "project"},
 		})
 		if err != nil {
 			t.Fatalf("call error: %v", err)
 		}
 		env := parseEnvelope(t, res)
-		if !env.Success {
+		if !env.Ok {
 			t.Fatalf("expected success, got error: %s", env.Message)
 		}
 		if !core.WorkspaceExists(tmpDir) {
@@ -2611,13 +2504,13 @@ func TestInit_EnvironmentVariables(t *testing.T) {
 
 		res, err := cs.CallTool(ctx, &mcp.CallToolParams{
 			Name:      "vivechak_start",
-			Arguments: map[string]any{},
+			Arguments: map[string]any{"question": "test", "scope": "project"},
 		})
 		if err != nil {
 			t.Fatalf("call error: %v", err)
 		}
 		env := parseEnvelope(t, res)
-		if !env.Success {
+		if !env.Ok {
 			t.Fatalf("expected success, got error: %s", env.Message)
 		}
 		if !core.WorkspaceExists(tmpDir) {
@@ -2636,7 +2529,7 @@ func TestInit_EnvironmentVariables(t *testing.T) {
 
 		_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
 			Name:      "vivechak_start",
-			Arguments: map[string]any{},
+			Arguments: map[string]any{"question": "test", "scope": "project"},
 		})
 		if core.WorkspaceExists(tmpDir) {
 			t.Errorf("unsupported VCK_DEFAULT_ROOT should not create workspace at %s", tmpDir)
@@ -2653,7 +2546,7 @@ func TestInit_EnvironmentVariables(t *testing.T) {
 
 		_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
 			Name:      "vivechak_start",
-			Arguments: map[string]any{},
+			Arguments: map[string]any{"question": "test", "scope": "project"},
 		})
 		if core.WorkspaceExists(tmpDir) {
 			t.Errorf("unnamespaced WORKSPACE should not create workspace at %s", tmpDir)
@@ -2670,7 +2563,7 @@ func TestInit_EnvironmentVariables(t *testing.T) {
 
 		_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
 			Name:      "vivechak_start",
-			Arguments: map[string]any{},
+			Arguments: map[string]any{"question": "test", "scope": "project"},
 		})
 		if core.WorkspaceExists(tmpDir) {
 			t.Errorf("unnamespaced PROJECT_ROOT should not create workspace at %s", tmpDir)
@@ -2684,13 +2577,13 @@ func TestInit_EnvironmentVariables(t *testing.T) {
 		}
 		res, err := cs.CallTool(ctx, &mcp.CallToolParams{
 			Name:      "vivechak_start",
-			Arguments: map[string]any{"project_root": sandboxDir},
+			Arguments: map[string]any{"question": "test", "scope": "project", "project_root": sandboxDir},
 		})
 		if err != nil {
 			t.Fatalf("call error: %v", err)
 		}
 		env := parseEnvelope(t, res)
-		if !env.Success {
+		if !env.Ok {
 			t.Fatalf("expected success for sandbox path %s, got: %s", sandboxDir, env.Message)
 		}
 		if !core.WorkspaceExists(sandboxDir) {
@@ -2707,7 +2600,7 @@ func TestStatus_TerminalSynthesisGuidance(t *testing.T) {
 	// Init workspace
 	_, err := cs.CallTool(ctx, &mcp.CallToolParams{
 		Name:      "vivechak_start",
-		Arguments: map[string]any{"project_root": tmpDir, "scope": "project"},
+		Arguments: map[string]any{"question": "test", "project_root": tmpDir, "scope": "project"},
 	})
 	if err != nil {
 		t.Fatalf("init: %v", err)
@@ -2728,8 +2621,8 @@ func TestStatus_TerminalSynthesisGuidance(t *testing.T) {
 		t.Fatalf("status call: %v", err)
 	}
 	env := parseEnvelope(t, res)
-	if !strings.Contains(env.NextStep, "vivechak_gate") {
-		t.Errorf("expected status next_step to direct to vivechak_gate, got: %s", env.NextStep)
+	if !strings.Contains(envGuidance(env), "vivechak_gate") {
+		t.Errorf("expected status next_step to direct to vivechak_gate, got: %s", envGuidance(env))
 	}
 }
 
@@ -2741,7 +2634,7 @@ func TestRunGate_EmptyDecisionsRegistryClarifiedMessage(t *testing.T) {
 	// Init workspace
 	_, err := cs.CallTool(ctx, &mcp.CallToolParams{
 		Name:      "vivechak_start",
-		Arguments: map[string]any{"project_root": tmpDir, "scope": "project"},
+		Arguments: map[string]any{"question": "test", "project_root": tmpDir, "scope": "project"},
 	})
 	if err != nil {
 		t.Fatalf("init: %v", err)
@@ -2762,7 +2655,7 @@ func TestRunGate_EmptyDecisionsRegistryClarifiedMessage(t *testing.T) {
 	}
 	env := parseEnvelope(t, res)
 	foundClarified := false
-	for _, w := range env.Warnings {
+	for _, w := range envWarningStrings(env) {
 		if strings.Contains(w, "No architectural decisions recorded yet — record decisions using vivechak_record_decision before running the gate") {
 			foundClarified = true
 			break
@@ -2780,7 +2673,7 @@ func TestRunGate_EnvelopeKeyParity(t *testing.T) {
 
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
 		Name:      "vivechak_start",
-		Arguments: map[string]any{"project_root": tmpDir, "scope": "project"},
+		Arguments: map[string]any{"question": "test", "project_root": tmpDir, "scope": "project"},
 	})
 
 	res, err := cs.CallTool(ctx, &mcp.CallToolParams{
@@ -2803,7 +2696,6 @@ func TestRunGate_EnvelopeKeyParity(t *testing.T) {
 		"track_filter",
 		"scope_note",
 		"verdict",
-		"gate_passed",
 	}
 	for _, key := range requiredKeys {
 		if data[key] == nil {
@@ -2811,13 +2703,17 @@ func TestRunGate_EnvelopeKeyParity(t *testing.T) {
 		}
 	}
 
-	// Verify no duplicate track keys (HIGH-17)
+	// Verify no duplicate track keys and no copies of the verdict (HIGH-17)
 	forbiddenKeys := []string{
 		"quality_checks",
 		"structural_completeness",
 		"mechanical_quality",
 		"track_b",
 		"track_b_checks",
+		"gate_passed",
+		"gate_status",
+		"track_a_result",
+		"track_b_result",
 	}
 	for _, key := range forbiddenKeys {
 		if data[key] != nil {
@@ -2834,7 +2730,7 @@ func TestRunGate_IgnoresConflictResolutionArtifacts(t *testing.T) {
 	// Init decision scope
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
 		Name:      "vivechak_start",
-		Arguments: map[string]any{"project_root": tmpDir, "scope": "decision"},
+		Arguments: map[string]any{"question": "test", "project_root": tmpDir, "scope": "decision"},
 	})
 
 	// Add a valid session
@@ -2873,7 +2769,7 @@ Resolved in favor of SQLite. A (doc)`
 	}
 	env := parseEnvelope(t, res)
 	// Must not complain that CHK-01 is missing decision_id or is an invalid ADR
-	for _, w := range env.Warnings {
+	for _, w := range envWarningStrings(env) {
 		if strings.Contains(w, "CHK-01") {
 			t.Errorf("unexpected gate warning for conflict resolution: %s", w)
 		}
@@ -2932,7 +2828,7 @@ func TestSaveSession_QualityObservationsAndProgress(t *testing.T) {
 
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
 		Name:      "vivechak_start",
-		Arguments: map[string]any{"project_root": tmpDir, "scope": "project"},
+		Arguments: map[string]any{"question": "test", "project_root": tmpDir, "scope": "project"},
 	})
 
 	sessContent := `---
@@ -2974,7 +2870,7 @@ None.
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"kind":         "session",
-			"session_id":   "T0-01",
+			"id":           "T0-01",
 			"content":      sessContent,
 		},
 	})
@@ -2982,7 +2878,7 @@ None.
 		t.Fatalf("save_session: %v", err)
 	}
 	env := parseEnvelope(t, res)
-	if !env.Success {
+	if !env.Ok {
 		t.Fatalf("save_session expected success, got error: %s", env.Message)
 	}
 
@@ -3020,7 +2916,7 @@ func TestRecordDecision_ProgressAndDoorTypeAwareNextStep(t *testing.T) {
 
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
 		Name:      "vivechak_start",
-		Arguments: map[string]any{"project_root": tmpDir, "scope": "project"},
+		Arguments: map[string]any{"question": "test", "project_root": tmpDir, "scope": "project"},
 	})
 
 	adr := `---
@@ -3045,7 +2941,7 @@ MySQL rejected due to JSON querying needs.
 		Name: "vivechak_record_decision",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
-			"decision_id":  "D-001",
+			"id":           "D-001",
 			"content":      adr,
 		},
 	})
@@ -3053,7 +2949,7 @@ MySQL rejected due to JSON querying needs.
 		t.Fatalf("record_decision: %v", err)
 	}
 	env := parseEnvelope(t, res)
-	if !env.Success {
+	if !env.Ok {
 		t.Fatalf("record_decision expected success, got: %s", env.Message)
 	}
 
@@ -3081,13 +2977,12 @@ func TestGate_EvidentiaryIntegrity_B3_B4_B5(t *testing.T) {
 
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
 		Name:      "vivechak_start",
-		Arguments: map[string]any{"project_root": tmpDir, "scope": "project"},
+		Arguments: map[string]any{"question": "test", "project_root": tmpDir, "scope": "project"},
 	})
 
-	pipelineContent := `# Research Pipeline
-## Execution DAG
-- T0-01: Session 1 (Door: one-way)
-`
+	pipelineContent := testPlan("Research Pipeline", "PROJECT", "", []string{"{id: T0-01, title: Session 1, door: one-way, depends: []}",
+		"{id: SYN-01, title: Synthesis, kind: synthesis, depends: [ALL]}"},
+		testSection("T0-01", "Session 1", "Research Session 1."), testSection("SYN-01", "Synthesis", "Synthesize."))
 	_ = os.WriteFile(filepath.Join(tmpDir, "research", "RESEARCH-PIPELINE.md"), []byte(pipelineContent), 0o644)
 
 	sessContent := `---
@@ -3132,7 +3027,7 @@ We decided to use Postgres.
 	hasB3 := false
 	hasB4 := false
 	hasB5 := false
-	for _, w := range env.Warnings {
+	for _, w := range envWarningStrings(env) {
 		if strings.Contains(w, "B3-EVIDENTIARY") {
 			hasB3 = true
 		}
@@ -3161,13 +3056,12 @@ func TestGate_EvidentiaryIntegrity_RAMNotRecalled(t *testing.T) {
 
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
 		Name:      "vivechak_start",
-		Arguments: map[string]any{"project_root": tmpDir, "scope": "project"},
+		Arguments: map[string]any{"question": "test", "project_root": tmpDir, "scope": "project"},
 	})
 
-	pipelineContent := `# Research Pipeline
-## Execution DAG
-- T0-01: In-Memory Datastore Evaluation
-`
+	pipelineContent := testPlan("Research Pipeline", "PROJECT", "", []string{"{id: T0-01, title: In-Memory Datastore Evaluation, depends: []}",
+		"{id: SYN-01, title: Synthesis, kind: synthesis, depends: [ALL]}"},
+		testSection("T0-01", "In-Memory Datastore Evaluation", "Research In-Memory Datastore Evaluation."), testSection("SYN-01", "Synthesis", "Synthesize."))
 	_ = os.WriteFile(filepath.Join(tmpDir, "research", "RESEARCH-PIPELINE.md"), []byte(pipelineContent), 0o644)
 
 	// Session text discussing RAM, heap memory, in-memory caching - NOT unverified recall citations!
@@ -3216,7 +3110,7 @@ Memcached was rejected due to lack of persistence data structures.
 	env := parseEnvelope(t, res)
 
 	// Verify that B4-VERIFICATION does NOT fire for system memory/RAM discussions!
-	for _, w := range env.Warnings {
+	for _, w := range envWarningStrings(env) {
 		if strings.Contains(w, "B4-VERIFICATION") {
 			t.Errorf("unexpected B4-VERIFICATION advisory triggered by technical RAM/memory keywords: %s", w)
 		}
@@ -3230,13 +3124,12 @@ func TestGate_EvidentiaryIntegrity_FallbackToDecisionsMD(t *testing.T) {
 
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
 		Name:      "vivechak_start",
-		Arguments: map[string]any{"project_root": tmpDir, "scope": "project"},
+		Arguments: map[string]any{"question": "test", "project_root": tmpDir, "scope": "project"},
 	})
 
-	pipelineContent := `# Research Pipeline
-## Execution DAG
-- T0-01: Session 1
-`
+	pipelineContent := testPlan("Research Pipeline", "PROJECT", "", []string{"{id: T0-01, title: Session 1, depends: []}",
+		"{id: SYN-01, title: Synthesis, kind: synthesis, depends: [ALL]}"},
+		testSection("T0-01", "Session 1", "Research Session 1."), testSection("SYN-01", "Synthesis", "Synthesize."))
 	_ = os.WriteFile(filepath.Join(tmpDir, "research", "RESEARCH-PIPELINE.md"), []byte(pipelineContent), 0o644)
 
 	sessContent := `---
@@ -3287,7 +3180,7 @@ Decision outcome.
 	hasB3 := false
 	hasB4 := false
 	hasB5 := false
-	for _, w := range env.Warnings {
+	for _, w := range envWarningStrings(env) {
 		if strings.Contains(w, "B3-EVIDENTIARY") {
 			hasB3 = true
 		}
@@ -3314,13 +3207,11 @@ func TestValidate_PlanDoesNotTriggerSessionObservations(t *testing.T) {
 	ctx := context.Background()
 	tmpDir := t.TempDir()
 
-	planContent := `# Research Plan: Distributed Tracing
-## Strategy
-Investigate OpenTelemetry vs OpenTracing.
-## Execution Plan
-1. T0-01: Tracing protocol
-2. T0-02: Collector performance
-`
+	planContent := testPlan("Research Plan: Distributed Tracing", "PROJECT", "## Strategy\nInvestigate OpenTelemetry vs OpenTracing.",
+		[]string{"{id: T0-01, title: Tracing protocol, depends: []}", "{id: T0-02, title: Collector performance, depends: []}",
+			"{id: SYN-01, title: Synthesis, kind: synthesis, depends: [ALL]}"},
+		testSection("T0-01", "Tracing protocol", "Compare OpenTelemetry and OpenTracing protocols."),
+		testSection("T0-02", "Collector performance", "Measure collector performance."), testSection("SYN-01", "Synthesis", "Synthesize."))
 	res, err := cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_review",
 		Arguments: map[string]any{
@@ -3334,12 +3225,12 @@ Investigate OpenTelemetry vs OpenTracing.
 		t.Fatalf("validate plan: %v", err)
 	}
 	env := parseEnvelope(t, res)
-	if !env.Success {
+	if !env.Ok {
 		t.Fatalf("expected validation success for plan, got: %s", env.Message)
 	}
 
 	// Verify that dry-running a plan does NOT emit session quality observations (Prior / Delta)
-	for _, w := range env.Warnings {
+	for _, w := range envWarningStrings(env) {
 		if strings.Contains(w, "No Prior section") || strings.Contains(w, "No Delta section") {
 			t.Errorf("unexpected session observation leaked into plan validation: %s", w)
 		}
@@ -3353,28 +3244,12 @@ func TestNextSession_CaseInsensitive(t *testing.T) {
 
 	_, _ = cs.CallTool(ctx, &mcp.CallToolParams{
 		Name:      "vivechak_start",
-		Arguments: map[string]any{"project_root": tmpDir, "scope": "project"},
+		Arguments: map[string]any{"question": "test", "project_root": tmpDir, "scope": "project"},
 	})
 
-	pipelineContent := `# Research Pipeline
-
-#### T0-01: Session 1
-| Field | Value |
-|---|---|
-| **ID** | T0-01 |
-| **Dependencies** | None |
-| **Output File** | sessions/T0-01.md |
-
-` + "```prompt\n# Brief\n```" + `
-
-#### T0-02: Session 2
-| Field | Value |
-|---|---|
-| **ID** | T0-02 |
-| **Dependencies** | T0-01 |
-| **Output File** | sessions/T0-02.md |
-
-` + "```prompt\n# Brief\n```"
+	pipelineContent := testPlan("Research Pipeline", "PROJECT", "", []string{"{id: T0-01, title: Session 1, depends: []}",
+		"{id: T0-02, title: Session 2, depends: [T0-01]}", "{id: SYN-01, title: Synthesis, kind: synthesis, depends: [ALL]}"},
+		testSection("T0-01", "Session 1", "# Brief"), testSection("T0-02", "Session 2", "# Brief"), testSection("SYN-01", "Synthesis", "Synthesize."))
 
 	_ = os.WriteFile(filepath.Join(tmpDir, "research", "RESEARCH-PIPELINE.md"), []byte(pipelineContent), 0o644)
 
@@ -3395,7 +3270,7 @@ Recommended Option A.
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"kind":         "session",
-			"session_id":   "t0-01",
+			"id":           "t0-01",
 			"content":      sessContent,
 		},
 	})
@@ -3403,7 +3278,7 @@ Recommended Option A.
 		t.Fatalf("save_session: %v", err)
 	}
 	saveEnv := parseEnvelope(t, saveRes)
-	if !saveEnv.Success {
+	if !saveEnv.Ok {
 		t.Fatalf("save_session failed: %s", saveEnv.Message)
 	}
 
@@ -3418,7 +3293,7 @@ Recommended Option A.
 		t.Fatalf("next_session: %v", err)
 	}
 	nextEnv := parseEnvelope(t, nextRes)
-	if !nextEnv.Success {
+	if !nextEnv.Ok {
 		t.Fatalf("expected next_session success, got: %s", nextEnv.Message)
 	}
 	dataMap, ok := nextEnv.Data.(map[string]any)
@@ -3439,6 +3314,7 @@ func TestRunGate_OneWayDoor_MissingAlternatives_FailsTrackB(t *testing.T) {
 	_, err := cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_start",
 		Arguments: map[string]any{
+			"question":     "test",
 			"project_root": tmpDir,
 			"scope":        "decision",
 		},
@@ -3466,7 +3342,7 @@ We select PostgreSQL. Grade A (RFC docs)
 		Name: "vivechak_record_decision",
 		Arguments: map[string]any{
 			"project_root": tmpDir,
-			"decision_id":  "D-001",
+			"id":           "D-001",
 			"content":      incompleteADR,
 		},
 	})
@@ -3484,19 +3360,19 @@ We select PostgreSQL. Grade A (RFC docs)
 	}
 	envGate := parseEnvelope(t, resGate)
 	gateData := envGate.Data.(map[string]any)
-	if gateData["gate_status"] == "PASS" || gateData["gate_passed"] == true {
-		t.Fatalf("expected gate to FAIL or WARN on One-Way Door with missing alternatives, got PASS!")
+	if gateData["verdict"] != "FAIL" {
+		t.Fatalf("expected gate to FAIL on One-Way Door with missing alternatives, got verdict %v", gateData["verdict"])
 	}
 
-	if !strings.Contains(envGate.Message, "❌ PHASE 0 GATE FAILED") {
-		t.Errorf("expected failure message stop-signal '❌ PHASE 0 GATE FAILED', got: %s", envGate.Message)
+	if !strings.Contains(envGate.Message, "Phase 0 Gate: FAIL") {
+		t.Errorf("expected failure message 'Phase 0 Gate: FAIL', got: %s", envGate.Message)
 	}
-	if !strings.Contains(envGate.NextStep, "⛔ DO NOT PROCEED TO CODE") {
-		t.Errorf("expected failure next_step stop-signal '⛔ DO NOT PROCEED TO CODE', got: %s", envGate.NextStep)
+	if !strings.Contains(envGuidance(envGate), "DO NOT START IMPLEMENTATION") {
+		t.Errorf("expected failure next.why stop-signal 'DO NOT START IMPLEMENTATION', got: %s", envGuidance(envGate))
 	}
 
 	foundB5 := false
-	for _, w := range envGate.Warnings {
+	for _, w := range envWarningStrings(envGate) {
 		if strings.Contains(w, "B5-ALTERNATIVES") {
 			foundB5 = true
 			break
@@ -3507,7 +3383,7 @@ We select PostgreSQL. Grade A (RFC docs)
 	}
 
 	foundChallengeWarn := false
-	for _, w := range envGate.Warnings {
+	for _, w := range envWarningStrings(envGate) {
 		if strings.Contains(w, "W-OWD-NO-CHALLENGE") {
 			foundChallengeWarn = true
 			break
@@ -3527,6 +3403,7 @@ func TestRunGate_ChallengeWarning_Resolved(t *testing.T) {
 	_, err := cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_start",
 		Arguments: map[string]any{
+			"question":     "test",
 			"project_root": tmpDir,
 			"scope":        "decision",
 		},
@@ -3535,8 +3412,9 @@ func TestRunGate_ChallengeWarning_Resolved(t *testing.T) {
 		t.Fatalf("init: %v", err)
 	}
 
-	// Record a One-Way Door ADR that includes Challenge Findings
-	adrWithChallenge := `---
+	// Record a One-Way Door ADR, run the real red-team review, then cite the record it returns
+	adrWithChallenge := func(challenge string) string {
+		return `---
 id: D-001
 title: Core Storage Engine
 status: accepted
@@ -3554,35 +3432,17 @@ We are choosing an embedded transactional datastore.
 We select SQLite. Grade A (https://sqlite.org)
 ## Rejected Alternatives & Tradeoffs
 - DuckDB: Rejected due to OLTP transaction locks.
-## Challenge Findings & Red-Team Stress Test
-Evaluated D-001-R1 adversarial probe confirms concurrency limit at 1 writer per database file.
-## Failure Modes & Reversal Triggers
+` + challenge + `## Failure Modes & Reversal Triggers
 Review if write transactions exceed 500 ops/sec.
 `
-	_, err = cs.CallTool(ctx, &mcp.CallToolParams{
-		Name: "vivechak_record_decision",
-		Arguments: map[string]any{
-			"project_root": tmpDir,
-			"decision_id":  "D-001",
-			"content":      adrWithChallenge,
-		},
-	})
-	if err != nil {
-		t.Fatalf("record_decision: %v", err)
 	}
+	recordDecisionRevise(t, ctx, cs, tmpDir, "D-001", adrWithChallenge(""))
+	recID := redTeamRecordID(t, ctx, cs, tmpDir, "D-001")
+	recordDecisionRevise(t, ctx, cs, tmpDir, "D-001", adrWithChallenge(fmt.Sprintf(`## Challenge Findings & Red-Team Stress Test
+Evaluated %s adversarial probe confirms concurrency limit at 1 writer per database file.
+`, recID)))
 
-	hash := core.ComputeDecisionOutcomeHash([]byte(adrWithChallenge))
-	chContent := fmt.Sprintf(`---
-decision_id: D-001
-decision_hash: %s
-date: 2026-10-24
----
-# Adversarial Challenge D-001-R1
-Substantive challenge findings for D-001.
-`, hash)
-	_ = os.WriteFile(filepath.Join(tmpDir, "research", "D-001-R1.md"), []byte(chContent), 0o644)
-
-	// Run gate: W-OWD-NO-CHALLENGE should NOT be emitted
+	// Run gate: W-OWD-NO-CHALLENGE should NOT be emitted, and G10 passes on the tool's own, cited record
 	resGate, err := cs.CallTool(ctx, &mcp.CallToolParams{
 		Name:      "vivechak_gate",
 		Arguments: map[string]any{"project_root": tmpDir, "verbose": true},
@@ -3591,10 +3451,21 @@ Substantive challenge findings for D-001.
 		t.Fatalf("run_gate: %v", err)
 	}
 	envGate := parseEnvelope(t, resGate)
-	for _, w := range envGate.Warnings {
+	for _, w := range envWarningStrings(envGate) {
 		if strings.Contains(w, "W-OWD-NO-CHALLENGE") {
 			t.Errorf("unexpected W-OWD-NO-CHALLENGE warning when Challenge Findings section is present: %s", w)
 		}
+	}
+	gateData, _ := envGate.Data.(map[string]any)
+	rulesList, _ := gateData["rules"].([]any)
+	g10 := ""
+	for _, r := range rulesList {
+		if rm, ok := r.(map[string]any); ok && rm["id"] == "G10" {
+			g10, _ = rm["status"].(string)
+		}
+	}
+	if g10 != "PASS" {
+		t.Errorf("expected G10 PASS with the red-team record %s cited, got %q (rules: %v)", recID, g10, rulesList)
 	}
 }
 
@@ -3639,7 +3510,7 @@ Initial proposed ADR skeleton for D-01.
 		t.Fatalf("call validate: %v", err)
 	}
 	env1 := parseEnvelope(t, res1)
-	if !env1.Success {
+	if !env1.Ok {
 		t.Fatalf("expected success, got: %s", env1.Message)
 	}
 	data1, _ := env1.Data.(map[string]any)
@@ -3651,7 +3522,7 @@ Initial proposed ADR skeleton for D-01.
 	res2, err := cs.CallTool(ctx, &mcp.CallToolParams{
 		Name: "vivechak_review",
 		Arguments: map[string]any{
-			"artifact_type": "decisions",
+			"artifact_type": "decision",
 			"content":       decisionsContent,
 			"mode":          "validate",
 		},
@@ -3660,7 +3531,7 @@ Initial proposed ADR skeleton for D-01.
 		t.Fatalf("call validate: %v", err)
 	}
 	env2 := parseEnvelope(t, res2)
-	if !env2.Success {
+	if !env2.Ok {
 		t.Fatalf("expected success, got: %s", env2.Message)
 	}
 	data2, _ := env2.Data.(map[string]any)
@@ -3706,7 +3577,7 @@ func TestMCPProtocolTriumvirate_ListingAndExecution(t *testing.T) {
 	// 4. Sequential execution of one primitive from each triumvirate pillar
 	// Pillar A: Execute a prompt
 	pRes, err := cs.GetPrompt(ctx, &mcp.GetPromptParams{
-		Name: "vivechak_compare",
+		Name: "compare",
 		Arguments: map[string]string{
 			"options": "Option A vs Option B",
 		},
@@ -3736,14 +3607,14 @@ func TestMCPProtocolTriumvirate_ListingAndExecution(t *testing.T) {
 		Arguments: map[string]any{
 			"project_root": tmpDir,
 			"scope":        "comparison",
-			"context":      "Option A vs Option B",
+			"question":     "Option A vs Option B",
 		},
 	})
 	if err != nil {
 		t.Fatalf("CallTool failed: %v", err)
 	}
 	env := parseEnvelope(t, tRes)
-	if !env.Success {
+	if !env.Ok {
 		t.Errorf("vivechak_start tool invocation failed: %s", env.Message)
 	}
 }

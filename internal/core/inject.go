@@ -56,8 +56,8 @@ func InjectContextFS(session Session, ws WorkspaceFS, sessionsRelDir string, com
 		Session: session,
 	}
 
-	// Determine if this is a synthesis session
-	isSynthesis := IsSynthesisSession(session.ID)
+	// The plan's kind: synthesis session gathers every completed session's findings.
+	isSynthesis := session.IsSynthesis()
 
 	if isSynthesis {
 		// For synthesis: inject ALL completed session findings

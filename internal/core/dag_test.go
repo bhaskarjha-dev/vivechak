@@ -1,18 +1,35 @@
 package core
 
 import (
-	"fmt"
 	"strings"
 	"testing"
 )
 
-const samplePipeline = `# Research Pipeline: Test Project
+// md turns <F> into a code fence (three backticks), so plan fixtures can be raw strings.
+func md(s string) string { return strings.ReplaceAll(s, "<F>", "```") }
+
+// samplePipeline is a project plan in the plan format: one vivechak-plan block (the only source of sessions and
+// dependencies) and a "### <id>: <title>" section with one prompt fence per session under "## Sessions". Its
+// tables and Mermaid diagram are prose for people.
+var samplePipeline = md(`# Research Pipeline: Test Project
 
 **Complexity Score:** 8 / 24 → **Tier 1 (4–8 Sessions)**
 
+<F>yaml vivechak-plan
+plan: PROJECT
+sessions:
+  - {id: T1-01, title: Database Selection, layer: 0, door: one-way, informs: [D-001], depends: []}
+  - {id: T1-02, title: Auth Strategy, layer: 0, door: two-way, informs: [D-002], depends: []}
+  - {id: T2-01, title: Database Deep Dive, layer: 1, door: one-way, informs: [D-001], depends: [T1-01]}
+  - {id: SYN-01, title: Founding Architecture Document, layer: 2, kind: synthesis, depends: [T2-01, T1-02]}
+decisions:
+  - {id: D-001, title: Primary datastore, door: one-way}
+  - {id: D-002, title: Authentication, door: two-way}
+<F>
+
 **Execution DAG:**
 
-` + "```mermaid" + `
+<F>mermaid
 graph TD
     T01[T1-01: Database Selection]
     T02[T1-02: Auth Strategy]
@@ -22,11 +39,11 @@ graph TD
     T01 -->|constrains| T03
     T03 --> SYN
     T02 --> SYN
-` + "```" + `
+<F>
 
 ## Sessions
 
-#### T1-01: Database Selection — Primary Datastore
+### T1-01: Database Selection — Primary Datastore
 
 | Field | Value |
 |---|---|
@@ -35,9 +52,9 @@ graph TD
 | **Door Type** | One-Way |
 | **Decision** | D-001 |
 | **Dependencies** | None (parallel) |
-| **Output File** | ` + "`sessions/T1-01-database-selection.md`" + ` |
+| **Output File** | <F>sessions/T1-01-database-selection.md<F> |
 
-` + "```prompt" + `
+<F>prompt
 # RESEARCH BRIEF: T1-01 Database Selection
 
 ## BRIEF
@@ -48,22 +65,13 @@ In-Scope: PostgreSQL vs MongoDB vs SQLite.
 
 ## DELIVERABLE
 Concrete recommendation with evidence grades.
-` + "```" + `
+<F>
 
 ---
 
-#### T1-02: Auth Strategy — Authentication Approach
+### T1-02: Auth Strategy — Authentication Approach
 
-| Field | Value |
-|---|---|
-| **ID** | T1-02 |
-| **Layer** | 0 |
-| **Door Type** | Two-Way |
-| **Decision** | D-002 |
-| **Dependencies** | None |
-| **Output File** | ` + "`sessions/T1-02-auth-strategy.md`" + ` |
-
-` + "```prompt" + `
+<F>prompt
 # RESEARCH BRIEF: T1-02 Auth Strategy
 
 ## BRIEF
@@ -71,22 +79,13 @@ Evaluate authentication approaches. Two-Way Door.
 
 ## DELIVERABLE
 Recommendation with tradeoff matrix.
-` + "```" + `
+<F>
 
 ---
 
-#### T2-01: Database Deep Dive — PostgreSQL Extensions
+### T2-01: Database Deep Dive — PostgreSQL Extensions
 
-| Field | Value |
-|---|---|
-| **ID** | T2-01 |
-| **Layer** | 1 |
-| **Door Type** | One-Way |
-| **Decision** | D-001 |
-| **Dependencies** | T1-01 |
-| **Output File** | ` + "`sessions/T2-01-database-deep-dive.md`" + ` |
-
-` + "```prompt" + `
+<F>prompt
 # RESEARCH BRIEF: T2-01 Database Deep Dive
 
 ## BRIEF
@@ -96,29 +95,40 @@ Deep investigation into PostgreSQL extensions based on T1-01 findings.
 
 ## DELIVERABLE
 Extension selection with benchmarks.
-` + "```" + `
+<F>
 
 ---
 
-#### SYN-01: Founding Architecture Document
+### SYN-01: Founding Architecture Document
 
-| Field | Value |
-|---|---|
-| **ID** | SYN-01 |
-| **Layer** | 2 |
-| **Door Type** | — |
-| **Decision** | — |
-| **Dependencies** | T2-01, T1-02 |
-| **Output File** | ` + "`research/FAD.md`" + ` |
-
-` + "```prompt" + `
+<F>prompt
 # SYNTHESIS: Founding Architecture Document
 
 Synthesize all research findings into the FAD.
 
 [ALL_SESSION_FINDINGS]
-` + "```" + `
-`
+<F>
+`)
+
+// projectPlan builds a minimal project plan: block entries (one per line) and the sessions' prompt sections.
+func projectPlan(entries []string, sections string) string {
+	return md("# Research Pipeline\n\n<F>yaml vivechak-plan\nplan: PROJECT\nsessions:\n  - " +
+		strings.Join(entries, "\n  - ") + "\n<F>\n\n## Sessions\n\n" + sections)
+}
+
+// section is one "### <id>: <title>" section with its prompt fence.
+func section(id, title, prompt string) string {
+	return md("### " + id + ": " + title + "\n\n<F>prompt\n" + prompt + "\n<F>\n\n")
+}
+
+func planCodes(t *testing.T, data string) []string {
+	t.Helper()
+	var codes []string
+	for _, issue := range ValidatePlan([]byte(data)).Issues {
+		codes = append(codes, issue.Code)
+	}
+	return codes
+}
 
 func TestParsePipeline(t *testing.T) {
 	dag, err := ParsePipeline([]byte(samplePipeline))
@@ -228,52 +238,6 @@ func TestNextSessions(t *testing.T) {
 	}
 }
 
-func TestParseDependencies(t *testing.T) {
-	tests := []struct {
-		input string
-		want  []string
-	}{
-		{"None (parallel)", nil},
-		{"none (independent)", nil},
-		{"none()", nil},
-		{"None", nil},
-		{"none", nil},
-		{"—", nil},
-		{"-", nil},
-		{"n/a", nil},
-		{"N/A", nil},
-		{"", nil},
-		{"   ", nil},
-		{"T1-01", []string{"T1-01"}},
-		{"T1-01, T1-02", []string{"T1-01", "T1-02"}},
-		{"T2-01, T1-02", []string{"T2-01", "T1-02"}},
-		{"T1-01 (soft), T1-02", []string{"T1-01", "T1-02"}},
-		{"T1-01, T1-02 (none-blocking)", []string{"T1-01", "T1-02"}},
-		{"T1-01, none", []string{"T1-01"}},
-		{"[T1-01, T1-02]", []string{"T1-01", "T1-02"}},
-		{"`T1-01` and `T1-02`", []string{"T1-01", "T1-02"}},
-		{"T1-01 & T1-02", []string{"T1-01", "T1-02"}},
-		{"[None]", nil},
-		{"`none`", nil},
-		{"[R-01](./R-01.md), [R-02](#r-02)", []string{"R-01", "R-02"}},
-		{"- R-01\n- R-02", []string{"R-01", "R-02"}},
-		{"* R-01\r\n* R-02", []string{"R-01", "R-02"}},
-	}
-
-	for _, tc := range tests {
-		got := parseDependencies(tc.input)
-		if len(got) != len(tc.want) {
-			t.Errorf("parseDependencies(%q): got %v, want %v", tc.input, got, tc.want)
-			continue
-		}
-		for i := range got {
-			if got[i] != tc.want[i] {
-				t.Errorf("parseDependencies(%q)[%d]: got %q, want %q", tc.input, i, got[i], tc.want[i])
-			}
-		}
-	}
-}
-
 func idsOf(sessions []Session) []string {
 	ids := make([]string, len(sessions))
 	for i, s := range sessions {
@@ -347,64 +311,75 @@ func TestValidateDAG(t *testing.T) {
 	}
 }
 
-func TestComplexityScore(t *testing.T) {
-	dag, err := ParsePipeline([]byte(samplePipeline))
-	if err != nil {
-		t.Fatalf("ParsePipeline: %v", err)
-	}
-	if dag.ComplexityScore != 8 {
-		t.Errorf("expected ComplexityScore 8, got %d", dag.ComplexityScore)
-	}
-	if dag.Tier != "**Tier 1 (4–8 Sessions)**" {
-		t.Errorf("expected Tier '**Tier 1 (4–8 Sessions)**', got %q", dag.Tier)
-	}
-}
+// The session's heading must start with its id: the flexible header forms the table parser guessed at
+// ("### Session T1-01 — ...", "#### T1-01: ...") are refused with a fix that names the heading to write.
+func TestPlanSessionHeadingMustStartWithID(t *testing.T) {
+	plan := md(`# Pipeline
 
-func TestFlexibleSessionHeaders(t *testing.T) {
-	pipeline := `# Pipeline
+<F>yaml vivechak-plan
+plan: D-001
+sessions:
+  - {id: D-001-S1, title: Deep Dive Decision Session, role: L, depends: []}
+  - {id: D-001-S2, title: Database Architecture, role: C, depends: [D-001-S1]}
+<F>
+
+## Sessions
+
 ### D-001-S1: Deep Dive Decision Session
 | Field | Value |
 |---|---|
 | **ID** | D-001-S1 |
-| **Dependencies** | None |
 
-` + "```prompt" + `
+<F>prompt
 Prompt content
-` + "```" + `
+<F>
 
-### Session T1-01 — Database Architecture
-| Field | Value |
-|---|---|
-| **ID** | T1-01 |
-| **Dependencies** | None |
+### Session D-001-S2 — Database Architecture
 
-` + "```prompt" + `
+<F>prompt
 Database prompt content
-` + "```" + `
-`
-	dag, err := ParsePipeline([]byte(pipeline))
+<F>
+`)
+	if _, err := ParsePipeline([]byte(plan)); err == nil || !strings.Contains(err.Error(), CodePlanMissingPrompt) {
+		t.Fatalf("expected %s for a heading that does not start with the id, got %v", CodePlanMissingPrompt, err)
+	}
+	res := ValidatePlan([]byte(plan))
+	if len(res.Issues) != 1 || !strings.Contains(res.Issues[0].FixHint, "### D-001-S2: <title>") {
+		t.Fatalf("expected one issue whose fix names the heading ### D-001-S2: <title>, got %+v", res.Issues)
+	}
+
+	fixed := strings.Replace(plan, "### Session D-001-S2 — Database Architecture", "### D-001-S2: Database Architecture", 1)
+	dag, err := ParsePipeline([]byte(fixed))
 	if err != nil {
 		t.Fatalf("ParsePipeline: %v", err)
 	}
-	if len(dag.Sessions) != 2 {
-		t.Fatalf("expected 2 sessions, got %d", len(dag.Sessions))
+	if len(dag.Sessions) != 2 || dag.Sessions[1].Prompt != "Database prompt content" || dag.Sessions[1].Role != "C" {
+		t.Fatalf("unexpected sessions: %+v", dag.Sessions)
 	}
-	if dag.Sessions[0].ID != "D-001-S1" {
-		t.Errorf("expected ID D-001-S1, got %s", dag.Sessions[0].ID)
-	}
-	if dag.Sessions[1].ID != "T1-01" {
-		t.Errorf("expected ID T1-01, got %s", dag.Sessions[1].ID)
+
+	level4 := strings.Replace(fixed, "### D-001-S2:", "#### D-001-S2:", 1)
+	if _, err := ParsePipeline([]byte(level4)); err == nil || !strings.Contains(err.Error(), CodePlanMissingPrompt) {
+		t.Fatalf("expected %s for a level-4 session heading, got %v", CodePlanMissingPrompt, err)
 	}
 }
 
 func TestParsePipeline_StrayPromptBlockDoesNotPanic(t *testing.T) {
-	// A pipeline with a prompt code block before any session header must not crash
-	pipeline := `# Pipeline with intro block
+	// A prompt code block before the ## Sessions section must not crash or become a session's prompt
+	pipeline := md(`# Pipeline with intro block
 
 Here is an example prompt template:
-` + "```prompt" + `
+<F>prompt
 Stray intro prompt
-` + "```" + `
+<F>
+
+<F>yaml vivechak-plan
+plan: PROJECT
+sessions:
+  - {id: T1-01, title: First Real Session, depends: []}
+  - {id: SYN-01, title: Synthesis, kind: synthesis, depends: [ALL]}
+<F>
+
+## Sessions
 
 ### T1-01: First Real Session
 | Field | Value |
@@ -412,16 +387,22 @@ Stray intro prompt
 | **ID** | T1-01 |
 | **Dependencies** | None |
 
-` + "```prompt" + `
+<F>prompt
 Real session prompt
-` + "```" + `
-`
+<F>
+
+### SYN-01: Synthesis
+
+<F>prompt
+Synthesize.
+<F>
+`)
 	dag, err := ParsePipeline([]byte(pipeline))
 	if err != nil {
 		t.Fatalf("ParsePipeline: %v", err)
 	}
-	if len(dag.Sessions) != 1 {
-		t.Fatalf("expected 1 session, got %d", len(dag.Sessions))
+	if len(dag.Sessions) != 2 {
+		t.Fatalf("expected 2 sessions, got %d", len(dag.Sessions))
 	}
 	if dag.Sessions[0].ID != "T1-01" {
 		t.Errorf("expected ID T1-01, got %s", dag.Sessions[0].ID)
@@ -431,24 +412,61 @@ Real session prompt
 	}
 }
 
+// A decision plan written as a horizontal session table with headerless prompts used to be guessed into sessions
+// (prompts handed out in table order). Without the block it is refused; with it, the block gives the sessions and
+// each prompt comes from its own heading.
 func TestParsePipeline_HorizontalTablePlan(t *testing.T) {
-	plan := `# Research Plan: D-015 Cache Layer
+	tableOnly := md(`# Research Plan: D-015 Cache Layer
 
 | Session ID | Role | Depends | Filename |
 |---|---|---|---|
-| D-015-S1 | Landscape | none | ` + "`sessions/D-015-S1-landscape.md`" + ` |
-| D-015-S2 | Comparison | D-015-S1 | ` + "`sessions/D-015-S2-comparison.md`" + ` |
+| D-015-S1 | Landscape | none | <F>sessions/D-015-S1-landscape.md<F> |
+| D-015-S2 | Comparison | D-015-S1 | <F>sessions/D-015-S2-comparison.md<F> |
 
-` + "```prompt" + `
+<F>prompt
 # RESEARCH BRIEF: D-015-S1 Landscape
 Map caching options.
-` + "```" + `
+<F>
 
-` + "```prompt" + `
+<F>prompt
 # RESEARCH BRIEF: D-015-S2 Comparison
 Compare shortlisted options.
-` + "```" + `
-`
+<F>
+`)
+	if _, err := ParsePipeline([]byte(tableOnly)); err == nil || !strings.Contains(err.Error(), CodePlanMissingBlock) {
+		t.Fatalf("expected %s for a table-only plan, got %v", CodePlanMissingBlock, err)
+	}
+
+	plan := md(`# Research Plan: D-015 Cache Layer
+
+<F>yaml vivechak-plan
+plan: D-015
+sessions:
+  - {id: D-015-S1, title: Landscape, role: L, door: one-way, informs: [D-015], depends: []}
+  - {id: D-015-S2, title: Comparison, role: C, door: one-way, informs: [D-015], depends: [D-015-S1]}
+<F>
+
+| Session ID | Role | Depends | Filename |
+|---|---|---|---|
+| D-015-S1 | Landscape | none | <F>sessions/D-015-S1-landscape.md<F> |
+| D-015-S2 | Comparison | D-015-S1 | <F>sessions/D-015-S2-comparison.md<F> |
+
+## Sessions
+
+### D-015-S1: Landscape
+
+<F>prompt
+# RESEARCH BRIEF: D-015-S1 Landscape
+Map caching options.
+<F>
+
+### D-015-S2: Comparison
+
+<F>prompt
+# RESEARCH BRIEF: D-015-S2 Comparison
+Compare shortlisted options.
+<F>
+`)
 	dag, err := ParsePipeline([]byte(plan))
 	if err != nil {
 		t.Fatalf("ParsePipeline horizontal table: %v", err)
@@ -459,8 +477,8 @@ Compare shortlisted options.
 	if dag.Sessions[0].ID != "D-015-S1" {
 		t.Errorf("expected D-015-S1, got %s", dag.Sessions[0].ID)
 	}
-	if dag.Sessions[0].OutputFile != "sessions/D-015-S1-landscape.md" {
-		t.Errorf("expected output file sessions/D-015-S1-landscape.md, got %s", dag.Sessions[0].OutputFile)
+	if dag.Sessions[0].OutputFile != "research/sessions/D-015-S1.md" {
+		t.Errorf("expected output file research/sessions/D-015-S1.md, got %s", dag.Sessions[0].OutputFile)
 	}
 	if dag.Sessions[1].ID != "D-015-S2" {
 		t.Errorf("expected D-015-S2, got %s", dag.Sessions[1].ID)
@@ -477,44 +495,52 @@ Compare shortlisted options.
 }
 
 func TestParsePipeline_OverviewTableAndHeaders(t *testing.T) {
-	plan := `# Research Plan: D-016 Messaging Architecture
+	plan := md(`# Research Plan: D-016 Messaging Architecture
+
+<F>yaml vivechak-plan
+plan: D-016
+sessions:
+  - {id: D-016-S1, title: Messaging Landscape, role: L, depends: []}
+  - {id: D-016-S2, role: C, depends: [D-016-S1]}
+<F>
 
 ## Overview
 | Session ID | Role | Depends | Filename |
 |---|---|---|---|
-| D-016-S1 | Landscape | none | ` + "`sessions/D-016-S1-landscape.md`" + ` |
-| D-016-S2 | Comparison | D-016-S1 | ` + "`sessions/D-016-S2-comparison.md`" + ` |
+| D-016-S1 | Landscape | none | <F>sessions/D-016-S1-landscape.md<F> |
+| D-016-S2 | Comparison | D-016-S1 | <F>sessions/D-016-S2-comparison.md<F> |
 
-## Detailed Briefs
+## Sessions
 
 ### D-016-S1: Messaging Landscape
-` + "```prompt" + `
+<F>prompt
 # RESEARCH BRIEF: D-016-S1 Messaging Landscape
 Investigate pub/sub brokers.
-` + "```" + `
+<F>
 
 ### D-016-S2: NATS vs Kafka Comparison
-` + "```prompt" + `
+<F>prompt
 # RESEARCH BRIEF: D-016-S2 NATS vs Kafka Comparison
 Compare latency and durability.
-` + "```" + `
-`
+<F>
+`)
 	dag, err := ParsePipeline([]byte(plan))
 	if err != nil {
 		t.Fatalf("ParsePipeline error: %v", err)
 	}
 	if len(dag.Sessions) != 2 {
-		t.Fatalf("expected exactly 2 deduplicated sessions, got %d", len(dag.Sessions))
+		t.Fatalf("expected exactly 2 sessions, got %d", len(dag.Sessions))
 	}
 	s1 := dag.Sessions[0]
-	if s1.ID != "D-016-S1" || s1.Title != "Messaging Landscape" || s1.OutputFile != "sessions/D-016-S1-landscape.md" {
+	if s1.ID != "D-016-S1" || s1.Title != "Messaging Landscape" || s1.OutputFile != "research/sessions/D-016-S1.md" {
 		t.Errorf("unexpected s1 fields: %+v", s1)
 	}
 	if !strings.Contains(s1.Prompt, "Investigate pub/sub brokers.") {
 		t.Errorf("unexpected s1 prompt: %q", s1.Prompt)
 	}
 	s2 := dag.Sessions[1]
-	if s2.ID != "D-016-S2" || s2.Title != "NATS vs Kafka Comparison" || s2.OutputFile != "sessions/D-016-S2-comparison.md" {
+	// A session without a title in the block takes its heading's title.
+	if s2.ID != "D-016-S2" || s2.Title != "NATS vs Kafka Comparison" {
 		t.Errorf("unexpected s2 fields: %+v", s2)
 	}
 	if len(s2.Dependencies) != 1 || s2.Dependencies[0] != "D-016-S1" {
@@ -526,28 +552,29 @@ Compare latency and durability.
 }
 
 func TestParsePipeline_NestedCodeBlocks(t *testing.T) {
-	plan := `# Pipeline
-#### T1-01: Session With Code Fence
+	plan := projectPlan([]string{"{id: T1-01, title: Session With Code Fence, depends: []}", "{id: SYN-01, kind: synthesis, depends: [ALL]}"},
+		md(`### T1-01: Session With Code Fence
 | Field | Value |
 |---|---|
 | **ID** | T1-01 |
 
-` + "```prompt" + `
+<F>prompt
 # RESEARCH BRIEF: T1-01
 Output format required:
-` + "```yaml" + `
+<F>yaml
 id: T1-01
 status: complete
-` + "```" + `
+<F>
 Conclusion: must not be truncated.
-` + "```" + `
-`
+<F>
+
+`)+section("SYN-01", "Synthesis", "Synthesize."))
 	dag, err := ParsePipeline([]byte(plan))
 	if err != nil {
 		t.Fatalf("ParsePipeline error: %v", err)
 	}
-	if len(dag.Sessions) != 1 {
-		t.Fatalf("expected 1 session, got %d", len(dag.Sessions))
+	if len(dag.Sessions) != 2 {
+		t.Fatalf("expected 2 sessions, got %d", len(dag.Sessions))
 	}
 	prompt := dag.Sessions[0].Prompt
 	if !strings.Contains(prompt, "Conclusion: must not be truncated.") {
@@ -582,32 +609,38 @@ func TestValidateDAG_AlphanumericIDs(t *testing.T) {
 }
 
 func TestParsePipeline_SingleTokenAndHeaders(t *testing.T) {
-	content := `# Research Pipeline
+	content := md(`# Research Pipeline
 
-### Session S1: Landscape
+<F>yaml vivechak-plan
+plan: PROJECT
+sessions:
+  - {id: S1, title: Landscape, depends: []}
+  - {id: S2, depends: [S1]}
+  - {id: SYN, kind: synthesis, depends: [S1, S2]}
+<F>
+
+## Sessions
+
+### S1: Landscape
 | **ID** | S1 |
 | **Dependencies** | None |
 
-` + "````prompt" + `
+<F>` + "`prompt" + `
 Execute landscape research
-` + "````" + `
+<F>` + "`" + `
 
-#### S2: Deep Dive
-| **ID** | S2 |
-| **Dependencies** | [S1] |
+### S2: Deep Dive
 
-` + "````prompt" + `
+<F>` + "`prompt" + `
 Execute deep dive research
-` + "````" + `
+<F>` + "`" + `
 
-#### SYN: Synthesis
-| **ID** | SYN |
-| **Dependencies** | S1 and S2 |
+### SYN: Synthesis
 
-` + "````prompt" + `
+<F>` + "`prompt" + `
 Synthesize all findings
-` + "````" + `
-`
+<F>` + "`" + `
+`)
 
 	dag, err := ParsePipeline([]byte(content))
 	if err != nil {
@@ -616,10 +649,10 @@ Synthesize all findings
 	if len(dag.Sessions) != 3 {
 		t.Fatalf("expected 3 sessions, got %d", len(dag.Sessions))
 	}
-	if dag.Sessions[0].ID != "S1" || dag.Sessions[0].Title != "Landscape" {
+	if dag.Sessions[0].ID != "S1" || dag.Sessions[0].Title != "Landscape" || dag.Sessions[0].Prompt != "Execute landscape research" {
 		t.Errorf("unexpected session 0: %+v", dag.Sessions[0])
 	}
-	if dag.Sessions[1].ID != "S2" || len(dag.Sessions[1].Dependencies) != 1 || dag.Sessions[1].Dependencies[0] != "S1" {
+	if dag.Sessions[1].ID != "S2" || dag.Sessions[1].Title != "Deep Dive" || len(dag.Sessions[1].Dependencies) != 1 || dag.Sessions[1].Dependencies[0] != "S1" {
 		t.Errorf("unexpected session 1: %+v", dag.Sessions[1])
 	}
 	if dag.Sessions[2].ID != "SYN" || len(dag.Sessions[2].Dependencies) != 2 || dag.Sessions[2].Dependencies[0] != "S1" || dag.Sessions[2].Dependencies[1] != "S2" {
@@ -632,71 +665,32 @@ Synthesize all findings
 }
 
 func TestParsePipeline_PromptHeaderWithLeadingLines(t *testing.T) {
-	content := `# Research Pipeline
-
-#### T1-01: Database Selection
-| **ID** | T1-01 |
-| **Dependencies** | None |
-
-` + "````prompt" + `
-<!-- Generated by Vivechak -->
-<!-- Priority: High -->
-
-# Session T1-01: Primary Datastore
-Investigate database options.
-` + "````" + `
-
-#### T1-02: Auth Strategy
-| **ID** | T1-02 |
-| **Dependencies** | None |
-
-` + "````prompt" + `
-<!-- Note: Two-way door -->
-
-# Session T1-02: Auth Strategy
-Investigate auth options.
-` + "````" + `
-`
+	content := projectPlan([]string{"{id: T1-01, title: Database Selection, depends: []}", "{id: T1-02, title: Auth Strategy, depends: []}", "{id: SYN-01, kind: synthesis, depends: [ALL]}"},
+		section("T1-01", "Database Selection", "<!-- Generated by Vivechak -->\n<!-- Priority: High -->\n\n# Session T1-02: Primary Datastore\nInvestigate database options.")+
+			section("T1-02", "Auth Strategy", "<!-- Note: Two-way door -->\n\n# Session T1-01: Auth Strategy\nInvestigate auth options.")+
+			section("SYN-01", "Synthesis", "Synthesize."))
 
 	dag, err := ParsePipeline([]byte(content))
 	if err != nil {
 		t.Fatalf("ParsePipeline failed: %v", err)
 	}
-	if len(dag.Sessions) != 2 {
-		t.Fatalf("expected 2 sessions, got %d", len(dag.Sessions))
+	if len(dag.Sessions) != 3 {
+		t.Fatalf("expected 3 sessions, got %d", len(dag.Sessions))
 	}
+	// A prompt belongs to the heading it sits under, whatever ids its own text mentions.
 	if !strings.Contains(dag.Sessions[0].Prompt, "Primary Datastore") {
 		t.Errorf("expected T1-01 prompt to contain 'Primary Datastore', got: %q", dag.Sessions[0].Prompt)
 	}
-	if !strings.Contains(dag.Sessions[1].Prompt, "Auth Strategy") {
-		t.Errorf("expected T1-02 prompt to contain 'Auth Strategy', got: %q", dag.Sessions[1].Prompt)
+	if !strings.Contains(dag.Sessions[1].Prompt, "Investigate auth options.") {
+		t.Errorf("expected T1-02 prompt to contain 'Investigate auth options.', got: %q", dag.Sessions[1].Prompt)
 	}
 }
 
 func TestParsePipeline_UnclosedPromptAtEOFWithLeadingLines(t *testing.T) {
-	// A pipeline where the final prompt is unclosed at EOF (no closing fence)
-	// and has comment/header lines before the session header line.
-	content := `# Research Pipeline
-
-#### T1-01: Database Selection
-| **ID** | T1-01 |
-| **Dependencies** | None |
-
-` + "````prompt" + `
-# Session T1-01: Primary Datastore
-Investigate database options.
-` + "````" + `
-
-#### T1-02: Auth Strategy
-| **ID** | T1-02 |
-| **Dependencies** | None |
-
-` + "````prompt" + `
-<!-- Note: Two-way door -->
-<!-- Generated by Vivechak -->
-
-# Session T1-02: Auth Strategy
-Investigate auth options at EOF.`
+	// A plan whose final prompt is unclosed at EOF (no closing fence) and starts with comment lines.
+	content := projectPlan([]string{"{id: T1-01, title: Database Selection, depends: []}", "{id: T1-02, title: Auth Strategy, depends: []}"},
+		section("T1-01", "Database Selection", "# Session T1-01: Primary Datastore\nInvestigate database options.")+
+			md("### T1-02: Auth Strategy\n\n<F>prompt\n<!-- Note: Two-way door -->\n<!-- Generated by Vivechak -->\n\n# Session T1-02: Auth Strategy\nInvestigate auth options at EOF."))
 
 	dag, err := ParsePipeline([]byte(content))
 	if err != nil {
@@ -713,75 +707,95 @@ Investigate auth options at EOF.`
 	}
 }
 
-func TestIsSynthesisSession(t *testing.T) {
-	tests := []struct {
-		id   string
-		want bool
-	}{
-		{"FAD", true},
-		{"fad", true},
-		{"SYN", true},
-		{"syn", true},
-		{"SYN-01", true},
-		{"syn-01", true},
-		{"SYN-02", true},
-		{"SYNTHESIS", true},
-		{"T1-01", false},
-		{"S1-01", false},
-		{"D-001", false},
-		{"COMP-01", false},
-		{"", false},
-		{"   ", false},
-		{"  SYN-01  ", true},
-		{"  FAD  ", true},
+// Synthesis is identified only by kind: synthesis (HIGH-07): FINAL-01 with the kind is the synthesis session
+// (held back until every other session completes, output research/FAD.md); SYNC-01, SYN-01 and FAD without it are
+// ordinary sessions.
+func TestPlanSynthesisIsKindOnly(t *testing.T) {
+	plan := projectPlan([]string{
+		"{id: SYNC-01, title: Sync protocol, depends: []}",
+		"{id: SYN-01, title: Syndication feeds, depends: []}",
+		"{id: FAD, title: Feature audit, depends: [SYNC-01]}",
+		"{id: FINAL-01, title: Founding architecture, kind: synthesis, depends: [SYNC-01]}",
+	}, section("SYNC-01", "Sync protocol", "Research sync.")+section("SYN-01", "Syndication feeds", "Research feeds.")+
+		section("FAD", "Feature audit", "Audit features.")+section("FINAL-01", "Founding architecture", "Synthesize. [ALL_SESSION_FINDINGS]"))
+
+	if codes := planCodes(t, plan); len(codes) != 0 {
+		t.Fatalf("expected a valid plan, got %v", codes)
+	}
+	dag, err := ParsePipeline([]byte(plan))
+	if err != nil {
+		t.Fatalf("ParsePipeline: %v", err)
+	}
+	for _, id := range []string{"SYNC-01", "SYN-01", "FAD"} {
+		s := dag.SessionByID(id)
+		if s.IsSynthesis() || dag.IsSynthesisID(id) || s.OutputFile != "research/sessions/"+id+".md" {
+			t.Errorf("%s without kind: synthesis must be an ordinary session: %+v", id, s)
+		}
+	}
+	final := dag.SessionByID("FINAL-01")
+	if !final.IsSynthesis() || !dag.IsSynthesisID("final-01") || final.OutputFile != FADFile {
+		t.Fatalf("FINAL-01 with kind: synthesis must be the synthesis session: %+v", final)
+	}
+	if got := dag.SynthesisSessions(); len(got) != 1 || got[0].ID != "FINAL-01" {
+		t.Fatalf("SynthesisSessions = %v, want [FINAL-01]", got)
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.id, func(t *testing.T) {
-			got := IsSynthesisSession(tt.id)
-			if got != tt.want {
-				t.Errorf("IsSynthesisSession(%q) = %v; want %v", tt.id, got, tt.want)
-			}
-		})
+	// FINAL-01 depends only on SYNC-01 but waits for every other session; SYN-01 and FAD are served like any other.
+	ready := idsOf(dag.NextSessions(map[string]bool{"SYNC-01": true}))
+	if containsStr2(ready, "FINAL-01") || !containsStr2(ready, "SYN-01") || !containsStr2(ready, "FAD") {
+		t.Fatalf("after SYNC-01: ready %v, want SYN-01 and FAD but not FINAL-01", ready)
+	}
+	ready = idsOf(dag.NextSessions(map[string]bool{"SYNC-01": true, "SYN-01": true, "FAD": true}))
+	if len(ready) != 1 || ready[0] != "FINAL-01" {
+		t.Fatalf("after every research session: ready %v, want [FINAL-01]", ready)
+	}
+
+	// A project plan whose only synthesis-looking session lacks the kind is refused.
+	noKind := strings.Replace(plan, ", kind: synthesis", "", 1)
+	if codes := planCodes(t, noKind); len(codes) != 1 || codes[0] != CodePlanSynthesis {
+		t.Fatalf("expected [%s] without any kind: synthesis, got %v", CodePlanSynthesis, codes)
 	}
 }
 
-func TestParseDependencies_Comprehensive(t *testing.T) {
-	tests := []struct {
-		input string
-		want  []string
-	}{
-		{"None", nil},
-		{"None (parallel)", nil},
-		{"none", nil},
-		{"—", nil},
-		{"-", nil},
-		{"N/A", nil},
-		{"", nil},
-		{"T1-01", []string{"T1-01"}},
-		{"T1-01, T1-02", []string{"T1-01", "T1-02"}},
-		{"T1-01 (soft), T1-02 (hard)", []string{"T1-01", "T1-02"}},
-		{"[T1-01, T1-02]", []string{"T1-01", "T1-02"}},
-		{"`T1-01` and `T1-02`", []string{"T1-01", "T1-02"}},
-		{"T1-01 & T1-02", []string{"T1-01", "T1-02"}},
-		{"[R-01](./R-01.md), [R-02](./R-02.md)", []string{"R-01", "R-02"}},
-		{"- R-01\n- R-02\n- R-03", []string{"R-01", "R-02", "R-03"}},
-		{"* `R-01` and `R-02`", []string{"R-01", "R-02"}},
-		{"• R-01, • R-02", []string{"R-01", "R-02"}},
+// depends is a YAML list of the block's session ids; ALL (in any of its spellings) is every non-synthesis session
+// listed before the one that says it.
+func TestPlanDependsListsAndALL(t *testing.T) {
+	for _, all := range []string{"ALL", "all", "ALL prior sessions (hard)", "all previous sessions", "all preceding sessions",
+		"all other sessions", "all non-synthesis sessions", "all sessions", "__all_prior__", "__all__", "'*'"} {
+		plan := projectPlan([]string{
+			"{id: T0-01, depends: []}",
+			"{id: T0-02}",
+			"{id: T1-01, depends: [" + all + "]}",
+			"{id: SYN-01, kind: synthesis, depends: [" + all + "]}",
+		}, section("T0-01", "A", "a")+section("T0-02", "B", "b")+section("T1-01", "C", "c")+section("SYN-01", "S", "s"))
+		dag, err := ParsePipeline([]byte(plan))
+		if err != nil {
+			t.Fatalf("depends: [%s]: %v", all, err)
+		}
+		if got := dag.SessionByID("T1-01").Dependencies; strings.Join(got, ",") != "T0-01,T0-02" {
+			t.Errorf("depends: [%s] on T1-01 = %v, want [T0-01 T0-02]", all, got)
+		}
+		if got := dag.SessionByID("SYN-01").Dependencies; strings.Join(got, ",") != "T0-01,T0-02,T1-01" {
+			t.Errorf("depends: [%s] on SYN-01 = %v, want [T0-01 T0-02 T1-01]", all, got)
+		}
+		if !isAllPriorSessions(strings.Trim(all, "'")) {
+			t.Errorf("isAllPriorSessions(%q) = false", all)
+		}
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.input, func(t *testing.T) {
-			got := parseDependencies(tt.input)
-			if len(got) != len(tt.want) {
-				t.Fatalf("parseDependencies(%q) = %v (len %d); want %v (len %d)", tt.input, got, len(got), tt.want, len(tt.want))
-			}
-			for i := range got {
-				if got[i] != tt.want[i] {
-					t.Errorf("parseDependencies(%q)[%d] = %q; want %q", tt.input, i, got[i], tt.want[i])
-				}
-			}
-		})
+	// ALL never pulls in the synthesis session, wherever the planner lists it.
+	plan := projectPlan([]string{"{id: SYN-01, kind: synthesis, depends: []}", "{id: T0-01}", "{id: T1-01, depends: [ALL]}"},
+		section("SYN-01", "S", "s")+section("T0-01", "A", "a")+section("T1-01", "B", "b"))
+	dag, err := ParsePipeline([]byte(plan))
+	if err != nil {
+		t.Fatalf("ParsePipeline: %v", err)
+	}
+	if got := dag.SessionByID("T1-01").Dependencies; strings.Join(got, ",") != "T0-01" {
+		t.Errorf("ALL after the synthesis session = %v, want [T0-01]", got)
+	}
+
+	if isAllPriorSessions("T1-01") || isAllPriorSessions("allocation") {
+		t.Error("isAllPriorSessions must not match ids or words that merely start with 'all'")
 	}
 }
 
@@ -888,113 +902,30 @@ func TestDAG_CaseInsensitiveOperations(t *testing.T) {
 	}
 }
 
-func TestDAG_SerializeRoundTrip(t *testing.T) {
-	inputPipeline := `# Research Pipeline: Katha Interactive Platform
-### Project Parameters
-Archetype: Interactive Web App
-Constraints: Low Latency LLM Streaming
-
-## Pipeline Topology
-
-| ID | Topic | Dependencies | Output File |
-|---|---|---|---|
-| S1 | Persistence Landscape | none | sessions/S1.md |
-| S2 | Real-time Sync | S1 | sessions/S2.md |
-
----
-
-## Session Prompts
-
-### Session S1: Persistence Landscape
-
-| **Field** | **Value** |
-|---|---|
-| **ID** | S1 |
-| **Layer** | 0 |
-| **Dependencies** | none |
-| **Output** | sessions/S1.md |
-| **Door Type** | one-way |
-
-` + "````prompt" + `
-# RESEARCH BRIEF: S1
-Investigate database options.
-` + "````" + `
-
----
-
-### Session S2: Real-time Sync
-
-| **Field** | **Value** |
-|---|---|
-| **ID** | S2 |
-| **Layer** | 1 |
-| **Dependencies** | S1 |
-| **Output** | sessions/S2.md |
-| **Door Type** | two-way |
-
-` + "````prompt" + `
-# RESEARCH BRIEF: S2
-Investigate synchronization options.
-` + "````" + `
-
----
-
-## Phase 0 Exit Gate Criteria
-- [ ] B1: Staged Triangulation
-- [ ] B2: Falsification Record
-`
-
-	dag, err := ParsePipeline([]byte(inputPipeline))
-	if err != nil {
-		t.Fatalf("ParsePipeline failed: %v", err)
-	}
-
-	if len(dag.Sessions) != 2 {
-		t.Fatalf("expected 2 sessions, got %d", len(dag.Sessions))
-	}
-	if !strings.Contains(dag.Preamble, "Archetype: Interactive Web App") {
-		t.Errorf("expected Preamble to retain project parameters, got: %q", dag.Preamble)
-	}
-	if !strings.Contains(dag.Epilogue, "Phase 0 Exit Gate Criteria") {
-		t.Errorf("expected Epilogue to retain exit gate criteria, got: %q", dag.Epilogue)
-	}
-
-	serialized := string(dag.Serialize())
-	if !strings.Contains(serialized, "Archetype: Interactive Web App") {
-		t.Errorf("serialized output lost project parameters")
-	}
-	if !strings.Contains(serialized, "Phase 0 Exit Gate Criteria") {
-		t.Errorf("serialized output lost exit gate criteria")
-	}
-	if !strings.Contains(serialized, "````prompt") {
-		t.Errorf("serialized output should use 4-backtick code fences")
-	}
-}
-
 func TestDAG_ParsePipeline_UntaggedInnerCodeFence(t *testing.T) {
-	input := `# Pipeline
-
-## Session Prompts
-
-### Session S1: Test
+	input := projectPlan([]string{"{id: S1, title: Test, depends: []}", "{id: SYN-01, kind: synthesis, depends: [ALL]}"},
+		md(`### S1: Test
 
 | **Field** | **Value** |
 |---|---|
 | **ID** | S1 |
 
-` + "```prompt" + `
+<F>prompt
 # Prompt Brief
 
 Here is an example code block:
-` + "```\n" + `
+<F>
+
 foo := 123
 bar := 456
-` + "```\n" + `
+<F>
+
 This instruction must not be truncated!
-` + "```" + `
+<F>
 
 ---
-`
+
+`)+section("SYN-01", "Synthesis", "Synthesize."))
 
 	dag, err := ParsePipeline([]byte(input))
 	if err != nil {
@@ -1009,40 +940,29 @@ This instruction must not be truncated!
 	}
 }
 
-func TestParsePipeline_ArrowVariants(t *testing.T) {
-	variants := []string{
-		"**Complexity Score:** 18/25 → Tier 3 (12 sessions)",
-		"**Complexity Score:** 18/25 -> Tier 3 (12 sessions)",
-		"**Complexity Score:** 18/25 --> Tier 3 (12 sessions)",
-		"**Complexity Score:** 18/25 => Tier 3 (12 sessions)",
-	}
-
-	for _, v := range variants {
-		input := fmt.Sprintf("# Pipeline\n\n%s\n\n### S-01: Session 1\n| **ID** | S-01 |\n", v)
-		dag, err := ParsePipeline([]byte(input))
-		if err != nil {
-			t.Fatalf("ParsePipeline failed on %q: %v", v, err)
-		}
-		if dag.ComplexityScore != 18 {
-			t.Errorf("expected ComplexityScore 18 for %q, got %d", v, dag.ComplexityScore)
-		}
-		if !strings.HasPrefix(dag.Tier, "Tier 3") {
-			t.Errorf("expected Tier to start with Tier 3 for %q, got %q", v, dag.Tier)
-		}
-	}
-}
-
+// Session ids are only names: FAD and SYNTHESIS are ordinary sessions unless the block marks one kind: synthesis.
 func TestParsePipeline_StandaloneIdentifiers(t *testing.T) {
-	input := `# Pipeline
+	input := md(`# Pipeline
+
+<F>yaml vivechak-plan
+plan: D-001
+sessions:
+  - {id: FAD, depends: []}
+  - {id: SYNTHESIS, depends: [FAD]}
+<F>
+
+## Sessions
 
 ### FAD: Founding Architecture Document
-| **ID** | FAD |
-| **Dependencies** | None |
+<F>prompt
+Write it.
+<F>
 
 ### SYNTHESIS: Final System Synthesis
-| **ID** | SYNTHESIS |
-| **Dependencies** | FAD |
-`
+<F>prompt
+Synthesize it.
+<F>
+`)
 	dag, err := ParsePipeline([]byte(input))
 	if err != nil {
 		t.Fatalf("ParsePipeline failed: %v", err)
@@ -1050,16 +970,28 @@ func TestParsePipeline_StandaloneIdentifiers(t *testing.T) {
 	if len(dag.Sessions) != 2 {
 		t.Fatalf("expected 2 sessions, got %d", len(dag.Sessions))
 	}
-	if dag.Sessions[0].ID != "FAD" || dag.Sessions[0].Title != "Founding Architecture Document" {
+	if dag.Sessions[0].ID != "FAD" || dag.Sessions[0].Title != "Founding Architecture Document" || dag.Sessions[0].IsSynthesis() {
 		t.Errorf("unexpected session 0: %+v", dag.Sessions[0])
 	}
-	if dag.Sessions[1].ID != "SYNTHESIS" || dag.Sessions[1].Title != "Final System Synthesis" {
+	if dag.Sessions[1].ID != "SYNTHESIS" || dag.Sessions[1].Title != "Final System Synthesis" || dag.Sessions[1].IsSynthesis() {
 		t.Errorf("unexpected session 1: %+v", dag.Sessions[1])
 	}
 }
 
-func TestExtractDeclaredSessionIDs(t *testing.T) {
-	content := `# Research Pipeline
+// A plan the generator cut short (sessions listed, prompt sections missing) used to be caught by a regex scan of
+// tables and diagrams (W-PARSER-SESSION-MISMATCH). The block now lists the sessions, so each missing prompt is a
+// blocking V-PLAN-MISSING-PROMPT, and Mermaid diagrams or tables never yield sessions or warnings.
+func TestValidatePlanRefusesTruncatedPlan(t *testing.T) {
+	head := md(`# Research Pipeline
+
+<F>yaml vivechak-plan
+plan: PROJECT
+sessions:
+  - {id: T0-01, title: Storage Landscape, layer: 0, depends: []}
+  - {id: T0-02, title: Auth Landscape, layer: 0, depends: []}
+  - {id: T1-01, title: SQLite Engine, layer: 1, depends: [T0-01, T0-02]}
+  - {id: SYN-01, title: Architecture Synthesis, layer: 2, kind: synthesis, depends: [ALL]}
+<F>
 
 ## Pipeline Topology
 
@@ -1072,100 +1004,33 @@ func TestExtractDeclaredSessionIDs(t *testing.T) {
 
 ## Execution DAG
 
-` + "```mermaid" + `
+<F>mermaid
 graph TD
-    T0-01 --> T1-01
-    T0-02 --> T1-01
-    T1-01 --> SYN-01
-    SYN-01 --> FAD
-` + "```" + `
+    T0_01[T0-01 Storage] --> T1_01[T1-01 SQLite]
+    T0_02 --> T1_01
+    T1_01 --> SYN_01[SYN-01 Grand Synthesis]
+    SYN_01 --> FAD
+<F>
 
-### D-001: Architectural Decision Ref (not a session)
-`
+## Sessions
 
-	declared := ExtractDeclaredSessionIDs(content)
-	expected := map[string]bool{
-		"T0-01":  true,
-		"T0-02":  true,
-		"T1-01":  true,
-		"SYN-01": true,
-		"FAD":    true,
-	}
-
-	for _, id := range declared {
-		if !expected[id] {
-			t.Errorf("unexpected extracted session ID: %s", id)
-		}
-	}
-	for id := range expected {
-		found := false
-		for _, decl := range declared {
-			if decl == id {
-				found = true
-				break
-			}
-		}
-		if !found {
-			t.Errorf("expected session ID %s was not extracted", id)
-		}
-	}
-
-	// Verify ValidatePlan catches missing sessions (W-PARSER-SESSION-MISMATCH)
-	pipelineWithMissingPrompt := content + `
-### T0-01: Storage Landscape
-| **ID** | T0-01 |
-
-` + "```prompt" + `
-# T0-01 Brief
-` + "```" + `
-`
-	res := ValidatePlan([]byte(pipelineWithMissingPrompt))
-	hasMismatch := false
+`)
+	truncated := head + section("T0-01", "Storage Landscape", "# T0-01 Brief")
+	res := ValidatePlan([]byte(truncated))
+	var missing []string
 	for _, issue := range res.Issues {
-		if issue.Code == "W-PARSER-SESSION-MISMATCH" {
-			hasMismatch = true
-			break
+		if issue.Code != CodePlanMissingPrompt || issue.Level != L2Block {
+			t.Errorf("unexpected issue %+v", issue)
 		}
+		missing = append(missing, issue.Message)
 	}
-	if !hasMismatch {
-		t.Errorf("expected W-PARSER-SESSION-MISMATCH for sessions declared without prompt blocks")
-	}
-}
-
-func TestExtractDeclaredSessionIDs_MultiScope(t *testing.T) {
-	content := `# Multi-Scope Pipeline & Decision Content
-Tables and references:
-| C-01 | Comparison |
-| CMP-02 | Comparison 2 |
-| D-001-S1 | Landscape |
-| D-01-S2 | Comparison |
-| T0-01 | Discovery |
-| SYN-01 | Synthesis |
-| FAD | Founding Doc |
-
-Non-sessions (should not match):
-D-001 is an ADR reference
-C-level executives
-T-shirt sizing
-`
-	declared := ExtractDeclaredSessionIDs(content)
-	expected := map[string]bool{
-		"C-01":     true,
-		"CMP-02":   true,
-		"D-001-S1": true,
-		"D-01-S2":  true,
-		"T0-01":    true,
-		"SYN-01":   true,
-		"FAD":      true,
+	if len(missing) != 3 || !strings.Contains(strings.Join(missing, "|"), "T0-02") || !strings.Contains(strings.Join(missing, "|"), "SYN-01") {
+		t.Fatalf("expected a blocking %s for T0-02, T1-01 and SYN-01, got %v", CodePlanMissingPrompt, missing)
 	}
 
-	if len(declared) != len(expected) {
-		t.Fatalf("expected %d extracted sessions, got %d: %v", len(expected), len(declared), declared)
-	}
-	for _, id := range declared {
-		if !expected[id] {
-			t.Errorf("unexpected extracted session ID: %s", id)
-		}
+	complete := truncated + section("T0-02", "Auth Landscape", "b") + section("T1-01", "SQLite Engine", "c") + section("SYN-01", "Architecture Synthesis", "s")
+	if res := ValidatePlan([]byte(complete)); len(res.Issues) != 0 {
+		t.Fatalf("expected no issues once every session has its prompt, got %+v", res.Issues)
 	}
 }
 
@@ -1174,7 +1039,7 @@ func TestNextSessions_TerminalSynthesisGuard(t *testing.T) {
 		Sessions: []Session{
 			{ID: "T0-01", Title: "Discovery", Dependencies: nil},
 			{ID: "T1-01", Title: "Database Choice", Dependencies: []string{"T0-01"}},
-			{ID: "SYN-01", Title: "System Synthesis", Dependencies: []string{"T0-01"}}, // Note: artificially weak dependency on T0-01
+			{ID: "SYN-01", Title: "System Synthesis", Kind: SynthesisKind, Dependencies: []string{"T0-01"}}, // Note: artificially weak dependency on T0-01
 		},
 	}
 
@@ -1216,7 +1081,14 @@ func TestNextSessions_TerminalSynthesisGuard(t *testing.T) {
 }
 
 func TestParsePipeline_NoPhantomSessionFromPlanTitle(t *testing.T) {
-	planContent := `# D-001-PLAN.md — Decision Research Plan
+	planContent := md(`# D-001-PLAN.md — Decision Research Plan
+
+<F>yaml vivechak-plan
+plan: D-001
+sessions:
+  - {id: D-001-S1, title: Landscape, role: L, depends: []}
+  - {id: D-001-S2, title: Comparison, role: C, depends: [D-001-S1]}
+<F>
 
 ## Routing
 | Profile | Value | Rationale |
@@ -1232,9 +1104,9 @@ func TestParsePipeline_NoPhantomSessionFromPlanTitle(t *testing.T) {
 | Role | L |
 | Depends | none |
 
-` + "```prompt" + `
+<F>prompt
 Brief for S1
-` + "```" + `
+<F>
 
 ### D-001-S2: Comparison — Microservices vs Monolith
 | Field | Value |
@@ -1243,10 +1115,10 @@ Brief for S1
 | Role | C |
 | Depends | D-001-S1 (constrains) |
 
-` + "```prompt" + `
+<F>prompt
 Brief for S2
-` + "```" + `
-`
+<F>
+`)
 
 	dag, err := ParsePipeline([]byte(planContent))
 	if err != nil {
@@ -1255,139 +1127,24 @@ Brief for S2
 
 	// Must contain exactly 2 sessions: D-001-S1 and D-001-S2 (no phantom D-001 or D-001-PLAN)
 	if len(dag.Sessions) != 2 {
-		var ids []string
-		for _, s := range dag.Sessions {
-			ids = append(ids, s.ID)
-		}
-		t.Fatalf("expected 2 sessions, got %d: %v", len(dag.Sessions), ids)
+		t.Fatalf("expected 2 sessions, got %d: %v", len(dag.Sessions), idsOf(dag.Sessions))
 	}
-
-	s1 := dag.SessionByID("D-001-S1")
-	if s1 == nil {
-		t.Fatalf("expected D-001-S1 to exist")
-	}
-
 	s2 := dag.SessionByID("D-001-S2")
-	if s2 == nil {
-		t.Fatalf("expected D-001-S2 to exist")
+	if s2 == nil || dag.SessionByID("D-001-S1") == nil {
+		t.Fatalf("expected D-001-S1 and D-001-S2, got %v", idsOf(dag.Sessions))
 	}
-
-	// Verify dependency qualifier was stripped cleanly
 	if len(s2.Dependencies) != 1 || s2.Dependencies[0] != "D-001-S1" {
 		t.Fatalf("expected D-001-S2 dependency to be ['D-001-S1'], got: %v", s2.Dependencies)
 	}
-}
-
-func TestExtractDeclaredSessionIDs_MermaidUnderscoresAndFADAlias(t *testing.T) {
-	content := `# Pipeline
-` + "```mermaid" + `
-graph TD
-  T0_01[T0-01 Short Code] --> T1_01[T1-01 Redirect Hot Path]
-  T1_01 --> SYN_01[SYN-01 Grand Synthesis]
-` + "```" + `
-`
-	declared := ExtractDeclaredSessionIDs(content)
-	expected := map[string]bool{
-		"T0-01":  true,
-		"T1-01":  true,
-		"SYN-01": true,
-	}
-	for _, id := range declared {
-		if !expected[id] {
-			t.Errorf("unexpected extracted ID: %s", id)
-		}
-	}
-
-	pipelineMD := content + `
-### T0-01: Short Code
-| ID | T0-01 |
-
-` + "```prompt" + `
-Brief 1
-` + "```" + `
-
-### T1-01: Redirect Hot Path
-| ID | T1-01 |
-
-` + "```prompt" + `
-Brief 2
-` + "```" + `
-
-### SYN-01: Grand Synthesis
-| ID | SYN-01 |
-
-` + "```prompt" + `
-Synthesis Brief
-` + "```" + `
-`
-	res := ValidatePlan([]byte(pipelineMD))
-	for _, issue := range res.Issues {
-		if issue.Code == "W-PARSER-SESSION-MISMATCH" {
-			t.Errorf("spurious W-PARSER-SESSION-MISMATCH found for Mermaid underscore IDs: %v", issue.Message)
-		}
-	}
-}
-
-func TestParseDependencies_AllPriorSessions(t *testing.T) {
-	testCases := []string{
-		"ALL prior sessions (hard)",
-		"all prior sessions",
-		"all previous sessions",
-		"all preceding sessions",
-		"all other sessions",
-		"all non-synthesis sessions",
-		"all sessions",
-		"all",
-		"*",
-		"__all_prior__",
-		"__all__",
-	}
-
-	for _, tc := range testCases {
-		deps := parseDependencies(tc)
-		if len(deps) != 1 || deps[0] != "__ALL_PRIOR__" {
-			t.Errorf("parseDependencies(%q) = %v; want [\"__ALL_PRIOR__\"]", tc, deps)
-		}
+	if res := ValidatePlan([]byte(planContent)); len(res.Issues) != 0 {
+		t.Fatalf("a # D-001-PLAN heading must not warn: %+v", res.Issues)
 	}
 }
 
 func TestParsePipeline_AllPriorSessionsExpansion(t *testing.T) {
-	pipelineMD := `# Research Pipeline: Synthesis Test
-## Sessions
-#### T0-01: Session 1
-| Field | Value |
-|---|---|
-| ID | T0-01 |
-| Dependencies | None |
-
-` + "```prompt" + `
-Prompt 1
-` + "```" + `
-
----
-
-#### T0-02: Session 2
-| Field | Value |
-|---|---|
-| ID | T0-02 |
-| Dependencies | None |
-
-` + "```prompt" + `
-Prompt 2
-` + "```" + `
-
----
-
-#### SYN-01: Synthesis
-| Field | Value |
-|---|---|
-| ID | SYN-01 |
-| Dependencies | ALL prior sessions (hard) |
-
-` + "```prompt" + `
-Synthesis prompt
-` + "```" + `
-`
+	pipelineMD := projectPlan([]string{"{id: T0-01, title: Session 1, depends: []}", "{id: T0-02, title: Session 2, depends: []}",
+		"{id: SYN-01, title: Synthesis, kind: synthesis, depends: [ALL prior sessions (hard)]}"},
+		section("T0-01", "Session 1", "Prompt 1")+"---\n\n"+section("T0-02", "Session 2", "Prompt 2")+"---\n\n"+section("SYN-01", "Synthesis", "Synthesis prompt"))
 
 	dag, err := ParsePipeline([]byte(pipelineMD))
 	if err != nil {
@@ -1414,87 +1171,50 @@ Synthesis prompt
 	}
 }
 
-func TestParsePipeline_BoldedTableCells(t *testing.T) {
-	plan := `# Research Plan: Bolded Overview Table Test
-
-## Overview
-| **ID** | **Topic** | **Dependencies** | **OutputFile** |
-|---|---|---|---|
-| **T1-01** | **Architecture Baseline** | None | ` + "`sessions/T1-01.md`" + ` |
-| **T1-02** | Storage Layer | **T1-01** | ` + "`sessions/T1-02.md`" + ` |
-
-## Prompts
-
-### T1-01: Architecture Baseline
-` + "```prompt" + `
-Research baseline architecture.
-` + "```" + `
-
-### T1-02: Storage Layer
-` + "```prompt" + `
-Research storage layer.
-` + "```" + `
-`
-	dag, err := ParsePipeline([]byte(plan))
-	if err != nil {
-		t.Fatalf("ParsePipeline failed on bolded markdown table: %v", err)
-	}
-	if len(dag.Sessions) != 2 {
-		t.Fatalf("expected 2 sessions, got %d", len(dag.Sessions))
-	}
-	s1 := dag.SessionByID("T1-01")
-	if s1 == nil {
-		t.Fatal("session T1-01 was not parsed from bolded table cell")
-	}
-	if s1.Title != "Architecture Baseline" {
-		t.Errorf("s1.Title = %q, want 'Architecture Baseline'", s1.Title)
-	}
-	s2 := dag.SessionByID("T1-02")
-	if s2 == nil {
-		t.Fatal("session T1-02 was not parsed from table")
-	}
-	if len(s2.Dependencies) != 1 || s2.Dependencies[0] != "T1-01" {
-		t.Errorf("s2.Dependencies = %v, want ['T1-01']", s2.Dependencies)
-	}
-}
-
+// Tables are prose: bolded, backticked, four-column or arbitrary tables never become sessions, dependencies or
+// titles, and a plan with only tables is refused with V-PLAN-MISSING-BLOCK.
 func TestParsePipeline_IgnoreArbitraryFourColumnTables(t *testing.T) {
-	plan := `# Project Architecture
-Here is a table of steps and options:
-
-| Step | Action | Description | Notes |
+	tables := md(`| Step | Action | Description | Notes |
 |---|---|---|---|
 | 1 | Scaffolding | Initialize repo | First priority |
 | 2 | Dependencies | Install libs | Use npm |
 
-| Option | Pros | Cons | Verdict |
+| **ID** | **Topic** | **Dependencies** | **OutputFile** |
 |---|---|---|---|
-| Option A | Fast | Memory heavy | Candidate |
-| Option B | Slow | Low memory | Rejected |
+| **T9-01** | **Phantom Baseline** | None | <F>sessions/T9-01.md<F> |
+| <F>T9-02<F> | *Phantom Engine* | <F>T9-01<F> | "sessions/T9-02.md" |
 
-### T0-01: System Architecture
-` + "```prompt" + `
-Investigate architecture.
-` + "```" + `
-`
+| **Field** | **Value** |
+|---|---|
+| **Session ID** | <F>T9-03<F> |
+| **Dependencies** | <F>T9-02<F> |
+`)
+	if _, err := ParsePipeline([]byte("# Project Architecture\n\n" + tables)); err == nil || !strings.Contains(err.Error(), CodePlanMissingBlock) {
+		t.Fatalf("expected %s for a plan made of tables, got %v", CodePlanMissingBlock, err)
+	}
+
+	plan := projectPlan([]string{"{id: T0-01, title: System Architecture, depends: []}", "{id: SYN-01, kind: synthesis, depends: [ALL]}"},
+		tables+"\n"+section("T0-01", "System Architecture", "Investigate architecture.")+section("SYN-01", "Synthesis", "Synthesize."))
 	dag, err := ParsePipeline([]byte(plan))
 	if err != nil {
 		t.Fatalf("ParsePipeline failed: %v", err)
 	}
-	if len(dag.Sessions) != 1 {
-		t.Fatalf("expected exactly 1 session (T0-01), got %d sessions: %+v", len(dag.Sessions), dag.Sessions)
+	if len(dag.Sessions) != 2 || dag.SessionByID("T0-01") == nil {
+		t.Fatalf("expected exactly T0-01 and SYN-01, got %v", idsOf(dag.Sessions))
 	}
-	if dag.SessionByID("T0-01") == nil {
-		t.Fatal("expected T0-01 to be present")
+	for _, phantom := range []string{"1", "Option A", "T9-01", "T9-02", "T9-03"} {
+		if dag.SessionByID(phantom) != nil {
+			t.Errorf("table row %q was parsed as a session", phantom)
+		}
 	}
-	if dag.SessionByID("1") != nil || dag.SessionByID("Option A") != nil {
-		t.Fatal("arbitrary 4-column table rows were mistakenly parsed as sessions")
+	if res := ValidatePlan([]byte(plan)); len(res.Issues) != 0 {
+		t.Fatalf("tables must not produce issues: %+v", res.Issues)
 	}
 }
 
 func TestDAG_ParsePipeline_MachineBlockAllPriorExpansion(t *testing.T) {
-	plan := "```yaml vivechak-plan\n" +
-		"schema_version: \"0.1.0\"\n" +
+	plan := md("<F>yaml vivechak-plan\n" +
+		"plan: PROJECT\n" +
 		"sessions:\n" +
 		"  - id: T0-01\n" +
 		"    title: Core Framework\n" +
@@ -1509,9 +1229,10 @@ func TestDAG_ParsePipeline_MachineBlockAllPriorExpansion(t *testing.T) {
 		"  - id: SYN-01\n" +
 		"    title: Architecture Synthesis\n" +
 		"    layer: 2\n" +
-		"    door: one-way\n" +
+		"    kind: synthesis\n" +
 		"    depends: [\"all prior\"]\n" +
-		"```\n\n# Research Pipeline\n"
+		"<F>\n\n# Research Pipeline\n\n## Sessions\n\n" +
+		section("T0-01", "Core Framework", "a") + section("T1-01", "Datastore Selection", "b") + section("SYN-01", "Architecture Synthesis", "s"))
 	dag, err := ParsePipeline([]byte(plan))
 	if err != nil {
 		t.Fatalf("ParsePipeline failed: %v", err)
@@ -1525,140 +1246,5 @@ func TestDAG_ParsePipeline_MachineBlockAllPriorExpansion(t *testing.T) {
 	}
 	if syn.Dependencies[0] != "T0-01" || syn.Dependencies[1] != "T1-01" {
 		t.Fatalf("expected [T0-01, T1-01], got %v", syn.Dependencies)
-	}
-}
-
-func TestParsePipeline_BackticksAndFormattingInMetadataTables(t *testing.T) {
-	plan := `# Research Pipeline: Backtick Formatting Test
-
-### Session ` + "`T1-01`" + `: Streaming Message Bus Selection
-| **Field** | **Value** |
-|---|---|
-| **Session ID** | ` + "`T1-01`" + ` |
-| **Topic** | Streaming Message Bus |
-| **Layer** | ` + "`1`" + ` |
-| **Door Type** | ` + "`one-way`" + ` |
-| **Decision** | ` + "`D-001`" + ` |
-| **Dependencies** | None |
-| **Output File** | ` + "`sessions/T1-01.md`" + ` |
-
-` + "```prompt" + `
-Investigate Kafka vs Redpanda.
-` + "```" + `
-
-### Session ` + "`SYN-01`" + `: Architecture Synthesis
-| **Field** | **Value** |
-|---|---|
-| **Session ID** | ` + "`SYN-01`" + ` |
-| **Topic** | Architecture Synthesis |
-| **Layer** | ` + "`2`" + ` |
-| **Door Type** | ` + "`one-way`" + ` |
-| **Dependencies** | ` + "`T1-01`" + ` |
-| **Output File** | ` + "`research/FAD.md`" + ` |
-
-` + "```prompt" + `
-Synthesize all upstream findings.
-` + "```" + `
-`
-	dag, err := ParsePipeline([]byte(plan))
-	if err != nil {
-		t.Fatalf("ParsePipeline failed on markdown backticks in table: %v", err)
-	}
-	if len(dag.Sessions) != 2 {
-		t.Fatalf("expected 2 sessions, got %d", len(dag.Sessions))
-	}
-	s1 := dag.SessionByID("T1-01")
-	if s1 == nil {
-		t.Fatalf("session T1-01 not found (ID was not stripped of backticks)")
-	}
-	if s1.DoorType != "one-way" {
-		t.Errorf("s1.DoorType = %q, want 'one-way'", s1.DoorType)
-	}
-	if s1.DecisionRef != "D-001" {
-		t.Errorf("s1.DecisionRef = %q, want 'D-001'", s1.DecisionRef)
-	}
-	if s1.OutputFile != "sessions/T1-01.md" {
-		t.Errorf("s1.OutputFile = %q, want 'sessions/T1-01.md'", s1.OutputFile)
-	}
-
-	syn := dag.SessionByID("SYN-01")
-	if syn == nil {
-		t.Fatalf("session SYN-01 not found")
-	}
-	if len(syn.Dependencies) != 1 || syn.Dependencies[0] != "T1-01" {
-		t.Errorf("syn.Dependencies = %v, want ['T1-01']", syn.Dependencies)
-	}
-
-	if err := dag.ValidateDAG(); err != nil {
-		t.Fatalf("ValidateDAG failed: %v", err)
-	}
-}
-
-func TestParsePipeline_HorizontalTableWithMarkdownFormatting(t *testing.T) {
-	plan := `# Research Pipeline: Horizontal Table Formatting Test
-
-## Pipeline Topology
-| ID | Topic | Dependencies | Output File |
-|---|---|---|---|
-| ` + "`T0-01`" + ` | **Architecture Foundation** | none | ` + "`sessions/T0-01.md`" + ` |
-| [T1-01] | *Streaming Engine* | ` + "`T0-01`" + ` | "sessions/T1-01.md" |
-| 'SYN-01' | Architecture Synthesis | [T1-01] | ` + "`research/FAD.md`" + ` |
-
-## Session Prompts
-
-### Session ` + "`T0-01`" + `
-` + "```prompt" + `
-Evaluate architectural foundations.
-` + "```" + `
-
-### Session [T1-01]
-` + "```prompt" + `
-Evaluate streaming brokers.
-` + "```" + `
-
-### Session 'SYN-01'
-` + "```prompt" + `
-Synthesize founding architecture.
-` + "```" + `
-`
-	dag, err := ParsePipeline([]byte(plan))
-	if err != nil {
-		t.Fatalf("ParsePipeline failed on formatted horizontal table: %v", err)
-	}
-	if len(dag.Sessions) != 3 {
-		t.Fatalf("expected 3 sessions, got %d", len(dag.Sessions))
-	}
-	s0 := dag.SessionByID("T0-01")
-	if s0 == nil {
-		t.Fatalf("T0-01 not found")
-	}
-	if s0.Title != "Architecture Foundation" {
-		t.Errorf("s0.Title = %q, want 'Architecture Foundation'", s0.Title)
-	}
-
-	s1 := dag.SessionByID("T1-01")
-	if s1 == nil {
-		t.Fatalf("T1-01 not found")
-	}
-	if s1.Title != "Streaming Engine" {
-		t.Errorf("s1.Title = %q, want 'Streaming Engine'", s1.Title)
-	}
-	if len(s1.Dependencies) != 1 || s1.Dependencies[0] != "T0-01" {
-		t.Errorf("s1.Dependencies = %v, want ['T0-01']", s1.Dependencies)
-	}
-
-	syn := dag.SessionByID("SYN-01")
-	if syn == nil {
-		t.Fatalf("SYN-01 not found")
-	}
-	if len(syn.Dependencies) != 1 || syn.Dependencies[0] != "T1-01" {
-		t.Errorf("syn.Dependencies = %v, want ['T1-01']", syn.Dependencies)
-	}
-	if syn.OutputFile != "research/FAD.md" {
-		t.Errorf("syn.OutputFile = %q, want 'research/FAD.md'", syn.OutputFile)
-	}
-
-	if err := dag.ValidateDAG(); err != nil {
-		t.Fatalf("ValidateDAG failed: %v", err)
 	}
 }

@@ -238,3 +238,49 @@ Final notes.
 		}
 	})
 }
+
+// TestDraftDecision_NoADRYet_TakesPlanDecisionTitle covers HIGH-13: with no ADR yet, record_decision passes the
+// decision's plan as the existing record, and the draft takes the plan's decision title (its heading, its plan
+// block, or a real frontmatter title) over the session title; a fixed or placeholder title never wins.
+func TestDraftDecision_NoADRYet_TakesPlanDecisionTitle(t *testing.T) {
+	session := []byte("---\nid: D-001-S1\ntitle: Landscape\nstatus: complete\n---\n## Recommendation\nUse PostgreSQL. Grade A (docs)\n")
+	cases := []struct{ name, plan, want string }{
+		{"heading", "---\nid: D-001\ntype: plan\ntitle: \"[Decision title]\"\n---\n# D-001-PLAN: Event storage engine\n\n### D-001-S1: Landscape\n```prompt\n# RESEARCH BRIEF: datastore landscape\n```\n", "Event storage engine"},
+		{"heading wins over a stale frontmatter title", "---\nid: D-001\ntype: plan\ntitle: Research Plan\n---\n# D-001-PLAN: Event storage engine\n", "Event storage engine"},
+		{"frontmatter title written by the plan save", "---\nid: D-001\ntype: plan\ntitle: Event storage engine\n---\n## Routing\n", "Event storage engine"},
+		{"plan block decision title", "---\nid: D-001\ntype: plan\ntitle: \"[Decision title]\"\n---\n```yaml vivechak-plan\nplan: D-001\nsessions:\n  - {id: D-001-S1, title: Landscape, depends: []}\ndecisions:\n  - {id: D-001, title: Primary datastore, door: one-way}\n```\n", "Primary datastore"},
+		{"a heading inside a prompt fence is not the plan's title", "---\nid: D-001\ntype: plan\ntitle: \"[Decision title]\"\n---\n```prompt\n# RESEARCH BRIEF: datastore landscape\n```\n", "Landscape"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			draft, err := DraftDecisionFromSessionWithExisting([]byte(tc.plan), session, "D-001")
+			if err != nil {
+				t.Fatalf("draft: %v", err)
+			}
+			fm, _, _ := ParseFrontmatter([]byte(draft))
+			if got := fm.GetString("title"); got != tc.want {
+				t.Errorf("draft title = %q, want %q", got, tc.want)
+			}
+			if fm.GetString("status") != "proposed" {
+				t.Errorf("a draft from a plan must be proposed, got %q", fm.GetString("status"))
+			}
+		})
+	}
+}
+
+func TestPlanDecisionTitle(t *testing.T) {
+	cases := []struct{ name, plan, want string }{
+		{"id-plan heading", "# D-001-PLAN: Event storage engine\n", "Event storage engine"},
+		{"plain heading", "# Event storage engine\n## Sessions\n", "Event storage engine"},
+		{"heading without a title", "# D-001-PLAN\n", ""},
+		{"placeholder heading", "# [Decision title]\n", ""},
+		{"only fenced headings", "````markdown\n# Not the title\n```prompt\n# Nor this\n```\n````\n", ""},
+		{"single decision in the plan block", "```yaml vivechak-plan\nplan: PROJECT\nsessions:\n  - {id: T1-01, title: Datastore, depends: []}\ndecisions:\n  - {id: D-001, title: Primary datastore, door: one-way}\n```\n", "Primary datastore"},
+		{"nothing declared", "## Routing\n| R | 3 |\n", ""},
+	}
+	for _, tc := range cases {
+		if got := PlanDecisionTitle([]byte(tc.plan)); got != tc.want {
+			t.Errorf("%s: PlanDecisionTitle = %q, want %q", tc.name, got, tc.want)
+		}
+	}
+}

@@ -94,13 +94,13 @@ func TestNextSession_CalibrationBlockInjection(t *testing.T) {
 	dag := &core.DAG{
 		Sessions: []core.Session{
 			{ID: "T1-01", Title: "DB Research"},
-			{ID: "SYN-01", Title: "Synthesis"},
-			{ID: "FAD", Title: "Founding Architecture Document"},
+			{ID: "SYN-01", Title: "Synthesis", Kind: core.SynthesisKind},
+			{ID: "FAD", Title: "Founding Architecture Document", Kind: core.SynthesisKind},
 		},
 	}
 
 	// 1. Regular research session gets calibration rules injected
-	_, envT1, err := buildSessionResponse("vivechak_next", dag.Sessions[0], "Base prompt for T1-01", map[string]bool{}, dag, false, nil, nil)
+	_, envT1, err := buildSessionResponse("/tmp/proj", "explicit", dag.Sessions[0], "Base prompt for T1-01", map[string]bool{}, dag, false, nil, nil)
 	if err != nil {
 		t.Fatalf("buildSessionResponse for T1-01 failed: %v", err)
 	}
@@ -120,7 +120,7 @@ func TestNextSession_CalibrationBlockInjection(t *testing.T) {
 	}
 
 	// 2. Synthesis session SYN-01 is exempted
-	_, envSyn, err := buildSessionResponse("vivechak_next", dag.Sessions[1], "Base synthesis prompt", map[string]bool{}, dag, false, nil, nil)
+	_, envSyn, err := buildSessionResponse("/tmp/proj", "explicit", dag.Sessions[1], "Base synthesis prompt", map[string]bool{}, dag, false, nil, nil)
 	if err != nil {
 		t.Fatalf("buildSessionResponse for SYN-01 failed: %v", err)
 	}
@@ -131,7 +131,7 @@ func TestNextSession_CalibrationBlockInjection(t *testing.T) {
 	}
 
 	// 3. Synthesis session FAD is exempted
-	_, envFAD, err := buildSessionResponse("vivechak_next", dag.Sessions[2], "Base FAD prompt", map[string]bool{}, dag, false, nil, nil)
+	_, envFAD, err := buildSessionResponse("/tmp/proj", "explicit", dag.Sessions[2], "Base FAD prompt", map[string]bool{}, dag, false, nil, nil)
 	if err != nil {
 		t.Fatalf("buildSessionResponse for FAD failed: %v", err)
 	}
@@ -142,7 +142,7 @@ func TestNextSession_CalibrationBlockInjection(t *testing.T) {
 	}
 
 	// 4. Empty prompt does not inject calibration block
-	_, envEmpty, err := buildSessionResponse("vivechak_next", dag.Sessions[0], "", map[string]bool{}, dag, false, nil, nil)
+	_, envEmpty, err := buildSessionResponse("/tmp/proj", "explicit", dag.Sessions[0], "", map[string]bool{}, dag, false, nil, nil)
 	if err != nil {
 		t.Fatalf("buildSessionResponse for empty prompt failed: %v", err)
 	}
@@ -155,37 +155,17 @@ func TestNextSession_CalibrationBlockInjection(t *testing.T) {
 func TestHandleNextSession_DraftBlocksDownstream(t *testing.T) {
 	ctx := context.Background()
 	tmpDir := t.TempDir()
-	_, envInit, err := handleInit(ctx, nil, InitInput{ProjectRoot: tmpDir})
-	if err != nil || !envInit.Success {
+	_, envInit, err := handleStart(ctx, nil, StartInput{Question: "test", Scope: "project", ProjectRoot: tmpDir})
+	if err != nil || !envInit.Ok {
 		t.Fatalf("init failed: %v", err)
 	}
 
-	pipelineContent := `# Research Pipeline
-
-### T0-01: Baseline
-| **ID** | T0-01 |
-| **Door Type** | Two-Way |
-| **Dependencies** | None |
-` + "```prompt" + `
-baseline prompt
-` + "```" + `
-
-### T1-01: Downstream
-| **ID** | T1-01 |
-| **Door Type** | One-Way |
-| **Dependencies** | T0-01 |
-` + "```prompt" + `
-downstream prompt
-` + "```" + `
-
-### SYN-01: Synthesis
-| **ID** | SYN-01 |
-| **Door Type** | Synthesis |
-| **Dependencies** | T1-01 |
-` + "```prompt" + `
-synthesis prompt
-` + "```" + `
-`
+	pipelineContent := testPlan("Research Pipeline", "PROJECT", "", []string{
+		"{id: T0-01, title: Baseline, door: two-way, depends: []}",
+		"{id: T1-01, title: Downstream, door: one-way, depends: [T0-01]}",
+		"{id: SYN-01, title: Synthesis, kind: synthesis, depends: [T1-01]}",
+	}, testSection("T0-01", "Baseline", "baseline prompt"), testSection("T1-01", "Downstream", "downstream prompt"),
+		testSection("SYN-01", "Synthesis", "synthesis prompt"))
 	_ = os.WriteFile(filepath.Join(tmpDir, core.PipelineFile), []byte(pipelineContent), 0o644)
 
 	sessionsDir := filepath.Join(tmpDir, core.SessionsDir)
@@ -198,9 +178,9 @@ status: draft
 # Draft Findings`
 	_ = os.WriteFile(filepath.Join(sessionsDir, "T0-01.md"), []byte(t0Draft), 0o644)
 
-	_, env, err := handleNextSession(ctx, nil, NextSessionInput{ProjectRoot: tmpDir})
+	_, env, err := handleNext(ctx, nil, NextInput{ProjectRoot: tmpDir})
 	if err != nil {
-		t.Fatalf("handleNextSession failed: %v", err)
+		t.Fatalf("handleNext failed: %v", err)
 	}
 
 	// T0-01 should be the ready session (since its draft status means it is incomplete)
@@ -241,29 +221,15 @@ status: draft
 func TestHandleNextSession_PreSynthesisAdvisory(t *testing.T) {
 	ctx := context.Background()
 	tmpDir := t.TempDir()
-	_, envInit, err := handleInit(ctx, nil, InitInput{ProjectRoot: tmpDir})
-	if err != nil || !envInit.Success {
+	_, envInit, err := handleStart(ctx, nil, StartInput{Question: "test", Scope: "project", ProjectRoot: tmpDir})
+	if err != nil || !envInit.Ok {
 		t.Fatalf("init failed: %v", err)
 	}
 
-	pipelineContent := `# Research Pipeline
-
-### T1-01: Architecture Selection
-| **ID** | T1-01 |
-| **Door Type** | One-Way |
-| **Dependencies** | None |
-` + "```prompt" + `
-architecture prompt
-` + "```" + `
-
-### SYN-01: Synthesis
-| **ID** | SYN-01 |
-| **Door Type** | Synthesis |
-| **Dependencies** | T1-01 |
-` + "```prompt" + `
-synthesis prompt
-` + "```" + `
-`
+	pipelineContent := testPlan("Research Pipeline", "PROJECT", "", []string{
+		"{id: T1-01, title: Architecture Selection, door: one-way, depends: []}",
+		"{id: SYN-01, title: Synthesis, kind: synthesis, depends: [T1-01]}",
+	}, testSection("T1-01", "Architecture Selection", "architecture prompt"), testSection("SYN-01", "Synthesis", "synthesis prompt"))
 	_ = os.WriteFile(filepath.Join(tmpDir, core.PipelineFile), []byte(pipelineContent), 0o644)
 
 	sessionsDir := filepath.Join(tmpDir, core.SessionsDir)
@@ -283,9 +249,9 @@ We recommend Option A based on recalled knowledge [Grade D | recalled].
 `
 	_ = os.WriteFile(filepath.Join(sessionsDir, "T1-01.md"), []byte(t1Content), 0o644)
 
-	_, env, err := handleNextSession(ctx, nil, NextSessionInput{ProjectRoot: tmpDir})
+	_, env, err := handleNext(ctx, nil, NextInput{ProjectRoot: tmpDir})
 	if err != nil {
-		t.Fatalf("handleNextSession failed: %v", err)
+		t.Fatalf("handleNext failed: %v", err)
 	}
 
 	data, _ := env.Data.(map[string]any)
@@ -293,26 +259,23 @@ We recommend Option A based on recalled knowledge [Grade D | recalled].
 		t.Errorf("expected next session to be SYN-01, got %v", data["session_id"])
 	}
 
-	// Verify advisory warning is present without blocking SYN-01
+	// Verify advisory warning W-PRE-SYNTHESIS-GAP is present without blocking SYN-01
 	hasAdvisory := false
 	for _, w := range env.Warnings {
-		if strings.Contains(w, "PRE-SYNTHESIS ADVISORY") && strings.Contains(w, "Grade D recalled") {
+		if w.Code == "W-PRE-SYNTHESIS-GAP" && strings.Contains(w.Message, "Grade D recalled") {
 			hasAdvisory = true
 		}
 	}
 	if !hasAdvisory {
-		t.Errorf("expected PRE-SYNTHESIS ADVISORY warning in env.Warnings, got: %v", env.Warnings)
+		t.Errorf("expected W-PRE-SYNTHESIS-GAP warning in env.Warnings, got: %v", env.Warnings)
 	}
 
-	if !strings.Contains(env.NextStep, "PRE-SYNTHESIS ADVISORY") {
-		t.Errorf("expected PRE-SYNTHESIS ADVISORY in nextStep, got: %s", env.NextStep)
-	}
 	if env.Next != nil && env.Next.Args != nil {
 		if env.Next.Args["kind"] != "fad" {
 			t.Errorf("expected Next.Args['kind'] to be 'fad', got %v", env.Next.Args["kind"])
 		}
 	}
-	if !strings.Contains(env.NextStep, "kind='fad'") {
-		t.Errorf("expected nextStep to suggest kind='fad', got: %s", env.NextStep)
+	if !strings.Contains(envGuidance(env), `kind="fad"`) {
+		t.Errorf("expected next.why to suggest kind=\"fad\", got: %s", envGuidance(env))
 	}
 }

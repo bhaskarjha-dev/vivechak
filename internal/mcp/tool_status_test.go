@@ -16,8 +16,8 @@ func TestHandleStatus_Uninitialized(t *testing.T) {
 	if res.IsError {
 		t.Fatalf("expected isError=false for uninitialized workspace, got: %v", res.IsError)
 	}
-	if !env.Ok || !env.Success {
-		t.Errorf("expected Ok and Success true, got Ok=%v, Success=%v", env.Ok, env.Success)
+	if !env.Ok {
+		t.Errorf("expected Ok and Success true, got Ok=%v, Success=%v", env.Ok, env.Ok)
 	}
 	data, ok := env.Data.(map[string]any)
 	if !ok {
@@ -45,8 +45,8 @@ func TestHandleStatus_Initialized(t *testing.T) {
 	if res.IsError {
 		t.Fatalf("expected isError=false for initialized workspace, got: %v", res.IsError)
 	}
-	if !env.Ok || !env.Success {
-		t.Errorf("expected Ok and Success true, got Ok=%v, Success=%v", env.Ok, env.Success)
+	if !env.Ok {
+		t.Errorf("expected Ok and Success true, got Ok=%v, Success=%v", env.Ok, env.Ok)
 	}
 	data, ok := env.Data.(map[string]any)
 	if !ok {

@@ -12,37 +12,25 @@ import (
 	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-// StatusInput holds the arguments for vivechak_status.
+// StatusInput holds the canonical arguments for vivechak_status.
 type StatusInput struct {
-	ProjectRoot string `json:"project_root,omitempty" jsonschema:"workspace root path (optional)"`
-	Format      string `json:"format,omitempty"       jsonschema:"output format: 'summary' (default), 'mermaid' (visual flowchart), or 'json'"`
-}
-
-// VisualizeInput provides backward compatibility for unit tests calling handleVisualize.
-type VisualizeInput struct {
 	ProjectRoot string `json:"project_root,omitempty"`
-	Root        string `json:"root,omitempty"`
 	Format      string `json:"format,omitempty"`
 }
 
 func registerStatus(server *sdkmcp.Server) {
-	sdkmcp.AddTool(server,
-		&sdkmcp.Tool{
-			Name:  "vivechak_status",
-			Title: "Vivechak Research Status & Visualization",
-			Description: "Scan workspace and report research progress or render visual DAG flowcharts. " +
-				"Format: 'summary' (default overview of scope, sessions, and decisions), " +
-				"'mermaid' (renders session DAG flowchart or comparison matrix diagram), " +
-				"or 'json' (structured metrics). Read-only.",
-			Annotations: &sdkmcp.ToolAnnotations{
-				ReadOnlyHint:    true,
-				IdempotentHint:  true,
-				DestructiveHint: BoolPtr(false),
-				OpenWorldHint:   BoolPtr(false),
-			},
+	registerTool(server, ToolSpec{
+		Name:        "vivechak_status",
+		Description: "Show workspace status, sessions, decisions, and progress (summary, table, or mermaid). Read-only.",
+		Annotations: &sdkmcp.ToolAnnotations{
+			ReadOnlyHint:   true,
+			IdempotentHint: true,
 		},
-		handleStatus,
-	)
+		Params: []ParamSpec{
+			{Name: "format", Type: "string", Enum: []string{"summary", "table", "mermaid"}, Doc: "Output format: summary (default), table, or mermaid."},
+			{Name: "project_root", Type: "string", Doc: "Absolute path to the target project directory."},
+		},
+	}, handleStatus)
 }
 
 func handleStatus(ctx context.Context, req *sdkmcp.CallToolRequest, in StatusInput) (*sdkmcp.CallToolResult, Envelope, error) {
@@ -54,43 +42,57 @@ func handleStatus(ctx context.Context, req *sdkmcp.CallToolRequest, in StatusInp
 	}
 	root, rule, err := core.ResolveWorkspaceWithRoots(ctx, in.ProjectRoot, roots)
 	if err != nil {
+		if in.ProjectRoot == "" {
+			return ErrorResult(tool, err, "Pass project_root=<absolute path of the user's project> explicitly.")
+		}
+		return ErrorResult(tool, err, "Pass a valid existing directory path in project_root.")
+	}
+
+	format := strings.ToLower(strings.TrimSpace(in.Format))
+	if format != "" && format != "summary" && format != "table" && format != "mermaid" {
+		return ErrorResult(tool, fmt.Errorf("E-INVALID-ARGUMENT: unsupported format %q: use 'summary', 'table', or 'mermaid'", in.Format),
+			"Specify 'summary', 'table', or 'mermaid'.")
+	}
+
+	info := core.InspectWorkspace(root)
+	if !info.Initialized {
+		if format == "" {
+			format = "summary"
+		}
 		env := Envelope{
 			Ok:      true,
-			Success: true,
-			Message: "No workspace found. Vivechak is ready to initialize a new workspace.",
+			Message: "Workspace is uninitialized.",
 			Data: map[string]any{
-				"initialized": false,
-				"status":      "uninitialized",
+				"workspace":      map[string]any{"root": root, "rule": rule},
+				"workspace_root": root,
+				"root":           root,
+				"format":         format,
+				"initialized":    false,
+				"scope":          string(info.Scope),
+				"has_pipeline":   false,
+				"has_decisions":  false,
+				"session_count":  0,
+				"template_count": 0,
 			},
 			Next: &NextAction{
 				Tool: "vivechak_start",
-				Why:  "Run vivechak_start with your project directory and scope to begin research.",
+				Args: map[string]any{"scope": "comparison"},
+				Why:  "Call vivechak_start with scope and question to initialize research.",
 			},
-			NextStep: "Run vivechak_start with your project directory and scope to begin research.",
-			Meta:     NewMeta(tool),
 		}
 		return env.ToResult()
 	}
 
-	format := strings.ToLower(strings.TrimSpace(in.Format))
-	if format == "mermaid" || format == "visualize" {
-		return handleStatusRender(tool, root, "mermaid")
-	}
-	if format == "table" {
-		return handleStatusRender(tool, root, "table")
-	}
-	if format != "" && format != "summary" {
-		return ErrorResult(tool, fmt.Errorf("unsupported format %q: use 'summary', 'mermaid', or 'table'", in.Format),
-			"Specify 'mermaid', 'table', or omit format for workspace summary.")
+	if format == "mermaid" || format == "table" {
+		return handleStatusRender(tool, root, rule, format)
 	}
 
 	ws, wsErr := store.OpenWorkspace(root)
 	if wsErr != nil {
-		return ErrorResult(tool, wsErr, "Ensure workspace directory exists and is accessible.")
+		return ErrorResult(tool, fmt.Errorf("E-IO: %w", wsErr), "Ensure workspace directory exists and is accessible.")
 	}
 	defer ws.Close()
 
-	info := core.InspectWorkspace(root)
 	data := map[string]any{
 		"workspace":      map[string]any{"root": root, "rule": rule},
 		"workspace_root": root,
@@ -105,66 +107,66 @@ func handleStatus(ctx context.Context, req *sdkmcp.CallToolRequest, in StatusInp
 
 	var next *NextAction
 	var msg string
-	if !info.Initialized {
-		msg = "Workspace is uninitialized."
-		next = &NextAction{
-			Tool: "vivechak_start",
-			Why:  "Run vivechak_start to begin research.",
-		}
-	} else if info.Scope == core.ScopeComparison && (info.HasPipeline || info.SessionCount >= 1) {
+	switch {
+	case info.Scope == core.ScopeComparison && (info.HasPipeline || info.SessionCount >= 1):
 		msg = fmt.Sprintf("Workspace active at %s: comparison complete (%d sessions).", root, info.SessionCount)
 		next = &NextAction{
-			Tool: "vivechak_save",
-			Why:  "Comparison scope is finished. Comparison research and WEP matrix are complete. No further sessions or gate checks required.",
+			Tool: "vivechak_review",
+			Args: map[string]any{"mode": "validate"},
+			Why:  "Comparison scope is complete. Optionally run vivechak_review(mode=\"validate\") or start a decision.",
 		}
-	} else if info.Scope == core.ScopeDecision && info.HasDecisions {
-		msg = fmt.Sprintf("Workspace active at %s: decision locked (%d sessions).", root, info.SessionCount)
+	case info.Scope == core.ScopeDecision && info.HasDecisions:
+		msg = fmt.Sprintf("Workspace active at %s: decision recorded (%d sessions).", root, info.SessionCount)
 		next = &NextAction{
-			Tool: "vivechak_record_decision",
-			Why:  "Decision scope is complete. Decision research and ADR are finalized. Call vivechak_next if additional sessions remain.",
+			Tool: "vivechak_gate",
+			Args: map[string]any{},
+			Why:  "Decision ADR is recorded. Call vivechak_gate to verify Phase 0 exit criteria.",
 		}
-	} else if !info.HasPipeline && info.SessionCount == 0 {
+	case !info.HasPipeline && info.SessionCount == 0:
 		msg = fmt.Sprintf("Workspace active at %s (Scope: %s).", root, info.Scope)
+		saveKind := "plan"
+		if info.Scope == core.ScopeComparison {
+			saveKind = "comparison"
+		}
 		next = &NextAction{
 			Tool: "vivechak_save",
-			Args: map[string]any{"kind": "plan"},
-			Why:  "Research pipeline not yet saved. Save pipeline with vivechak_save(kind='plan').",
+			Args: map[string]any{"kind": saveKind},
+			Why:  fmt.Sprintf("Save the %s output with vivechak_save(kind=%q).", saveKind, saveKind),
 		}
-	} else {
+	default:
 		hasFAD := false
 		if _, err := os.Stat(filepath.Join(root, core.FADFile)); err == nil {
 			hasFAD = true
 		}
-		msg = fmt.Sprintf("Workspace active at %s (%d sessions, %d templates).", root, info.SessionCount, info.TemplateCount)
+		msg = fmt.Sprintf("Workspace active at %s (%d sessions).", root, info.SessionCount)
 		if hasFAD {
 			next = &NextAction{
 				Tool: "vivechak_gate",
-				Why:  "Research synthesis is complete (FAD.md exists). Run Phase 0 Gate via vivechak_gate to verify pre-coding criteria.",
+				Args: map[string]any{},
+				Why:  "FAD.md exists. Run Phase 0 Gate via vivechak_gate to verify pre-coding criteria.",
 			}
 		} else {
 			next = &NextAction{
 				Tool: "vivechak_next",
-				Why:  "Call vivechak_next for the next actionable session, or vivechak_record_decision to record decisions from completed sessions.",
+				Args: map[string]any{},
+				Why:  "Call vivechak_next for the next ready session, or vivechak_record_decision to record ADRs.",
 			}
 		}
 	}
 
 	env := Envelope{
-		Ok:       true,
-		Success:  true,
-		Message:  msg,
-		Data:     data,
-		Next:     next,
-		NextStep: next.Why,
-		Meta:     NewMeta(tool),
+		Ok:      true,
+		Message: msg,
+		Data:    data,
+		Next:    next,
 	}
 	return env.ToResult()
 }
 
-func handleStatusRender(tool string, root string, format string) (*sdkmcp.CallToolResult, Envelope, error) {
+func handleStatusRender(tool, root, rule, format string) (*sdkmcp.CallToolResult, Envelope, error) {
 	ws, err := store.OpenWorkspace(root)
 	if err != nil {
-		return ErrorResult(tool, err, "Ensure workspace directory exists.")
+		return ErrorResult(tool, fmt.Errorf("E-IO: %w", err), "Ensure workspace directory exists.")
 	}
 	defer ws.Close()
 
@@ -189,8 +191,8 @@ func handleStatusRender(tool string, root string, format string) (*sdkmcp.CallTo
 			}
 		}
 		if len(compData) == 0 {
-			return ErrorResult(tool, fmt.Errorf("comparison file not found in %s", core.ResearchDir),
-				"Save a comparison matrix first using vivechak_save(kind='comparison') before visualizing it.")
+			return ErrorResult(tool, fmt.Errorf("E-NOT-FOUND: comparison file not found in %s", core.ResearchDir),
+				"Save a comparison matrix first using vivechak_save(kind=\"comparison\").")
 		}
 
 		var rendered string
@@ -201,21 +203,22 @@ func handleStatusRender(tool string, root string, format string) (*sdkmcp.CallTo
 		}
 		env := Envelope{
 			Ok:      true,
-			Success: true,
 			Message: "Rendered comparison matrix visualization.",
 			Data: map[string]any{
-				"scope":    core.ScopeComparison,
-				"format":   format,
-				"rendered": rendered,
-				"mermaid":  rendered,
-				"table":    rendered,
-				"file":     filepath.Base(compFile),
+				"workspace":      map[string]any{"root": root, "rule": rule},
+				"workspace_root": root,
+				"scope":          core.ScopeComparison,
+				"format":         format,
+				"rendered":       rendered,
+				"mermaid":        rendered,
+				"table":          rendered,
+				"file":           filepath.Base(compFile),
 			},
 			Next: &NextAction{
-				Why: "Comparison visualization complete. Proceed to finalize decision or start implementation.",
+				Tool: "vivechak_review",
+				Args: map[string]any{"mode": "validate"},
+				Why:  "Comparison visualization complete. Optionally run vivechak_review(mode=\"validate\").",
 			},
-			NextStep: "Comparison visualization complete. Proceed to finalize decision or start implementation.",
-			Meta:     NewMeta(tool),
 		}
 		return env.ToResult()
 	}
@@ -237,33 +240,27 @@ func handleStatusRender(tool string, root string, format string) (*sdkmcp.CallTo
 			}
 		}
 		if !found {
-			return ErrorResult(tool, fmt.Errorf("pipeline file not found in %s", core.ResearchDir),
-				"Create a research plan first using vivechak_save(kind='plan').")
+			return ErrorResult(tool, fmt.Errorf("E-NOT-FOUND: pipeline file not found in %s", core.ResearchDir),
+				"Create a research plan first using vivechak_save(kind=\"plan\").")
 		}
 	}
 
 	dag, err := core.ParsePipeline(pipelineData)
 	if err != nil {
-		return ErrorResult(tool, fmt.Errorf("parsing pipeline: %w", err), "Fix pipeline format.")
+		return ErrorResult(tool, fmt.Errorf("parsing pipeline: %w", err), planFixOr(err, "Fix pipeline format."))
 	}
 
-	var knownIDs []string
-	for _, s := range dag.Sessions {
-		knownIDs = append(knownIDs, s.ID)
-	}
-	completedIDs, _ := scanCompletedSessions(ws, knownIDs...)
-
+	completedIDs, _ := dag.CompletedSessions(ws)
 	mermaid := dag.ToMermaid(completedIDs)
 	table := dag.ToStatusTable(completedIDs)
 
-	var rendered string
+	rendered := mermaid
 	if format == "table" {
 		rendered = table
-	} else {
-		rendered = mermaid
 	}
 
 	data := map[string]any{
+		"workspace":      map[string]any{"root": root, "rule": rule},
 		"workspace_root": root,
 		"format":         format,
 		"rendered":       rendered,
@@ -273,35 +270,15 @@ func handleStatusRender(tool string, root string, format string) (*sdkmcp.CallTo
 		"completed":      len(completedIDs),
 	}
 
-	next := &NextAction{
-		Tool: "vivechak_next",
-		Why:  "Diagram rendered. Proceed with next ready session using vivechak_next.",
-	}
-
 	env := Envelope{
-		Ok:       true,
-		Success:  true,
-		Message:  fmt.Sprintf("Pipeline DAG rendered (%d sessions, %d completed).", len(dag.Sessions), len(completedIDs)),
-		Data:     data,
-		Next:     next,
-		NextStep: next.Why,
-		Meta:     NewMeta(tool),
+		Ok:      true,
+		Message: fmt.Sprintf("Pipeline DAG rendered (%d sessions, %d completed).", len(dag.Sessions), len(completedIDs)),
+		Data:    data,
+		Next: &NextAction{
+			Tool: "vivechak_next",
+			Args: map[string]any{},
+			Why:  "Diagram rendered. Proceed with next ready session using vivechak_next.",
+		},
 	}
 	return env.ToResult()
-}
-
-// handleVisualize provides backward compatibility for unit tests calling handleVisualize.
-func handleVisualize(_ context.Context, _ *sdkmcp.CallToolRequest, in VisualizeInput) (*sdkmcp.CallToolResult, Envelope, error) {
-	root := in.ProjectRoot
-	if root == "" {
-		root = in.Root
-	}
-	format := in.Format
-	if format == "" {
-		format = "mermaid"
-	}
-	return handleStatus(context.Background(), nil, StatusInput{
-		ProjectRoot: root,
-		Format:      format,
-	})
 }
