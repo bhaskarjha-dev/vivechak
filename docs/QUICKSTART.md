@@ -63,7 +63,7 @@ curl -fsSL https://raw.githubusercontent.com/bhaskarjha-dev/vivechak/main/instal
 irm https://raw.githubusercontent.com/bhaskarjha-dev/vivechak/main/install.ps1 | iex           # Windows
 ```
 
-**Or Build from Source (Go 1.26.10, or any Go with GOTOOLCHAIN=auto):**
+**Or Build from Source (Go 1.26.11, or any Go with GOTOOLCHAIN=auto):**
 ```sh
 # Clone and build locally with zero external C dependencies:
 git clone https://github.com/bhaskarjha-dev/vivechak.git
