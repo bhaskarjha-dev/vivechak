@@ -1,138 +1,76 @@
-<div align="center">
+# <img src="docs/assets/logo.svg" alt="" width="40"> Vivechak (विवेचक)
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/logo-dark.svg">
-  <img src="docs/assets/logo.svg" alt="Vivechak Logo" width="180" />
-</picture>
+[![CI](https://github.com/bhaskarjha-dev/vivechak/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/bhaskarjha-dev/vivechak/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/license-MIT-yellow.svg)](LICENSE)
 
-# Vivechak (विवेचक)
-### Evidence-Grounded Research for Architectural & Technical Decisions
+**Evidence-graded technical decisions for AI coding agents, made before the code is written.** Vivechak is an MCP server and CLI (`vck`, also installed as `vivechak`): your agent researches a hard-to-reverse choice with its own web search, Vivechak structures and grades what it finds and saves it as Markdown in your repository, and `vck gate` checks the decision trail before anyone writes code.
 
-[![Release](https://img.shields.io/badge/release-v0.1.0-blue.svg?style=flat-square)](https://github.com/bhaskarjha-dev/vivechak/releases)
-[![Go Version](https://img.shields.io/badge/go-1.26+-00ADD8.svg?style=flat-square&logo=go&logoColor=white)](https://golang.org)
-[![MCP Protocol](https://img.shields.io/badge/MCP-2024--11--05-8A2BE2.svg?style=flat-square)](https://modelcontextprotocol.io)
-[![Test Suite](https://github.com/bhaskarjha-dev/vivechak/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/bhaskarjha-dev/vivechak/actions)
-[![Zero Telemetry](https://img.shields.io/badge/telemetry-zero%20(100%25%20local)-success.svg?style=flat-square)](#when-not-to-use-vivechak)
-[![License: MIT](https://img.shields.io/badge/license-MIT-yellow.svg?style=flat-square)](LICENSE)
+## Who it is for, and why
+Developers who work with an AI coding agent in an MCP host (Claude Code, Cursor, VS Code, Windsurf, Zed and others) and face a choice that is expensive to undo: a datastore, a protocol, a core dependency, a public API, a security boundary. Asked directly, an agent answers from memory and leaves no record. With Vivechak it compares the options with graded, sourced claims, records the decision and the alternatives it rejected as an ADR, and stops for a person on one-way doors.
 
-*vi- (apart) + √vic (to sift/separate) + -aka (the agent who does) = "the discerning analyst"*
+## How it fits
+- **Deep-research tools** write a one-off report; nothing checks it or keeps it with your code.
+- **ADR tools** (MADR, log4brains) give you a template, not the research behind it.
+- **Spec kits** (GitHub Spec Kit) plan the build once the choices are made.
+- **Vivechak** is the evidence-graded decision step before the plan, kept in `research/` next to your code.
 
-</div>
+## Proof
+The gate refuses an ADR that was auto-drafted through MCP (`vivechak_record_decision` with `auto_save=true`) and then marked `accepted` by editing the file, placeholders still in. Real output of a 0.1.0 development build on 2026-11-16 (excerpt; exit code 1):
+```text
+$ vck gate
+Phase 0 Gate: FAIL
+  • Track B (One-Way Doors): FAIL
+  …
+  • G8: FAIL - One-Way Door ADR(s) contain unexpanded placeholders or default template text: D-001
+  • G9: FAIL - One-Way Door ADR(s) lack measurable reversal trigger: D-001 ("[Condition or date for mandatory re-evaluation]")
+  • G10: FAIL - D-001 lacks an adversarial red-team challenge record (D-001-R1.md); run vivechak_review(mode="red_team", id="D-001")
+  • G11: FAIL - D-001 requires human architectural sign-off (run 'vck signoff D-001 --reviewer "<name>"')
+```
 
----
-
-> **Evidence-Graded Technical Decisions for AI Coding Agents**  
-> Ground high-stakes architectural choices in reproducible empirical evidence before writing code. Single standalone Go binary (`vck`) with zero runtime dependencies and zero telemetry.
-
----
-
-## Quick Install
-
-```bash
-# macOS & Linux (Shell)
+## Quickstart
+```sh
 curl -fsSL https://raw.githubusercontent.com/bhaskarjha-dev/vivechak/main/install.sh | sh
-
-# macOS & Linux (Homebrew - coming soon)
-# brew install bhaskarjha-dev/tap/vivechak
-
-# Windows (PowerShell)
-irm https://raw.githubusercontent.com/bhaskarjha-dev/vivechak/main/install.ps1 | iex
-
-# Any OS with Node or Python (zero install)
-npx -y vivechak serve    # or: uvx vivechak serve
+vck version
+vck setup claude-code   # run in your project; or cursor, vscode, claude-desktop, agy, windsurf, zed, roo, opencode, goose
+# then ask your agent: "Use Vivechak to compare Pino and Winston for our Node.js service."
+vck gate                # NOT_APPLICABLE after a comparison; PASS or FAIL with reasons once there is a decision
 ```
+Windows: `irm https://raw.githubusercontent.com/bhaskarjha-dev/vivechak/main/install.ps1 | iex`. Also available: the [release archives](https://github.com/bhaskarjha-dev/vivechak/releases) and deb/rpm/apk/Arch packages, and `go install github.com/bhaskarjha-dev/vivechak/cmd/vivechak@latest` (installs `vivechak`; use it in place of `vck`). Homebrew, npm (`npx`), PyPI (`uvx`), Scoop, winget, Docker, Nix and Smithery: coming soon. Any other MCP host: `vck setup <path-to-its-mcp-config>` ([hosts](docs/hosts.md)).
 
-## Editor Setup
+## How it works
+- **Three scopes.** `vivechak_start` gives the agent a research brief for a *comparison* (2–5 named options → weighted matrix in `research/C-NNN-comparison.md`), a *decision* (1–3 sessions → ADR in `research/D-NNN-decision.md`) or a *project* (session plan → `research/FAD.md`). Hosts that show MCP prompts also offer `compare`, `decision`, `project` and `gate`.
+- **The agent does the research** with its own web search and saves Markdown through `vivechak_save`. Vivechak validates structure and IDs, refuses to replace a saved artifact with different content unless the call is a revision, and keeps the replaced version in `research/.history/`.
+- **Every claim carries a grade**, with modifiers and a verification label:
+  <!-- docgen:begin evidence-grades (generated from internal/method/evidence.json by tools/docgen; do not edit by hand) -->
+  - **Grade A (Primary Empirical):** Official specifications, canonical source code, RFCs, or primary documentation with explicit URL anchor.
+  - **Grade B (Secondary Empirical):** Peer-reviewed papers, reproducible third-party benchmarks, published postmortems, or corroborated engineering reports.
+  - **Grade C (Vendor & Practitioner):** Vendor marketing, product whitepapers, vendor benchmarks, conference talks, or interested-party documentation.
+  - **Grade D (Informal & Opinion):** Blog posts, forum discussions, StackOverflow answers, or model memory recall (capped at Grade D).
+  - **Grade E (Speculative & Unsubstantiated):** Unverified hypotheses, uncorroborated parametric recall, or ungrounded assertions.
+  <!-- docgen:end evidence-grades -->
+- **Decisions become ADRs** with rejected alternatives and review triggers. A one-way-door decision also needs a red-team record (`vivechak_review`) and a person's sign-off, typed in a terminal with `vck signoff <D-id> --reviewer "<name>"`.
+- **`vck gate` checks the trail** against rules G1–G12 before you code, and exits 1 on FAIL, so it can run in CI.
 
-Auto-configure your AI coding assistant in one command:
-```bash
-vck setup cursor         # Cursor IDE (.cursor/mcp.json)
-vck setup vscode         # VS Code Copilot Agent (.vscode/mcp.json)
-vck setup claude-code    # Claude Code (~/.claude.json or .mcp.json)
-vck setup agy            # Google Antigravity
-vck setup                # Auto-detects editor in current workspace
-```
-*(Prompts: compare, decision, project, gate. How they appear depends on the host (Claude Code: /mcp__vivechak__compare); see docs/HOST-SETUP.md).*
+## Requirements and limits
+- An MCP host whose agent can search the web. macOS, Linux or Windows (amd64 or arm64); no runtime dependencies (Go 1.26+ only for `go install`).
+- Vivechak **does not fetch or verify** sources: grades and `fetched` labels are the agent's report, and the gate says so.
+- The gate is necessary, not sufficient: it checks structure and the agent's own labels, not the truth of the sources. The sign-off is a typed attestation by the named reviewer; it raises the bar but is not a security boundary.
+- The server makes no network calls and sends no telemetry. Its tools write only under `research/` in the project root they resolve (pass `project_root` when your host doesn't report one). `vck setup` edits your host's MCP config and backs up an existing file first.
+- Not for writing code, fixing bugs or syntax questions: ask your agent directly.
 
-## Upgrade & Uninstall
-
-### Upgrading
-- **Homebrew (macOS & Linux):** `brew update && brew upgrade bhaskarjha-dev/tap/vivechak` (coming soon)
-- **Windows (PowerShell):** Re-run `irm https://raw.githubusercontent.com/bhaskarjha-dev/vivechak/main/install.ps1 | iex`
-- **Linux / macOS Shell:** Re-run `curl -fsSL https://raw.githubusercontent.com/bhaskarjha-dev/vivechak/main/install.sh | sh`
-- **WinGet / Scoop:** `winget upgrade bhaskarjha-dev.Vivechak` or `scoop update vck` (coming soon)
-- **Go toolchain:** `go install github.com/bhaskarjha-dev/vivechak/cmd/vivechak@latest`
-- **Zero-install runners (`npx` / `uvx`):** Always run the latest package automatically.
-
-### Uninstalling
-1. **Remove binary:**
-   - Homebrew: `brew uninstall bhaskarjha-dev/tap/vivechak` (coming soon)
-   - WinGet / Scoop: `winget uninstall bhaskarjha-dev.Vivechak` or `scoop uninstall vck` (coming soon)
-   - Shell / Manual: Delete `vck` (and `vivechak`) from your bin directory (e.g. `~/.local/bin/vck` or `%LOCALAPPDATA%\Programs\vivechak\vck.exe`).
-2. **Remove MCP host configuration:**
-   - Delete the `"vivechak"` block from your IDE/host config file (e.g. `.cursor/mcp.json`, `.vscode/mcp.json`, `~/.claude.json`), or restore the automatic `<config>.vivechak-bak-<timestamp>` backup created during `vck setup`.
-
-## The Three Decision Scopes
-
-Vivechak scales research depth to decision reversibility:
-
-| Scope | Deliverable | Typical Prompt | Overhead |
-|---|---|---|---|
-| **Comparison** | `research/C-NNN-comparison.md` (WEP) | *"Compare Pino vs Winston"* | 1 session (~5 min), 0 DAG, 0 gate |
-| **Decision** | `research/D-NNN-decision.md` (ADR) | *"PostgreSQL vs ClickHouse for events"* | 1–3 sessions (~30 min), 0 project DAG |
-| **Project** | `research/FAD.md` | *"Architect real-time streaming pipeline"* | Full DAG (4–30 sessions), Phase 0 Gate |
-
-## 9 Consolidated MCP Tools
-
-| Tool | Action | Primary Scope |
+## Upgrade and uninstall
+| Channel | Upgrade | Uninstall |
 |---|---|---|
-| `vivechak_start` | Initialize workspace and return targeted research brief | All |
-| `vivechak_save` | Atomically persist comparison, plan, session, or FAD | All |
-| `vivechak_record_decision` | Create or update an ADR (`research/D-NNN-decision.md`) and compile `DECISIONS.md` | Decision / Project |
-| `vivechak_next` | Resolve next unblocked DAG session via topological sort | Project |
-| `vivechak_status` | Return workspace health, progress, and blockers | All |
-| `vivechak_review` | Surface real-time quality coaching observations (`Q-*`) | Decision / Project |
-| `vivechak_amend` | Revise completed session or update findings | All |
-| `vivechak_replan` | Dynamically prune or insert sessions based on discoveries | Project |
-| `vivechak_gate` | Evaluate 12 Phase 0 exit rules (Track A & Track B) | All |
+| `install.sh` (macOS, Linux) | Re-run the install command | `sudo rm /usr/local/bin/vivechak /usr/local/bin/vck` (or the same two files in `~/.local/bin`) |
+| `install.ps1` (Windows) | Re-run the install command | Delete `%LOCALAPPDATA%\Programs\vivechak` and remove it from your user `PATH` |
+| Release archive | Replace both binaries with the new archive's | Delete both binaries |
+| deb, rpm, apk, Arch package | Install the new package file (`sudo dpkg -i`, `sudo rpm -U`, `sudo apk add --allow-untrusted`, `sudo pacman -U`) | `sudo apt remove vivechak`, `sudo dnf remove vivechak`, `sudo apk del vivechak` or `sudo pacman -R vivechak` |
+| `go install` | Run the `go install …@latest` command again | `rm "$(go env GOPATH)/bin/vivechak"` |
 
-## Evidence Taxonomy
+Then delete the `vivechak` entry from your host's MCP config; if `vck setup` changed an existing file, the original is next to it as `<config>.vivechak-bak-<timestamp>`. Your `research/` folders stay; they are your files.
 
-Every factual claim in Vivechak requires an inline evidentiary grade:
-- **Grade A (`E-A`):** Canonical documentation, official specification, RFC, or primary source code with URL anchor.
-- **Grade B (`E-B`):** Peer-reviewed paper, reproducible third-party benchmark, published postmortem, or corroborated issue tracker.
-- **Grade C (`E-C`):** Vendor benchmark, product whitepaper, interested-party comparison, or conference talk.
-- **Grade D (`E-D`):** Community discussion, blog post, or model memory recall (capped at Grade D per Principle P3).
-- **Grade E (`E-E`):** Speculative hypothesis, uncorroborated assertion, or unsubstantiated claim.
+## Links
+- **Docs** ([docs/](docs/)): [Quickstart](docs/QUICKSTART.md) · [Host setup](docs/HOST-SETUP.md) · [Hosts and presets](docs/hosts.md) · [Manual workflow](docs/MANUAL-WORKFLOW.md) · [MCP tools](docs/MCP-TOOLS.md) · [Troubleshooting](docs/TROUBLESHOOTING.md) · [Architecture](docs/ARCHITECTURE.md) · [Gate rules](docs/reference/gate.md)
+- **Examples** ([examples/](examples/)): illustrative walkthroughs of the [comparison](examples/SAMPLE-COMPARISON.md), [decision](examples/SAMPLE-DECISION.md) and [project](examples/SAMPLE-PROJECT.md) scopes, and Vivechak's own decision records in [examples/dogfood](examples/dogfood/research/)
+- **Project:** [Methodology (FRAMEWORK.md)](FRAMEWORK.md) · [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [Changelog](CHANGELOG.md)
 
-*(See [Methodology Specification](FRAMEWORK.md) and [Sample Decision Walkthrough](examples/SAMPLE-DECISION.md) for illustrative examples with graded evidence).*
-
-> **Epistemic Notice:** Vivechak structures research workflows, enforces evidence hierarchies, and tracks provenance. Vivechak **does not fetch or verify** external sources itself; claims and evidence grades are authored by the AI agent using active **web search** and verified by human architects at exit gates.
->
-> *The gate is necessary, not sufficient: it checks structure and the agent's own labels, not the truth of the sources. The sign-off is a typed attestation by the named reviewer; it raises the bar but is not a security boundary.*
-
-## Positioning: What Vivechak Is vs. What Vivechak Is Not
-
-| What Vivechak IS | What Vivechak IS NOT |
-|---|---|
-| **Epistemic Grounding Engine:** Pre-coding research meta-framework providing empirical evidence grades (`E-A` through `E-E`) | **A Code Generator:** It does not write production code, components, endpoints, or scripts |
-| **Architectural Gatekeeper:** Enforces pre-coding exit criteria (`Track A` Two-Way vs. `Track B` One-Way Doors) with interactive human sign-off (`vck signoff`) | **A Linter or Static Analyzer:** It does not analyze ASTs, enforce formatting, or typecheck code |
-| **Reversibility-Calibrated Sieve:** 1-session comparisons (`C-NNN`), 1–3 session ADRs (`D-NNN`), or multi-session DAG pipelines | **An Autonomous Orchestrator for Everything:** Not an open-ended loop for routine programming tasks |
-| **Structured Falsification:** Mandates disconfirming evidence searches, substantive discovered concerns, and premortems | **A Prompt Persona:** No expert persona roleplays, XML prompt bloat, or arbitrary search count quotas |
-
-### When NOT to Use Vivechak
-
-Vivechak is an architectural governance framework, not a code authoring tool:
-- ❌ Do NOT use for writing functions, UI components, tests, or bug fixes.
-- ❌ Do NOT use for syntax lookups or language trivia.
-- ✅ DO use for datastores, core frameworks, security boundaries, and One-Way Doors.
-
-## Documentation Index
-
-- **Guides:** [Quickstart Guide](docs/QUICKSTART.md) · [Host Setup & Presets](docs/hosts.md) · [Manual Web Workflow](docs/MANUAL-WORKFLOW.md) · [Troubleshooting & Diagnostics](docs/TROUBLESHOOTING.md)
-- **Deep Dives:** [MCP Tools Manual](docs/MCP-TOOLS.md) · [Architecture & Internals](docs/ARCHITECTURE.md) · [Parallel Subagent Execution](docs/PARALLEL-EXECUTION.md) · [Hybrid MCP + Manual Workflows](docs/HYBRID-EXECUTION.md)
-- **Methodology & Contracts:** [Methodology Specification](FRAMEWORK.md) · [Validation & Error Codes](docs/reference/codes.md) · [Phase 0 Gate Rules](docs/reference/gate.md) · [Brand & Identity](docs/BRAND.md) · [Contributing Guide](CONTRIBUTING.md)
-
-## License
-
-MIT License · Copyright (c) 2026 Bhaskar Jha.
+*Vivechak* (विवेचक): vi- (apart) + √vic (to sift) + -aka (the one who does), "the discerning analyst". MIT License · Copyright (c) 2026 Bhaskar Jha.

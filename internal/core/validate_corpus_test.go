@@ -30,9 +30,11 @@ func extractDecisionJSONContent(walkthrough []byte) string {
 	for _, m := range matches {
 		var obj map[string]any
 		if err := json.Unmarshal(m[1], &obj); err == nil {
-			if _, hasDecID := obj["decision_id"]; hasDecID {
-				if val, ok := obj["content"].(string); ok && val != "" {
-					return val
+			if _, hasKind := obj["kind"]; !hasKind {
+				if _, hasID := obj["id"]; hasID {
+					if val, ok := obj["content"].(string); ok && val != "" {
+						return val
+					}
 				}
 			}
 		}

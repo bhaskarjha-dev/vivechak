@@ -29,14 +29,21 @@ The agent calls `vivechak_start` with `scope="comparison"`:
 **Tool Response:**
 ```json
 {
-  "success": true,
-  "message": "Comparison brief generated.",
+  "ok": true,
+  "message": "Comparison scope ready (C-001). Execute the brief with web search, then save the WEP matrix.",
   "data": {
     "scope": "comparison",
-    "prompt": "# RESEARCH BRIEF: Pino vs Winston Comparison\n\n## OPTIONS\n- Pino\n- Winston\n\n## CRITERIA\n- Event loop latency & throughput overhead\n- Structured JSON allocation & GC pressure\n- Transport decoupling & reliability\n...",
-    "generator_file": "GENERATOR-COMPARISON.md"
+    "id": "C-001",
+    "brief": "# RESEARCH BRIEF: Pino vs Winston Comparison\n\n## OPTIONS\n- Pino\n- Winston\n\n## CRITERIA\n- Event loop latency & throughput overhead\n- Structured JSON allocation & GC pressure\n- Transport decoupling & reliability\n..."
   },
-  "next_step": "Execute research using frontier LLM capabilities with web search, then call vivechak_save(kind=\"comparison\", id=\"C-001\", content=...) with the generated Weighted Evaluation Protocol (WEP) matrix."
+  "next": {
+    "tool": "vivechak_save",
+    "args": {
+      "kind": "comparison",
+      "id": "C-001"
+    },
+    "why": "Run the research brief with web search, then save the completed WEP matrix."
+  }
 }
 ```
 
@@ -54,7 +61,7 @@ The agent executes the generator prompt using live web search, benchmarking data
 
 ## Step 3: Persisting the Comparison Plan
 
-The agent saves the completed comparison artifact directly via `vivechak_save(kind="comparison")`. The server automatically handles on-the-fly workspace initialization if needed, copies only `COMPARISON-SESSION.template.md` (zero bloat), and bypasses DAG cycle constraints:
+The agent saves the completed comparison artifact directly via `vivechak_save(kind="comparison", id="C-001", content=...)`. The server initializes `research/` on demand and bypasses DAG cycle constraints:
 
 **Tool Call:** `vivechak_save`
 ```json
@@ -68,14 +75,18 @@ The agent saves the completed comparison artifact directly via `vivechak_save(ki
 **Tool Response:**
 ```json
 {
-  "success": true,
-  "message": "Comparison C-001 saved successfully in research/C-001-comparison.md",
+  "ok": true,
+  "message": "Comparison C-001 saved to research/C-001-comparison.md (valid).",
   "data": {
     "id": "C-001",
     "kind": "comparison",
-    "path": "research/C-001-comparison.md"
+    "file_path": "research/C-001-comparison.md"
   },
-  "next_step": "Comparison complete! The Weighted Evaluation Protocol matrix is saved in research/C-001-comparison.md. Zero gate or DAG overhead required. You can now proceed to implementation."
+  "next": {
+    "tool": "vivechak_status",
+    "args": {},
+    "why": "Comparison complete in research/C-001-comparison.md; zero gate or DAG overhead required."
+  }
 }
 ```
 
@@ -93,12 +104,18 @@ To inspect workspace status, the agent or user can call `vivechak_status`:
 **Tool Response:**
 ```json
 {
-  "success": true,
-  "message": "Workspace active in comparison scope. 1 comparison completed.",
+  "ok": true,
+  "message": "Workspace active in comparison scope (1 comparison saved).",
   "data": {
     "scope": "comparison",
-    "completed_sessions": 1,
-    "gate_eligible": true
+    "comparisons_saved": 1
+  },
+  "next": {
+    "tool": "vivechak_start",
+    "args": {
+      "scope": "comparison"
+    },
+    "why": "Proceed to implementation or start another research question."
   }
 }
 ```

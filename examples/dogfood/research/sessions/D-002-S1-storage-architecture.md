@@ -23,7 +23,7 @@ Should Vivechak adopt SQLite or a confined file-based store (`internal/store`) u
 
 ## Key Findings
 
-- **Cross-Compilation Independence:** Using SQLite via CGO (`mattn/go-sqlite3`) breaks zero-dependency static compilation across 7 targets. Pure-Go SQLite adds 3.2 MB to the binary [Grade A: go tool nm / size | verified].
+- **Cross-Compilation Independence:** Using SQLite via CGO (`mattn/go-sqlite3`) breaks zero-dependency static compilation across 7 targets. A pure-Go SQLite driver would add to the binary size (not measured) (Grade D · single · aging · indirect | recalled).
 - **Human Collaboration:** Storing research as plain Markdown files in `research/` enables seamless code review in pull requests without specialized DB viewers [Grade B: GitHub review workflow | cached].
 
 ## Recommendation

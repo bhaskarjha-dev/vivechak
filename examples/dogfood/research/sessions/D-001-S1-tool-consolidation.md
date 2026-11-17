@@ -23,8 +23,8 @@ Does consolidating the MCP tool surface from 13 tools down to 9 cohesive tools r
 
 ## Key Findings
 
-- **Context Budget:** The 13-tool schema required ~18 KB of prompt tokens. Consolidating to 9 tools reduces schema footprint to 8.4 KB, yielding a 53% token reduction [Grade A: source inspect | verified].
-- **Agent Accuracy:** Autonomous multi-harness benchmarks showed an initial 22% failure rate where smaller models confused `save_plan` vs `save_session`. Polymorphic `vivechak_save(kind=...)` eliminates this confusion [Grade B: benchmark runs | cached].
+- **Context Budget:** The size of the 13-tool schema was not recorded. After consolidation, the nine tool definitions in the `tools/list` response are 19,419 bytes at commit 12b768f (measured 2026-11-12), so consolidation alone does not meet the ≤10 KB budget [Grade A: tools/list response of the built binary | fetched].
+- **Agent Accuracy:** Harness runs recorded agents unsure whether `vivechak_init` was required before saving (D-10-01) and passing decision ids for comparisons (D-01-01, D-02-01); no failure rate was measured. Polymorphic `vivechak_save(kind=...)` removes the separate init step and the plan/session split [Grade C: tests/harness/DEFECTS.md | cached].
 
 ## Recommendation
 
@@ -35,7 +35,7 @@ Consolidate tool surface into 9 tools: `vivechak_start`, `vivechak_save`, `vivec
 | Option | Verdict | Key Tradeoff |
 |---|---|---|
 | **9 Cohesive Tools** | **Recommended** | Optimal balance between token economy and explicit semantic discovery |
-| **13 Granular Tools** | **Rejected** | Triggers tool confusion in smaller models and consumes >18 KB context |
+| **13 Granular Tools** | **Rejected** | Recorded agent friction with the init step and id prefixes; schema size not recorded |
 
 ## Open Questions & Risks
 
@@ -51,11 +51,12 @@ During multi-harness testing with smaller parameter models, we discovered that m
 
 | Prior Belief | Status | Evidence | Impact |
 |---|---|---|---|
-| 13 granular tools provide better precision | Contradicted | Small models suffer 22% tool selection error rate with 13 tools | High |
+| 13 granular tools provide better precision | Contradicted | Harness runs recorded agents unsure about `vivechak_init` and id prefixes with 13 tools (tests/harness/DEFECTS.md); no error rate was measured | High |
 
 ## Sources & Evidence Ledger
 
 | # | Source | Grade | Modifiers | Verification | Used For |
 |---|---|---|---|---|---|
-| 1 | https://modelcontextprotocol.io/specification | A | corroborated · fresh | fetched | MCP tool schema budget and capabilities |
-| 2 | tests/harness/reports/audit-v0.1.0-2026-10-20.md | B | direct · fresh | cached | Empirical multi-harness failure rates |
+| 1 | https://modelcontextprotocol.io/specification | A | corroborated · fresh | fetched | MCP tool schemas and capabilities |
+| 2 | tests/harness/DEFECTS.md | C | corroborated · aging · direct | cached | Recorded agent friction with the 13-tool surface (D-01-01, D-02-01, D-10-01) |
+| 3 | `tools/list` response of the binary built at commit 12b768f | A | single · fresh · direct | fetched | Size of the nine tool definitions (19,419 bytes, measured 2026-11-12) |

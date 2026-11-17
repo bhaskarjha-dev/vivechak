@@ -28,13 +28,21 @@ The agent begins by initializing the workspace for a full project and providing 
 **Tool Response:**
 ```json
 {
-  "success": true,
-  "message": "Initialized project scope in ./research. 6 templates copied.",
+  "ok": true,
+  "message": "Project workspace initialized. Synthesize the research pipeline DAG and save it.",
   "data": {
     "scope": "project",
-    "prompt": "# GENERATE: Architectural Pipeline DAG (Project Scope)\n\n## VISION\nWe want to build Katha...\n\n## DEPENDENCY DAG GENERATION\nTopologically decompose into 4-6 focused sessions with explicit inputs/outputs..."
+    "brief": "# GENERATE: Architectural Pipeline DAG (Project Scope)\n\n## VISION\nWe want to build Katha...\n\n## DEPENDENCY DAG GENERATION\nTopologically decompose into 4-6 focused sessions with explicit inputs/outputs..."
   },
-  "next_step": "Synthesize the dependency DAG and persist RESEARCH-PIPELINE.md via vivechak_save(kind=\"plan\")."
+  "next": {
+    "tool": "vivechak_save",
+    "args": {
+      "kind": "plan",
+      "scope": "project",
+      "id": "DAG"
+    },
+    "why": "Save the synthesized RESEARCH-PIPELINE.md containing one yaml vivechak-plan block."
+  }
 }
 ```
 
@@ -42,7 +50,7 @@ The agent begins by initializing the workspace for a full project and providing 
 
 ## Step 2: The Generated Pipeline
 
-The agent evaluates the generator prompt and produces a 4-session plan: `RESEARCH-PIPELINE.md` and `DECISIONS.md`. 
+The agent evaluates the generator prompt and produces a 4-session plan: `RESEARCH-PIPELINE.md` and `DECISIONS.md`. The pipeline's `yaml vivechak-plan` block lists the sessions, their dependencies and the one `kind: synthesis` session; each session's prompt sits under `## Sessions` in its `### <id>: <title>` section. The Mermaid diagram below is for people; the server reads only the block.
 
 **Execution DAG (from RESEARCH-PIPELINE.md):**
 
@@ -65,16 +73,23 @@ The agent saves this plan to the workspace.
 {
   "kind": "plan",
   "id": "DAG",
-  "content": "# Research Pipeline\n\n## Sessions\n\n### Session T1-01: Graph Persistence Landscape\n| Field | Value |\n|---|---|\n| **ID** | T1-01 |\n| **Layer** | 1 |\n| **Door Type** | one-way |\n| **Informs Decision** | D-001 |\n| **Dependencies** | none |\n\n```prompt\n# Brief for T1-01: Graph Persistence Landscape\n```\n\n### Session T1-02: Collaborative Sync: Yjs vs OT\n| Field | Value |\n|---|---|\n| **ID** | T1-02 |\n| **Layer** | 1 |\n| **Door Type** | two-way |\n| **Dependencies** | none |\n\n```prompt\n# Brief for T1-02: Collaborative Sync\n```\n\n### Session T2-01: PostgreSQL + AGE vs Neo4j\n| Field | Value |\n|---|---|\n| **ID** | T2-01 |\n| **Layer** | 2 |\n| **Door Type** | one-way |\n| **Dependencies** | T1-01 |\n\n```prompt\n# Brief for T2-01: PostgreSQL + AGE vs Neo4j\n```\n\n### Session SYN-01: Founding Architecture Document\n| Field | Value |\n|---|---|\n| **ID** | SYN-01 |\n| **Layer** | 3 |\n| **Kind** | synthesis |\n| **Dependencies** | T1-02, T2-01 |\n\n```prompt\n# Brief for SYN-01: Founding Architecture Document\n```"
+  "content": "# Research Pipeline: Katha\n\n```yaml vivechak-plan\nplan: PROJECT\nsessions:\n  - {id: T1-01, title: Graph Persistence Landscape, layer: 1, door: one-way, informs: [D-001], depends: []}\n  - {id: T1-02, title: \"Collaborative Sync: Yjs vs OT\", layer: 1, door: two-way, depends: []}\n  - {id: T2-01, title: PostgreSQL + AGE vs Neo4j, layer: 2, door: one-way, informs: [D-001], depends: [T1-01]}\n  - {id: SYN-01, title: Founding Architecture Document, layer: 3, kind: synthesis, depends: [T1-02, T2-01]}\ndecisions:\n  - {id: D-001, title: Primary graph datastore, door: one-way}\n```\n\n## Sessions\n\n### T1-01: Graph Persistence Landscape\n| Field | Value |\n|---|---|\n| **Layer** | 1 |\n| **Door Type** | one-way |\n| **Informs Decision** | D-001 |\n\n```prompt\n# Brief for T1-01: Graph Persistence Landscape\n```\n\n### T1-02: Collaborative Sync: Yjs vs OT\n```prompt\n# Brief for T1-02: Collaborative Sync\n```\n\n### T2-01: PostgreSQL + AGE vs Neo4j\n```prompt\n# Brief for T2-01: PostgreSQL + AGE vs Neo4j\n[UPSTREAM_FINDINGS]\n```\n\n### SYN-01: Founding Architecture Document\n```prompt\n# Brief for SYN-01: Founding Architecture Document\n[ALL_SESSION_FINDINGS]\n```\n"
 }
 ```
 
 **Tool Response:**
 ```json
 {
-  "success": true,
-  "message": "Pipeline saved to research/RESEARCH-PIPELINE.md.",
-  "next_step": "Call vivechak_next to get the first actionable session prompt."
+  "ok": true,
+  "message": "Saved project pipeline to research/RESEARCH-PIPELINE.md (4 sessions).",
+  "data": {
+    "file_path": "research/RESEARCH-PIPELINE.md"
+  },
+  "next": {
+    "tool": "vivechak_next",
+    "args": {},
+    "why": "Call vivechak_next to retrieve the first unblocked session prompt."
+  }
 }
 ```
 
@@ -92,16 +107,21 @@ The agent requests the first actionable session.
 **Tool Response:**
 ```json
 {
-  "success": true,
-  "message": "Next actionable session: T1-01 (1 parallel ready)",
+  "ok": true,
+  "message": "Ready session T1-01: Graph Persistence Landscape",
   "data": {
     "session_id": "T1-01",
     "title": "Graph Persistence Landscape",
-    "prompt": "# RESEARCH BRIEF: T1-01 Primary Datastore Selection...\n...",
-    "prompt_char_count": 1420,
-    "prompt_approx_tokens": 355
+    "prompt": "# Brief for T1-01: Graph Persistence Landscape"
   },
-  "next_step": "Execute the prompt for session T1-01 in a fresh AI session with web search enabled. Save the result with vivechak_save(kind=\"session\", id=\"T1-01\")."
+  "next": {
+    "tool": "vivechak_save",
+    "args": {
+      "kind": "session",
+      "id": "T1-01"
+    },
+    "why": "Execute session T1-01 with web search and save the completed session Markdown."
+  }
 }
 ```
 
@@ -119,9 +139,17 @@ The agent executes the research using web search and tool capabilities, producin
 **Tool Response:**
 ```json
 {
-  "success": true,
+  "ok": true,
   "message": "Session T1-01 saved to research/sessions/T1-01.md.",
-  "next_step": "Record any resulting decisions with vivechak_record_decision, or call vivechak_next."
+  "data": {
+    "id": "T1-01",
+    "file_path": "research/sessions/T1-01.md"
+  },
+  "next": {
+    "tool": "vivechak_next",
+    "args": {},
+    "why": "Continue with the next unblocked session or record informed decisions."
+  }
 }
 ```
 
@@ -130,7 +158,7 @@ The agent records the primary datastore decision.
 **Tool Call:** `vivechak_record_decision`
 ```json
 {
-  "decision_id": "D-001",
+  "id": "D-001",
   "content": "---\nid: D-001\ntitle: Primary Datastore - PostgreSQL 16 with pgvector and Recursive CTEs\nstatus: accepted\ndoor_type: one-way\ndate: 2026-09-01\nhuman_reviewed: false\nevidence_refs: [E-001, E-002]\nreview_trigger: Re-evaluate if graph traversal exceeds 200ms p95 or graph > 500k edges\n---\n\n## Context\nStory graph persistence requires low latency node retrieval with relational metadata.\n\n## Decision\nAdopt PostgreSQL 16 with pgvector extension and recursive CTEs for Katha's story graph persistence. Grade A (https://www.postgresql.org/docs/16/queries-with.html)\n\n## Rejected Alternatives\n- Neo4j: Operational overhead of maintaining a separate cluster with specialized backup procedures is unjustified at 50k nodes.\n- DynamoDB: Multi-hop graph traversals require client-side join logic and costly fan-out queries.\n\n## Evidence\n- [Grade A] https://www.postgresql.org/docs/16/queries-with.html\n- [Grade B] PGBench graph traversal benchmarks at 50k nodes"
 }
 ```
@@ -138,9 +166,21 @@ The agent records the primary datastore decision.
 **Tool Response:**
 ```json
 {
-  "success": true,
-  "message": "Decision D-001 recorded as canonical ADR in research/D-001-decision.md and compiled into consolidated research/DECISIONS.md.",
-  "next_step": "Continue pipeline via vivechak_next."
+  "ok": true,
+  "message": "Saved decision D-001 as valid",
+  "data": {
+    "id": "D-001",
+    "file_path": "research/D-001-decision.md",
+    "decisions_file": "research/DECISIONS.md"
+  },
+  "next": {
+    "tool": "vivechak_review",
+    "args": {
+      "mode": "red_team",
+      "id": "D-001"
+    },
+    "why": "Run adversarial red-team review for One-Way Door D-001 and cite the returned record_id before Phase 0 Gate."
+  }
 }
 ```
 
@@ -156,16 +196,20 @@ When the agent asks for the next session, Vivechak automatically injects the com
 **Tool Response:**
 ```json
 {
-  "success": true,
-  "message": "Next actionable session: T2-01 (1 parallel ready)",
+  "ok": true,
+  "message": "Ready session T1-02: Collaborative Sync: Yjs vs OT",
   "data": {
-    "session_id": "T2-01",
-    "title": "PostgreSQL + AGE vs Neo4j",
-    "prompt": "# RESEARCH BRIEF: T2-01 PostgreSQL + AGE vs Neo4j...\n...\n## UPSTREAM RESEARCH CONTEXT\n\n## Findings from T1-01\nPostgreSQL 16 is selected...",
-    "prompt_char_count": 1850,
-    "prompt_approx_tokens": 462
+    "session_id": "T1-02",
+    "title": "Collaborative Sync: Yjs vs OT"
   },
-  "next_step": "Execute the prompt for session T2-01 in a fresh AI session with web search enabled. Save the result with vivechak_save(kind=\"session\", id=\"T2-01\")."
+  "next": {
+    "tool": "vivechak_save",
+    "args": {
+      "kind": "session",
+      "id": "T1-02"
+    },
+    "why": "Execute the session prompt with web search and save the output."
+  }
 }
 ```
 
@@ -173,7 +217,7 @@ When the agent asks for the next session, Vivechak automatically injects the com
 
 ## Step 4: Finalizing & The Exit Gate
 
-After completing all sessions, synthesizing the FAD via `vivechak_save(kind="fad", id="SYN-01")`, the agent runs the Phase 0 Exit Gate to ensure the architecture is ready for code:
+After completing all sessions and synthesizing the FAD via `vivechak_save(kind="fad", id="SYN-01", content="<FAD markdown>")`, the agent runs the Phase 0 Exit Gate to ensure the architecture is ready for code:
 
 **Tool Call:** `vivechak_gate`
 ```json
@@ -185,12 +229,17 @@ After completing all sessions, synthesizing the FAD via `vivechak_save(kind="fad
 **Tool Response:**
 ```json
 {
-  "success": true,
-  "message": "Gate evaluation complete. Report saved to research/PHASE-0-GATE.md.",
+  "ok": true,
+  "message": "Phase 0 Gate: FAIL (3 failing rules). Implementation is prohibited until resolved.",
   "data": {
-    "gate_artifact": "research/PHASE-0-GATE.md"
+    "verdict": "FAIL",
+    "gate_file": "research/PHASE-0-GATE.md"
   },
-  "next_step": "Review gate results in research/PHASE-0-GATE.md."
+  "next": {
+    "tool": "vivechak_next",
+    "args": {},
+    "why": "Resolve failing rules in research/PHASE-0-GATE.md before coding."
+  }
 }
 ```
 

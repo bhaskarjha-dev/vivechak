@@ -21,7 +21,7 @@ doctor:
 	go run ./cmd/vivechak doctor examples/dogfood
 
 gate:
-	go run ./cmd/vivechak gate --track all examples/dogfood
+	@tmp=$$(mktemp -d) && cp -R examples/dogfood "$$tmp/dogfood" && go run ./cmd/vivechak gate --track all "$$tmp/dogfood"; rc=$$?; rm -rf "$$tmp"; exit $$rc
 
 test:
 	go test -count=1 ./...

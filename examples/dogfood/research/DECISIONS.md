@@ -21,12 +21,12 @@ review_date: "2027-04-24"
 prediction: "Consolidation to 9 tools reduces tool-selection errors and prompt tokens by >35% across multi-harness benchmarks"
 tags: ["mcp", "architecture", "tool-consolidation"]
 authored_by: "agent-vivechak"
-human_reviewed: true
+human_reviewed: false
 schema_version: "0.1.0"
 ```
 
 ### Context & Problem Statement
-Prior to v0.1.0, Vivechak exposed 13 distinct MCP tools. In multi-harness autonomous testing across client hosts, cognitive friction occurred in smaller models, resulting in tool confusion and oversized schema payloads (>18 KB).
+Prior to v0.1.0, Vivechak exposed 13 distinct MCP tools. In multi-harness autonomous testing across client hosts, smaller models were unsure whether `init` had to run before saving and used decision ids for comparisons (tests/harness/DEFECTS.md); the schema size was not recorded.
 
 ### Decision Outcome
 **Chosen Option:** Consolidate the tool surface from 13 to 9 cohesive MCP tools (`vivechak_start`, `vivechak_save`, `vivechak_record_decision`, `vivechak_next`, `vivechak_status`, `vivechak_review`, `vivechak_amend`, `vivechak_replan`, `vivechak_gate`).
@@ -34,7 +34,7 @@ Prior to v0.1.0, Vivechak exposed 13 distinct MCP tools. In multi-harness autono
 ### Rationale
 - Guided Worker protocol with structured `next` actions
 - Zero-ceremony transparent initialization on the fly
-- Schema footprint reduced by >50% (under 10 KB)
+- Context budget met after schema trimming: `tools/list` is 6,115 bytes and always-loaded context is 9,063 bytes (down from 19,419 bytes at commit 12b768f; budget ≤10 KB)
 
 ### Reversal Trigger
 Re-evaluate if future benchmarks across ≥3 major agent hosts demonstrate that separate `save_plan` and `save_session` tools outperform polymorphic `vivechak_save`.
@@ -61,7 +61,7 @@ review_date: "2027-04-24"
 prediction: "Confined markdown/JSON store preserves human inspectability, git diff fidelity, and zero external CGO runtime dependencies"
 tags: ["storage", "cgo-free", "architecture"]
 authored_by: "agent-vivechak"
-human_reviewed: true
+human_reviewed: false
 schema_version: "0.1.0"
 ```
 
@@ -74,7 +74,7 @@ Vivechak persists research artifacts across multiple interactive sessions and su
 ### Rationale
 - 100% CGO-free static binary distribution across 7 OS/architecture targets
 - First-class version-controlled Markdown artifacts for human code reviews
-- Hard security guarantee preventing path escapes outside the `research/` directory
+- Writes confined to `research/` in the resolved project root (`os.Root`); the agent chooses that root
 
 ### Reversal Trigger
 If multi-agent research workloads with >10 concurrent subagents experience lock contention latency exceeding 500ms, evaluate introducing an embedded pure-Go transactional engine for intermediate index state.
