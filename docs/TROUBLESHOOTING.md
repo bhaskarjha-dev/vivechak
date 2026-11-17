@@ -1,11 +1,10 @@
 # Vivechak Troubleshooting Guide
-### Diagnosing and Resolving Common Workspace, MCP, and Research Pipeline Issues
 
 ---
 
 ## 1. Quick Diagnostic: Run `vck doctor`
 
-Before manually inspecting configuration files, run the built-in workspace integrity checker:
+Run the workspace integrity checker before inspecting files manually:
 
 ```sh
 vck doctor /path/to/your/project
@@ -13,186 +12,70 @@ vck doctor /path/to/your/project
 vck doctor
 ```
 
-`vck doctor` checks for:
-- Correct `research/` directory layout and required templates.
+`vck doctor` checks:
+- `research/` directory structure and `.vivechak.json` metadata.
 - Unregistered or orphaned session files in `research/sessions/`.
-- Malformed or missing YAML frontmatter headers across `research/`, `sessions/`, `decisions/`, and `comparisons/`.
-- Corrupted non-UTF-8 bytes across all research files.
-- Stale decision references (`D-OLD`) after ADR supersession.
-- In-flight decisions planned in `RESEARCH-PIPELINE.md` that lack locked ADRs.
+- Malformed or missing YAML frontmatter headers across `research/` and `research/sessions/`.
+- Non-UTF-8 bytes in research artifacts.
+- Stale decision references after ADR supersession and planned decisions lacking locked ADRs.
 
 ---
 
-## 2. Validation & Quality Error Codes
+## 2. Error, Validation, Warning & Coaching Codes
 
-Vivechak employs a 4-level validation ladder (**L1–L4**). Below are the common error codes and their resolutions:
+Every operational error (`E-*`), structural or `vivechak-plan` validation error (`V-*`), warning (`W-*`), and quality coaching code (`Q-*`) emitted by Vivechak is generated from `internal/core/codes.go` in a single reference table:
 
-### `V-MISSING-FRONTMATTER` (Level 2 Blocking)
-- **Cause:** A markdown file in `research/sessions/` or `research/` is missing the opening `---` YAML frontmatter delimiter, or contains irregular characters before the delimiter.
-- **Resolution:** Ensure the document begins with valid YAML frontmatter:
-  ```markdown
-  ---
-  session_id: T1-01
-  title: "Primary Datastore Selection"
-  date: 2026-10-13
-  status: complete
-  ---
-  ```
-  *(Note: Leading markdown `# Heading` titles followed immediately by `---` are supported, but frontmatter must enclose required fields like `session_id`, `title`, and `date`).*
-
-### `V-OWD-NO-CONCERNS` (Level 2 Blocking on One-Way Doors)
-- **Cause:** Principle P8 (Structured Falsification) mandates that irreversible architectural decisions (One-Way Doors) explicitly document non-trivial counter-arguments or failure modes.
-- **Resolution:** Add a substantive `## Discovered Concerns` section with at least 50 characters detailing failure modes, scaling bottlenecks, or operational trade-offs uncovered during research.
-
-### `V-PATH-ESCAPES-ROOT` (Level 1 Fatal)
-- **Cause:** A tool argument attempted to read or write a path outside the workspace root (e.g. `../../etc/passwd` or absolute drive roots).
-- **Resolution:** Supply paths that are local to the workspace root or pass an explicit valid project root directory via `project_root`.
-
-### `W-STALE-DOWNSTREAM` (Level 3 Advisory Warning)
-- **Cause:** You ran `vivechak_amend` on an upstream session (e.g. `T1-01`), but downstream sessions (e.g. `T2-01`) were completed prior to the amendment and may rely on superseded findings.
-- **Resolution:** Review the downstream session listed in the warning. If necessary, execute a targeted critique or amend the downstream session with `vivechak_amend`.
-
-### `W-STALE-DECISION-REFERENCE` (Level 3 Advisory Warning)
-- **Cause:** An ADR was marked as superseded via `vivechak_record_decision(supersedes="D-001")`, but an existing session references the old `D-001` decision.
-- **Resolution:** Update references in downstream sessions to the new superseding decision ID (`D-NEW`), or verify that the historical citation is intentional.
-
-### `W-PARSER-SESSION-MISMATCH` (Level 3 Advisory Warning)
-- **Cause:** Declared sessions in the pipeline overview table/topology are missing parsed prompt specification blocks in `RESEARCH-PIPELINE.md`. This typically occurs when an LLM generator encounters token output limits while generating large Tier 2 (9–16 sessions) or Tier 3 (17–30 sessions) pipelines.
-- **Resolution:** Use phased prompting. Prompt the LLM in a fresh turn to emit the prompt blocks for the remaining layers, and append the missing `### Session ID: ...` sections into `research/RESEARCH-PIPELINE.md`.
-
-### `W-OWD-NO-CHALLENGE` (Level 3 Advisory Warning)
-- **Cause:** Track B Rule G10 detected that an irreversible One-Way Door decision was not subjected to adversarial red-team stress testing prior to commitment.
-- **Resolution:** Execute `vivechak_review(target="...", mode="challenge")` on the informing session, search for disconfirming evidence, and record findings in the decision record under `## Challenge Findings & Red-Team Stress Test`.
-
-### `W-NO-EVIDENCE-GRADES` (Level 3 Advisory Warning)
-- **Cause:** A completed research session or locked ADR does not contain inline evidence citations (e.g. `[Grade: A]`, `[Grade: B (source)]`). Under Principle P3 (Evidentiary Grounding), every substantive factual claim must carry an inline evidence grade.
-- **Resolution:** Add inline evidence grades to key claims. *(Note: Initial candidate decisions in `research/DECISIONS.md` with `status: proposed` are intentionally exempt during pipeline planning, as evidence has not yet been gathered).*
-
-### `W-RECALLED-GRADE-CAP` (Level 3 Advisory Warning)
-- **Cause:** A claim marked with verification method `recalled` (from model parametric memory) was assigned Grade A, B, or C. Under Principle P3, unverified model recall is capped at Grade D.
-- **Resolution:** Verify the claim against canonical primary sources (documentation, source code, benchmarks) using web search and tag it as `fetched` or `cached`, or downgrade the claim to `[Grade: D (recalled)]`.
-
-### `W-LOCK-TIMEOUT` (Level 3 Advisory Warning)
-- **Cause:** When saving or amending a synthesis session (`SYN-01` or `FAD`), Vivechak attempts to acquire an advisory file lock to synchronize the canonical FAD to the project root (`FOUNDING-ARCHITECTURE.md`). If another agent or background process holds the lock for longer than 5 seconds, Vivechak emits `W-LOCK-TIMEOUT` and skips the root copy rather than proceeding with an uncoordinated write or causing a deadlock.
-- **Resolution:** The primary synthesis session file in `research/` has already been safely persisted atomically. Wait for concurrent subagent tasks to complete, then re-save or amend the session, or copy `research/FAD.md` to `FOUNDING-ARCHITECTURE.md`.
-
-### `E-PLACEHOLDER-REMAINS` & `W-PLACEHOLDER-REMAINS` (Template & Auto-Draft Placeholders)
-- **Cause:** An Architectural Decision Record (`research/D-*.md`) or Founding Architecture Document (`research/FAD.md`) contains unexpanded bracketed template tokens or auto-draft prompts (e.g. `[Auto-drafted — review and refine...]`, `[Extract...]`, `[Review session findings...]`, `[Document...]`, `[TODO: ...]`).
-- **Behavior & Calibration:**
-  - When saving an initial ADR skeleton with `status: proposed` (e.g. via `vivechak_record_decision(auto_draft_from="...", auto_save=true)`), Vivechak emits an advisory warning (`W-PLACEHOLDER-REMAINS`), allowing agents to persist draft skeletons without interruption.
-  - When locking an ADR with `status: accepted` or evaluating Phase 0 Gate Rule G8, unexpanded placeholders are strictly blocked with error `E-PLACEHOLDER-REMAINS`.
-- **Resolution:** Replace all bracketed template instructions with actual empirical research findings, specific project context, and canonical citations before locking the ADR. *(Note: Legitimate markdown inline links `[Text](url)` and reference links `[Text][ref]` are permitted and will not trigger placeholder errors).*
-
-### Session File Size Guard (`MaxSessionReadBytes` Safety Limit)
-- **Cause:** A session file requested during context injection or decision drafting exceeds the 10MB memory safety ceiling (`MaxSessionReadBytes = 10MB`).
-- **Resolution:** Ensure session files contain text-based research deliverables. If large datasets, benchmark outputs, or raw logs were written to `research/sessions/`, move them outside the research folder and cite them by path reference.
+- **Full diagnostic code catalogue (all emitted codes + `fix` instructions):** [`docs/reference/codes.md`](reference/codes.md)
+- **Tool schemas & parameter constraints:** [`docs/reference/tools.md`](reference/tools.md)
+- **Phase 0 Exit Gate rule specifications (G1–G12):** [`docs/reference/gate.md`](reference/gate.md)
 
 ---
 
-## 3. Cognitive Quality Coaching Advisories (`Q-*`)
+## 3. Host & MCP Server Connection Issues
 
-During `vivechak_save(kind="session")` or `vivechak_review`, the engine surfaces non-blocking `[Q-*]` advisory observations in `next_step` to help agents avoid common research biases:
+### Host reports "Server vivechak not found" or "Command failed"
+- **macOS GUI App PATH:** Desktop GUI hosts (such as Claude Desktop or Cursor) often do not inherit shell `PATH` additions from `.zshrc` or `.bash_profile`. Run `vck setup <host>` (for example `vck setup claude` or `vck setup cursor`) to write the launcher entry cleanly.
+- **Windows Path Escaping:** JSON files on Windows require escaped backslashes (`C:\\Users\\...\\vck.exe`); `vck setup <host>` writes valid JSON directly.
 
-| Code | Meaning | Recommended Action |
-|---|---|---|
-| **`Q-EVIDENCE`** | Grade distribution skewed (>70% Grade A), Grade A claim lacks canonical URL/RFC anchor, or Grade A "fetched" citation lacks URL. | Provide canonical URLs (`https://`), formal RFCs (`RFC 9110`), or downgrade unverified claims to Grade B. |
-| **`Q-CONCERNS`** | Missing `## Discovered Concerns` section in session artifact. *(Automatically suppressed in Comparison Scope and WEP matrices).* | Uncover and document at least one unexpected finding, operational risk, or constraint beyond stated scope. |
-| **`Q-DEPTH`** | Fewer than 3 key findings in session output. | Substantive research typically benefits from 4–7 graded findings for adequate decision support. |
-| **`Q-BIAS`** | Delta section has 0 contradicted, refined, or updated prior beliefs (or all start from "Unknown"). | Review Principle P8 (Structured Falsification). Explicitly state what prior beliefs were contradicted or refined. |
-| **`Q-RIGOR`** | Recommendation lacks explicit reference to rejected alternatives. | Stating why competing alternatives were rejected strengthens the decision rationale and defensibility. |
-| **`Q-FRESHNESS`** | References to potentially stale dates older than 2 years detected. | Verify that APIs, versions, or benchmarks are still current and have not changed in subsequent releases. |
-| **`Q-DENSITY`** | Substantive session cites fewer than 2 distinct external sources. | Ensure research cites multiple independent sources (official documentation, independent benchmarks, RFCs). |
+### Workspace resolution refused (`E-ROOT-UNRESOLVED`, `E-ROOT-SYSTEM`, or `E-ROOT-UNSAFE`)
+- Vivechak refuses to create `research/` inside `/`, `$HOME`, temp folders, OS/application install directories, or subdirectories lacking a project root anchor.
+- Pass `"project_root": "/abs/path/to/project"` in the tool call, or configure `"env": { "VCK_PROJECT_ROOT": "${workspaceFolder}" }` in your host's MCP config (see [`docs/hosts.md`](hosts.md)).
 
----
+### Corrupt Host Configuration File on `vck setup`
+- `vck setup` and `vck mcp-config --write` fail closed on malformed JSON/JSONC/YAML and never overwrite or truncate an unparseable config file. Fix the syntax error in the target config file (or pass `--dry-run` to preview the minimal unified diff).
 
-## 4. Host & MCP Server Connection Issues
-
-### Problem: Host reports "Server vivechak not found" or "Command failed"
-- **Cause 1 (macOS GUI App Truncated Path):** Desktop GUI applications (such as Claude Desktop or Cursor) do not inherit shell `$PATH` configurations set in `.zshrc` or `.bash_profile`.
-  - **Fix:** Use `vck setup <host>` (e.g. `vck setup claude` or `vck setup cursor`). It automatically resolves and writes the **absolute binary path** to your editor's MCP configuration.
-- **Cause 2 (Windows Path Escaping):** JSON files on Windows require escaped backslashes (`C:\\Users\\...\\vivechak.exe`).
-  - **Fix:** Running `vck setup <host>` automatically escapes Windows backslashes correctly.
-
-### Problem: Workspace initialized in Application Program Folders
-- **Cause:** If an editor launches an agent with CWD pointing to the application installation folder (e.g. `AppData\Local\Programs\...` or `/usr/bin`), Vivechak actively rejects workspace creation to prevent polluting application directories.
-- **Fix:** Running `vck setup cursor`, `vck setup vscode`, or `vck setup windsurf` automatically injects `"env": { "VCK_PROJECT_ROOT": "${workspaceFolder}" }`, resolving the active workspace folder automatically. Alternatively, provide `project_root` explicitly when initializing:
-  ```json
-  {
-    "scope": "project",
-    "project_root": "d:/my-project"
-  }
-  ```
-  Or set the environment variable `"VCK_PROJECT_ROOT": "${workspaceFolder}"` (or `"VIVECHAK_PROJECT_ROOT"`) in your host's MCP server configuration.
-
-### Problem: Workspace initialization rejected for Filesystem Root or Home Directory
-- **Cause:** Calling `vivechak_start` with `project_root: "/"` or pointing to a drive root (`C:\`, `D:\`) or directly to the user's home folder (`$HOME`, `~`).
-- **Fix:** Vivechak actively refuses initialization in roots to prevent filesystem pollution. Pass a dedicated project subdirectory path as `project_root` (e.g., `"project_root": "d:/projects/my-app"`).
-
-### Problem: Corrupt Host Configuration File on `vck setup` or `vck mcp-config`
-- **Cause:** An existing host MCP configuration file (e.g. `.cursor/mcp.json` or `claude_desktop_config.json`) contains corrupted, invalid JSON syntax.
-- **Fix:** `vck setup` and `vck mcp-config --write` employ fail-closed protection: they strictly refuse to overwrite, truncate, or destroy existing user configurations on parse errors and exit with status 1. Correct the JSON syntax in your client settings file, or specify a clean destination file with `--path <file> --write`.
-
-### Problem: Verifying MCP Connection Interactively
-To test that your Vivechak binary responds to JSON-RPC over `stdio` without an editor:
+### Interactive Protocol Inspection
 ```sh
 npx @modelcontextprotocol/inspector vck serve
 ```
-This launches the official web-based MCP Inspector at `http://localhost:5173`, allowing you to inspect tool schemas and execute live test calls interactively.
 
 ---
 
-## 5. Phase 0 Exit Gate Troubleshooting
+## 4. Phase 0 Exit Gate Troubleshooting
 
-If `vivechak_gate` fails with status `FAIL`:
+When `vivechak_gate` or `vck gate` reports `FAIL`, inspect `data.rules` (or terminal output) for the specific G1–G12 rule IDs:
 
-```
-Track A (Reversibility & Bounds): PASS
-Track B (Rigor & Evidentiary Checks): FAIL
-Issues:
-  - Decision D-001 (One-Way): evidentiary threshold not met (no corroborated Grade A/B evidence)
-  - Decision D-001 (One-Way): rejected alternatives analysis missing or insufficient (<200 chars)
-```
-
-> **Decoupled Two-Track Evaluation in Decision Scope:** When running exit gate evaluation for pure Two-Way Door decisions, Track A reversibility confirmation alone passes the gate and authorizes immediate implementation, while Track B quality checks serve as non-blocking advisories. If an irreversible One-Way Door decision is present, full Track B exit criteria (Rules G1–G12) are strictly enforced.
->
 > **Architectural Disclaimer:** The gate is necessary, not sufficient: it checks structure and the agent's own labels, not the truth of the sources. The sign-off is a typed attestation by the named reviewer; it raises the bar but is not a security boundary.
 
-### Remediation for Track B Failures:
-1. **Evidentiary Threshold (Rule G6):** Ensure One-Way Door decisions cite at least two Grade A/B sources with canonical URLs (`https://...`) or formal standards (`RFC ...`), or reproducible Grade B benchmarks.
-2. **Verification Provenance (Rule G7):** Ensure evidence claims carry verified provenance (`fetched`, `verified`, or `human`). Model parametric memory (`recalled`) is capped at Grade D and cannot anchor irreversible decisions.
-3. **No Placeholders & Substantive Alternatives (Rule G8):** Ensure the ADR includes a `## Rejected Alternatives` section explaining why candidates were dismissed with substantive rationale, and contains no unexpanded bracketed placeholders or default template text.
-4. **Reversal Triggers (Rule G9):** Ensure frontmatter defines a measurable `review_trigger` (e.g. `"Throughput exceeds 50k req/sec or p99 latency > 200ms"`) and specific thresholds.
-5. **Adversarial Red-Team Challenge (Rule G10):** Run `vivechak_review(target="...", mode="challenge")` on the informing session to stress-test your conclusions. Ensure a matching challenge record (`D-NNN-R1.md`) exists with valid decision outcome hash, and cite it in the ADR's `## Red-Team Stress Test` or `### Challenge Findings` section with >= 50 characters of substantive findings.
-6. **Human-in-the-Loop Sign-off (Rule G11):** One-Way Doors require verified human sign-off (`human_reviewed: true`). Run `vck signoff <decision-id>` in an interactive terminal to record human approval. Autonomous agents cannot self-sign One-Way Doors.
+Key Track B checks on accepted One-Way Door ADRs (full table in [`docs/reference/gate.md`](reference/gate.md)):
+1. **Grade A/B Depth (G6) & Provenance (G7):** Include ≥2 Grade A/B claims with `https://` URLs and `fetched` or `human` (`human-provided`) verification labels in the ADR or its informing sessions (`informed_by_sessions` / `informs_decisions`). `recalled`, `cached`, `verified`, and `unverified` do not satisfy G7.
+2. **No Placeholders & Substantive Alternatives (G8):** Remove all bracketed template placeholders and document substantive rejected alternatives.
+3. **Measurable Review Trigger (G9):** Set a concrete metric or calendar `review_trigger` in frontmatter.
+4. **Adversarial Red-Team Challenge (G10):** Run `vivechak_review(mode="red_team", id="<decision id>")` (for example `id="D-001"`) on the decision itself, then cite the returned `record_id` (`D-001-R1`) with ≥50 characters of findings under `## Challenge Findings`. Re-run if the Decision Outcome changes later.
+5. **Human Sign-Off (G11):** A human reviewer must run `vck signoff <D-id> --reviewer "<name>"` directly in an interactive terminal and type the decision ID when prompted; MCP tools reject agent-supplied sign-off fields with `E-HUMAN-ONLY-FIELD`.
 
-### Direct Terminal Evaluation via `vck gate`:
-You can also run gate evaluations directly from your terminal or CI pipeline without an active MCP agent:
+Headless CLI evaluation:
 ```sh
-# Run Phase 0 Gate on the current workspace:
 vck gate
-
-# Filter by track (e.g. focus solely on Two-Way Doors Track A or One-Way Doors Track B):
 vck gate --track track_a
 vck gate --track track_b
-
-# Output CI-ready JSON with machine-parseable diagnostics:
 vck gate --format json
 ```
 
 ---
 
-## 6. Concurrency & Advisory Lock Files (`*.lock`)
+## 5. Concurrency & Advisory Lock Files (`*.lock`)
 
-### Why do 0-byte `.lock` files remain in `research/`?
-During mutating operations (such as `vivechak_save` and `vivechak_replan`), Vivechak acquires OS-level advisory file locks (`RESEARCH-PIPELINE.md.lock`, `fad_root.lock`) to prevent concurrent subagents or parallel swarm workers from clobbering research artifacts simultaneously.
-
-- **Advisory Lock Lifecycle:** When a tool call finishes, the process automatically releases the lock. However, the empty 0-byte `.lock` file remains on disk. This is **intentional by design** in standard operating system locking patterns (`flock` on POSIX and `LockFileEx` on Windows) to prevent Time-of-Check to Time-of-Use (TOCTOU) file deletion race conditions across concurrent processes.
-- **Git Tracking:** Vivechak automatically writes `research/.gitignore` containing `*.lock` upon workspace initialization, ensuring lock files are never committed to git history.
-- **Deadlock Diagnostics:** A 0-byte `.lock` file does **not** mean a lock is currently active or stuck. OS advisory locks are tied to active file descriptors and are freed instantly by the kernel when an MCP tool finishes or when a process exits.
-- **Safe Cleanup:** If no MCP server or agent is actively writing to the workspace, `.lock` files can be safely deleted at any time with zero impact on research state:
-  ```sh
-  # Optional cleanup (bash/zsh):
-  rm -f research/*.lock
-  # Optional cleanup (PowerShell):
-  Remove-Item -Path research/*.lock -Force
-  ```
+During mutating operations (`vivechak_save`, `vivechak_record_decision`, `vivechak_amend`, `vivechak_replan`), Vivechak uses OS advisory file locks under `research/`.
+- Empty `0`-byte `.lock` files remain on disk after lock release by design (`flock` / `LockFileEx`) to avoid TOCTOU unlink races across concurrent processes, and are ignored via `research/.gitignore`.
+- If no `vck` process is writing to the workspace, `research/*.lock` files can be removed safely at any time.

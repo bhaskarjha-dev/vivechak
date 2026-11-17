@@ -429,23 +429,30 @@ Sessions failing this rubric should be re-executed with a refined prompt before 
 
 ### 5.1 Evidentiary Tiers (A through E)
 
+<!-- docgen:begin evidence-grades-table (generated from internal/method/evidence.json by tools/docgen; do not edit by hand) -->
 | Grade | Label | Description | Allowed Provenance | Gate Impact |
 |---|---|---|---|---|
 | **Grade A** | Primary Empirical | Official specifications, canonical source code, RFCs, or primary documentation with explicit URL anchor. | `fetched, verified` | G6, G7 |
-| **Grade B** | Secondary Empirical | Peer-reviewed papers, reputable third-party benchmarks, published postmortems, or corroborated engineering reports. | `fetched, cached` | G6 |
-| **Grade C** | Vendor & Practitioner | Vendor marketing, product whitepapers, conference talks, official tutorials, or non-reproduced claims. | `fetched, cached` | Advisory |
+| **Grade B** | Secondary Empirical | Peer-reviewed papers, reproducible third-party benchmarks, published postmortems, or corroborated engineering reports. | `fetched, cached` | G6, G7 |
+| **Grade C** | Vendor & Practitioner | Vendor marketing, product whitepapers, vendor benchmarks, conference talks, or interested-party documentation. | `fetched, cached` | Advisory |
 | **Grade D** | Informal & Opinion | Blog posts, forum discussions, StackOverflow answers, or model memory recall (capped at Grade D). | `fetched, cached, recalled` | Advisory |
 | **Grade E** | Speculative & Unsubstantiated | Unverified hypotheses, uncorroborated parametric recall, or ungrounded assertions. | `recalled, unverified` | Advisory |
 
 *Rule*: Parametric memory recall is capped at **Grade D**. Grade A requires canonical URL or specification anchor.
+<!-- docgen:end evidence-grades-table -->
+
+*Gate*: G6 counts Grade A/B claims that sit on a line with their URL, written as the composite citation (§5.5), a bracketed grade tag (`[A · single · fresh · direct · fetched](url)`, `[Grade A: url | fetched]`) or an evidence-ledger row whose Grade cell is A or B; G7 counts those whose verification label is exactly `fetched` or `human-provided` (§7.2).
 
 ### 5.2 Contextual Modifiers
 
+<!-- docgen:begin evidence-modifiers-table (generated from internal/method/evidence.json by tools/docgen; do not edit by hand) -->
 | Modifier | Values | Purpose |
 |---|---|---|
 | **Corroboration** | `single` · `corroborated` (≥2 independent sources) · `contested` (direct contradiction) | How many sources agree? |
 | **Recency** | `fresh` (within domain half-life) · `aging` (approaching half-life) · `stale` (past half-life) | Is this current? |
 | **Directness** | `direct` (exact workload/target) · `indirect` (analogical evidence) | Does this apply to our case? |
+<!-- docgen:end evidence-modifiers-table -->
+
 **Domain Half-Life Guidance:** The threshold between `fresh` and `aging` varies by domain:
 - Cloud pricing and provider features: ~6 months
 - Framework/library APIs and benchmarks: ~12 months
@@ -458,18 +465,20 @@ When in doubt, treat evidence as `aging` rather than `fresh`.
 
 ### 5.3 Verification Method
 
+<!-- docgen:begin evidence-verification-table (generated from internal/method/evidence.json by tools/docgen; do not edit by hand) -->
 | Method | Definition | Grade Cap |
 |---|---|---|
 | `fetched` | Retrieved and validated live via tool/web call during this session | None |
 | `cached` | Read from local repository file or previously verified artifact | None |
 | `recalled` | Generated from model parametric memory without live verification | **Capped at Grade D** |
 | `secondhand` | Sourced from an article summarizing a primary source | None |
-| `human-provided` | Injected directly by a human engineer | None |
+| `human-provided` (or `human`) | Injected directly by a human engineer | None |
+<!-- docgen:end evidence-verification-table -->
 
 ### 5.4 Hard Rules
 
 1. **Recalled claims capped at Grade D** regardless of apparent source quality.
-2. **Zero recalled citations may underpin One-Way Door decisions.** All One-Way Door decisions require `fetched` or `cached` verification.
+2. **Zero recalled citations may underpin One-Way Door decisions.** Every One-Way Door decision needs at least two Grade A/B claims with URLs whose verification is `fetched` or `human-provided` (gate rule G7); `cached` and `secondhand` claims may support it but do not count.
 3. **Contested claims must be surfaced, not resolved by majority.** Document the contradiction and causal resolution reasoning.
 
 ### 5.5 Composite Citation Format
@@ -652,8 +661,8 @@ For any session that evaluates 2+ competing options:
 
 1. **DAG Closure (G1/G2)** — All planned dependency sessions terminated in `status: complete`
 2. **Contradiction Resolution** — All divergences explicitly resolved
-3. **Evidentiary Threshold (G6)** — Zero uncorroborated Grade C/D/E claims underpin irreversible pillars (≥2 Grade A/B citations with URLs)
-4. **Verification Integrity (G7)** — 100% of critical citations carry `fetched` or `cached` with qualified provenance (never unverified recall)
+3. **Evidentiary Threshold (G6)** — ≥2 Grade A/B claims, each on a line with its URL, across the ADR and the sessions that inform it: the composite citation (§5.5), a bracketed grade tag such as `[A · single · fresh · direct · fetched](url)` or `[Grade A: url | fetched]`, or an evidence-ledger row whose Grade cell is A or B. Uncorroborated Grade C/D/E claims must not underpin irreversible pillars
+4. **Verification Integrity (G7)** — of the claims G6 counts, ≥2 carry the verification label `fetched` or `human-provided` (`human`), read exactly from the tag's last field or the ledger row's Verification cell; `cached`, `secondhand`, `recalled`, `verified` and `unverified` do not count. Labels are as reported by the agent; Vivechak does not fetch or verify sources
 5. **No Placeholders & Alternatives Documented (G8)** — Every ADR includes evaluated and rejected options with substantive tradeoffs and zero placeholder stubs
 6. **Decay Triggers Assigned (G9)** — Every ADR contains explicit, measurable `review_trigger`
 7. **Adversarial Red-Team Challenge (G10)** — One-Way Door decisions subjected to adversarial stress testing with cited challenge record (`D-NNN-R1.md`) before commitment

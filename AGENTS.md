@@ -53,10 +53,10 @@ Use when resolving an architectural fork, migration, or dilemma in an existing p
 
 **MCP Flow:**
 1. Call `vivechak_start(scope="decision", question="<architectural dilemma>")`.
-2. Save the decision plan via `vivechak_save(kind="plan", id="D-NNN", content=...)`.
-3. Execute the 1–3 sessions (`L` Landscape, `C` Comparison, `F` Falsification) via `vivechak_next` and `vivechak_save(kind="session", id="D-NNN-S1", content=...)`.
-4. (Optional) Review quality with `vivechak_review(session_id="D-NNN-S1")`.
-5. Create or update the ADR via `vivechak_record_decision(decision_id="D-NNN", auto_draft_from="D-NNN-S1", auto_save=true)`. Output is saved as canonical ADR `research/D-NNN-decision.md` and compiled into `research/DECISIONS.md`.
+2. Save the decision plan via `vivechak_save(kind="plan", id="D-NNN", content="<plan>")`.
+3. Execute the 1–3 sessions (`L` Landscape, `C` Comparison, `F` Falsification) via `vivechak_next()` and `vivechak_save(kind="session", id="D-NNN-S1", content="<session>")`.
+4. (Optional) Review quality with `vivechak_review(mode="validate", id="D-NNN-S1")`.
+5. Create or update the ADR via `vivechak_record_decision(id="D-NNN", auto_draft_from="D-NNN-S1", auto_save=true)`. Output is saved as canonical ADR `research/D-NNN-decision.md` and compiled into `research/DECISIONS.md`.
 
 **Manual Flow:**
 1. Open [GENERATOR-DECISION.md](GENERATOR-DECISION.md) and copy prompt with context.
@@ -70,14 +70,14 @@ Use when architecting a brand new project, platform, or massive subsystem rewrit
 
 **MCP Flow:**
 1. Call `vivechak_start(scope="project", question="<project vision>")`.
-2. Persist the generated pipeline DAG via `vivechak_save(kind="plan", id="DAG", content=...)` to write `RESEARCH-PIPELINE.md`.
-3. Loop: `vivechak_next` → execute research session → `vivechak_save(kind="session", id="<session_id>", content=...)` → `vivechak_record_decision(decision_id="D-NNN", auto_draft_from="<session_id>", auto_save=true)`.
-4. Synthesize founding architecture via `vivechak_save(kind="fad", id="SYN-01", content=...)` to compile `research/FAD.md`.
-5. Run `vivechak_gate` (or CLI `vck gate`) to verify Track A and Track B exit criteria before starting implementation.
+2. Persist the generated pipeline DAG via `vivechak_save(kind="plan", id="DAG", content="<pipeline>")` to write `RESEARCH-PIPELINE.md`.
+3. Loop: `vivechak_next()` → execute research session → `vivechak_save(kind="session", id="<session_id>", content="<session>")` → `vivechak_record_decision(id="D-NNN", auto_draft_from="<session_id>", auto_save=true)`.
+4. Synthesize founding architecture via `vivechak_save(kind="fad", id="SYN-01", content="<fad>")` to compile `research/FAD.md`.
+5. Run `vivechak_gate()` (or CLI `vck gate`) to verify Track A and Track B exit criteria before starting implementation.
 
 > **Planning-Only / Deferred Research Requests:** If the user asks only to plan, scaffold, or decompose the project architecture without executing research sessions immediately (e.g., *"create the research pipeline for X, do not run research yet"* or *"plan my architecture in Vivechak"*):
 > 1. Call `vivechak_start(scope="project", question="<project vision>")`.
-> 2. Synthesize the DAG and call `vivechak_save(kind="plan", id="DAG", content=...)` to write `RESEARCH-PIPELINE.md`.
+> 2. Synthesize the DAG and call `vivechak_save(kind="plan", id="DAG", content="<pipeline>")` to write `RESEARCH-PIPELINE.md`.
 > 3. **STOP here.** Do NOT call `vivechak_next` until the user explicitly directs you to begin research.
 
 **Manual Flow:**
@@ -123,11 +123,11 @@ Paste this concise 15-line block into any repository's `AGENTS.md` or `CLAUDE.md
 ```markdown
 ## Architecture Decisions (Vivechak)
 When making a hard-to-reverse technical choice (new datastore, protocol, core dependency, public API, or security boundary), use the Vivechak MCP tools to record research in `research/`:
-1. Call `vivechak_start` with `project_root` set to this repository's root.
-2. Record options and graded citations (`[E-A: ...]` to `[E-E: ...]`) with `vivechak_save(kind='comparison')`.
-3. For complex choices, execute a session DAG with `vivechak_next` and `vivechak_save(kind='session')`.
-4. Record the resulting ADR with `vivechak_record_decision`.
-5. Run `vivechak_gate` (or `vck gate` in CI) to verify the decision trail before authoring code.
+1. Call `vivechak_start(scope="decision", question="<choice>", project_root="<repo-root>")`.
+2. Record options and graded citations (`[E-A: ...]` to `[E-E: ...]`) with `vivechak_save(kind="comparison", content="<matrix>")`.
+3. For complex choices, execute a session DAG with `vivechak_next()` and `vivechak_save(kind="session", id="T1-01", content="<session>")`.
+4. Record the resulting ADR with `vivechak_record_decision(id="D-001", content="<adr>")`.
+5. Run `vivechak_gate()` (or `vck gate` in CI) to verify the decision trail before authoring code.
 Skip Vivechak for routine bug fixes, refactors, and reversible local implementation choices.
 ```
 
@@ -181,7 +181,7 @@ vivechak/
 │
 ├── cmd/vivechak/                   ← MCP server + CLI entry point (vck alias)
 │   ├── main.go                     ← Entry point (serve, setup, mcp-config, doctor, gate, signoff, version)
-│   ├── config.go                   ← setup & mcp-config (auto-detection + 21 presets)
+│   ├── config.go                   ← setup & mcp-config (auto-detection + 10 presets)
 │   ├── doctor.go                   ← Workspace integrity checker
 │   ├── gate.go                     ← Headless Phase 0 exit gate evaluator (CI-ready)
 │   └── signoff.go                  ← Interactive human architectural review sign-off
@@ -268,11 +268,11 @@ When modifying Go code in `cmd/` or `internal/`:
      7. `vivechak_amend`: Revise completed research session or record amended findings.
      8. `vivechak_replan`: Dynamically modify dependency DAG (insert/prune sessions) based on discoveries.
      9. `vivechak_gate`: Mechanically evaluate Phase 0 gate rules G1–G12 across Track A and Track B.
-   - **4 MCP Prompts:** `compare` (WEP matrix), `decision` (ADR), `project` (FAD pipeline), `gate` (Phase 0 gate audit) with transparent legacy alias support (`vivechak_*` and `vck_*`). Registered in `internal/mcp/prompts.go` with wire-level receiving middleware normalization.
+   - **4 MCP Prompts:** `compare` (WEP matrix), `decision` (ADR), `project` (FAD pipeline), `gate` (Phase 0 gate audit). Registered in `internal/mcp/prompts.go` (no legacy prompt aliases).
    - **Dual Environment Variable Ladder:** Workspace resolution evaluates namespaced environment variables (`VIVECHAK_PROJECT_ROOT` -> `VCK_PROJECT_ROOT`), safely ignoring unexpanded editor macros (`${workspaceFolder}`) and unnamespaced variables like `WORKSPACE` or `PROJECT_ROOT` to protect container isolation per Principle P1.1.
    - **8 MCP Resources:** Canonical read-only access to all 6 templates (`vivechak://templates/{decisions,comparison,fad,conflict-resolution,gate,session}`) and 2 methodology reference cards (`vivechak://methodology/{grades,principles}`). Registered in `internal/mcp/resources.go` via `server.AddResource`.
-4. **Guided Worker pattern:** Every tool response includes `next_step`. Hard refusals ONLY for impossible operations, never for "wrong order."
-5. **Quality coaching:** `core.ObserveSessionQuality` runs inside `vivechak_save`, surfacing real-time non-blocking `Q-*` observations (grade inflation, missing discovered concerns, Delta confirmation bias, low findings count) directly in `next_step`.
+4. **Guided Worker pattern:** Every successful tool response includes structured `next` (`{tool, args, why}`). Hard refusals ONLY for impossible operations, never for "wrong order."
+5. **Quality coaching:** `core.ObserveSessionQuality` runs inside `vivechak_save`, surfacing real-time non-blocking `Q-*` observations directly in `warnings`.
 6. **Single-source ADRs:** `vivechak_record_decision` treats individual `D-*.md` files as canonical and compiles the consolidated `research/DECISIONS.md` registry, supporting `auto_draft_from` and `auto_save: true` for one-shot drafting and atomic persistence.
 7. **Automated Phase 0 Gate:** `vivechak_gate` evaluates 12 rules (G1–G12) across Track A (reversibility confirmation for Two-Way Doors) and Track B (rigorous checks for One-Way Doors), returning gate results while auto-persisting `research/PHASE-0-GATE.md`.
 8. **Concurrency, Status Sync & Atomic I/O:** `store.WriteFileAtomic` employs monotonic `tmpFileCounter` to prevent Windows nanosecond collision races; mutating operations acquire advisory locks; valid sessions are promoted to `status: complete`.
@@ -319,8 +319,8 @@ Vivechak includes an empirical multi-harness autonomous testing engine in `tests
    All empirical findings, defects, and upstream engine fixes are permanently tracked in `tests/harness/DEFECTS.md`.
 8. **Universal Model Overrides & Automatic Failover Cascades:**
    Pass `--model <id>` to target specific models. If a model encounters quota exhaustion, rate limits, or timeouts, adapters automatically fail over to the next healthy model (e.g. `beam-free` → `big-pickle` → `nemotron-3.5-lightning-free` → `glm-5.3-flash-free` for OpenCode, or `gemini-3.8-flash-high` → `gemini-3.8-flash` → `claude-sonnet-4-6` for Antigravity).
-9. **Dead-Session Short-Circuiting & 21-Scenario Semantic Triage:**
-   Turn 1 failures short-circuit Turns 2–4 to prevent wasting 270s on dead processes. Triage accurately evaluates semantic invariants across all 21 scenarios without false-negative file traps.
+9. **Dead-Session Short-Circuiting & Triage From Recorded Results:**
+   Turn 1 failures short-circuit Turns 2–4 to prevent wasting 270s on dead processes. Triage passes a scenario only when its key calls are recorded with `isError: false` and the files it names exist in the sandbox; runs from adapters that don't record their tool results fail triage.
 10. **Branch Isolation Policy (Protecting `main`):**
     Always execute testing campaigns, iterative defect logging, and bug patches on a dedicated branch (e.g. `git checkout -b audit/harness-testing`). Keep `main` clean and untouched until all scenarios pass and release checks pass (`make release-check`).
 

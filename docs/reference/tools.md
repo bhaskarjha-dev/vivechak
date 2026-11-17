@@ -1,97 +1,152 @@
 # MCP Tools Reference — Vivechak v0.1.0
 
-Vivechak exposes 9 cohesive Model Context Protocol (MCP) tools for autonomous and pair-programming research workflows:
+> Generated from `internal/mcp` tool registrations (`go run ./tools/docgen`). Do not edit by hand.
 
-| # | Tool | Purpose | Primary Scope | Guided Action Returned |
-|---|---|---|---|---|
-| 1 | `vivechak_start` | Initialize engagement and return direct actionable research brief | All Scopes | Search & populate research deliverable |
-| 2 | `vivechak_save` | Atomically persist comparison matrix, pipeline DAG, research session, or FAD | All Scopes | `vivechak_save` or `vivechak_next` |
-| 3 | `vivechak_record_decision` | Persist canonical Architectural Decision Record (`D-NNN.md`) and update registry | Decision & Project | `vivechak_next` or `vivechak_gate` |
-| 4 | `vivechak_next` | Topologically resolve next unblocked research session in dependency DAG | Project | Search & save session |
-| 5 | `vivechak_status` | Inspect workspace state, session counts, progress percentage, and DAG blockers | All Scopes | Next appropriate action |
-| 6 | `vivechak_review` | Evaluate session quality and surface real-time non-blocking quality coaching (`Q-*`) | Decision & Project | Address quality observations |
-| 7 | `vivechak_amend` | Amend completed research session or record revised findings | All Scopes | Re-evaluate dependent ADRs |
-| 8 | `vivechak_replan` | Dynamically modify dependency DAG (insert/prune sessions) based on discoveries | Project | `vivechak_next` |
-| 9 | `vivechak_gate` | Mechanically evaluate Track A (reversibility) and Track B (rigor G1–G12) exit criteria | All Scopes | Proceed to implementation or remediate |
+Vivechak exposes 9 Model Context Protocol (MCP) tools:
+
+| # | Tool | Required Parameters | Description |
+|---|---|---|---|
+| 1 | `vivechak_start` | `scope`, `question` | Start technical research (comparison, decision, or project). Returns a research brief to run with web search and an ID. Not for coding. |
+| 2 | `vivechak_save` | `kind`, `content` | Validate and persist research under research/ (comparison, plan, session, or fad). Needs revise=true to overwrite; invalid saves as draft. |
+| 3 | `vivechak_record_decision` | `id` | Create or update an ADR or conflict resolution and compile DECISIONS.md. Supports auto_draft_from, auto_save, status, and supersedes. |
+| 4 | `vivechak_next` | *(none)* | Return the next ready session prompt from the plan DAG with upstream findings injected as data. |
+| 5 | `vivechak_status` | *(none)* | Show workspace status, sessions, decisions, and progress (summary, table, or mermaid). Read-only. |
+| 6 | `vivechak_review` | `mode` | Check research: validate (content or id), evidence (citation audit), red_team (writes challenge record), or consistency. |
+| 7 | `vivechak_amend` | `id`, `note` | Append a dated amendment to a saved session, ADR, FAD, or comparison and flag stale dependents. |
+| 8 | `vivechak_replan` | `plan`, `op` | Edit a plan DAG in place (add_session, remove_session, update_deps, update_prompt); protects completed sessions. |
+| 9 | `vivechak_gate` | *(none)* | Evaluate Phase 0 exit criteria (G1-G12) for the workspace or one ADR and write PHASE-0-GATE.md (one-way needs vck signoff). |
 
 ---
 
 ## 1. `vivechak_start`
-Initializes a Vivechak research workspace and generates a directly executable research brief.
+
+Start technical research (comparison, decision, or project). Returns a research brief to run with web search and an ID. Not for coding.
+
+- **Annotations:** `readOnlyHint=false`, `idempotentHint=false`, `destructiveHint=true`, `openWorldHint=false`
 - **Parameters:**
-  - `scope` (string, required): `"comparison"`, `"decision"`, or `"project"`.
-  - `question` (string, required): Technical question, comparison dilemma, or system architecture description.
-  - `project_root` (string, optional): Absolute path to project workspace directory.
-  - `part` (integer, optional): 1-based part index for multi-part delivery of large briefs (scope="project").
-  - `options` (array of strings, optional): Named options to evaluate in comparison scope.
-  - `criteria` (string, optional): Key evaluation criteria or constraints.
-- **Guided Action:** Returns directly executable research brief with required hypotheses and evidence contracts.
+  - `scope` (string, required): Research scope: comparison (2-5 options), decision (ADR), or project (pipeline -> FAD). Allowed: `"comparison"`, `"decision"`, `"project"`.
+  - `question` (string, required): Technical dilemma, options to compare, or project vision.
+  - `options` (string[], optional): Named options for comparison scope.
+  - `criteria` (string, optional): Optional evaluation criteria or constraints.
+  - `part` (integer, optional): 1-based part index for multi-part project briefs.
+  - `project_root` (string, optional): Absolute path to the target project directory.
 
 ---
 
 ## 2. `vivechak_save`
-Polymorphically persists research deliverables with automatic atomic writes and validation.
+
+Validate and persist research under research/ (comparison, plan, session, or fad). Needs revise=true to overwrite; invalid saves as draft.
+
+- **Annotations:** `readOnlyHint=false`, `idempotentHint=false`, `destructiveHint=true`, `openWorldHint=false`
 - **Parameters:**
-  - `kind` (string, required): `"comparison"`, `"plan"`, `"session"`, or `"fad"`.
-  - `id` (string, required): Session ID (`C-01`, `D-001`, `T1-01`, `SYN-01`).
-  - `content` (string, required): Complete Markdown artifact content.
-  - `project_root` (string, optional): Absolute path to project workspace directory.
+  - `kind` (string, required): Artifact kind: plan, session, comparison, or fad. Allowed: `"plan"`, `"session"`, `"comparison"`, `"fad"`.
+  - `content` (string, required): Markdown content to validate and save.
+  - `id` (string, optional): Artifact or session ID (allocated when omitted for comparison/plan).
+  - `scope` (string, optional): Optional scope hint when saving a plan. Allowed: `"comparison"`, `"decision"`, `"project"`.
+  - `slug` (string, optional): Optional URL-safe filename slug.
+  - `revise` (boolean, optional): Update an existing artifact, archiving the old version.
+  - `decisions_content` (string, optional): Initial ADR stub or registry Markdown when saving a plan.
+  - `project_root` (string, optional): Absolute path to the target project directory.
 
 ---
 
 ## 3. `vivechak_record_decision`
-Records and updates an Architectural Decision Record (ADR) as canonical `research/D-NNN-decision.md` and compiles consolidated `research/DECISIONS.md`.
+
+Create or update an ADR or conflict resolution and compile DECISIONS.md. Supports auto_draft_from, auto_save, status, and supersedes.
+
+- **Annotations:** `readOnlyHint=false`, `idempotentHint=false`, `destructiveHint=true`, `openWorldHint=false`
 - **Parameters:**
-  - `decision_id` (string, required): Canonical ADR identifier (`D-001`, `D-002`).
-  - `auto_draft_from` (string, optional): Session ID to automatically extract rationale, options, and findings from.
-  - `auto_save` (boolean, optional): Atomically persist the draft ADR to disk immediately.
-  - `project_root` (string, optional): Absolute path to project workspace directory.
+  - `id` (string, required): Decision ID (e.g. D-001, or D-NEW to allocate the next free ID).
+  - `content` (string, optional): Decision or conflict-resolution Markdown (omit when using auto_draft_from).
+  - `auto_draft_from` (string, optional): Session ID (e.g. D-001-S1) to draft the ADR from.
+  - `auto_save` (boolean, optional): Save the drafted ADR immediately when using auto_draft_from.
+  - `status` (string, optional): Lifecycle status written into frontmatter before validation. Allowed: `"proposed"`, `"accepted"`, `"rejected"`, `"superseded"`, `"deprecated"`.
+  - `slug` (string, optional): Optional URL-safe filename slug.
+  - `supersedes` (string, optional): Existing decision ID superseded by this ADR (e.g. D-001).
+  - `revise` (boolean, optional): Overwrite an existing ADR with history archiving.
+  - `artifact_type` (string, optional): Artifact type: decision (default) or conflict-resolution. Allowed: `"decision"`, `"conflict-resolution"`.
+  - `project_root` (string, optional): Absolute path to the target project directory.
 
 ---
 
 ## 4. `vivechak_next`
-Resolves the next unblocked research session in a project dependency DAG using Kahn's topological sort.
+
+Return the next ready session prompt from the plan DAG with upstream findings injected as data.
+
+- **Annotations:** `readOnlyHint=true`, `idempotentHint=true`, `destructiveHint=false`, `openWorldHint=false`
 - **Parameters:**
-  - `project_root` (string, optional): Absolute path to project workspace directory.
-- **Guided Action:** Returns the complete session brief for the highest-priority unblocked session.
+  - `session_id` (string, optional): Specific session ID to retrieve (default: next ready session).
+  - `verbose` (boolean, optional): Return full prompt without 10K-token truncation.
+  - `project_root` (string, optional): Absolute path to the target project directory.
 
 ---
 
 ## 5. `vivechak_status`
-Provides workspace health, detected scope, completed sessions count, and current DAG topology state.
+
+Show workspace status, sessions, decisions, and progress (summary, table, or mermaid). Read-only.
+
+- **Annotations:** `readOnlyHint=true`, `idempotentHint=true`, `destructiveHint=false`, `openWorldHint=false`
 - **Parameters:**
-  - `project_root` (string, optional): Absolute path to project workspace directory.
+  - `format` (string, optional): Output format: summary (default), table, or mermaid. Allowed: `"summary"`, `"table"`, `"mermaid"`.
+  - `project_root` (string, optional): Absolute path to the target project directory.
 
 ---
 
 ## 6. `vivechak_review`
-Executes non-blocking evidentiary quality coaching across session contents, detecting grade inflation, missing concerns, and delta confirmation bias.
+
+Check research: validate (content or id), evidence (citation audit), red_team (writes challenge record), or consistency.
+
+- **Annotations:** `readOnlyHint=false`, `idempotentHint=false`, `destructiveHint=false`, `openWorldHint=false`
 - **Parameters:**
-  - `session_id` (string, required): Session ID under review.
-  - `content` (string, required): Session Markdown content to evaluate.
+  - `mode` (string, required): Review mode: validate, evidence, red_team, or consistency. Allowed: `"validate"`, `"evidence"`, `"red_team"`, `"consistency"`.
+  - `id` (string, optional): Target session, decision, comparison, or plan ID.
+  - `content` (string, optional): Inline Markdown content for dry-run validate mode.
+  - `artifact_type` (string, optional): Artifact type when validating inline content. Allowed: `"session"`, `"decision"`, `"comparison"`, `"plan"`, `"fad"`, `"conflict-resolution"`.
+  - `project_root` (string, optional): Absolute path to the target project directory.
 
 ---
 
 ## 7. `vivechak_amend`
-Amends an existing completed research session while archiving prior versions in `research/.history/`.
+
+Append a dated amendment to a saved session, ADR, FAD, or comparison and flag stale dependents.
+
+- **Annotations:** `readOnlyHint=false`, `idempotentHint=false`, `destructiveHint=true`, `openWorldHint=false`
 - **Parameters:**
-  - `session_id` (string, required): Session ID to amend.
-  - `content` (string, required): Updated Markdown content.
-  - `reason` (string, optional): Justification for amendment.
+  - `id` (string, required): Session, decision, comparison, or synthesis ID to amend.
+  - `note` (string, required): Amendment Markdown note to append.
+  - `reason` (string, optional): Short summary of why the artifact is being amended.
+  - `amending_session_id` (string, optional): Session ID that discovered the amendment.
+  - `project_root` (string, optional): Absolute path to the target project directory.
 
 ---
 
 ## 8. `vivechak_replan`
-Dynamically modifies the project dependency DAG, adding or pruning sessions based on discovered architectural forks.
+
+Edit a plan DAG in place (add_session, remove_session, update_deps, update_prompt); protects completed sessions.
+
+- **Annotations:** `readOnlyHint=false`, `idempotentHint=false`, `destructiveHint=true`, `openWorldHint=false`
 - **Parameters:**
-  - `action` (string, required): `"add_session"` or `"remove_session"`.
-  - `session_id` (string, required): Target session identifier.
-  - `session_def` (string, optional): Session definition table line when adding.
+  - `plan` (string, required): Target plan: PROJECT or decision ID (e.g. D-001).
+  - `op` (string, required): Replan operation to perform. Allowed: `"add_session"`, `"remove_session"`, `"update_deps"`, `"update_prompt"`.
+  - `session_id` (string, optional): Target session ID (e.g. T1-02).
+  - `reason` (string, optional): Rationale for the plan change.
+  - `layer` (string, optional): DAG layer number for add_session.
+  - `topic` (string, optional): Session title for add_session.
+  - `prompt` (string, optional): Session prompt text for add_session or update_prompt.
+  - `dependencies` (string, optional): Comma-separated dependency session IDs for add_session or update_deps.
+  - `door_type` (string, optional): Door classification for add_session. Allowed: `"one-way"`, `"two-way"`.
+  - `decision_ref` (string, optional): Informed decision ID for add_session.
+  - `project_root` (string, optional): Absolute path to the target project directory.
 
 ---
 
 ## 9. `vivechak_gate`
-Mechanically evaluates Phase 0 Exit Gate criteria prior to writing code.
+
+Evaluate Phase 0 exit criteria (G1-G12) for the workspace or one ADR and write PHASE-0-GATE.md (one-way needs vck signoff).
+
+- **Annotations:** `readOnlyHint=false`, `idempotentHint=false`, `destructiveHint=true`, `openWorldHint=false`
 - **Parameters:**
-  - `track` (string, optional): `"all"`, `"track_a"` (Two-Way Doors), or `"track_b"` (One-Way Doors).
-  - `project_root` (string, optional): Absolute path to project workspace directory.
+  - `decision` (string, optional): Specific decision ID to evaluate (e.g. D-001).
+  - `track` (string, optional): Track filter: all (default), track_a, or track_b. Allowed: `"all"`, `"track_a"`, `"track_b"`.
+  - `verbose` (boolean, optional): Include verbose rule diagnostics.
+  - `project_root` (string, optional): Absolute path to the target project directory.

@@ -24,7 +24,7 @@ vivechak/
 │   └── vivechak/           # CLI entry points and host configurations
 │       ├── main.go         # Command dispatcher, stdio server startup, slog routing (vck alias)
 │       ├── config.go       # "mcp-config" JSON generation, launcher resolution, config merging & atomic write
-│       ├── presets.go      # Supported AI editor/harness host presets & path resolution (21 presets)
+│       ├── presets.go      # Supported AI editor/harness host presets & path resolution (10 presets)
 │       ├── setup.go        # "setup" / "install" CLI, workspace auto-detection, diffs & secret redaction
 │       ├── doctor.go       # "doctor" workspace integrity verification and detected scope diagnostics
 │       ├── gate.go         # "gate" headless Phase 0 exit gate evaluation (CI-ready)
@@ -102,13 +102,13 @@ Defined in [`internal/core/workspace.go`](../internal/core/workspace.go), [`Reso
 1. **Explicit argument**: `project_root` passed directly in the MCP tool call or CLI command.
 2. **Environment variables**: Namespaced environment variables evaluated in order (`VIVECHAK_PROJECT_ROOT`, `VCK_PROJECT_ROOT`), safely ignoring unexpanded editor macros (e.g. `${workspaceFolder}`) and unnamespaced variables to protect container isolation.
 3. **CWD Directory Traversal**: Walks upwards from the current working directory searching for an existing `research/` directory (safely skipping host IDE application program directories).
-4. **In-process session memory**: Fallback to the last successfully resolved workspace with existing `research/` within the current server process, eliminating repetitive parameter passing in long agent sessions.
+4. **Session memory**: Fallback to the last workspace the same MCP session resolved (kept per session, never shared across sessions), eliminating repetitive parameter passing in long agent sessions.
 5. **Fallback error**: Clear diagnostic error instructing the caller to start a research session in their AI editor (e.g. `/compare` or `/project`) or pass `project_root` explicitly.
 
 The workspace layout is standard across all Vivechak projects:
 - `research/` — Workspace root
 - `research/sessions/` — Markdown outputs from individual research sessions
-- `research/templates/` — Copy of scope-appropriate templates (6 for project, 2 for decision, 1 for comparison)
+- Templates are not copied into the workspace; the server serves them as MCP resources (`vivechak://templates/...`)
 - `research/RESEARCH-PIPELINE.md` — DAG session definitions and metadata
 - `research/DECISIONS.md` — Central architectural decision registry (auto-compiled from individual `D-*.md` files)
 - `research/FAD.md` — Synthesized Founding Architecture Document
@@ -385,7 +385,7 @@ Comprehensive 8-scenario lifecycle test suite running over in-memory JSON-RPC tr
 - **Full Project Pipeline Lifecycle:** End-to-end multi-layer DAG execution with context injection, quality coaching observations (`Q-*`), and Phase 0 Gate pass.
 - **Decision Scope Lifecycle:** Targeted 1–3 session ADR research and automated ADR compilation into `DECISIONS.md`.
 - **Comparison Scope Lifecycle:** Rapid single-session WEP matrix generation with sensitivity analysis.
-- **Resilient Schema Aliasing:** Verifies `vivechak_review` accepts `decision_id` and `challenge_type`, and `vivechak_gate` accepts `track` with structured machine-readable results (`track_a_result`, `track_b_result`, `decisions`).
+- **Resilient Schema Aliasing:** Verifies `vivechak_review` accepts `decision_id` and `challenge_type`, and `vivechak_gate` accepts `track` with structured machine-readable results (a single `verdict`, the `rules` narrowed to the track, `decisions`).
 - **Vague Human Prompt Steering:** Validates that ambiguous, informal, or typo-ridden prompts from small LLM harnesses are gracefully steered via the Guided Worker pattern.
 - **High-Concurrency Contention:** Verifies advisory flock concurrency and monotonic temp file isolation during rapid parallel writes.
 - **Phase 0 Gate Strictness:** Verifies that incomplete one-way door ADRs (missing reversal triggers or rejected alternatives) strictly fail Track B.
@@ -397,11 +397,11 @@ Spawns the compiled `vivechak serve` binary as a genuine subprocess, connecting 
 ### 6. Subprocess Concurrency & Lifecycle Verification Suites (`cmd/vivechak/*_test.go`)
 - [`cmd/vivechak/mcp_live_lifecycle_test.go`](../cmd/vivechak/mcp_live_lifecycle_test.go): Full end-to-end multi-vector subprocess testing across all 9 consolidated tools, verifying live stdio JSON-RPC lifecycle, exit gates, and CLI commands (`version`, `doctor`, `mcp-config`).
 - [`cmd/vivechak/mcp_live_hardening_test.go`](../cmd/vivechak/mcp_live_hardening_test.go): Live stdio subprocess hardening, error recovery, adversarial payloads, and signal discipline.
-- [`cmd/vivechak/real_harness_integration_test.go`](../cmd/vivechak/real_harness_integration_test.go): Live simulations across 21 host environments, JSONC comment preservation, and auto-detect logic.
+- [`cmd/vivechak/real_harness_integration_test.go`](../cmd/vivechak/real_harness_integration_test.go): Live simulations across every host preset, JSONC comment preservation, and auto-detect logic.
 - [`cmd/vivechak/concurrency_test.go`](../cmd/vivechak/concurrency_test.go): High-concurrency subagent stress testing verifying atomic write locks, collision-free temporary file creation under rapid iteration, and race-free multi-agent decision recording.
 - [`cmd/vivechak/workspace_resolution_test.go`](../cmd/vivechak/workspace_resolution_test.go): Verifies 5-step workspace resolution chain across explicit `project_root`, ancestor directory traversal, in-process session memory, OS program folder boundary guards, and environment variables.
 - [`cmd/vivechak/gate_test.go`](../cmd/vivechak/gate_test.go) & [`doctor_test.go`](../cmd/vivechak/doctor_test.go): Headless CLI gate evaluation and workspace integrity checker suites.
-- [`cmd/vivechak/config_test.go`](../cmd/vivechak/config_test.go): Host configuration, JSON merging, and preset generation across all 21 supported host environments.
+- [`cmd/vivechak/config_test.go`](../cmd/vivechak/config_test.go): Host configuration, JSON merging, and preset generation across every supported host preset.
 - [`cmd/vivechak/main_test.go`](../cmd/vivechak/main_test.go): CLI entry points, signal handling, and repository release readiness verification.
 
 ### 7. Internal MCP Comprehensive Verification Suites (`internal/mcp/*_test.go`)

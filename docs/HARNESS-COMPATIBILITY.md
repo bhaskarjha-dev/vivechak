@@ -33,9 +33,9 @@ Vivechak is built from the ground up to be **harness-agnostic**. It communicates
 
 | Harness Category | Representative Examples | Compatibility | Configuration Method | Key Capabilities & Notes |
 |---|---|---|---|---|
-| **Single-Agent IDEs** | Cursor, VS Code, Google Antigravity, Windsurf, Zed, Void Editor, ByteDance Trae | ✅ Full (Production) | `vck setup` (21 presets) or manual config | Native tool calling, live diffs, inline research reviews. |
+| **Single-Agent IDEs** | Cursor, VS Code, Google Antigravity, Windsurf, Zed, Void Editor, ByteDance Trae | ✅ Full (Production) | `vck setup` (10 presets) or `vck setup <path>` | Native tool calling, live diffs, inline research reviews. |
 | **CLI Terminal Agents** | Claude Code, OpenCode, Block Goose, `agy` CLI, OpenHands, Aider | ✅ Full (Production) | `vck setup <preset>` or stdio launch | High-speed terminal workflows; supports script piping. |
-| **Open-Source Code Assistants** | Continue.dev (VS Code & JetBrains), Cline, Roo Code | ✅ Full (Production) | `vck setup continue`, `vck setup cline`, etc. | Modular MCP configuration; zero cloud lock-in. |
+| **Open-Source Code Assistants** | Continue.dev (VS Code & JetBrains), Cline, Roo Code | ✅ Full (Production) | `vck setup roo`; Continue and Cline: `vck setup <path>` | Modular MCP configuration; zero cloud lock-in. |
 | **Cloud Background Agents** | Devin, Factory Droid, GitHub Workspaces | ✅ Full (Production) | Pre-installed binary via `install.sh` + `vck mcp-config` | Autonomous headless execution through Phase 0 Gate. |
 | **Parallel-Agent Swarms** | Subagent spawning (Antigravity subagents, Claude Code task agents) | ✅ Full (Production) | Inherited MCP server or spawned processes | Safe concurrent writes via advisory locking; `⚡` parallel hints. |
 | **Multi-Agent Frameworks** | CrewAI, LangGraph, AutoGen | ✅ Compatible | Custom MCP client connector | Map research sessions to agent roles (e.g., Critic runs `challenge`). |
@@ -47,7 +47,7 @@ Vivechak is built from the ground up to be **harness-agnostic**. It communicates
 
 ## 3. Host Setup & Configuration
 
-Vivechak provides instant auto-configuration for 21 leading agent environments via `vck setup`.
+`vck setup` configures 10 host presets whose config file and key are verified against each host's documentation; any other host is configured with `vck setup <path-to-its-mcp-config>`.
 
 ### Quick Setup
 
@@ -58,15 +58,12 @@ vck setup
 # Or target a specific host harness:
 vck setup cursor                             # Cursor IDE
 vck setup claude-code                        # Claude Code CLI (~/.claude.json or .mcp.json)
-vck setup mcp                                # Universal portable standard (.mcp.json)
 vck setup opencode                           # OpenCode terminal agent
-vck setup continue                           # Continue.dev (.continue/mcpServers/)
 vck setup goose                              # Block Goose (config.yaml)
-vck setup copilot                            # GitHub Copilot CLI (~/.copilot/)
-vck setup void                               # Void Editor (.void/ or ~/.void-editor/)
 vck setup claude-desktop                     # Claude Desktop GUI
-vck setup cline                              # Cline VS Code extension
+vck setup roo                                # Roo Code (.roo/mcp.json)
 vck setup windsurf                           # Windsurf Editor
+vck setup <path-to-its-mcp-config>           # Any other host (Continue, Cline, Copilot CLI, ...)
 ```
 
 ### Universal JSON Configuration (`vck mcp-config`)
@@ -154,7 +151,7 @@ OpenCode requires the root `"mcp"` key and an array-formatted command with local
 ```
 
 ### Continue.dev
-Continue loads modular MCP server definition files from `.continue/mcpServers/`. Configure via `vck setup continue` or create `.continue/mcpServers/vivechak.json`:
+Continue loads modular MCP server definition files from `.continue/mcpServers/`. Configure via `vck setup .continue/mcpServers/vivechak.json` or create that file:
 ```json
 {
   "mcpServers": {

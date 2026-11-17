@@ -20,7 +20,7 @@ Whether executed through an automated agent or manually through copy-paste:
 | Step | Manual Workflow (This Guide) | MCP Server (`vivechak serve`) |
 |---|---|---|
 | **Pipeline Generation** | Copy generator prompt into AI web chat; paste vision | Agent calls `vivechak_start` or reads generator directly |
-| **Workspace Setup** | Manually create folders and copy templates from repo | Agent calls `vivechak_start` to auto-scaffold workspace and templates |
+| **Workspace Setup** | Manually create folders and copy templates from repo | Agent calls `vivechak_start` to scaffold the workspace; templates are served as MCP resources |
 | **Prompt Delivery** | Copy fenced ```` ```prompt ```` blocks into fresh AI chats | Agent calls `vivechak_next` to retrieve next unblocked prompt |
 | **Session Saving** | Copy AI chat response, save to `research/sessions/*.md` | Agent calls `vivechak_save` to validate and persist artifact |
 | **Decision Registry** | Update `research/DECISIONS.md` using template format | Agent calls `vivechak_record_decision` to validate schema and append |
@@ -110,7 +110,7 @@ Uncertainties:
 3. Submit the prompt.
 
 The AI will output two distinct deliverables:
-1. `RESEARCH-PIPELINE.md`: Contains project archetype extraction, 8-dimension complexity score (0–24), execution DAG (Layer 0 through Sink), and copy-paste-ready research prompts for each session.
+1. `RESEARCH-PIPELINE.md`: Contains its `yaml vivechak-plan` block (every session once with its dependencies, and the one `kind: synthesis` session; the only part `vck` and the MCP server read), project archetype extraction, 8-dimension complexity score (0–24), execution DAG (Layer 0 through Sink), and copy-paste-ready research prompts for each session under `## Sessions`.
 2. `DECISIONS.md`: The initial decision registry seeded with proposed hypotheses (`D-001`, `D-002`, etc.) in YAML frontmatter format.
 
 > [!TIP]
@@ -160,18 +160,18 @@ Open `research/RESEARCH-PIPELINE.md`. Review the **Execution DAG** and begin wit
 ```
 
 #### Execution Protocol for Each Session:
-1. **Find the Prompt:** In `RESEARCH-PIPELINE.md`, find the session entry (e.g., `### T1-01: Analytical Datastore Landscape`). Look for the prompt enclosed in ```` ```prompt ```` code fences.
+1. **Find the Prompt:** In `RESEARCH-PIPELINE.md`, find the session entry under `## Sessions` (e.g., `### T1-01: Analytical Datastore Landscape`). Look for the prompt enclosed in ```` ```prompt ```` code fences.
 2. **Open a FRESH AI Chat:** Never reuse an existing chat thread. Always start a fresh session to eliminate context drift, hallucination accumulation, and confirmation bias.
 3. **Enable Deep Research / Web Search:** Ensure your model has active web browsing or deep research capabilities enabled (e.g., Gemini Deep Research, ChatGPT Deep Research, or Claude with Search).
 4. **Copy & Paste:** Copy the exact text inside the ```` ```prompt ```` fence and paste it into the fresh chat. Send it.
 5. **Inspect the Output:**
-   - Verify that factual claims include evidence grades (e.g., `Grade A · corroborated · fresh | fetched`).
+   - Verify that factual claims include evidence grades (e.g., `(Grade A · corroborated · fresh | fetched)`).
    - Check that recommendations are separated from rejected alternatives.
    - Confirm that the top contenders include concrete failure modes and disconfirming evidence.
 6. **Save the Artifact:** Copy the full Markdown response and save it directly into `research/sessions/` using the exact filename specified in the session metadata table (e.g., `research/sessions/T1-01-analytical-datastore-landscape.md`).
 
 > [!IMPORTANT]
-> **Respecting Dependencies:** Layer 0 sessions are completely unblocked and run in parallel. Layer 1 sessions may depend on Layer 0. If a session specifies `Context: T1-01 (selected datastore)`, copy the 1-2 sentence recommendation from `research/sessions/T1-01-...md` and paste it into the context slot of the downstream prompt.
+> **Respecting Dependencies:** Each session's entry in the plan block lists the sessions it waits for (`depends:`). Layer 0 sessions are completely unblocked and run in parallel. Layer 1 sessions may depend on Layer 0. If a session specifies `Context: T1-01 (selected datastore)`, copy the 1-2 sentence recommendation from `research/sessions/T1-01-...md` and paste it into the context slot of the downstream prompt.
 
 ### Step 6: Record Decisions
 
@@ -315,13 +315,13 @@ Check two-way door conditions (Rule G12):
 
 #### Track B: Canonical Gate Rules (G1–G12)
 Evaluates mechanical structural integrity and rigor across both doors:
-- **G1. DAG Topology:** Project pipeline DAG is structurally valid with a synthesis session.
+- **G1. DAG Topology:** Project pipeline DAG is structurally valid with exactly one `kind: synthesis` session.
 - **G2. Session Completion:** All planned sessions completed with validated empirical findings.
 - **G3. FAD Completeness:** Founding Architecture Document (`FAD.md`) is complete and covers all accepted ADRs.
 - **G4. Decision Registration:** All referenced decisions have corresponding ADRs.
 - **G5. Target Resolution:** All target ADRs are accepted or resolved.
-- **G6. Evidentiary Threshold:** One-Way Door decisions have >=2 Grade A/B evidence citations with URLs.
-- **G7. Verification Provenance:** One-Way Door evidence claims carry verified provenance (>=2 fetched/human labels as reported).
+- **G6. Evidentiary Threshold:** One-Way Door decisions have >=2 Grade A/B claims, each on a line with its URL, in the ADR or its informing sessions: a tag that starts with the grade (`[A · single · fresh · direct · fetched](url)`, `[Grade A: url | fetched]`, `(Grade A · corroborated · fresh | fetched)`) or an evidence-ledger row whose Grade cell is `A` or `B`.
+- **G7. Verification Provenance:** Of those claims, >=2 carry the label `fetched` or `human`/`human-provided`, read exactly from the tag's last field or the ledger row's Verification cell (`cached`, `recalled`, `verified` and `unverified` do not count; labels as reported, sources not fetched or verified).
 - **G8. No Placeholders & Alternatives:** One-Way Door ADRs contain no unexpanded placeholders or default template text, with substantive rejected alternatives.
 - **G9. Reversal Trigger:** One-Way Door ADRs have specific, measurable reversal triggers.
 - **G10. Adversarial Red-Team Challenge:** One-Way Door decisions have current, cited adversarial challenge records (`D-NNN-R1.md`) with matching outcome hashes.
@@ -363,7 +363,7 @@ IDS: D-104, S-TELEMETRY
 ### Step 3: Receive Output
 
 The AI will return two ready-to-use files:
-1. `D-104-PLAN.md`: Decision profile (Reversibility, Novelty, Blast Radius, Regulatory Exposure), Door classification, and 1 to 3 session prompts (`L` Landscape, `C` Comparison, and `F` Falsification/Premortem).
+1. `D-104-PLAN.md`: Its `yaml vivechak-plan` block (the sessions and what each waits for), decision profile (Reversibility, Novelty, Blast Radius, Regulatory Exposure), Door classification, and 1 to 3 session prompts (`L` Landscape, `C` Comparison, and `F` Falsification/Premortem) under `## Sessions`.
 2. `D-104-telemetry-queue.md`: The proposed ADR skeleton with YAML frontmatter.
 
 ### Step 4: Execute Sessions and Lock ADR

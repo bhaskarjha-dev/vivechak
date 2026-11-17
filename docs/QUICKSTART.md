@@ -29,34 +29,34 @@ Give your AI coding agent (Cursor, VS Code, Claude Desktop, Antigravity, etc.) d
 
 **Instant / Ephemeral Runners (Zero Pre-Installation Required):**
 ```sh
-# Node.js / npx (macOS, Linux, Windows)
-npx -y vivechak serve
+# Node.js / npx (macOS, Linux, Windows) (coming soon)
+npx -y vivechak serve                         # coming soon
 
-# Python / uvx (macOS, Linux, Windows)
-uvx vck serve                                 # or: uvx vivechak serve
+# Python / uvx (macOS, Linux, Windows) (coming soon)
+uvx vck serve                                 # or: uvx vivechak serve (both coming soon)
 
-# Universal Agent Skill (Claude Code, Cursor, Antigravity, OpenCode)
-npx skills add bhaskarjha-dev/vivechak
+# Universal Agent Skill (Claude Code, Cursor, Antigravity, OpenCode) (coming soon)
+npx skills add bhaskarjha-dev/vivechak        # coming soon
 
 # Docker / Cloud Agents (Devin, OpenHands, CI) (coming soon)
-docker run -i --rm --user "$(id -u):$(id -g)" -v "${PWD}:/workspace" ghcr.io/bhaskarjha-dev/vck:latest serve
+docker run -i --rm --user "$(id -u):$(id -g)" -e VIVECHAK_PROJECT_ROOT=/workspace -v "${PWD}:/workspace" ghcr.io/bhaskarjha-dev/vck:latest serve   # coming soon
 ```
 
 **Or Native Install via Package Managers:**
 ```sh
 # Homebrew (macOS & Linuxbrew) (coming soon)
-brew install bhaskarjha-dev/tap/vivechak
+brew install bhaskarjha-dev/tap/vivechak       # coming soon
 
 # Windows (WinGet or Scoop) (coming soon)
-winget install bhaskarjha-dev.Vivechak
-scoop bucket add vivechak https://github.com/bhaskarjha-dev/scoop-bucket && scoop install vivechak
+winget install bhaskarjha-dev.Vivechak        # coming soon
+scoop bucket add vivechak https://github.com/bhaskarjha-dev/scoop-bucket && scoop install vivechak   # coming soon
 
 # Debian / Ubuntu (.deb) & Fedora / RHEL (.rpm)
 sudo dpkg -i vivechak_0.1.0_linux_amd64.deb   # Debian / Ubuntu
 sudo rpm -i vivechak_0.1.0_linux_amd64.rpm    # Fedora / RHEL
 
 # Nix / NixOS (coming soon)
-nix run github:bhaskarjha-dev/vivechak
+nix run github:bhaskarjha-dev/vivechak         # coming soon
 
 # Direct Shell Installers
 curl -fsSL https://raw.githubusercontent.com/bhaskarjha-dev/vivechak/main/install.sh | sh      # macOS/Linux
@@ -96,7 +96,7 @@ vck setup                                    # auto-detect host in current works
 # Or output universal MCP JSON configuration:
 vck mcp-config
 ```
-*(For all 21 presets, terminal harnesses, or manual configs, see the [Host Setup Guide](HOST-SETUP.md).)*
+*(For every preset, terminal harnesses, or manual configs, see the [Host Setup Guide](HOST-SETUP.md).)*
 
 ### 3. Prompt Your AI Agent Based on Scope (or Use Slash Commands)
 
@@ -116,24 +116,24 @@ Open your agent chat in your project repository and choose your scope (or invoke
 
 ### 4. How the Agent Executes Each Scope
 
-- **Comparison Scope:** Agent calls `vivechak_start(scope="comparison", question="...")` → executes prompt with search → calls `vivechak_save(kind="comparison")` to persist WEP matrix in `research/C-NNN-comparison.md`. Done in 5 minutes! Zero DAG, zero gate.
-- **Decision Scope:** Agent calls `vivechak_start(scope="decision", question="...")` → saves plan via `vivechak_save(kind="plan")` → runs 1–3 sessions → calls `vivechak_record_decision` to record canonical ADR `research/D-NNN-decision.md` and compiled registry `research/DECISIONS.md`. Zero project DAG, zero FAD.
+- **Comparison Scope:** Agent calls `vivechak_start(scope="comparison", question="...")` → executes prompt with search → calls `vivechak_save(kind="comparison", content="<matrix>")` to persist WEP matrix in `research/C-NNN-comparison.md`. Done in 5 minutes! Zero DAG, zero gate.
+- **Decision Scope:** Agent calls `vivechak_start(scope="decision", question="...")` → saves plan via `vivechak_save(kind="plan", id="D-NNN", content="<plan>")` → runs 1–3 sessions → calls `vivechak_record_decision(id="D-NNN", content="<adr>")` to record canonical ADR `research/D-NNN-decision.md` and compiled registry `research/DECISIONS.md`. Zero project DAG, zero FAD.
 - **Project Scope:** Autonomous orchestration across 9 consolidated tools:
 ```
-[Agent: vivechak_start (scope: 'project', question: '<vision>')]
+[Agent: vivechak_start(scope="project", question="<vision>")]
   └─ Initializes research/ workspace and returns actionable DAG generator brief
 [Agent: executes generator prompt]
   └─ Generates RESEARCH-PIPELINE.md (DAG) & DECISIONS.md (registry)
-[Agent: vivechak_save (kind: 'plan', id: 'DAG')]
+[Agent: vivechak_save(kind="plan", id="DAG", content="<pipeline>")]
   └─ Validates DAG dependencies & persists research plan
 [Agent: Execution Loop]
-  ├─ vivechak_next           ──> Injects upstream findings into next ready prompt
+  ├─ vivechak_next()          ──> Injects upstream findings into next ready prompt
   ├─ [Agent executes deep research with web search]
-  ├─ vivechak_save           ──> Validates evidence grades (A-E) and saves session (kind='session')
-  └─ vivechak_record_decision ──> Records ADR with One-Way vs Two-Way Door classification
+  ├─ vivechak_save(kind="session", id="T1-01", content="<session>") ──> Validates evidence grades (A-E)
+  └─ vivechak_record_decision(id="D-001", content="<adr>")          ──> Records ADR
 [Agent: FAD Synthesis (SYN-01)]
-  └─ Synthesizes all findings into research/FAD.md via vivechak_save (kind: 'fad')
-[Agent: vivechak_gate (or CLI: vck gate)]
+  └─ Synthesizes all findings into research/FAD.md via vivechak_save(kind="fad", id="SYN-01", content="<fad>")
+[Agent: vivechak_gate() (or CLI: vck gate)]
   └─ Evaluates Phase 0 Exit Gate across Track A and Track B (Rules G1–G12)
 ```
 
@@ -142,17 +142,17 @@ See the [MCP Tools Reference](MCP-TOOLS.md) for full tool schemas, parameter spe
 ### Upgrade & Uninstall
 
 **To upgrade Vivechak:**
-- **Homebrew (macOS & Linux):** `brew update && brew upgrade bhaskarjha-dev/tap/vivechak`
+- **Homebrew (macOS & Linux):** `brew update && brew upgrade bhaskarjha-dev/tap/vivechak` (coming soon)
 - **Windows (PowerShell):** Re-run installer: `irm https://raw.githubusercontent.com/bhaskarjha-dev/vivechak/main/install.ps1 | iex`
 - **Linux / macOS Shell:** Re-run installer: `curl -fsSL https://raw.githubusercontent.com/bhaskarjha-dev/vivechak/main/install.sh | sh`
-- **WinGet / Scoop:** `winget upgrade bhaskarjha-dev.Vivechak` or `scoop update vck`
+- **WinGet / Scoop:** `winget upgrade bhaskarjha-dev.Vivechak` or `scoop update vivechak` (coming soon)
 - **Go toolchain:** `go install github.com/bhaskarjha-dev/vivechak/cmd/vivechak@latest`
-- **Zero-install runners (`npx` / `uvx`):** Always run the latest package automatically.
+- **Zero-install runners (`npx` / `uvx`, coming soon):** Always run the latest package automatically.
 
 **To uninstall:**
 1. **Remove binary:**
-   - Homebrew: `brew uninstall bhaskarjha-dev/tap/vivechak`
-   - WinGet / Scoop: `winget uninstall bhaskarjha-dev.Vivechak` or `scoop uninstall vck`
+   - Homebrew: `brew uninstall bhaskarjha-dev/tap/vivechak` (coming soon)
+   - WinGet / Scoop: `winget uninstall bhaskarjha-dev.Vivechak` or `scoop uninstall vivechak` (coming soon)
    - Shell / Manual: Delete `vck` (and `vivechak`) from your binary directory (e.g. `~/.local/bin/vck` or `%LOCALAPPDATA%\Programs\vivechak\vck.exe`).
 2. **Remove MCP configuration:**
    - Delete the `"vivechak"` block from your host config file (e.g. `.cursor/mcp.json`, `.vscode/mcp.json`, `~/.claude.json`), or restore the automatic `<config>.vivechak-bak-<timestamp>` backup created during `vck setup`.
@@ -230,7 +230,14 @@ Use [`GENERATOR-COMPARISON.md`](../GENERATOR-COMPARISON.md) when comparing 2–5
 
 ## Key Methodology in 30 Seconds
 
-- **Evidence Grades (A–E):** Grade A (Official docs, RFCs, source code), Grade B (Empirical benchmarks, reproducible tests), Grade C (Vendor claims), Grade D (Blogs, unverified tutorials; AI recall capped here), Grade E (Unsubstantiated claims).
+- **Evidence Grades (A–E):** every factual claim carries one:
+  <!-- docgen:begin evidence-grades (generated from internal/method/evidence.json by tools/docgen; do not edit by hand) -->
+  - **Grade A (Primary Empirical):** Official specifications, canonical source code, RFCs, or primary documentation with explicit URL anchor.
+  - **Grade B (Secondary Empirical):** Peer-reviewed papers, reproducible third-party benchmarks, published postmortems, or corroborated engineering reports.
+  - **Grade C (Vendor & Practitioner):** Vendor marketing, product whitepapers, vendor benchmarks, conference talks, or interested-party documentation.
+  - **Grade D (Informal & Opinion):** Blog posts, forum discussions, StackOverflow answers, or model memory recall (capped at Grade D).
+  - **Grade E (Speculative & Unsubstantiated):** Unverified hypotheses, uncorroborated parametric recall, or ungrounded assertions.
+  <!-- docgen:end evidence-grades -->
 - **Two-Way vs. One-Way Doors:** Two-Way doors (reversal cost low) need ~70% confidence and run fast. One-Way doors (persistence schemas, data migrations, public API contracts) require corroborated Grade A/B evidence, falsification checks, and locked reversal triggers.
 - **Structured Falsification:** Prompts explicitly direct the AI to hunt for failure modes and disconfirming evidence against the leading candidate, preventing confirmation bias.
 

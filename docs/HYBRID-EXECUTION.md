@@ -140,7 +140,7 @@ After running a session manually:
 
 1. Save the raw output to the sessions directory
 2. Ask the agent to validate it: "Validate T1-03"
-3. The agent calls `vivechak_review(target="T1-03", mode="validate")` and reports any observations
+3. The agent calls `vivechak_review(mode="validate", id="T1-03")` and reports any observations
 4. Address any structural issues, or proceed as-is
 
 ### What Happens Next

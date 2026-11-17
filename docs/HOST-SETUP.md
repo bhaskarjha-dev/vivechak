@@ -19,7 +19,7 @@ vck setup vscode                               # VS Code (Copilot Agent mode)
 vck setup claude                               # Claude Desktop
 vck setup agy                                  # Google Antigravity (IDE, 2.0, CLI)
 
-# Inside a project with an active host folder (.cursor, .agents, .vscode, .trae, etc.):
+# Inside a project with an active host folder (.cursor, .agents, .vscode, .roo, etc.):
 vck setup                                      # Auto-detects workspace host!
 
 # Target any custom JSON file or folder directly (folders auto-target <dir>/mcp.json):
@@ -32,19 +32,19 @@ vck setup cursor --dry-run
 
 `vck setup` automatically resolves the target configuration file, detects whether global or workspace scope is active, formats Windows/macOS/Linux paths cleanly, and merges the Vivechak MCP server block without overwriting existing servers.
 
-### Universal Agent Skill (`npx skills add`)
+### Universal Agent Skill (`npx skills add`) (coming soon)
 For agent harnesses that support decentralized skills (Claude Code, Cursor, Antigravity, OpenCode), install Vivechak's skill directly:
 ```sh
-npx skills add bhaskarjha-dev/vivechak
+npx skills add bhaskarjha-dev/vivechak        # coming soon
 ```
 This automatically installs the calibrated agent playbook (`skills/vivechak/SKILL.md`) into your workspace or global skill catalog.
 
 ### Smithery CLI (`@smithery/cli`) (coming soon)
 If you use [Smithery.ai](https://smithery.ai) for automatic MCP client discovery and installation:
 ```sh
-npx -y @smithery/cli install @bhaskarjha-dev/vivechak --client cursor
+npx -y @smithery/cli install @bhaskarjha-dev/vivechak --client cursor   # coming soon
 # Or for Claude Desktop:
-npx -y @smithery/cli install @bhaskarjha-dev/vivechak --client claude
+npx -y @smithery/cli install @bhaskarjha-dev/vivechak --client claude   # coming soon
 ```
 
 ### Native MCP Prompts & Slash Commands
@@ -84,37 +84,37 @@ Output:
 }
 ```
 
-#### Ephemeral Runners (Zero Local Binary Installation)
+#### Ephemeral Runners (Zero Local Binary Installation) (coming soon)
 
-If you prefer not to install the binary onto your system `$PATH`, you can configure any host to run Vivechak on the fly:
+If you prefer not to install the binary onto your system `$PATH`, you will be able to configure any host to run Vivechak on the fly. The npm and PyPI packages and the container image are not published yet, so every runner below is coming soon; until then, install the binary (shell installer, Linux package or `go install`) and use `vck mcp-config`.
 
 ```json
-// Via npx (Node.js)
+// Via npx (Node.js) (coming soon)
 {
   "mcpServers": {
     "vivechak": {
-      "command": "npx",
-      "args": ["-y", "vivechak", "serve"]
+      "command": "npx",                                     // coming soon
+      "args": ["-y", "vivechak", "serve"]                   // coming soon
     }
   }
 }
 
-// Via uvx (Python)
+// Via uvx (Python) (coming soon)
 {
   "mcpServers": {
     "vivechak": {
-      "command": "uvx",
-      "args": ["vck", "serve"]
+      "command": "uvx",                                     // coming soon
+      "args": ["vck", "serve"]                              // coming soon
     }
   }
 }
 
-// Via Docker (Containers / Cloud Agent Sandboxes)
+// Via Docker (Containers / Cloud Agent Sandboxes) (coming soon); replace <uid>:<gid> with the output of: echo "$(id -u):$(id -g)"
 {
   "mcpServers": {
     "vivechak": {
-      "command": "docker",
-      "args": ["run", "-i", "--rm", "-v", "${workspaceFolder}:/workspace", "ghcr.io/bhaskarjha-dev/vck:latest", "serve"]
+      "command": "docker",                                  // coming soon
+      "args": ["run", "-i", "--rm", "--user", "<uid>:<gid>", "-e", "VIVECHAK_PROJECT_ROOT=/workspace", "-v", "${workspaceFolder}:/workspace", "ghcr.io/bhaskarjha-dev/vck:latest", "serve"]   // coming soon
     }
   }
 }
@@ -122,29 +122,22 @@ If you prefer not to install the binary onto your system `$PATH`, you can config
 
 ### Supported Desktop Hosts & Harness Presets
 
+Each preset writes the file and key that the host's own documentation names (the documentation URL is next to each preset in `cmd/vivechak/presets.go`).
+
 | Environment / Harness | Fast Setup Command | Preset Shortcut | Default Config Location | Schema Key |
 |---|---|---|---|---|
 | **Cursor** | `vck setup cursor` | `cursor` | `~/.cursor/mcp.json` (global) or `.cursor/mcp.json` (workspace) | `mcpServers` |
-| **VS Code** | `vck setup vscode` | `vscode` | `.vscode/mcp.json` (workspace) | `servers` |
+| **VS Code** | `vck setup vscode` | `vscode` | `.vscode/mcp.json` (workspace; legacy file, see [VS Code](#vs-code)) | `servers` |
 | **Claude Desktop** | `vck setup claude` | `claude`, `claude-desktop` | `claude_desktop_config.json` (OS-specific application storage) | `mcpServers` |
 | **Claude Code** | `vck setup claude-code` | `claude-code`, `claudecode` | `~/.claude.json` (global) or `.mcp.json` (workspace) | `mcpServers` |
-| **Universal Portable** | `vck setup mcp` | `mcp`, `portable`, `universal` | `.mcp.json` (workspace root) | `mcpServers` |
-| **OpenCode** | `vck setup opencode` | `opencode`, `open-code` | `opencode.json` (workspace) or `~/.config/opencode/opencode.json` | `mcp` |
-| **GitHub Copilot CLI** | `vck setup copilot` | `copilot`, `github-copilot` | `~/.copilot/mcp-config.json` (global) or `.copilot/mcp-config.json` | `mcpServers` |
-| **Void Editor** | `vck setup void` | `void`, `void-editor` | `.void/mcp.json` (workspace) or `~/.void-editor/mcp.json` | `mcpServers` |
-| **Continue.dev** | `vck setup continue` | `continue`, `continuedev` | `.continue/mcpServers/vivechak.json` (workspace/global) | `mcpServers` |
-| **Block Goose** | `vck setup goose` | `goose`, `block-goose` | `~/.config/goose/config.yaml` (global) or `.goose/config.yaml` | `extensions` |
-| **Windsurf** | `vck setup windsurf` | `windsurf` | `~/.codeium/windsurf/mcp_config.json` | `mcpServers` |
+| **OpenCode** | `vck setup opencode` | `opencode`, `open-code` | `opencode.json` or `.opencode/opencode.json` (workspace), or `~/.config/opencode/opencode.json` | `mcp` |
+| **Block Goose** | `vck setup goose` | `goose`, `block-goose` | `~/.config/goose/config.yaml` (or `%APPDATA%\Block\goose\config\config.yaml`) | `extensions` |
+| **Windsurf** | `vck setup windsurf` | `windsurf` | `~/.codeium/windsurf/mcp_config.json` (discovery file, see [Windsurf](#windsurf)) | `mcpServers` |
 | **Google Antigravity** | `vck setup agy` | `agy`, `antigravity` | `~/.gemini/config/mcp_config.json` (global) or `.agents/mcp_config.json` (workspace) | `mcpServers` |
 | **Zed Editor** | `vck setup zed` | `zed` | `~/.config/zed/settings.json` (or `%APPDATA%\Zed\settings.json`) | `context_servers` |
-| **AWS Kiro** | `vck setup kiro` | `kiro` | `~/.kiro/settings/mcp.json` (global) or `.kiro/settings/mcp.json` (workspace) | `mcpServers` |
-| **ByteDance Trae** | `vck setup trae` | `trae` | `.trae/mcp.json` (workspace) or `~/.trae/mcp.json` (global) | `mcpServers` |
-| **Oh My Pi (OMP)** | `vck setup omp` | `omp` | `~/.omp/agent/mcp.json` (global) or `.omp/mcp.json` (workspace) | `mcpServers` |
-| **OpenHands (OpenDevin)** | `vck setup openhands` | `openhands` | `~/.openhands/mcp.json` | `mcpServers` |
-| **Factory Droid** | `vck setup droid` | `droid` | `.factory/mcp.json` (workspace) or `~/.factory/mcp.json` (global) | `mcpServers` |
-| **Cline (VS Code)** | `vck setup cline` | `cline` | `saoudrizwan.claude-dev/.../cline_mcp_settings.json` (or `.cline/mcp.json`) | `mcpServers` |
-| **Roo Code (VS Code)** | `vck setup roo` | `roo` | `rooveterinaryinc.roo-cline/.../cline_mcp_settings.json` (or `.roo/mcp.json`) | `mcpServers` |
-| **Devin (Cognition)** | `vck setup devin` | `devin` | `.devin/mcp_config.local.json` | `mcpServers` |
+| **Roo Code (VS Code)** | `vck setup roo` | `roo` | `.roo/mcp.json` (workspace) | `mcpServers` |
+
+**Hosts without a preset** (for example Cline, Kiro, Continue, Trae, GitHub Copilot CLI, OpenHands, Factory Droid, Devin): find the MCP config file in the host's own documentation and run `vck setup <path-to-its-mcp-config>`; Vivechak merges its entry into that file under the `mcpServers` key (or the key the file already uses).
 
 *(The legacy syntax `vck mcp-config --preset <shortcut> --write` and `vck mcp-config --path <file> --write` remains 100% backward-compatible for scripts and automation).*
 
@@ -194,6 +187,8 @@ Edit `~/.cursor/mcp.json` (or `.cursor/mcp.json` in your workspace):
 ### VS Code
 
 Native VS Code (via GitHub Copilot Agent mode) discovers MCP servers defined in your project's `.vscode/mcp.json`. Note that **native VS Code uses the `"servers"` key** rather than `"mcpServers"`.
+
+> **Legacy file:** `vck setup vscode` writes `.vscode/mcp.json`, which VS Code's [MCP configuration reference](https://code.visualstudio.com/docs/copilot/reference/mcp-configuration) documents as deprecated (the Local harness that reads it is to be removed in February 2027). VS Code's native Copilot files are `~/.copilot/mcp-config.json` and a workspace-root `.mcp.json`, both with the `mcpServers` key; write them with `vck setup <path>`.
 
 #### Automatic
 ```sh
@@ -263,6 +258,8 @@ Edit `claude_desktop_config.json`:
 vck setup windsurf
 # or: vivechak mcp-config --preset windsurf --write
 ```
+
+> **Discovery file:** `vck setup windsurf` writes `~/.codeium/windsurf/mcp_config.json`. Per the [Windsurf (Devin) MCP docs](https://docs.devin.ai/windsurf/plugins/cascade/mcp), the editor reads that file only when its `chat.mcp.discovery.enabled` setting includes the `windsurf` source; Cascade's own MCP file is now `~/.config/devin/mcp_config.json` (Windows: `%AppData%\devin\mcp_config.json`), which you can write with `vck setup <path>`.
 
 #### Manual
 Edit `~/.codeium/windsurf/mcp_config.json`:
@@ -371,114 +368,30 @@ Edit `settings.json` (accessible via Command Palette: `zed: open settings`):
 
 ---
 
-### AWS Kiro
+### Roo Code (VS Code Extension)
 
-AWS Kiro supports MCP servers natively at both user and workspace levels.
-
-#### Automatic
-```sh
-vck setup kiro
-# or: vivechak mcp-config --preset kiro --write
-```
-*Auto-detects: If `.kiro` directory exists in the workspace, writes to `.kiro/settings/mcp.json`. Otherwise writes to global `~/.kiro/settings/mcp.json` (or `~/.aws/.kiro/mcp.json` if existing).*
-
-#### Manual
-Edit `~/.kiro/settings/mcp.json` (global) or `.kiro/settings/mcp.json` (workspace):
-
-```json
-{
-  "mcpServers": {
-    "vivechak": {
-      "command": "/usr/local/bin/vivechak",
-      "args": ["serve"]
-    }
-  }
-}
-```
-
-> **Tip:** You can verify your active MCP servers in Kiro chat by running `/mcp`.
-
----
-
-### ByteDance Trae IDE
-
-Trae reads project-scoped MCP configurations from `.trae/mcp.json`.
+Roo Code reads project-level MCP servers from `.roo/mcp.json` in your project root:
 
 ```sh
-vck setup trae
-# or: vivechak mcp-config --preset trae --write
-```
-*Auto-writes to `.trae/mcp.json` in your workspace (or `~/.trae/mcp.json` if global).*
-
----
-
-### Oh My Pi (OMP)
-
-Oh My Pi provides native terminal MCP agent orchestration:
-
-```sh
-vck setup omp
-# or: vivechak mcp-config --preset omp --write
-```
-*Writes to `~/.omp/agent/mcp.json` (or workspace `.omp/mcp.json` if `.omp` exists). In the OMP terminal, use `/mcp` to inspect loaded servers.*
-
----
-
-### OpenHands (OpenDevin)
-
-OpenHands CLI and Agent Canvas read MCP server definitions from `~/.openhands/mcp.json`:
-
-```sh
-vck setup openhands
-# or: vivechak mcp-config --preset openhands --write
-```
-*Or register directly via OpenHands CLI:*
-```sh
-openhands mcp add vivechak --transport stdio /path/to/vivechak serve
-```
-
----
-
-### Factory Droid
-
-Factory Droid connects via `~/.factory/mcp.json` or `.factory/mcp.json`:
-
-```sh
-vck setup droid
-# or: vivechak mcp-config --preset droid --write
-```
-*Or register via Droid CLI:*
-```sh
-droid mcp add vivechak /path/to/vivechak
-```
-
----
-
-### Cline & Roo Code (VS Code Extensions)
-
-Both Cline and Roo Code store global MCP server settings in VS Code extension storage (`saoudrizwan.claude-dev` and `rooveterinaryinc.roo-cline`):
-
-```sh
-# For Cline:
-vck setup cline
-# or: vivechak mcp-config --preset cline --write
-
-# For Roo Code:
 vck setup roo
 # or: vivechak mcp-config --preset roo --write
 ```
-*Auto-resolves the correct OS-specific VS Code storage directory on Windows, macOS, and Linux (or workspace `.cline/mcp.json` / `.roo/mcp.json` if present).*
+*Writes `.roo/mcp.json` in the current directory. Roo Code's global `mcp_settings.json` is opened from its MCP settings view; to write it, run `vck setup <path-to-mcp_settings.json>`.*
 
 ---
 
-### Cognition Devin
+### Other Hosts (No Preset)
 
-Devin local and CLI configurations read from `.devin/mcp_config.local.json`:
+Cline, AWS Kiro, ByteDance Trae, Oh My Pi, OpenHands, Factory Droid, Cognition Devin, Continue.dev, Void and GitHub Copilot CLI have no `vck setup` preset, because their config locations were not verified against their own documentation. Find the MCP config file in the host's documentation and run:
 
 ```sh
-vck setup devin
-# or: vivechak mcp-config --preset devin --write
+vck setup <path-to-its-mcp-config>
+# or: vivechak mcp-config --path <path-to-its-mcp-config> --write
 ```
+
+Hosts with their own MCP command can also register Vivechak directly (see [CLI-Native Agent Harnesses](#cli-native-agent-harnesses)).
+
+---
 
 ### Claude Code
 
@@ -490,33 +403,12 @@ vck setup claude-code
 
 ---
 
-### Universal Portable Standard (`.mcp.json`)
-
-The emerging standard for project-level MCP definitions across Claude Code, Cursor, Windsurf, and other modern harnesses. Creates or merges into `.mcp.json` at your project root:
-
-```sh
-vck setup mcp
-# or: vck setup portable
-```
-
----
-
 ### OpenCode
 
 OpenCode terminal agent uses `opencode.json` with the specialized `"mcp"` key and array-style execution commands:
 
 ```sh
 vck setup opencode
-```
-
----
-
-### Continue.dev
-
-Continue.dev supports modular MCP server configuration files in `.continue/mcpServers/`. Vivechak safely configures an isolated `.continue/mcpServers/vivechak.json` without modifying your primary `config.yaml`:
-
-```sh
-vck setup continue
 ```
 
 ---
