@@ -50,7 +50,7 @@ For individual ADR files, use raw YAML frontmatter starting at Line 1 (--- delim
 ---
 # Architectural Decision Record Template — Vivechak v0.1.0
 # Usage: For standalone ADR files (research/D-NNN-[slug].md).
-# Challenge findings (required for One-Way Doors): vivechak_review(target=session_id, mode='challenge')
+# Challenge findings (required for One-Way Doors): vivechak_review(mode="red_team", id="D-NNN")
 # For multi-decision registries, wrap in <details> blocks as described above.
 id: D-NNN
 title: "[Decision Title]"
@@ -103,7 +103,7 @@ constraints and objectives, not generic superiority claims.]
 
 ## Challenge Findings & Red-Team Stress Test
 
-> Required for One-Way Doors: run `vivechak_review(target="...", mode="challenge")` before commitment.
+> Required for One-Way Doors: run `vivechak_review(mode="red_team", id="D-NNN")` before commitment.
 [Document disconfirming search results, premortem failure modes, and adversarial stress-test findings.]
 
 ## Failure Modes & Reversal Triggers

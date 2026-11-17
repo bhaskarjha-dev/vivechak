@@ -110,7 +110,7 @@ For each critical decision the project requires:
    | **Reversible (two-way)** | SKIP — decide by convention | FAST SPIKE — 1 session |
    | **Irreversible (one-way)** | CONFIRM & COMMIT — 1 session + ADR | DEEP RESEARCH — 2–5 sessions + ADR + premortem |
 
-   One-Way Door decisions MUST undergo adversarial red-teaming via `vivechak_review(mode='challenge')` before the ADR is locked.
+   One-Way Door decisions MUST undergo adversarial red-teaming via `vivechak_review(mode="red_team", id="<D-id>")` before the ADR is locked.
 
 3. Organize sessions as a DAG (Directed Acyclic Graph):
    - Layer 0: Landscape & Discovery (fully parallel, no dependencies)
@@ -137,11 +137,33 @@ For each critical decision the project requires:
    sessions for them. The project vision defines the starting point
    for discovery, not its boundary.
 
-### Step 4: Write Session Entries
-For each session in the DAG, write a complete entry containing three parts:
+### Step 4: Write the Plan Block and Session Entries
+Open the pipeline with its plan block: one fenced `yaml vivechak-plan` code
+block, the only place sessions and dependencies are read from (tables and
+diagrams are for people and are never parsed). List every session exactly
+once with id, title, layer, door (one-way or two-way), informs (the decision
+IDs it feeds) and depends (the session IDs it waits for, [] for none). Mark
+exactly one session `kind: synthesis`: the grand synthesis, whose output is
+research/FAD.md (`depends: [ALL]` means every other session). List the
+decisions under `decisions:`. For example:
+
+```yaml vivechak-plan
+plan: PROJECT
+sessions:
+  - {id: T1-01, title: Primary datastore selection, layer: 1, door: one-way, informs: [D-001], depends: []}
+  - {id: T2-01, title: Core data model, layer: 2, door: one-way, informs: [D-002], depends: [T1-01]}
+  - {id: SYN-01, title: Grand Synthesis, kind: synthesis, depends: [ALL]}
+decisions:
+  - {id: D-001, title: Primary datastore, door: one-way}
+  - {id: D-002, title: Core data model, door: one-way}
+```
+
+Then, under a `## Sessions` heading, write one complete entry per session the
+block lists, headed `### [Session-ID]: [Title]` and containing three parts:
 
 **Part A — Session Metadata:**
-A table with: session ID, title, layer, door type, decision ID, dependencies
+A table (for people; keep it in agreement with the plan block) with: session
+ID, title, layer, door type, decision ID, dependencies
 (with type: hard/soft and what information is needed), and output filename
 (`[Session-ID]-[slug].md`, e.g., `T1-01-primary-datastore-selection.md`).
 
@@ -261,9 +283,9 @@ weighted evaluation matrix with project-derived criteria, evidence
 references per score, and a sensitivity check. Add a "Discovered Concerns"
 criterion if research reveals material concerns beyond stated scope.
 
-<!-- CORE:BEGIN — shared methodology kernel (must stay identical across GENERATOR-PROJECT.md, GENERATOR-DECISION.md, GENERATOR-COMPARISON.md) -->
+<!-- CORE:BEGIN — generated from internal/method/evidence.json by tools/docgen; do not edit by hand -->
 For evidence grading, every factual claim should carry:
-- Base grade: A (official specifications, canonical source code, RFCs, primary documentation with explicit URL anchor) | B (peer-reviewed papers, reproducible third-party benchmarks, published postmortems, corroborated engineering reports) | C (vendor claims) | D (blog/tutorial/AI recall) | E (unverifiable)
+- Base grade: A (official specifications, canonical source code, RFCs, or primary documentation with explicit URL anchor) | B (peer-reviewed papers, reproducible third-party benchmarks, published postmortems, or corroborated engineering reports) | C (vendor marketing, product whitepapers, vendor benchmarks, conference talks, or interested-party documentation) | D (blog posts, forum discussions, StackOverflow answers, or model memory recall (capped at Grade D)) | E (unverified hypotheses, uncorroborated parametric recall, or ungrounded assertions)
 - Modifiers: corroboration (single/corroborated/contested), recency (fresh/aging/stale), directness (direct/indirect)
 - Verification: fetched | cached | recalled | secondhand | human-provided (recalled claims capped at Grade D regardless of apparent source)
 <!-- CORE:END -->
@@ -299,8 +321,8 @@ these placeholders (the MCP server replaces them with extracted findings):
   completed upstream sessions
 - `[KNOWN_CONTEXT]` — replaced with the same upstream context (alternative slot)
 
-For the synthesis session (SYN-01), use `[ALL_SESSION_FINDINGS]` to receive all
-completed session findings. Note that saving with `vivechak_save` (kind='fad' or id='SYN-01') automatically writes the output to `research/FAD.md` as the canonical Founding Architecture Document. Do NOT manually create additional copies. The template `FOUNDING-ARCHITECTURE.template.md` defines the structure — the canonical internal file is always `research/FAD.md`.
+For the synthesis session (the one session marked `kind: synthesis` in the plan block, e.g. SYN-01), use `[ALL_SESSION_FINDINGS]` to receive all
+completed session findings. Note that saving it with `vivechak_save` (kind='fad', or its session id) automatically writes the output to `research/FAD.md` as the canonical Founding Architecture Document. Do NOT manually create additional copies. The template `FOUNDING-ARCHITECTURE.template.md` defines the structure — the canonical internal file is always `research/FAD.md`.
 
 Example in a session prompt's KNOWN block:
 ```
@@ -319,6 +341,7 @@ A unified research pipeline document with this structure:
 ```
 # Research Pipeline: [Project Name]
 ## Generated by Vivechak v0.1.0
+[yaml vivechak-plan block]       <- Every session once (id, title, layer, door, informs, depends), exactly one kind: synthesis, decisions
 
 ## Pipeline Overview
   ### Project Parameters         <- Extracted classifications, archetype, constraints
@@ -326,29 +349,34 @@ A unified research pipeline document with this structure:
   ### Execution DAG              <- Mermaid diagram + parallel execution groups
   ### How to Execute             <- Template references, output conventions, gate instructions
 
-## Research Sessions
+## Sessions
   ### T1-01: [Title]
     Session Metadata table       <- ID, layer, door type, decision, dependencies, output filename
     Decision context             <- Which D-NNN this session informs (read-only reference)
-    Research Prompt              <- Complete 8-block prompt in a `prompt code fence
+    Research Prompt              <- Complete 8-block prompt in one `prompt code fence
   ### T1-02: [Title]             <- Same structure repeats for each session
     ...
-  ### SYN-01: Grand Synthesis    <- Final synthesis session
+  ### SYN-01: Grand Synthesis    <- The kind: synthesis session (output: research/FAD.md)
 
 ## Phase 0 Exit Gate Criteria    <- Two-track criteria (Track A + Track B)
 ```
 
 Requirements:
-- Each session's research prompt must be inside a fenced code block
-  (`prompt) to prevent Markdown header collision and to make it
-  trivially copy-pasteable into a fresh AI session
+- The plan block is required and is the only source of sessions and
+  dependencies: every session appears in it exactly once, and exactly one
+  session has `kind: synthesis`. `vivechak_save` refuses a plan without the
+  block, with a session the block lists but no prompt section for, with an
+  unknown dependency or with a dependency cycle, each with a V-PLAN-* code
+- Each session's research prompt must be inside exactly one fenced code block
+  (`prompt) under its `### [Session-ID]: [Title]` heading, to prevent Markdown
+  header collision and to make it trivially copy-pasteable into a fresh AI session
 - Downstream session prompts depending on prior sessions must include
   the `[UPSTREAM_FINDINGS]` placeholder; the final grand synthesis prompt
-  (`SYN-01`) must include the `[ALL_SESSION_FINDINGS]` placeholder
+  (the `kind: synthesis` session) must include the `[ALL_SESSION_FINDINGS]` placeholder
 - Sessions must be ordered by layer (Layer 0 -> Layer 1 -> Layer 2 -> Sink)
 - The Pipeline Overview section must include a "How to Execute" guide:
   - **With Vivechak MCP Server (Recommended):** Orchestrate sessions sequentially
-    or concurrently using `vivechak_next`, `vivechak_save`, `vivechak_review(session_id, mode='challenge')` (required for One-Way Doors), `vivechak_record_decision`,
+    or concurrently using `vivechak_next`, `vivechak_save`, `vivechak_review(mode="red_team", id="<D-id>")` (required for One-Way Doors), `vivechak_record_decision`,
     and `vivechak_gate`. The server automatically injects context and validates schemas;
     agents should NOT manually read template files from disk.
   - **Manual Execution (Without MCP):** Reference the contract templates in `templates/`
@@ -368,7 +396,7 @@ Requirements:
   decisions are NOT recorded inline -- they live in DECISIONS.md
 - Output filenames for each session must follow the convention:
   sessions/[Session-ID]-[slug].md
-- **Phased Prompting for Tier 2 & Tier 3 Pipelines:** When generating large pipelines (Tier 2 with 9–16 sessions or Tier 3 with 17–30 sessions), generator models must NOT truncate or omit prompt blocks due to output token limits. If approaching single-turn output token ceilings, emit the complete pipeline topology and all Layer 0 / Layer 1 session prompts first, then instruct the user to request remaining layers (e.g. 'Please generate Layer 2 and Synthesis prompts'). Every session ID declared in the topology table or execution DAG MUST have a corresponding '### [ID]: [Title]' section with a complete '```prompt' code block.
+- **Phased Prompting for Tier 2 & Tier 3 Pipelines:** When generating large pipelines (Tier 2 with 9–16 sessions or Tier 3 with 17–30 sessions), generator models must NOT truncate or omit prompt blocks due to output token limits. If approaching single-turn output token ceilings, emit the complete plan block and all Layer 0 / Layer 1 session prompts first, then instruct the user to request remaining layers (e.g. 'Please generate Layer 2 and Synthesis prompts'), and save the plan only once it is whole: every session the plan block lists MUST have its '### [ID]: [Title]' section under '## Sessions' with a complete '```prompt' code block, or `vivechak_save` refuses the plan (V-PLAN-MISSING-PROMPT).
 
 ### 2. DECISIONS.md
 
@@ -476,16 +504,16 @@ See the generated RESEARCH-PIPELINE.md for the complete execution guide, or foll
 When using an MCP-enabled agent, orchestrate via Vivechak tools for maximum token efficiency and schema enforcement without disk template reading:
 
 **Execute a research session:**
-> *Run `vivechak_next` to get the next prioritized research brief. Execute the deep research with web search, grade all evidence, and save using `vivechak_save(kind='session', id='...')`. Do not read template files from disk — Vivechak automatically validates schemas and injects format requirements.*
+> *Run `vivechak_next` to get the next prioritized research brief. Execute the deep research with web search, grade all evidence, and save using `vivechak_save(kind="session", id="...", content="...")`. Do not read template files from disk — Vivechak automatically validates schemas and injects format requirements.*
 
 **Challenge findings (required for One-Way Doors):**
-> *Run `vivechak_review(session_id="...", mode="challenge")` to adversarially stress-test findings before locking the decision. One-Way Door decisions MUST undergo adversarial red-teaming via `vivechak_review(mode='challenge')` before the ADR is locked.*
+> *Run `vivechak_review(mode="red_team", id="<D-id>")` to adversarially stress-test One-Way Door decisions before locking the ADR.*
 
 **Record a decision:**
 > *Formulate the decision from session findings and record it using `vivechak_record_decision`. The server validates required fields and compiles `research/DECISIONS.md` automatically.*
 
 **Compile the FAD:**
-> *Synthesize all finalized sessions into `SYN-01` and save using `vivechak_save(kind='fad', id='SYN-01')`. The tool automatically saves `research/FAD.md` as the canonical Founding Architecture Document.*
+> *Synthesize all finalized sessions into `SYN-01` and save using `vivechak_save(kind="fad", id="SYN-01", content="...")`. The tool automatically saves `research/FAD.md` as the canonical Founding Architecture Document.*
 
 **Run the gate:**
 > *Execute `vivechak_gate`. The server mechanically evaluates Track A and Track B exit criteria, conducts the One-Way Door premortem checks, and generates `research/PHASE-0-GATE.md`.*

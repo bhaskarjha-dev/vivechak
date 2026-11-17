@@ -1,0 +1,76 @@
+{
+  "$comment": "The one source of Vivechak's evidence definition (grades, modifiers, verification methods, rules). The server reads it for vivechak://methodology/grades; `go run ./tools/docgen` renders it into FRAMEWORK.md §5.1-§5.3, the generators' CORE blocks, skills/vivechak/SKILL.md, templates/rules/*, README.md and docs/QUICKSTART.md (with their internal/embed twins). Edit this file, then run go run ./tools/docgen.",
+  "grades": [
+    {
+      "grade": "A",
+      "label": "Primary Empirical",
+      "description": "Official specifications, canonical source code, RFCs, or primary documentation with explicit URL anchor.",
+      "provenance": ["fetched", "verified"],
+      "gate_satisfies": ["G6", "G7"]
+    },
+    {
+      "grade": "B",
+      "label": "Secondary Empirical",
+      "description": "Peer-reviewed papers, reproducible third-party benchmarks, published postmortems, or corroborated engineering reports.",
+      "provenance": ["fetched", "cached"],
+      "gate_satisfies": ["G6", "G7"]
+    },
+    {
+      "grade": "C",
+      "label": "Vendor & Practitioner",
+      "description": "Vendor marketing, product whitepapers, vendor benchmarks, conference talks, or interested-party documentation.",
+      "provenance": ["fetched", "cached"]
+    },
+    {
+      "grade": "D",
+      "label": "Informal & Opinion",
+      "description": "Blog posts, forum discussions, StackOverflow answers, or model memory recall (capped at Grade D).",
+      "provenance": ["fetched", "cached", "recalled"]
+    },
+    {
+      "grade": "E",
+      "label": "Speculative & Unsubstantiated",
+      "description": "Unverified hypotheses, uncorroborated parametric recall, or ungrounded assertions.",
+      "provenance": ["recalled", "unverified"]
+    }
+  ],
+  "modifiers": [
+    {
+      "name": "Corroboration",
+      "purpose": "How many sources agree?",
+      "values": [
+        {"value": "single"},
+        {"value": "corroborated", "meaning": "≥2 independent sources"},
+        {"value": "contested", "meaning": "direct contradiction"}
+      ]
+    },
+    {
+      "name": "Recency",
+      "purpose": "Is this current?",
+      "values": [
+        {"value": "fresh", "meaning": "within domain half-life"},
+        {"value": "aging", "meaning": "approaching half-life"},
+        {"value": "stale", "meaning": "past half-life"}
+      ]
+    },
+    {
+      "name": "Directness",
+      "purpose": "Does this apply to our case?",
+      "values": [
+        {"value": "direct", "meaning": "exact workload/target"},
+        {"value": "indirect", "meaning": "analogical evidence"}
+      ]
+    }
+  ],
+  "verification": [
+    {"method": "fetched", "definition": "Retrieved and validated live via tool/web call during this session"},
+    {"method": "cached", "definition": "Read from local repository file or previously verified artifact"},
+    {"method": "recalled", "definition": "Generated from model parametric memory without live verification", "grade_cap": "D"},
+    {"method": "secondhand", "definition": "Sourced from an article summarizing a primary source"},
+    {"method": "human-provided", "definition": "Injected directly by a human engineer", "aliases": ["human"]}
+  ],
+  "rules": [
+    "Parametric memory recall is capped at **Grade D**.",
+    "Grade A requires canonical URL or specification anchor."
+  ]
+}

@@ -22,9 +22,9 @@ Whenever the user asks for a technical comparison, technology choice, architectu
 
 | Scope | Trigger | Artifact | Overhead | Key Tools / Prompt |
 |---|---|---|---|---|
-| **1. Comparison** | Evaluate 2–5 named options (*"Pino vs Winston"*) | `research/C-NNN-comparison.md` (WEP) | 1 session (~5m), 0 DAG, 0 Gate | `/mcp__vivechak__compare` (Claude Code) or `vivechak_start(scope="comparison")` |
-| **2. Decision** | Architectural fork in active codebase (*"Migrate to ClickHouse?"*) | `research/D-NNN-decision.md` (ADR) | 1–3 sessions (~30m), 0 Project DAG | `/mcp__vivechak__decision` (Claude Code) or `vivechak_start(scope="decision")` |
-| **3. Project** | Greenfield architecture or major rewrite | `research/FAD.md` (Founding Architecture) | Full DAG (4–30 sessions), Gate | `/mcp__vivechak__project` (Claude Code) or `vivechak_start(scope="project")` |
+| **1. Comparison** | Evaluate 2–5 named options (*"Pino vs Winston"*) | `research/C-NNN-comparison.md` (WEP) | 1 session (~5m), 0 DAG, 0 Gate | `/mcp__vivechak__compare` (Claude Code) or `vivechak_start(scope="comparison", question="...")` |
+| **2. Decision** | Architectural fork in active codebase (*"Migrate to ClickHouse?"*) | `research/D-NNN-decision.md` (ADR) | 1–3 sessions (~30m), 0 Project DAG | `/mcp__vivechak__decision` (Claude Code) or `vivechak_start(scope="decision", question="...")` |
+| **3. Project** | Greenfield architecture or major rewrite | `research/FAD.md` (Founding Architecture) | Full DAG (4–30 sessions), Gate | `/mcp__vivechak__project` (Claude Code) or `vivechak_start(scope="project", question="...")` |
 
 ---
 
@@ -39,18 +39,18 @@ Use when asked to compare, benchmark, or choose between 2–5 named technologies
 ### Scope 2: Decision Scope (`ScopeDecision`)
 Use when resolving an architectural fork, migration, or dilemma in an active codebase:
 1. **Trigger Start:** Call `vivechak_start(scope="decision", question="<dilemma>")` (or run `/mcp__vivechak__decision` in Claude Code).
-2. **Save Decision Plan:** Call `vivechak_save(kind="plan", id="D-NNN", content=...)`.
-3. **Execute Sessions:** Run the 1–3 research sessions (`L` Landscape, `C` Comparison, `F` Falsification) via `vivechak_next` and `vivechak_save(kind="session", id="D-NNN-S1", content=...)`.
-4. **Record ADR:** Call `vivechak_record_decision(decision_id="D-NNN", auto_draft_from="D-NNN-S1", auto_save=true)` to draft and persist the canonical ADR in `research/D-NNN-decision.md` and update `research/DECISIONS.md`.
+2. **Save Decision Plan:** Call `vivechak_save(kind="plan", id="D-NNN", content="<plan>")`. The plan needs its one `yaml vivechak-plan` block listing every session (id, title, role, depends), and each session's prompt in one `prompt` fence under `### <id>: <title>` in `## Sessions`; otherwise the save is refused with a `V-PLAN-*` code.
+3. **Execute Sessions:** Run the 1–3 research sessions (`L` Landscape, `C` Comparison, `F` Falsification) via `vivechak_next()` and `vivechak_save(kind="session", id="D-NNN-S1", content="<session>")`.
+4. **Record ADR:** Call `vivechak_record_decision(id="D-NNN", auto_draft_from="D-NNN-S1", auto_save=true)` to draft and persist the canonical ADR in `research/D-NNN-decision.md` and update `research/DECISIONS.md`.
 5. **Human Sign-Off:** One-way decisions need the user's sign-off (`vck signoff <D-id>`); never set `human_reviewed` yourself.
 
 ### Scope 3: Project Scope (`ScopeProject`)
 Use when designing a brand-new system or greenfield platform architecture from scratch:
 1. **Trigger Start:** Call `vivechak_start(scope="project", question="<project vision>")` (or run `/mcp__vivechak__project` in Claude Code).
-2. **Save Pipeline:** Call `vivechak_save(kind="plan", id="DAG", content=...)` to write `research/RESEARCH-PIPELINE.md`.
+2. **Save Pipeline:** Call `vivechak_save(kind="plan", id="DAG", content="<pipeline>")` to write `research/RESEARCH-PIPELINE.md`. Its one `yaml vivechak-plan` block lists every session with its depends and exactly one `kind: synthesis` session; each session's prompt sits in one `prompt` fence under `### <id>: <title>` in `## Sessions`.
 3. **Session Loop:** Loop through DAG sessions:
-   - `vivechak_next` → research → `vivechak_save(kind="session", id="<session_id>", content=...)` → `vivechak_record_decision(decision_id="D-NNN", auto_draft_from="<session_id>", auto_save=true)`.
-4. **Synthesize FAD:** Compile grand synthesis session `SYN-01` into `research/FAD.md` via `vivechak_save(kind="fad", id="SYN-01", content=...)`.
+   - `vivechak_next()` → research → `vivechak_save(kind="session", id="<session_id>", content="<session>")` → `vivechak_record_decision(id="D-NNN", auto_draft_from="<session_id>", auto_save=true)`.
+4. **Synthesize FAD:** Compile the grand synthesis session (the plan's `kind: synthesis` session, e.g. `SYN-01`) into `research/FAD.md` via `vivechak_save(kind="fad", id="SYN-01", content="<fad>")`.
 5. **Phase 0 Exit Gate & Human Sign-Off:** Run `vivechak_gate(track="all")` or CLI `vck gate` to verify Track A (reversibility) and Track B (rigor G1–G12). One-way decisions need the user's sign-off (`vck signoff <D-id>`); never set `human_reviewed` yourself. Once the gate passes and sign-offs are granted, begin implementation. *(The gate is necessary, not sufficient: it checks structure and the agent's own labels, not the truth of the sources. The sign-off is a typed attestation by the named reviewer; it raises the bar but is not a security boundary.)*
 
 ---
@@ -58,14 +58,19 @@ Use when designing a brand-new system or greenfield platform architecture from s
 ## 3. Evidence Grading Taxonomy (Mandatory)
 
 Every factual claim in Vivechak must carry an inline evidence grade with modifiers and verification method:
+<!-- docgen:begin evidence-skill (generated from internal/method/evidence.json by tools/docgen; do not edit by hand) -->
 - **Grade A (Primary Empirical):** Official specifications, canonical source code, RFCs, or primary documentation with explicit URL anchor.
 - **Grade B (Secondary Empirical):** Peer-reviewed papers, reproducible third-party benchmarks, published postmortems, or corroborated engineering reports.
 - **Grade C (Vendor & Practitioner):** Vendor marketing, product whitepapers, vendor benchmarks, conference talks, or interested-party documentation.
 - **Grade D (Informal & Opinion):** Blog posts, forum discussions, StackOverflow answers, or model memory recall (capped at Grade D).
 - **Grade E (Speculative & Unsubstantiated):** Unverified hypotheses, uncorroborated parametric recall, or ungrounded assertions.
 
-**Modifiers:** `[single]` | `[corroborated]` | `[contested]`, `[fresh]` | `[aging]` | `[stale]`, `[direct]` | `[indirect]`.  
-**Verification:** `fetched` (URL required) | `cached` | `recalled` | `human`.
+**Modifiers:** corroboration (`single` | `corroborated` | `contested`), recency (`fresh` | `aging` | `stale`), directness (`direct` | `indirect`).
+
+**Verification:** `fetched` | `cached` | `recalled` | `secondhand` | `human-provided` (or `human`).
+
+**Rules:** Parametric memory recall is capped at **Grade D**. Grade A requires canonical URL or specification anchor.
+<!-- docgen:end evidence-skill -->
 
 ---
 
