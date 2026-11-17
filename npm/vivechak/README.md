@@ -81,7 +81,7 @@ npx -y vivechak doctor
 # Headless Phase 0 exit gate evaluation (CI-ready)
 npx -y vivechak gate --track all
 
-# 1-second host auto-configuration (21 presets)
+# 1-second host auto-configuration (10 presets)
 npx -y vivechak setup cursor
 npx -y vivechak setup claude
 npx -y vivechak setup agy

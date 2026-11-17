@@ -75,16 +75,33 @@ jobs:
       - name: Documentation Drift Check
         if: matrix.os == 'ubuntu-latest'
         run: |
+          # tools/docgen writes docs/reference/*.md, docs/hosts.md and every block generated from
+          # internal/method/evidence.json (FRAMEWORK.md, README.md, docs/QUICKSTART.md, the generators,
+          # skills/vivechak/SKILL.md, templates/rules/* and their internal/embed twins). Any tracked
+          # file it changes is drift, so the diff covers the whole tree, not only docs/.
           go run ./tools/docgen
-          git diff --exit-code docs/
+          git diff --exit-code
 
       - name: CLI Subcommands & Research Gate Verification
+        shell: bash
         run: |
           go run ./cmd/vivechak version
           go run ./cmd/vivechak doctor --help
           go run ./cmd/vivechak gate --help
-          go run ./cmd/vivechak gate --track all examples/dogfood
+          # Gate each example tree, named by explicit path, on a temporary copy: the gate writes
+          # research/PHASE-0-GATE.md into the tree it checks, and CI must not rewrite committed files.
+          for tree in examples/dogfood; do
+            copy="$RUNNER_TEMP/gate-$(basename "$tree")"
+            rm -rf "$copy"
+            cp -R "$tree" "$copy"
+            go run ./cmd/vivechak gate --track all "$copy"
+          done
           go run ./cmd/vivechak mcp-config
+          if [ -n "$(git status --porcelain -- examples)" ]; then
+            git status --porcelain -- examples
+            echo "::error::the gate step changed files under examples/"
+            exit 1
+          fi
 
   release-dryrun:
     name: GoReleaser Dry Run
@@ -97,8 +114,37 @@ jobs:
         with:
           go-version-file: go.mod
       - uses: anchore/sbom-action/download-syft@f325610c9f50a54015d37c8d16cb3b0e2c8f4de0 # v0.18.0
+      - name: GoReleaser config check
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: "~> v2"
+          args: check
       - uses: goreleaser/goreleaser-action@v6
         with:
           distribution: goreleaser
           version: "~> v2"
           args: release --snapshot --clean
+      - name: Smoke-test the linux_amd64 archive
+        run: |
+          VERSION="$(jq -r .version dist/metadata.json)"
+          SMOKE="$RUNNER_TEMP/archive-smoke"
+          mkdir -p "$SMOKE"
+          tar -xzf dist/vivechak_*_linux_amd64.tar.gz -C "$SMOKE"
+          "$SMOKE/vivechak" version | tee "$SMOKE/version.txt"
+          grep -F "vivechak $VERSION " "$SMOKE/version.txt"
+          "$SMOKE/vck" version
+      - name: npm pack (dry run)
+        working-directory: npm/vivechak
+        run: npm pack --dry-run
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.11"
+      - name: Build and check both PyPI packages
+        run: |
+          python -m pip install --upgrade build twine
+          python -m build pypi/vivechak
+          python -m build pypi/vck
+          twine check pypi/vivechak/dist/* pypi/vck/dist/*
+      # Docker and Nix are labelled "coming soon" in the docs, so this dry run builds neither (CRIT-03);
+      # add `docker build` plus a container smoke and `nix build .#vivechak` before advertising them.

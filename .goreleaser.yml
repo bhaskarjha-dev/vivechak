@@ -260,11 +260,10 @@ homebrew_casks:
   - name: vivechak
     ids:
       - default
-    skip_upload: "{{ if index .Env \"TAP_GITHUB_TOKEN\" }}false{{ else }}true{{ end }}"
     repository:
       owner: bhaskarjha-dev
       name: homebrew-tap
-      token: "{{ if index .Env \"TAP_GITHUB_TOKEN\" }}{{ .Env.TAP_GITHUB_TOKEN }}{{ else }}{{ .Env.GITHUB_TOKEN }}{{ end }}"
+      token: "{{ .Env.TAP_GITHUB_TOKEN }}"
     directory: Casks
     homepage: https://github.com/bhaskarjha-dev/vivechak
     description: Evidence-grounded research for technical decisions — MCP server
@@ -273,12 +272,9 @@ homebrew_casks:
       post:
         install_steps: |
           on_macos do
-            run "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/vivechak"]
-            run "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/vck"]
+            run "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "{{ .StagedPath }}/vivechak"]
+            run "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "{{ .StagedPath }}/vck"]
           end
-    caveats: |
-      To use on macOS, you may need to remove quarantine:
-        xattr -dr com.apple.quarantine "$(brew --prefix)/Caskroom/vivechak"
     binaries:
       - vivechak
       - vck
@@ -287,11 +283,10 @@ scoops:
   - name: vivechak
     ids:
       - default
-    skip_upload: "{{ if index .Env \"TAP_GITHUB_TOKEN\" }}false{{ else }}true{{ end }}"
     repository:
       owner: bhaskarjha-dev
       name: scoop-bucket
-      token: "{{ if index .Env \"TAP_GITHUB_TOKEN\" }}{{ .Env.TAP_GITHUB_TOKEN }}{{ else }}{{ .Env.GITHUB_TOKEN }}{{ end }}"
+      token: "{{ .Env.TAP_GITHUB_TOKEN }}"
     homepage: https://github.com/bhaskarjha-dev/vivechak
     description: Evidence-grounded research for technical decisions — MCP server
     license: MIT

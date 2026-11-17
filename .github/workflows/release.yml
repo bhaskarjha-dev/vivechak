@@ -1,12 +1,8 @@
 name: Release
 
+# Publishing runs only for a pushed version tag: there is no manual dispatch, so no run can publish
+# a version that is not a tag (CRIT-03).
 on:
-  workflow_dispatch:
-    inputs:
-      version:
-        description: "Release version override (e.g. 0.1.0)"
-        required: false
-        default: "0.0.0-dev"
   push:
     tags:
       - "v*"
@@ -29,65 +25,66 @@ jobs:
             exit 1
           fi
           echo "✓ GITHUB_TOKEN present"
+          echo "Release triggered by tag: ${{ github.ref_name }}"
 
-          if [ "${{ github.ref_type }}" = "tag" ]; then
-            echo "Release triggered by tag: ${{ github.ref_name }}"
-
-            # Fail-closed credential verification for official tag releases (CRIT-01/CRIT-03)
-            MISSING=""
-            if [ -z "${{ secrets.NPM_TOKEN }}" ]; then
-              MISSING="$MISSING NPM_TOKEN"
-            fi
-            if [ -z "${{ secrets.PYPI_API_TOKEN }}" ]; then
-              MISSING="$MISSING PYPI_API_TOKEN"
-            fi
-            if [ -z "${{ secrets.TAP_GITHUB_TOKEN }}" ]; then
-              MISSING="$MISSING TAP_GITHUB_TOKEN"
-            fi
-
-            if [ -n "$MISSING" ]; then
-              echo "::error::Required secrets missing for official tag release:$MISSING"
-              exit 1
-            fi
-            echo "✓ All publishing credentials present"
-
-            # Fail-closed registry ownership checks: verify package endpoints respond HTTP 200
-            echo "Checking registry package endpoints..."
-            curl -s -f -o /dev/null https://registry.npmjs.org/vivechak || {
-              echo "::error::npm package 'vivechak' is not claimed or reachable (HTTP 200 expected)"
-              exit 1
-            }
-            echo "✓ npm vivechak endpoint verified"
-
-            curl -s -f -o /dev/null https://pypi.org/pypi/vivechak/json || {
-              echo "::error::PyPI package 'vivechak' is not claimed or reachable (HTTP 200 expected)"
-              exit 1
-            }
-            echo "✓ PyPI vivechak endpoint verified"
-
-            curl -s -f -o /dev/null https://pypi.org/pypi/vck/json || {
-              echo "::error::PyPI package 'vck' is not claimed or reachable (HTTP 200 expected)"
-              exit 1
-            }
-            echo "✓ PyPI vck endpoint verified"
-          else
-            echo "Triggered via workflow_dispatch (non-tag); permissive credentials mode"
-            if [ -n "${{ secrets.TAP_GITHUB_TOKEN }}" ]; then
-              echo "✓ TAP_GITHUB_TOKEN configured"
-            else
-              echo "::notice::TAP_GITHUB_TOKEN not configured"
-            fi
-            if [ -n "${{ secrets.NPM_TOKEN }}" ]; then
-              echo "✓ NPM_TOKEN configured"
-            else
-              echo "::notice::NPM_TOKEN not configured"
-            fi
-            if [ -n "${{ secrets.PYPI_API_TOKEN }}" ]; then
-              echo "✓ PYPI_API_TOKEN configured"
-            else
-              echo "::notice::PYPI_API_TOKEN not configured"
-            fi
+          # Fail-closed credential verification (CRIT-01/CRIT-03): every publisher below needs its secret,
+          # so a missing one stops the release here, before anything is published.
+          MISSING=""
+          if [ -z "${{ secrets.NPM_TOKEN }}" ]; then
+            MISSING="$MISSING NPM_TOKEN"
           fi
+          # PYPI_API_TOKEN: an account-scoped PyPI API token, so it covers both vivechak and vck (see the pypi job).
+          if [ -z "${{ secrets.PYPI_API_TOKEN }}" ]; then
+            MISSING="$MISSING PYPI_API_TOKEN"
+          fi
+          if [ -z "${{ secrets.TAP_GITHUB_TOKEN }}" ]; then
+            MISSING="$MISSING TAP_GITHUB_TOKEN"
+          fi
+
+          if [ -n "$MISSING" ]; then
+            echo "::error::Required secrets missing for official tag release:$MISSING"
+            exit 1
+          fi
+          echo "✓ All publishing credentials present"
+
+          # Fail-closed registry ownership checks: verify package endpoints respond HTTP 200
+          echo "Checking registry package endpoints..."
+          curl -s -f -o /dev/null https://registry.npmjs.org/vivechak || {
+            echo "::error::npm package 'vivechak' is not claimed or reachable (HTTP 200 expected)"
+            exit 1
+          }
+          echo "✓ npm vivechak endpoint verified"
+
+          curl -s -f -o /dev/null https://pypi.org/pypi/vivechak/json || {
+            echo "::error::PyPI package 'vivechak' is not claimed or reachable (HTTP 200 expected)"
+            exit 1
+          }
+          echo "✓ PyPI vivechak endpoint verified"
+
+          curl -s -f -o /dev/null https://pypi.org/pypi/vck/json || {
+            echo "::error::PyPI package 'vck' is not claimed or reachable (HTTP 200 expected)"
+            exit 1
+          }
+          echo "✓ PyPI vck endpoint verified"
+
+      - name: Verify push access to the Homebrew tap and the Scoop bucket
+        env:
+          GH_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
+        run: |
+          # GoReleaser pushes the cask to bhaskarjha-dev/homebrew-tap and the manifest to bhaskarjha-dev/scoop-bucket
+          # with TAP_GITHUB_TOKEN only after it has published the GitHub release, so both are checked here, before
+          # anything is published. A missing repository or a token that can't see it fails this step (HTTP 404).
+          # permissions.push reports the token owner's role on the repository: a fine-grained token must also grant
+          # "Contents: read and write" on both repositories, which this call cannot see.
+          TAP_PUSH=$(gh api repos/bhaskarjha-dev/homebrew-tap --jq .permissions.push) || TAP_PUSH="unreachable"
+          BUCKET_PUSH=$(gh api repos/bhaskarjha-dev/scoop-bucket --jq .permissions.push) || BUCKET_PUSH="unreachable"
+          echo "bhaskarjha-dev/homebrew-tap push access: $TAP_PUSH"
+          echo "bhaskarjha-dev/scoop-bucket push access: $BUCKET_PUSH"
+          if [ "$TAP_PUSH" != "true" ] || [ "$BUCKET_PUSH" != "true" ]; then
+            echo "::error::TAP_GITHUB_TOKEN must be able to push to bhaskarjha-dev/homebrew-tap and bhaskarjha-dev/scoop-bucket; create the missing repository or give the token access to it"
+            exit 1
+          fi
+          echo "✓ TAP_GITHUB_TOKEN can push to bhaskarjha-dev/homebrew-tap and bhaskarjha-dev/scoop-bucket"
           echo "=== Preflight check completed ==="
 
   # 1. Primary Native Release (macOS runner for universal lipo + 7 OS targets + nfpms)
@@ -146,29 +143,24 @@ jobs:
       - name: Build and Push Multi-Arch Image
         run: |
           OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
-          if [ "${{ github.ref_type }}" = "tag" ]; then
-            TAG_VERSION="${GITHUB_REF_NAME#v}"
-            docker buildx build \
-              --platform linux/amd64,linux/arm64 \
-              --build-arg VERSION="${TAG_VERSION}" \
-              -t ghcr.io/${OWNER}/vivechak:${{ github.ref_name }} \
-              -t ghcr.io/${OWNER}/vivechak:${TAG_VERSION} \
-              -t ghcr.io/${OWNER}/vivechak:latest \
-              -t ghcr.io/${OWNER}/vck:${{ github.ref_name }} \
-              -t ghcr.io/${OWNER}/vck:${TAG_VERSION} \
-              -t ghcr.io/${OWNER}/vck:latest \
-              --push .
-          else
-            TAG_VERSION="${{ inputs.version || '0.0.0-dev' }}"
-            docker buildx build \
-              --platform linux/amd64,linux/arm64 \
-              --build-arg VERSION="${TAG_VERSION}" \
-              -t ghcr.io/${OWNER}/vivechak:dev \
-              -t ghcr.io/${OWNER}/vck:dev \
-              --push .
-          fi
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          # A prerelease tag (e.g. v0.1.0-rc.1, the rehearsal) must not move :latest.
+          LATEST=()
+          case "$TAG_VERSION" in
+            *-*) echo "Prerelease ${TAG_VERSION}: :latest is not updated" ;;
+            *) LATEST=(-t "ghcr.io/${OWNER}/vivechak:latest" -t "ghcr.io/${OWNER}/vck:latest") ;;
+          esac
+          docker buildx build \
+            --platform linux/amd64,linux/arm64 \
+            --build-arg VERSION="${TAG_VERSION}" \
+            -t ghcr.io/${OWNER}/vivechak:${{ github.ref_name }} \
+            -t ghcr.io/${OWNER}/vivechak:${TAG_VERSION} \
+            -t ghcr.io/${OWNER}/vck:${{ github.ref_name }} \
+            -t ghcr.io/${OWNER}/vck:${TAG_VERSION} \
+            "${LATEST[@]}" \
+            --push .
 
-  # 3. npm / npx Publisher (Isolated, fails safe if NPM_TOKEN absent)
+  # 3. npm / npx Publisher (a missing NPM_TOKEN fails this job; preflight checks it before anything is published)
   npm:
     name: npm Registry
     needs: goreleaser
@@ -178,43 +170,37 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Check for NPM_TOKEN
-        id: check_token
-        run: |
-          if [ -n "${{ secrets.NPM_TOKEN }}" ]; then
-            echo "has_token=true" >> $GITHUB_OUTPUT
-          else
-            echo "has_token=false" >> $GITHUB_OUTPUT
-            echo "::notice::NPM_TOKEN is not set; skipping npm package publish."
-          fi
-
       - uses: actions/setup-node@v4
-        if: steps.check_token.outputs.has_token == 'true'
         with:
           node-version: "22.x"
           registry-url: "https://registry.npmjs.org"
 
       - name: Synchronize npm versions from git tag
-        if: steps.check_token.outputs.has_token == 'true'
         run: |
-          if [ "${{ github.ref_type }}" = "tag" ]; then
-            TAG_VERSION="${GITHUB_REF_NAME#v}"
-          else
-            TAG_VERSION="${{ inputs.version || '0.0.0-dev' }}"
-          fi
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
           echo "Setting npm package and runner to version: $TAG_VERSION"
           sed -i "s/\"version\": \".*\"/\"version\": \"$TAG_VERSION\"/" npm/vivechak/package.json
           sed -i "s/const VERSION = ['\"].*['\"];/const VERSION = '$TAG_VERSION';/" npm/vivechak/bin/runner.js
 
       - name: Publish to npm
-        if: steps.check_token.outputs.has_token == 'true'
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
-          echo "Publishing vivechak..."
-          cd npm/vivechak && npm publish --access public
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          cd npm/vivechak
+          # A prerelease (e.g. 0.1.0-rc.1, the rehearsal) is published under the `next` dist-tag, so it never becomes `latest`.
+          case "$TAG_VERSION" in
+            *-*)
+              echo "Publishing vivechak ${TAG_VERSION} with dist-tag next..."
+              npm publish --access public --tag next
+              ;;
+            *)
+              echo "Publishing vivechak ${TAG_VERSION}..."
+              npm publish --access public
+              ;;
+          esac
 
-  # 4. PyPI / uvx Publisher (Isolated, fails safe if PYPI_API_TOKEN absent)
+  # 4. PyPI / uvx Publisher (a missing PYPI_API_TOKEN fails this job; preflight checks it before anything is published)
   pypi:
     name: PyPI Registry
     needs: goreleaser
@@ -224,29 +210,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Check for PYPI_API_TOKEN
-        id: check_token
-        run: |
-          if [ -n "${{ secrets.PYPI_API_TOKEN }}" ]; then
-            echo "has_token=true" >> $GITHUB_OUTPUT
-          else
-            echo "has_token=false" >> $GITHUB_OUTPUT
-            echo "::notice::PYPI_API_TOKEN is not set; skipping PyPI package publish."
-          fi
-
       - uses: actions/setup-python@v5
-        if: steps.check_token.outputs.has_token == 'true'
         with:
           python-version: "3.11"
 
       - name: Synchronize PyPI versions from git tag
-        if: steps.check_token.outputs.has_token == 'true'
         run: |
-          if [ "${{ github.ref_type }}" = "tag" ]; then
-            TAG_VERSION="${GITHUB_REF_NAME#v}"
-          else
-            TAG_VERSION="${{ inputs.version || '0.0.0-dev' }}"
-          fi
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
           echo "Setting PyPI packages, dependencies, and cli runner to version: $TAG_VERSION"
           sed -i "s/version = \".*\"/version = \"$TAG_VERSION\"/" pypi/vivechak/pyproject.toml
           sed -i "s/version = \".*\"/version = \"$TAG_VERSION\"/" pypi/vck/pyproject.toml
@@ -255,12 +225,28 @@ jobs:
           sed -i "s/__version__ = ['\"].*['\"]/__version__ = \"$TAG_VERSION\"/" pypi/vivechak/src/vivechak/__init__.py
           sed -i "s/__version__ = ['\"].*['\"]/__version__ = \"$TAG_VERSION\"/" pypi/vck/src/vck/__init__.py
 
-      - name: Publish to PyPI
-        if: steps.check_token.outputs.has_token == 'true'
+      # PYPI_API_TOKEN must be an account-scoped PyPI API token (scope "Entire account (all projects)"):
+      # it is the one credential for both projects, so the vck upload cannot be refused after vivechak
+      # has been published (a token scoped to one project would publish vivechak, then fail on vck).
+      # Both packages are built and checked before the first upload; vivechak goes first because vck
+      # depends on it.
+      - name: Build both PyPI packages
+        run: |
+          python -m pip install --upgrade build twine
+          python -m build pypi/vivechak
+          python -m build pypi/vck
+
+      - name: Check both PyPI packages
+        run: twine check pypi/vivechak/dist/* pypi/vck/dist/*
+
+      - name: Publish vivechak to PyPI
         env:
           TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
-        run: |
-          python -m pip install --upgrade build twine
-          cd pypi/vivechak && python -m build && twine upload --non-interactive dist/*
-          cd ../vck && python -m build && twine upload --non-interactive dist/*
+        run: twine upload --non-interactive pypi/vivechak/dist/*
+
+      - name: Publish vck to PyPI
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+        run: twine upload --non-interactive pypi/vck/dist/*

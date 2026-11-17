@@ -48,7 +48,7 @@ uvx vck doctor
 # Headless Phase 0 exit gate evaluation (CI-ready)
 uvx vck gate --track all
 
-# 1-second host auto-configuration across 21 presets
+# 1-second host auto-configuration across 10 presets
 uvx vck setup cursor
 uvx vck setup claude
 uvx vck setup agy
