@@ -10,7 +10,7 @@ assignees: ''
 <!-- A clear and concise description of what the issue is. -->
 
 ## Location
-<!-- File path and line number, e.g., GENERATOR.md:120 or templates/DECISIONS.template.md -->
+<!-- File path and line number, e.g., internal/mcp/tool_save.go:95, GENERATOR-PROJECT.md:120, or templates/DECISIONS.template.md -->
 
 ## Expected Behavior
 <!-- What you expected to happen based on the Vivechak Framework specification. -->

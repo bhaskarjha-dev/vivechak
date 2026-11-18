@@ -66,20 +66,45 @@ func handleReview(ctx context.Context, req *sdkmcp.CallToolRequest, in ReviewInp
 }
 
 func readArtifactByID(ws *store.Workspace, target string) (data string, inferredType string, found bool) {
-	if isSynthesisTarget(ws, target) || strings.EqualFold(target, "FAD") {
+	trimmedTarget := strings.TrimSpace(target)
+	if isSynthesisTarget(ws, trimmedTarget) || strings.EqualFold(trimmedTarget, "FAD") {
 		if d, err := ws.ReadFile(core.FADFile); err == nil && len(d) > 0 {
 			return string(d), "fad", true
 		}
 	}
-	if strings.EqualFold(target, "DAG") || strings.EqualFold(target, "PROJECT") {
+	if strings.EqualFold(trimmedTarget, "DAG") || strings.EqualFold(trimmedTarget, "PROJECT") ||
+		strings.EqualFold(trimmedTarget, "RESEARCH-PIPELINE") || strings.EqualFold(trimmedTarget, "RESEARCH-PIPELINE.MD") {
 		if d, err := ws.ReadFile(core.PipelineFile); err == nil && len(d) > 0 {
 			return string(d), "plan", true
 		}
 	}
-	if sData, _, err := core.ReadSessionFileFS(ws, core.SessionsDir, target); err == nil && sData != "" {
+	stemTarget := strings.TrimSuffix(trimmedTarget, ".md")
+	if strings.HasSuffix(strings.ToLower(stemTarget), "-plan") {
+		baseID := stemTarget[:len(stemTarget)-len("-plan")]
+		candidates := []string{stemTarget + ".md"}
+		if normBase := core.NormalizeDecisionID(baseID); normBase != "" {
+			normCand := normBase + "-plan.md"
+			if !strings.EqualFold(normCand, candidates[0]) {
+				candidates = append([]string{normCand}, candidates...)
+			}
+		}
+		if entries, err := ws.ListDir(core.ResearchDir); err == nil {
+			for _, cand := range candidates {
+				for _, e := range entries {
+					if !e.IsDir() && strings.EqualFold(e.Name(), cand) {
+						if raw, rErr := ws.ReadFile(filepath.Join(core.ResearchDir, e.Name())); rErr == nil && len(raw) > 0 {
+							return string(raw), "plan", true
+						}
+					}
+				}
+			}
+		}
+		return "", "", false
+	}
+	if sData, _, err := core.ReadSessionFileFS(ws, core.SessionsDir, trimmedTarget); err == nil && sData != "" {
 		return sData, "session", true
 	}
-	normID := core.NormalizeDecisionID(target)
+	normID := core.NormalizeDecisionID(trimmedTarget)
 	for _, dir := range []string{core.ResearchDir, core.DecisionsDir, core.ComparisonsDir} {
 		entries, err := ws.ListDir(dir)
 		if err != nil {
@@ -99,7 +124,7 @@ func readArtifactByID(ws *store.Workspace, target string) (data string, inferred
 			if strings.HasSuffix(lowerName, "-plan.md") {
 				continue
 			}
-			tUpper := strings.ToUpper(target)
+			tUpper := strings.ToUpper(trimmedTarget)
 			nUpper := strings.ToUpper(normID)
 			if stemUpper == tUpper || strings.HasPrefix(stemUpper, tUpper+"-") || strings.HasPrefix(stemUpper, tUpper+"_") ||
 				(nUpper != "" && (stemUpper == nUpper || strings.HasPrefix(stemUpper, nUpper+"-") || strings.HasPrefix(stemUpper, nUpper+"_"))) {
@@ -119,33 +144,12 @@ func readArtifactByID(ws *store.Workspace, target string) (data string, inferred
 			}
 		}
 	}
-	// Fallback 1: check DECISIONS.md anchor
+	// Fallback: check consolidated DECISIONS.md anchor when no standalone D-*.md file exists.
 	if decData, rErr := ws.ReadFile(core.DecisionsFile); rErr == nil {
 		matches := reDecisionAnchored.FindAllStringSubmatch(string(decData), -1)
 		for _, m := range matches {
-			if len(m) > 1 && (strings.EqualFold(m[1], target) || strings.EqualFold(core.NormalizeDecisionID(m[1]), normID)) {
-				return m[0], "decision", true
-			}
-		}
-	}
-	// Fallback 2: check sessions that inform this decision
-	if normID != "" {
-		if entries, lErr := ws.ListDir(core.SessionsDir); lErr == nil {
-			for _, e := range entries {
-				if strings.HasSuffix(strings.ToLower(e.Name()), ".md") {
-					data, rErr := ws.ReadFile(filepath.Join(core.SessionsDir, e.Name()))
-					if rErr == nil {
-						fm, _, _ := core.ParseFrontmatter(data)
-						if fm != nil {
-							informs, _ := fm["informs_decisions"].([]any)
-							for _, inf := range informs {
-								if s, ok := inf.(string); ok && core.NormalizeDecisionID(s) == normID {
-									return string(data), "session", true
-								}
-							}
-						}
-					}
-				}
+			if len(m) > 2 && (strings.EqualFold(m[1], trimmedTarget) || (normID != "" && strings.EqualFold(core.NormalizeDecisionID(m[1]), normID))) {
+				return strings.TrimSpace(m[2]), "decision", true
 			}
 		}
 	}
@@ -220,13 +224,16 @@ func handleReviewAudit(ctx context.Context, req *sdkmcp.CallToolRequest, in Revi
 	}
 
 	sessionData := strings.TrimSpace(in.Content)
+	var artType string
 	if sessionData == "" {
 		var found bool
-		var artType string
 		sessionData, artType, found = readArtifactByID(ws, target)
 		if !found || artType == "plan" {
-			return ErrorResult(tool, fmt.Errorf("E-NOT-FOUND: target %s not found in %s or %s", target, core.SessionsDir, core.ResearchDir),
-				"Ensure the session or decision file exists before running review.")
+			fixHint := "Ensure the session or decision file exists before running review."
+			if strings.HasPrefix(strings.ToUpper(target), "D-") && !reDecisionSessionID.MatchString(strings.ToUpper(target)) {
+				fixHint = fmt.Sprintf("Record the decision first with vivechak_record_decision(id=%q, ...), or pass a session ID (e.g. 'T1-01' or 'D-001-S1').", target)
+			}
+			return ErrorResult(tool, fmt.Errorf("E-NOT-FOUND: target %s not found in %s or %s", target, core.SessionsDir, core.ResearchDir), fixHint)
 		}
 	}
 
@@ -248,12 +255,13 @@ func handleReviewAudit(ctx context.Context, req *sdkmcp.CallToolRequest, in Revi
 
 		var recordID string
 		var decHash string
-		if strings.HasPrefix(strings.ToUpper(target), "D-") && !reDecisionSessionID.MatchString(strings.ToUpper(target)) {
+		if strings.HasPrefix(strings.ToUpper(target), "D-") && !reDecisionSessionID.MatchString(strings.ToUpper(target)) && (artType == "" || artType == "decision") {
 			recID, h, wErr := core.WriteDecisionChallengeRecord(ws, target, []byte(sessionData), promptStrings)
-			if wErr == nil {
-				recordID = recID
-				decHash = h
+			if wErr != nil {
+				return ErrorResult(tool, fmt.Errorf("E-IO: writing challenge record: %w", wErr), "Check workspace write permissions.")
 			}
+			recordID = recID
+			decHash = h
 		} else {
 			rec := core.ChallengeRecord{
 				TargetID:   target,

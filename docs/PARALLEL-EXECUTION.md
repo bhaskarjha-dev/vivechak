@@ -13,17 +13,25 @@ This guide explains how parallel research execution works, how to detect paralle
 
 ## 2. Detecting Parallel Opportunities
 
-### The `⚡` Parallelism Hint
+### The `parallelism_hint` Field
 
-When calling `vivechak_next`, Vivechak evaluates the dependency graph against completed sessions. If more than one unblocked session is ready to execute, the response includes a **parallelism hint**:
+When calling `vivechak_next`, Vivechak evaluates the dependency graph against completed sessions. If more than one unblocked session is ready to execute, the response envelope's `data` object includes `other_ready_sessions` and `parallelism_hint` (and `next.why` summarizes the ready set):
 
 ```json
 {
-  "session_id": "T1-01",
-  "layer": 1,
-  "other_ready_sessions": ["T1-02", "T1-03"],
-  "parallelism_hint": "⚡ 3 sessions ready to execute in parallel: [T1-01, T1-02, T1-03]. You can spawn subagents to research these simultaneously.",
-  "prompt": "# RESEARCH BRIEF: Primary Database Engine..."
+  "ok": true,
+  "message": "Ready session T1-01: Primary Database Engine",
+  "data": {
+    "session_id": "T1-01",
+    "other_ready_sessions": ["T1-02", "T1-03"],
+    "parallelism_hint": "PARALLEL EXECUTION AVAILABLE: 3 independent sessions can run simultaneously (T1-01, T1-02, T1-03).",
+    "prompt": "# RESEARCH BRIEF: Primary Database Engine..."
+  },
+  "next": {
+    "tool": "vivechak_save",
+    "args": { "kind": "session", "id": "T1-01" },
+    "why": "3 sessions ready in parallel (T1-01, T1-02, T1-03). Execute the prompt for session T1-01 with web search and grade claims A-E. Save with vivechak_save(kind=\"session\", id=\"T1-01\", content=...)."
+  }
 }
 ```
 

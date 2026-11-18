@@ -432,7 +432,7 @@ Sessions failing this rubric should be re-executed with a refined prompt before 
 <!-- docgen:begin evidence-grades-table (generated from internal/method/evidence.json by tools/docgen; do not edit by hand) -->
 | Grade | Label | Description | Allowed Provenance | Gate Impact |
 |---|---|---|---|---|
-| **Grade A** | Primary Empirical | Official specifications, canonical source code, RFCs, or primary documentation with explicit URL anchor. | `fetched, verified` | G6, G7 |
+| **Grade A** | Primary Empirical | Official specifications, canonical source code, RFCs, or primary documentation with explicit URL anchor. | `fetched, human-provided` | G6, G7 |
 | **Grade B** | Secondary Empirical | Peer-reviewed papers, reproducible third-party benchmarks, published postmortems, or corroborated engineering reports. | `fetched, cached` | G6, G7 |
 | **Grade C** | Vendor & Practitioner | Vendor marketing, product whitepapers, vendor benchmarks, conference talks, or interested-party documentation. | `fetched, cached` | Advisory |
 | **Grade D** | Informal & Opinion | Blog posts, forum discussions, StackOverflow answers, or model memory recall (capped at Grade D). | `fetched, cached, recalled` | Advisory |

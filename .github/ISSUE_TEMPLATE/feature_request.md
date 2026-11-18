@@ -10,7 +10,7 @@ assignees: ''
 <!-- What architectural research challenge or friction point does this solve? -->
 
 ## Proposed Enhancement
-<!-- Describe your proposed solution or addition to FRAMEWORK.md / GENERATOR.md / templates. -->
+<!-- Describe your proposed solution or addition to cmd/vivechak, internal/, FRAMEWORK.md, GENERATOR-{PROJECT,DECISION,COMPARISON}.md, or templates/. -->
 
 ## Supporting Evidence / Benchmark
 <!-- Cite research papers, empirical trials, or agent trajectory observations supporting this feature. -->

@@ -3,7 +3,7 @@
 
 ---
 
-## 1. Current State: v0.1.0 (October 2026)
+## 1. Current State: v0.1.0 (November 2026)
 
 **Status:** Hardened Core, battle-tested, and automated via Model Context Protocol (MCP).
 
@@ -73,7 +73,7 @@ Forensic audit and real-world multi-agent dogfooding telemetry uncovered 27 conc
 | **E-33** | MCP / Prompt | **Front-Loaded Trigger Rules in `ServerInstructions`:** Moved mandatory trigger directives to the top of MCP handshake instructions to prevent small-model workflow truncation. | ✅ Resolved |
 | **E-34** | Core / Scope | **Scope Auto-Inference & Shorthand (`scope.go`):** Added prefix matching for `vck`/`vivechak` commands (`plan`, `decide`, `compare`, `vs`), comparative signal precedence, and slang/typo resilience (`shud`, `bw`, etc.) to `InferScope`. | ✅ Resolved |
 | **E-35** | Validation | **Resilient Sources Header Regex (`validate_evidence.go`):** Replaced prefix matching with regex supporting numbered headings and H3 levels. | ✅ Resolved |
-| **E-36** | Packaging | **Scoop Manifest Binary Alignment (`scoop/vivechak.json`):** Aligned reference Scoop manifest to declare `["vivechak.exe", "vck.exe"]` directly. | ✅ Resolved |
+| **E-36** | Packaging | **Scoop Manifest Binary Alignment (`.goreleaser.yml`):** Aligned GoReleaser Scoop manifest config to declare both `vivechak.exe` and `vck.exe` binaries. | ✅ Resolved |
 | **E-37** | Transport | **Stdio Protocol Stream Isolation (`runner.js`, `cli.py`):** Configured `childStdio = ['ignore', 2, 2]` in npm runner and `stdout=sys.stderr` in PyPI runner for child build/extraction processes, preserving fd 1 strictly for MCP JSON-RPC transport. | ✅ Resolved |
 | **E-38** | MCP / Ergonomics | **Comparison Scope Terminal NextStep (`tool_save_plan.go`, `tool_status.go`):** Emits terminal completion upon WEP matrix save, eliminating infinite DAG loops and false gate referrals for 0-gate Comparison Scope. | ✅ Resolved |
 | **E-39** | Workspace | **Auto-Initialization Advisory Lock Guard (`tool_save_plan.go`):** Auto-initialized workspaces now write `research/.gitignore` containing `*.lock` when `vivechak_init` is skipped. | ✅ Resolved |
@@ -92,13 +92,13 @@ Forensic audit and real-world multi-agent dogfooding telemetry uncovered 27 conc
 | **E-52** | MCP / Parameters | **Structured Comparison Envelope, Auto-Slug & Parameter Aliases:** Added structured L1–L2 validation receipts to `save_plan` (`D-06-01`), auto-slug extraction from H1/H2 headers (`D-05-02`), universal parameter aliases (`root`, `id`), and clean uninitialized status semantics (`D-13-01`). | ✅ Resolved |
 | **E-53** | Runner / Watchdog | **Watchdog Calibration & Universal 21-Scenario Verification:** Calibrated Turn 1 timeout to 300s/360s for deep research on reasoning models (`D-AUDIT-01`), verified 100% deterministic MCP conformance pass across all 21 scenarios (64 runs evaluated in Run 27 milestone audit). | ✅ Resolved |
 | **E-54** | MCP / Validator | **Multi-Decision Registry Validation (`tool_save_plan.go`):** Resolved false `V-MISSING-FIELD` blocking warnings when saving `DECISIONS.md` registries. Unified decision extraction via `anchoredRe` and `unanchoredRe` to validate each decision stub individually with decision ID prefixes. | ✅ Resolved |
-| **E-55** | Core / DAG Parser | **Natural-Language Synthesis Dependency Expansion (`dag.go`):** Recognized natural language dependencies like `ALL prior sessions (hard)`, `all previous sessions`, and `*` via `isAllPriorSessions()`, auto-expanding them in `ParsePipeline()` to all preceding sessions in DAG order. | ✅ Resolved |
+| **E-55** | Core / DAG Parser | **Canonical `vivechak-plan` Synthesis Sink (`dag.go`):** Standardized DAG parsing onto the fenced `yaml vivechak-plan` block with explicit `kind: synthesis` terminal sink resolution across `ParsePipeline` and `ValidateDAG`. | ✅ Resolved |
 | **E-56** | Core / Validation | **Status-Aware Seed Decision Validation (`validate.go`):** Suppressed premature `W-NO-EVIDENCE-GRADES` warnings on candidate decision records with `status: proposed` during initial pipeline planning. | ✅ Resolved |
 | **E-57** | MCP / Handoff | **Hardened Tool Directives Against Brain Artifact Writes (`tool_prepare_generator.go`):** Updated `next_step` instructions to explicitly mandate passing generated pipeline content directly to `vivechak_save_plan` and prohibiting local IDE artifact writes. | ✅ Resolved |
 | **E-58** | Core / Validation | **Centralized Decision Registry Validation (`validate.go`, `tool_validate.go`, `tool_save_plan.go`):** Extracted `core.ValidateDecisionRegistry` and `core.ExtractUnanchoredDecisionBlocks` to eliminate false `V-MISSING-FRONTMATTER` errors on multi-decision registries with preambles or `<details>` blocks. Unified registry validation across `tool_validate` and `tool_save_plan`. | ✅ Resolved |
 | **E-59** | Core / Frontmatter | **Collapsible Registry `<details>` Frontmatter Parity (`frontmatter.go`):** Updated `ParseFrontmatter` to support both ````yaml` and standard `---` delimited frontmatter inside `<details>` blocks, and combine inner and outer body text, preventing registry ADR stubs from failing frontmatter extraction. | ✅ Resolved |
 | **E-60** | MCP / Schema | **Tier 3 Planning Guidance & `decisions` Schema Support (`tool_prepare_generator.go`, `tool_validate.go`):** Added explicit guidance in `tool_prepare_generator` permitting internal scratch staging for massive Tier 3 pipelines while strictly forbidding workspace writes outside `research/`. Added `artifact_type="decisions"` schema support and multi-decision auto-detection in `vivechak_validate`. | ✅ Resolved |
-| **E-61** | MCP / Prompts | **Native MCP Prompts & Middleware (`prompts.go`):** Added 4 clean action-verb MCP prompt templates (`compare`, `decision`, `project`, `gate`) with wire-level receiving middleware (`AddReceivingMiddleware`) supporting legacy `vivechak_*` and shorthand `vck_*` aliases with anti-spill directives. | ✅ Resolved |
+| **E-61** | MCP / Prompts | **Native MCP Prompts (`prompts.go`):** Added 4 canonical action-verb MCP prompt templates (`compare`, `decision`, `project`, `gate`) registered on the MCP server. | ✅ Resolved |
 | **E-62** | MCP / Resources | **Canonical Read-Only MCP Resources (`resources.go`):** Added 8 canonical read-only resources via `server.AddResource` (`vivechak://templates/...`, `vivechak://methodology/...`) with MCP SEP-2164 error handling (`ResourceNotFoundError`). | ✅ Resolved |
 | **E-63** | Agent Skills / Rules | **Universal Agent Skill & Rule Templates (`skills/`, `templates/rules/`):** Added standard `agentskills.io` skill manifest (`npx skills add bhaskarjha-dev/vivechak`) and pre-packaged rules for Cursor, Claude Code, and Antigravity, embedded with byte-for-byte root sync. | ✅ Resolved |
 | **E-64** | Supply Chain / Assets | **Supply Chain Hygiene & Social Preview Assets (`dependabot.yml`, `social-preview.*`):** Added weekly automated Go module and GitHub Action updates, and created 1280×640 vector/raster OpenGraph preview assets. | ✅ Resolved |
@@ -180,11 +180,10 @@ Forensic audit and real-world multi-agent dogfooding telemetry uncovered 27 conc
 | **Mandatory Cloud Sync** | Violates workspace-as-database principle. All state must remain local Markdown/Git. | Principle P6 |
 | **HTTP Web Crawling Stack (`vivechak_fetch_source`)** | Host agent harnesses already have built-in web search and retrieval tools. Building an HTTP crawler creates unnecessary bloat. | Principle P4 |
 | **Domain-Based Grade Capping & Diversity Targets** | Refuted by D-UX-02: presence metrics incentivize agents to cite weak, unverified spam to hit quotas, and breaks offline harnesses. | Anti-Gaming Rule |
-| **Blocking Gates on Human Review** | Hard pauses deadlock fully autonomous agent swarms. Implemented as non-blocking advisory warnings. | Guided Worker Pattern |
+| **In-Band Agent Self-Signoff** | Allowing AI agents to set `human_reviewed: true` via MCP tools defeats human accountability on One-Way Doors. Agents are blocked via `E-HUMAN-ONLY-FIELD`; human sign-off runs out-of-band via interactive `vck signoff` (enforced by Gate Rule G11). | Out-of-Band Terminal Attestation (`vck signoff`) |
 | **Consolidation of 30 Files into 3 Files** | Destroys DAG modularity, granular upstream injection, and isolated git diff tracking. | Principle P1 |
 | **Hardcoded Domain Archetype Heuristics** | Prescribing fixed search queries violates Principle P4. Frontier models generate domain probes dynamically. | Principle P4 |
 | **4D Reversibility Tensor** | Unnecessary mathematical over-engineering; binary door classification with R/N/B/X profiling is robust and intuitive. | Simplicity / Pragmatism |
-| **MCP Resources & MCP Prompts (`resources.go`/`prompts.go`)** | Redundant surface. Workspace files are accessible via standard host file tools; prompts are delivered via tool responses. | Lean MCP Surface |
 | **Shadow State Files (`.vivechak-state.json`)** | Violates Principle P6 (Dual-Audience Artifacts). Creates hidden shadow state that desynchronizes from Markdown. All state is derived directly from the filesystem and artifact frontmatter. | Principle P6 & D-UX-02 |
 | **Lexical Grade-Distribution Bell Curves (e.g. >70% Grade A Cap)** | Violates ADR D-UX-02 and empirical systematic review methodologies (Jüni et al. JAMA 1999, AMSTAR 2 BMJ 2017). Distribution quotas penalize rigorous primary specification citation (RFCs, official docs) and incentivize agents to cite low-quality secondary blogs to hit distribution targets. | Provenance Anchor Verification |
 | **Arbitrary ADR Character Length Thresholds (e.g. <200 chars)** | Violates ADR D-UX-02. Raw character counts reward verbosity and boilerplate while penalizing dense, high-information architectural rationale. | Structural Presence Checks (Context, Options, Rationale, Triggers) |
@@ -239,7 +238,7 @@ For Two-Way Door decisions that require empirical benchmarks rather than literat
 
 Architectural Decision Records in Vivechak contain explicit **reversal triggers** and **scheduled review dates**:
 - Background sentinels (GitHub Actions / scheduled CI jobs) periodically check upstream dependencies, security CVE databases, and major version releases.
-- If a reversal condition is met (e.g., library deprecated, upstream pricing modified >30%), an automated issue is opened with a pre-filled `vivechak_challenge` prompt.
+- If a reversal condition is met (e.g., library deprecated, upstream pricing modified >30%), an automated issue is opened with a pre-filled `vivechak_review(mode="red_team")` prompt.
 
 ---
 
@@ -262,8 +261,8 @@ Vivechak is intentionally harness-agnostic. By speaking standard MCP over `stdio
 Vivechak is governed by three architectural pillars:
 
 1. **Workspace As Database (P6):** There is no hidden internal database (`.vivechak/state.json`). The `research/` folder, its Markdown session files, and YAML frontmatters ARE the database. It is 100% inspectable, diffable, and version-controllable via Git.
-2. **Guided Worker Pattern:** The MCP server never dictates rigid turn-by-turn state machines or throws hard errors for "wrong order." Every tool returns a constructive `next_step` guidance string to orchestrate autonomous agents smoothly.
-3. **Zero-Dependency Core:** The Go implementation relies solely on the standard library and official MCP SDK. It compiles to a standalone, zero-dependency binary that launches in 10ms with zero runtime overhead.
+2. **Guided Worker Pattern:** The MCP server never dictates rigid turn-by-turn state machines or throws hard errors for "wrong order." Every successful tool call returns a structured `next` (`{tool, args, why}`) action object to orchestrate autonomous agents smoothly.
+3. **Minimal-Dependency Static Core:** The Go implementation compiles with `CGO_ENABLED=0` to a standalone, zero-runtime-dependency binary using only the Go standard library, the official MCP Go SDK, `flock`, `hujson`, `x/term`, and `yaml.v3`.
 
 ---
 
@@ -312,7 +311,7 @@ Future (v1.0.0)    First LTS release — frozen MCP tool schemas, locked templat
 
 - **Phase 4 (Framework Polish):** Pipeline failure modes documented, calibration loops added to P8, change propagation map instituted.
 - **Phase 4.5 (Multi-Scope Expansion):** Decision-scope generator (`GENERATOR-DECISION.md`) and comparison generator (`GENERATOR-COMPARISON.md`) created; Admiralty-Code evidence grading formalized; `CORE:BEGIN/END` markers aligned across all generators.
-- **Phase 5 (MCP Server Automation):** Single-binary Go MCP server with 9 consolidated tools (and transparent legacy alias redirects), atomic I/O, advisory locking, and automated Phase 0 gate evaluation.
+- **Phase 5 (MCP Server Automation):** Single-binary Go MCP server with 9 consolidated tools, 4 prompts, 8 read-only resources, atomic I/O, advisory locking, out-of-band human sign-off (`vck signoff`), and automated Phase 0 gate evaluation (G1–G12).
 
 ### Source Material Extraction Status
 

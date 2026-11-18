@@ -32,19 +32,19 @@ vck setup cursor --dry-run
 
 `vck setup` automatically resolves the target configuration file, detects whether global or workspace scope is active, formats Windows/macOS/Linux paths cleanly, and merges the Vivechak MCP server block without overwriting existing servers.
 
-### Universal Agent Skill (`npx skills add`) (coming soon)
+### Universal Agent Skill (`npx skills add`)
 For agent harnesses that support decentralized skills (Claude Code, Cursor, Antigravity, OpenCode), install Vivechak's skill directly:
 ```sh
-npx skills add bhaskarjha-dev/vivechak        # coming soon
+npx skills add bhaskarjha-dev/vivechak
 ```
 This automatically installs the calibrated agent playbook (`skills/vivechak/SKILL.md`) into your workspace or global skill catalog.
 
-### Smithery CLI (`@smithery/cli`) (coming soon)
+### Smithery CLI (`@smithery/cli`)
 If you use [Smithery.ai](https://smithery.ai) for automatic MCP client discovery and installation:
 ```sh
-npx -y @smithery/cli install @bhaskarjha-dev/vivechak --client cursor   # coming soon
+npx -y @smithery/cli install @bhaskarjha-dev/vivechak --client cursor
 # Or for Claude Desktop:
-npx -y @smithery/cli install @bhaskarjha-dev/vivechak --client claude   # coming soon
+npx -y @smithery/cli install @bhaskarjha-dev/vivechak --client claude
 ```
 
 ### Native MCP Prompts & Slash Commands
@@ -84,37 +84,41 @@ Output:
 }
 ```
 
-#### Ephemeral Runners (Zero Local Binary Installation) (coming soon)
+#### Ephemeral Runners (Zero Local Binary Installation)
 
-If you prefer not to install the binary onto your system `$PATH`, you will be able to configure any host to run Vivechak on the fly. The npm and PyPI packages and the container image are not published yet, so every runner below is coming soon; until then, install the binary (shell installer, Linux package or `go install`) and use `vck mcp-config`.
+If you prefer not to install the binary onto your system `$PATH`, configure any host to run Vivechak on the fly via `npx`, `uvx`, or Docker:
 
+**Via `npx` (Node.js):**
 ```json
-// Via npx (Node.js) (coming soon)
 {
   "mcpServers": {
     "vivechak": {
-      "command": "npx",                                     // coming soon
-      "args": ["-y", "vivechak", "serve"]                   // coming soon
+      "command": "npx",
+      "args": ["-y", "vivechak", "serve"]
     }
   }
 }
+```
 
-// Via uvx (Python) (coming soon)
+**Via `uvx` (Python):**
+```json
 {
   "mcpServers": {
     "vivechak": {
-      "command": "uvx",                                     // coming soon
-      "args": ["vck", "serve"]                              // coming soon
+      "command": "uvx",
+      "args": ["vck", "serve"]
     }
   }
 }
+```
 
-// Via Docker (Containers / Cloud Agent Sandboxes) (coming soon); replace <uid>:<gid> with the output of: echo "$(id -u):$(id -g)"
+**Via Docker (Containers / Cloud Agent Sandboxes)** — replace `<uid>:<gid>` with the output of `echo "$(id -u):$(id -g)"`:
+```json
 {
   "mcpServers": {
     "vivechak": {
-      "command": "docker",                                  // coming soon
-      "args": ["run", "-i", "--rm", "--user", "<uid>:<gid>", "-e", "VIVECHAK_PROJECT_ROOT=/workspace", "-v", "${workspaceFolder}:/workspace", "ghcr.io/bhaskarjha-dev/vck:latest", "serve"]   // coming soon
+      "command": "docker",
+      "args": ["run", "-i", "--rm", "--user", "<uid>:<gid>", "-e", "VIVECHAK_PROJECT_ROOT=/workspace", "-v", "${workspaceFolder}:/workspace", "ghcr.io/bhaskarjha-dev/vck:latest", "serve"]
     }
   }
 }

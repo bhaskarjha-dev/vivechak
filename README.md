@@ -34,7 +34,7 @@ vck setup claude-code   # run in your project; or cursor, vscode, claude-desktop
 # then ask your agent: "Use Vivechak to compare Pino and Winston for our Node.js service."
 vck gate                # NOT_APPLICABLE after a comparison; PASS or FAIL with reasons once there is a decision
 ```
-Windows: `irm https://raw.githubusercontent.com/bhaskarjha-dev/vivechak/main/install.ps1 | iex`. Also available: the [release archives](https://github.com/bhaskarjha-dev/vivechak/releases) and deb/rpm/apk/Arch packages, and `go install github.com/bhaskarjha-dev/vivechak/cmd/vivechak@latest` (installs `vivechak`; use it in place of `vck`). Homebrew, npm (`npx`), PyPI (`uvx`), Scoop, winget, Docker, Nix and Smithery: coming soon. Any other MCP host: `vck setup <path-to-its-mcp-config>` ([hosts](docs/hosts.md)).
+Windows: `irm https://raw.githubusercontent.com/bhaskarjha-dev/vivechak/main/install.ps1 | iex`. Also available via Homebrew (`brew install --cask bhaskarjha-dev/tap/vivechak`), npm (`npx -y vivechak …`), PyPI (`uvx vck …`), Scoop (`scoop bucket add vivechak https://github.com/bhaskarjha-dev/scoop-bucket && scoop install vivechak`), WinGet (`winget install bhaskarjha-dev.Vivechak`), Docker (`ghcr.io/bhaskarjha-dev/vivechak`), Nix (`nix run github:bhaskarjha-dev/vivechak`), Agent Skills (`npx skills add bhaskarjha-dev/vivechak`), Smithery, the [release archives](https://github.com/bhaskarjha-dev/vivechak/releases), deb/rpm/apk/Arch packages, and `go install github.com/bhaskarjha-dev/vivechak/cmd/vivechak@latest` (see [Quickstart](docs/QUICKSTART.md)). Any other MCP host: `vck setup <path-to-its-mcp-config>` ([hosts](docs/hosts.md)).
 
 ## How it works
 - **Three scopes.** `vivechak_start` gives the agent a research brief for a *comparison* (2–5 named options → weighted matrix in `research/C-NNN-comparison.md`), a *decision* (1–3 sessions → ADR in `research/D-NNN-decision.md`) or a *project* (session plan → `research/FAD.md`). Hosts that show MCP prompts also offer `compare`, `decision`, `project` and `gate`.
@@ -62,6 +62,9 @@ Windows: `irm https://raw.githubusercontent.com/bhaskarjha-dev/vivechak/main/ins
 |---|---|---|
 | `install.sh` (macOS, Linux) | Re-run the install command | `sudo rm /usr/local/bin/vivechak /usr/local/bin/vck` (or the same two files in `~/.local/bin`) |
 | `install.ps1` (Windows) | Re-run the install command | Delete `%LOCALAPPDATA%\Programs\vivechak` and remove it from your user `PATH` |
+| Homebrew | `brew update && brew upgrade --cask bhaskarjha-dev/tap/vivechak` | `brew uninstall --cask bhaskarjha-dev/tap/vivechak` |
+| WinGet / Scoop | `winget upgrade bhaskarjha-dev.Vivechak` or `scoop update vivechak` | `winget uninstall bhaskarjha-dev.Vivechak` or `scoop uninstall vivechak` |
+| `npx` / `uvx` / Docker / Nix | Ephemeral runners pull the latest release (`docker pull ghcr.io/bhaskarjha-dev/vivechak:latest` for cached images) | Remove cached image/cache if desired (`~/.cache/vivechak` or `%LOCALAPPDATA%\vivechak`) |
 | Release archive | Replace both binaries with the new archive's | Delete both binaries |
 | deb, rpm, apk, Arch package | Install the new package file (`sudo dpkg -i`, `sudo rpm -U`, `sudo apk add --allow-untrusted`, `sudo pacman -U`) | `sudo apt remove vivechak`, `sudo dnf remove vivechak`, `sudo apk del vivechak` or `sudo pacman -R vivechak` |
 | `go install` | Run the `go install …@latest` command again | `rm "$(go env GOPATH)/bin/vivechak"` |

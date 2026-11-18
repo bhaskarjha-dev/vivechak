@@ -146,5 +146,13 @@ jobs:
           python -m build pypi/vivechak
           python -m build pypi/vck
           twine check pypi/vivechak/dist/* pypi/vck/dist/*
-      # Docker and Nix are labelled "coming soon" in the docs, so this dry run builds neither (CRIT-03);
-      # add `docker build` plus a container smoke and `nix build .#vivechak` before advertising them.
+      - name: Docker build and container smoke-test
+        run: |
+          docker build --build-arg VERSION=0.1.0-ci -t vivechak:ci .
+          docker run --rm --user "$(id -u):$(id -g)" -e VIVECHAK_PROJECT_ROOT=/workspace vivechak:ci version
+      - uses: cachix/install-nix-action@v31
+      - name: Nix flake build and smoke-test
+        run: |
+          nix build .#vivechak --print-build-logs
+          ./result/bin/vivechak version
+          ./result/bin/vck version

@@ -1,9 +1,11 @@
 .git
 .github
+.agents
+.gemini
 bin
 coverage
 dist
 docker-dist
 temp
-.gemini
+tests/harness/runs
 *.log

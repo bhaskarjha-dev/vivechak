@@ -5,7 +5,7 @@
       "grade": "A",
       "label": "Primary Empirical",
       "description": "Official specifications, canonical source code, RFCs, or primary documentation with explicit URL anchor.",
-      "provenance": ["fetched", "verified"],
+      "provenance": ["fetched", "human-provided"],
       "gate_satisfies": ["G6", "G7"]
     },
     {

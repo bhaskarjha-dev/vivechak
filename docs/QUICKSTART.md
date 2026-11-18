@@ -29,41 +29,41 @@ Give your AI coding agent (Cursor, VS Code, Claude Desktop, Antigravity, etc.) d
 
 **Instant / Ephemeral Runners (Zero Pre-Installation Required):**
 ```sh
-# Node.js / npx (macOS, Linux, Windows) (coming soon)
-npx -y vivechak serve                         # coming soon
+# Node.js / npx (macOS, Linux, Windows)
+npx -y vivechak serve
 
-# Python / uvx (macOS, Linux, Windows) (coming soon)
-uvx vck serve                                 # or: uvx vivechak serve (both coming soon)
+# Python / uvx (macOS, Linux, Windows)
+uvx vck serve                                 # or: uvx vivechak serve
 
-# Universal Agent Skill (Claude Code, Cursor, Antigravity, OpenCode) (coming soon)
-npx skills add bhaskarjha-dev/vivechak        # coming soon
+# Universal Agent Skill (Claude Code, Cursor, Antigravity, OpenCode)
+npx skills add bhaskarjha-dev/vivechak
 
-# Docker / Cloud Agents (Devin, OpenHands, CI) (coming soon)
-docker run -i --rm --user "$(id -u):$(id -g)" -e VIVECHAK_PROJECT_ROOT=/workspace -v "${PWD}:/workspace" ghcr.io/bhaskarjha-dev/vck:latest serve   # coming soon
+# Docker / Cloud Agents (Devin, OpenHands, CI)
+docker run -i --rm --user "$(id -u):$(id -g)" -e VIVECHAK_PROJECT_ROOT=/workspace -v "${PWD}:/workspace" ghcr.io/bhaskarjha-dev/vck:latest serve
 ```
 
 **Or Native Install via Package Managers:**
 ```sh
-# Homebrew (macOS & Linuxbrew) (coming soon)
-brew install bhaskarjha-dev/tap/vivechak       # coming soon
+# Homebrew (macOS & Linuxbrew)
+brew install --cask bhaskarjha-dev/tap/vivechak
 
-# Windows (WinGet or Scoop) (coming soon)
-winget install bhaskarjha-dev.Vivechak        # coming soon
-scoop bucket add vivechak https://github.com/bhaskarjha-dev/scoop-bucket && scoop install vivechak   # coming soon
+# Windows (WinGet or Scoop)
+winget install bhaskarjha-dev.Vivechak
+scoop bucket add vivechak https://github.com/bhaskarjha-dev/scoop-bucket && scoop install vivechak
 
 # Debian / Ubuntu (.deb) & Fedora / RHEL (.rpm)
 sudo dpkg -i vivechak_0.1.0_linux_amd64.deb   # Debian / Ubuntu
 sudo rpm -i vivechak_0.1.0_linux_amd64.rpm    # Fedora / RHEL
 
-# Nix / NixOS (coming soon)
-nix run github:bhaskarjha-dev/vivechak         # coming soon
+# Nix / NixOS
+nix run github:bhaskarjha-dev/vivechak
 
 # Direct Shell Installers
 curl -fsSL https://raw.githubusercontent.com/bhaskarjha-dev/vivechak/main/install.sh | sh      # macOS/Linux
 irm https://raw.githubusercontent.com/bhaskarjha-dev/vivechak/main/install.ps1 | iex           # Windows
 ```
 
-**Or Build from Source (Go 1.26.11, or any Go with GOTOOLCHAIN=auto):**
+**Or Build from Source (Go 1.26+, toolchain Go 1.26.11):**
 ```sh
 # Clone and build locally with zero external C dependencies:
 git clone https://github.com/bhaskarjha-dev/vivechak.git
@@ -142,17 +142,17 @@ See the [MCP Tools Reference](MCP-TOOLS.md) for full tool schemas, parameter spe
 ### Upgrade & Uninstall
 
 **To upgrade Vivechak:**
-- **Homebrew (macOS & Linux):** `brew update && brew upgrade bhaskarjha-dev/tap/vivechak` (coming soon)
+- **Homebrew (macOS & Linux):** `brew update && brew upgrade --cask bhaskarjha-dev/tap/vivechak`
 - **Windows (PowerShell):** Re-run installer: `irm https://raw.githubusercontent.com/bhaskarjha-dev/vivechak/main/install.ps1 | iex`
 - **Linux / macOS Shell:** Re-run installer: `curl -fsSL https://raw.githubusercontent.com/bhaskarjha-dev/vivechak/main/install.sh | sh`
-- **WinGet / Scoop:** `winget upgrade bhaskarjha-dev.Vivechak` or `scoop update vivechak` (coming soon)
+- **WinGet / Scoop:** `winget upgrade bhaskarjha-dev.Vivechak` or `scoop update vivechak`
 - **Go toolchain:** `go install github.com/bhaskarjha-dev/vivechak/cmd/vivechak@latest`
-- **Zero-install runners (`npx` / `uvx`, coming soon):** Always run the latest package automatically.
+- **Zero-install runners (`npx` / `uvx`):** Always run the latest package automatically.
 
 **To uninstall:**
 1. **Remove binary:**
-   - Homebrew: `brew uninstall bhaskarjha-dev/tap/vivechak` (coming soon)
-   - WinGet / Scoop: `winget uninstall bhaskarjha-dev.Vivechak` or `scoop uninstall vivechak` (coming soon)
+   - Homebrew: `brew uninstall --cask bhaskarjha-dev/tap/vivechak`
+   - WinGet / Scoop: `winget uninstall bhaskarjha-dev.Vivechak` or `scoop uninstall vivechak`
    - Shell / Manual: Delete `vck` (and `vivechak`) from your binary directory (e.g. `~/.local/bin/vck` or `%LOCALAPPDATA%\Programs\vivechak\vck.exe`).
 2. **Remove MCP configuration:**
    - Delete the `"vivechak"` block from your host config file (e.g. `.cursor/mcp.json`, `.vscode/mcp.json`, `~/.claude.json`), or restore the automatic `<config>.vivechak-bak-<timestamp>` backup created during `vck setup`.

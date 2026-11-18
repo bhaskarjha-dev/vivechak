@@ -1,0 +1,29 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.defaultLocale.1.6.0.schema.json
+PackageIdentifier: bhaskarjha-dev.Vivechak
+PackageVersion: 0.1.0
+PackageLocale: en-US
+Publisher: bhaskarjha-dev
+PublisherUrl: https://github.com/bhaskarjha-dev
+PublisherSupportUrl: https://github.com/bhaskarjha-dev/vivechak/issues
+PackageName: Vivechak
+PackageUrl: https://github.com/bhaskarjha-dev/vivechak
+License: MIT
+LicenseUrl: https://github.com/bhaskarjha-dev/vivechak/blob/main/LICENSE
+ShortDescription: Evidence-graded technical decisions for AI coding agents — MCP server & CLI (vck)
+Description: |-
+  Vivechak is an epistemic grounding meta-framework, Model Context Protocol (MCP) server,
+  and CLI (vck / vivechak) that structures evidence-graded technical research, Architecture
+  Decision Records (ADRs), and pre-coding Phase 0 exit gates across comparisons, decisions,
+  and full system architectures.
+Moniker: vck
+Tags:
+  - adr
+  - ai
+  - architecture
+  - cli
+  - decision-making
+  - mcp
+  - research
+ReleaseNotesUrl: https://github.com/bhaskarjha-dev/vivechak/releases/tag/v0.1.0
+ManifestType: defaultLocale
+ManifestVersion: 1.6.0

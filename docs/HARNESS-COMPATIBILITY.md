@@ -37,8 +37,8 @@ Vivechak is built from the ground up to be **harness-agnostic**. It communicates
 | **CLI Terminal Agents** | Claude Code, OpenCode, Block Goose, `agy` CLI, OpenHands, Aider | ✅ Full (Production) | `vck setup <preset>` or stdio launch | High-speed terminal workflows; supports script piping. |
 | **Open-Source Code Assistants** | Continue.dev (VS Code & JetBrains), Cline, Roo Code | ✅ Full (Production) | `vck setup roo`; Continue and Cline: `vck setup <path>` | Modular MCP configuration; zero cloud lock-in. |
 | **Cloud Background Agents** | Devin, Factory Droid, GitHub Workspaces | ✅ Full (Production) | Pre-installed binary via `install.sh` + `vck mcp-config` | Autonomous headless execution through Phase 0 Gate. |
-| **Parallel-Agent Swarms** | Subagent spawning (Antigravity subagents, Claude Code task agents) | ✅ Full (Production) | Inherited MCP server or spawned processes | Safe concurrent writes via advisory locking; `⚡` parallel hints. |
-| **Multi-Agent Frameworks** | CrewAI, LangGraph, AutoGen | ✅ Compatible | Custom MCP client connector | Map research sessions to agent roles (e.g., Critic runs `challenge`). |
+| **Parallel-Agent Swarms** | Subagent spawning (Antigravity subagents, Claude Code task agents) | ✅ Full (Production) | Inherited MCP server or spawned processes | Safe concurrent writes via advisory locking; `parallelism_hint` in `vivechak_next`. |
+| **Multi-Agent Frameworks** | CrewAI, LangGraph, AutoGen | ✅ Compatible | Custom MCP client connector | Map research sessions to agent roles (e.g., Critic runs `vivechak_review(mode="red_team")`). |
 | **CI/CD Pipelines** | GitHub Actions, GitLab CI | ✅ Compatible | Headless CLI (`vck doctor`, `vck gate`) | Fail CI builds if Phase 0 Gate criteria are not satisfied. |
 | **Agent SDKs & Runtimes** | Google Genkit, Microsoft ADK, Mastra | ✅ Compatible | SDK MCP client connectors | Programmatic pipeline execution and decision recording. |
 | **Web-Based Agents** | LibreChat, ChatGPT (Web MCP), Gemini Advanced | ⚠️ Rollout-Dependent | Web MCP connector / `librechat.yaml` | Functionality matches host's MCP rollout status. |
@@ -215,7 +215,7 @@ Add to `.void/mcp.json` (Void) or `~/.copilot/mcp-config.json` (Copilot):
 ```
 
 ### Google Antigravity
-Vivechak binary is detected on `PATH`. Add to `.gemini/antigravity-ide/mcp_config.json`:
+Vivechak binary is detected on `PATH`. Configure via `vck setup agy` or add to `~/.gemini/config/mcp_config.json` (global) or `.agents/mcp_config.json` (workspace):
 ```json
 {
   "mcpServers": {

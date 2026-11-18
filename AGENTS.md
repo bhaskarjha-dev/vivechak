@@ -241,7 +241,7 @@ vivechak/
 │
 ├── scripts/run_harness.mjs         ← Multi-harness test runner CLI (--auto, --probe, etc.)
 │
-├── Formula/ · scoop/ · winget/     ← Package manager manifests
+├── winget/ · server.json           ← WinGet & MCP Registry manifests
 │
 └── .github/
     ├── workflows/ci.yml · release.yml

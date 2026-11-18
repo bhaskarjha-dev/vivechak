@@ -128,8 +128,8 @@ func decisionADRExists(ws *store.Workspace, id string) bool {
 }
 
 // placeholderRefRe matches a reference whose decision part is a placeholder (NEW, NNN, XXX or TBD, any case, with
-// or without the D- prefix): a decision ("D-NNN") or one of its sessions ("D-NNN-S1", "d-tbd-s2-landscape").
-var placeholderRefRe = regexp.MustCompile(`(?i)^(?:D-)?(?:NEW|NNN|XXX|TBD)(-S\d+(?:[-_][A-Za-z0-9_-]*)?)?$`)
+// or without the D- prefix): a decision ("D-NNN"), its plan ("D-NNN-plan"), or one of its sessions ("D-NNN-S1", "d-tbd-s2-landscape").
+var placeholderRefRe = regexp.MustCompile(`(?i)^(?:D-)?(?:NEW|NNN|XXX|TBD)(-S\d+(?:[-_][A-Za-z0-9_-]*)?|-plan(?:\.md)?)?$`)
 
 // placeholderRefFix is the next step when a placeholder reference cannot be resolved.
 const placeholderRefFix = "Save the decision plan first (vivechak_save kind=\"plan\"; vivechak_start returns the decision id), " +
@@ -161,7 +161,8 @@ func resolvePlaceholderRef(ss *sdkmcp.ServerSession, ws *store.Workspace, root, 
 	if m == nil {
 		return raw, false, nil
 	}
-	if m[1] == "" && !allowDecision {
+	isPlan := strings.HasPrefix(strings.ToLower(m[1]), "-plan")
+	if (m[1] == "" || isPlan) && !allowDecision {
 		return "", false, fmt.Errorf("E-ID-INVALID: %q is a placeholder decision id, not a session id (sessions are <decision>-S<n>, e.g. D-001-S1)", raw)
 	}
 	did := sessionDecisionID(ss, ws, root)
@@ -170,6 +171,9 @@ func resolvePlaceholderRef(ss *sdkmcp.ServerSession, ws *store.Workspace, root, 
 	}
 	if m[1] == "" {
 		return did, true, nil
+	}
+	if isPlan {
+		return did + "-plan", true, nil
 	}
 	return did + "-S" + m[1][2:], true, nil
 }

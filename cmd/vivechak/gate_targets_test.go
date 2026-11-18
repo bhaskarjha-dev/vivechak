@@ -362,10 +362,21 @@ func TestGateChallengeRecord_LiveSubprocess(t *testing.T) {
 
 	gtMustCall(t, ctx, cs, "vivechak_start", map[string]any{"scope": "decision", "question": "Primary datastore"})
 	gtMustCall(t, ctx, cs, "vivechak_save", map[string]any{"kind": "plan", "id": "D-001", "content": wgDecisionPlan("D-001", "Primary datastore")})
+	valPlan := gtMustCall(t, ctx, cs, "vivechak_review", map[string]any{"mode": "validate", "id": "D-001-plan"})
+	if valPlan.Data["artifact_type"] != "plan" || valPlan.Data["valid"] != true {
+		t.Fatalf("expected vivechak_review(validate, id=D-001-plan) to validate the saved decision plan, got: %+v", valPlan.Data)
+	}
 	gtMustCall(t, ctx, cs, "vivechak_save", map[string]any{"kind": "session", "id": "D-001-S1", "content": wgSession("D-001-S1", "D-001", "Landscape")})
 	gtMustCall(t, ctx, cs, "vivechak_save", map[string]any{"kind": "session", "id": "D-001-S2", "content": wgSession("D-001-S2", "D-001", "Falsify")})
+	if premature, isErr := wgCall(t, ctx, cs, "vivechak_review", map[string]any{"mode": "red_team", "id": "D-001"}); !isErr || premature.Code != "E-NOT-FOUND" {
+		t.Fatalf("expected red_team(D-001) before ADR is recorded to fail with E-NOT-FOUND, got isError=%v code=%q msg=%q", isErr, premature.Code, premature.Message)
+	}
+	if _, statErr := os.Stat(filepath.Join(dir, "research", "D-001-R1.md")); !os.IsNotExist(statErr) {
+		t.Fatalf("expected no D-001-R1.md written before ADR exists, got stat err=%v", statErr)
+	}
 	adr := wgADR("D-001", "Primary datastore", "accepted", "one-way", "D-001-S1", "D-001-S2")
-	gtMustCall(t, ctx, cs, "vivechak_record_decision", map[string]any{"id": "D-001", "content": adr})
+	// Use a slug sorting after "-plan" ("storage-engine" > "plan") so D-001-plan.md precedes D-001-storage-engine.md in directory order.
+	gtMustCall(t, ctx, cs, "vivechak_record_decision", map[string]any{"id": "D-001", "slug": "storage-engine", "content": adr})
 
 	red := gtMustCall(t, ctx, cs, "vivechak_review", map[string]any{"mode": "red_team", "id": "D-001"})
 	recID, _ := red.Data["record_id"].(string)

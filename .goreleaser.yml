@@ -264,6 +264,7 @@ homebrew_casks:
       owner: bhaskarjha-dev
       name: homebrew-tap
       token: "{{ .Env.TAP_GITHUB_TOKEN }}"
+    skip_upload: auto
     directory: Casks
     homepage: https://github.com/bhaskarjha-dev/vivechak
     description: Evidence-grounded research for technical decisions — MCP server
@@ -287,6 +288,7 @@ scoops:
       owner: bhaskarjha-dev
       name: scoop-bucket
       token: "{{ .Env.TAP_GITHUB_TOKEN }}"
+    skip_upload: auto
     homepage: https://github.com/bhaskarjha-dev/vivechak
     description: Evidence-grounded research for technical decisions — MCP server
     license: MIT
