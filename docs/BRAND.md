@@ -133,6 +133,10 @@ docs/assets/
 ├── logo-dark.svg      ← Reversed Mark (Warm Paper + Saffron) for dark backgrounds
 ├── logo-mono.svg      ← Monochrome Mark (Carbon Black) for single-color reproduction
 ├── favicon.svg        ← 32×32 Optical Cut for favicons, browser tabs, and desktop shortcuts
+├── wordmark-light.svg ← Pure-vector Devanagari wordmark for light surfaces (zero font dependency)
+├── wordmark-dark.svg  ← Pure-vector Devanagari wordmark for dark surfaces (zero font dependency)
+├── workflow-light.svg ← 1080×264 5-Stage Lifecycle Diagram for light GitHub/docs surfaces
+├── workflow-dark.svg  ← 1080×264 5-Stage Lifecycle Diagram for dark GitHub/docs surfaces
 ├── social-preview.svg ← 1280×640 Vector Master for high-DPI social banners & presentations
 └── social-preview.png ← 1280×640 OpenGraph raster banner for GitHub and social unfurls
 ```

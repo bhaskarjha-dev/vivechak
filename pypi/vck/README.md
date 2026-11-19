@@ -1,28 +1,27 @@
-# vck — Shorthand CLI for Vivechak (विवेचक)
+# `vck` — Shorthand CLI for Vivechak
 
 <!-- mcp-name: io.github.bhaskarjha-dev/vivechak -->
 
-> **Evidence-grounded research for technical decisions — Autonomous Model Context Protocol (MCP) server.**
+**Evidence-graded technical decisions for AI coding agents — researched, challenged, and gated in Markdown before you write code.**
 
-Official Python shorthand alias package for **Vivechak**. Automatically proxies to `vivechak`, fetching and executing the native pre-compiled Go engine.
+Official shorthand companion package for [**`vivechak`**](https://pypi.org/project/vivechak/). Installing or invoking `vck` delegates directly to `vivechak`, downloading, SHA-256-verifying, and caching the native Go MCP server and CLI binary for your platform.
 
 ---
 
-## Quickstart
-
-### 1. Run Directly via `uvx` (Zero Pre-Installation)
+## 1. Quickstart (`uvx vck`)
 
 ```bash
-# Run MCP server over stdio for AI hosts
-uvx vck serve
+# Configure your AI coding host in one command (10 verified presets)
+uvx vck setup claude-code   # or: cursor, vscode, claude, agy, windsurf, zed, roo, opencode, goose
 
-# Or install Universal Agent Skill (Cursor, Claude Code, Antigravity, OpenCode)
-npx skills add bhaskarjha-dev/vivechak
+# Run workspace diagnostics and pre-code Phase 0 Gate checks (CI-ready; exits 1 on FAIL)
+uvx vck doctor
+uvx vck gate
 ```
 
-### 2. Configure in Your AI Host / IDE
+---
 
-Add to your MCP host configuration:
+## 2. MCP Host Configuration
 
 ```json
 {
@@ -37,32 +36,6 @@ Add to your MCP host configuration:
 
 ---
 
-## CLI Commands
+## Documentation & License
 
-You can run developer subcommands directly:
-
-```bash
-# Workspace integrity checker
-uvx vck doctor
-
-# Headless Phase 0 exit gate evaluation (CI-ready)
-uvx vck gate --track all
-
-# 1-second host auto-configuration across 10 presets
-uvx vck setup cursor
-uvx vck setup claude
-uvx vck setup agy
-
-# Output universal MCP JSON configuration
-uvx vck mcp-config
-```
-
----
-
-## Documentation & Repository
-
-For complete documentation, methodology, MCP tools reference, and templates, visit the [Vivechak GitHub Repository](https://github.com/bhaskarjha-dev/vivechak).
-
-## License
-
-[MIT](https://github.com/bhaskarjha-dev/vivechak/blob/main/LICENSE) © [Bhaskar Jha](https://bhaskarjha.dev)
+Full documentation, 3-scope workflows (`Comparison`, `Decision`, `Project`), 9 MCP tool schemas, and Gate rules (`G1`–`G12`): **[github.com/bhaskarjha-dev/vivechak](https://github.com/bhaskarjha-dev/vivechak)** · [MIT](https://github.com/bhaskarjha-dev/vivechak/blob/main/LICENSE) © [Bhaskar Jha](https://bhaskarjha.dev).

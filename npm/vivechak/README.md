@@ -1,26 +1,34 @@
-# Vivechak (विवेचक)
+# Vivechak (`vck`)
 
-> **Evidence-grounded research for technical decisions — Autonomous Model Context Protocol (MCP) server.**
+**Evidence-graded technical decisions for AI coding agents — researched, challenged, and gated in Markdown before you write code.**
 
-Official Node.js binary runner for **Vivechak** (providing CLI binaries `vivechak` and alias `vck`). Automatically fetches and caches the pre-compiled, zero-dependency native Go binary for your OS and architecture (`darwin`, `linux`, `windows`, `freebsd`).
+Official Node.js runner for **Vivechak** (exposing both `vivechak` and shorthand CLI `vck`). Automatically downloads, SHA-256-verifies, and caches the pre-compiled static Go binary for your OS and architecture (`darwin`, `linux`, `windows`, `freebsd`) while keeping `stdout` 100% clean for MCP JSON-RPC over `stdio`.
 
 ---
 
-## Quickstart
-
-### 1. Run Instantly with `npx` (Zero Pre-Installation)
+## 1. Quickstart (`npx`)
 
 ```bash
-# Run MCP server over stdio for AI hosts
-npx -y vivechak serve
+# Configure your AI coding host in one command (10 verified presets)
+npx -y vivechak setup claude-code   # or: cursor, vscode, claude, agy, windsurf, zed, roo, opencode, goose
 
-# Or install Universal Agent Skill (Cursor, Claude Code, Antigravity, OpenCode)
+# Optional: install the Universal Agent Skill playbook
 npx skills add bhaskarjha-dev/vivechak
+
+# Check workspace integrity and evaluate the pre-code Phase 0 Gate (exits 1 on FAIL)
+npx -y vivechak doctor
+npx -y vivechak gate
 ```
 
-### 2. Configure in Your AI Host / IDE
+If installed globally (`npm install -g vivechak`), both `vck` and `vivechak` are linked into your `PATH`.
 
-#### Cursor IDE (`~/.cursor/mcp.json` or `.cursor/mcp.json`)
+---
+
+## 2. Zero-Install Host Configuration (`npx -y vivechak serve`)
+
+If you prefer running Vivechak ephemerally without installing a local binary:
+
+### Claude Code (`~/.claude.json` or `.mcp.json`) · Cursor (`.cursor/mcp.json`) · Claude Desktop
 ```json
 {
   "mcpServers": {
@@ -32,19 +40,7 @@ npx skills add bhaskarjha-dev/vivechak
 }
 ```
 
-#### Claude Desktop (`claude_desktop_config.json`)
-```json
-{
-  "mcpServers": {
-    "vivechak": {
-      "command": "npx",
-      "args": ["-y", "vivechak", "serve"]
-    }
-  }
-}
-```
-
-#### VS Code (Copilot Agent Mode in `.vscode/mcp.json`)
+### VS Code Copilot Agent Mode (`.vscode/mcp.json`)
 ```json
 {
   "servers": {
@@ -56,48 +52,20 @@ npx skills add bhaskarjha-dev/vivechak
 }
 ```
 
-#### Google Antigravity (`~/.gemini/config/mcp_config.json` or `.agents/mcp_config.json`)
-```json
-{
-  "mcpServers": {
-    "vivechak": {
-      "command": "npx",
-      "args": ["-y", "vivechak", "serve"]
-    }
-  }
-}
-```
+---
+
+## 3. Three Reversibility-Calibrated Scopes
+
+| Scope | Example Agent Prompt | Investment | Saved Artifact in `research/` |
+|---|---|---|---|
+| **Comparison** | *"Use Vivechak to compare Pino vs Winston for our Node.js service."* | 1 session (~5 min) | `C-001-comparison.md` (Weighted Evaluation Matrix) |
+| **Decision** | *"Use Vivechak to decide whether to migrate events from Postgres to ClickHouse."* | 1–3 sessions (~30 min) | `D-001-decision.md` (ADR) + `DECISIONS.md` |
+| **Project** | *"Use Vivechak to architect our multi-tenant telemetry pipeline."* | 4–30 DAG sessions | `RESEARCH-PIPELINE.md` → `FAD.md` |
+
+For irreversible **One-Way Door** ADRs, `vck gate` requires an adversarial red-team challenge record (`vivechak_review(mode="red_team", id="D-001")`) and an out-of-band human terminal sign-off (`vck signoff D-001 --reviewer "Your Name"`).
 
 ---
 
-## CLI Commands
+## Documentation & Source
 
-You can run developer subcommands directly with `npx`:
-
-```bash
-# Workspace integrity checker
-npx -y vivechak doctor
-
-# Headless Phase 0 exit gate evaluation (CI-ready)
-npx -y vivechak gate --track all
-
-# 1-second host auto-configuration (10 presets)
-npx -y vivechak setup cursor
-npx -y vivechak setup claude
-npx -y vivechak setup agy
-
-# Output universal MCP JSON configuration
-npx -y vivechak mcp-config
-```
-
-*(Note: If you install globally via `npm install -g vivechak`, both `vivechak` and shorthand `vck` binaries are linked into your `$PATH`, allowing you to run `vck doctor`, `vck gate`, etc. directly).*
-
----
-
-## Documentation & Repository
-
-For complete documentation, methodology, MCP tools reference, and templates, visit the [Vivechak GitHub Repository](https://github.com/bhaskarjha-dev/vivechak).
-
-## License
-
-[MIT](https://github.com/bhaskarjha-dev/vivechak/blob/main/LICENSE) © [Bhaskar Jha](https://bhaskarjha.dev)
+Full documentation, methodology (`FRAMEWORK.md`), 9 MCP tool schemas, and Gate rules (`G1`–`G12`): **[github.com/bhaskarjha-dev/vivechak](https://github.com/bhaskarjha-dev/vivechak)** · MIT License.

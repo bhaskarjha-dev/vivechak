@@ -1,0 +1,107 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 264" width="1080" height="264" role="img" aria-label="Vivechak Epistemic Pipeline: Technical Fork to Scope Sieve, Graded Agent Research, Git Artifacts, and Phase 0 Gate">
+  <rect x="2" y="2" width="1076" height="260" rx="14" fill="#0B1120" stroke="#1E293B" stroke-width="1.5"/>
+
+  <!-- Top Header Strip -->
+  <circle cx="28" cy="24" r="4.5" fill="#F2A33A"/>
+  <text x="40" y="28" font-family="'JetBrains Mono', 'SF Mono', ui-monospace, Menlo, Consolas, monospace" font-size="11" font-weight="700" fill="#F7F4EC" letter-spacing="0.8">VIVECHAK DECISION LIFECYCLE</text>
+  <text x="1052" y="28" text-anchor="end" font-family="'JetBrains Mono', 'SF Mono', ui-monospace, Menlo, Consolas, monospace" font-size="10.5" font-weight="600" fill="#94A3B8" letter-spacing="0.5">100% LOCAL &#183; ZERO TELEMETRY &#183; STDIO MCP</text>
+
+  <!-- Stage 1 -->
+  <g transform="translate(28, 44)">
+    <rect width="184" height="176" rx="10" fill="#111A2E" stroke="#26344E" stroke-width="1.2"/>
+    <path d="M 12 1.2 L 172 1.2" stroke="#94A3B8" stroke-width="3" stroke-linecap="round"/>
+    <rect x="14" y="14" width="76" height="20" rx="10" fill="#1E293B"/>
+    <text x="52" y="27.5" text-anchor="middle" font-family="'JetBrains Mono', ui-monospace, monospace" font-size="10" font-weight="700" fill="#E2E8F0">01 &#183; INPUT</text>
+    <text x="14" y="56" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, sans-serif" font-size="16" font-weight="800" fill="#F8FAFC">Technical Fork</text>
+    <text x="14" y="80" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, sans-serif" font-size="12.5" fill="#CBD5E1">Datastore, wire protocol,</text>
+    <text x="14" y="98" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, sans-serif" font-size="12.5" fill="#CBD5E1">core dependency, API, or</text>
+    <text x="14" y="116" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, sans-serif" font-size="12.5" fill="#CBD5E1">greenfield architecture.</text>
+    <rect x="14" y="140" width="156" height="22" rx="5" fill="#0B1120" stroke="#1E293B" stroke-width="0.8"/>
+    <text x="92" y="154.5" text-anchor="middle" font-family="'JetBrains Mono', ui-monospace, monospace" font-size="10.2" font-weight="600" fill="#E2E8F0">MCP prompt or question</text>
+  </g>
+
+  <!-- Connector 1 -->
+  <g transform="translate(212, 132)">
+    <line x1="3" y1="0" x2="19" y2="0" stroke="#64748B" stroke-width="1.8"/>
+    <polygon points="18,-4.5 25,0 18,4.5" fill="#64748B"/>
+  </g>
+
+  <!-- Stage 2 -->
+  <g transform="translate(238, 44)">
+    <rect width="184" height="176" rx="10" fill="#111A2E" stroke="#26344E" stroke-width="1.2"/>
+    <path d="M 12 1.2 L 172 1.2" stroke="#F59E0B" stroke-width="3" stroke-linecap="round"/>
+    <rect x="14" y="14" width="76" height="20" rx="10" fill="#291E0F" stroke="#78350F" stroke-width="0.8"/>
+    <text x="52" y="27.5" text-anchor="middle" font-family="'JetBrains Mono', ui-monospace, monospace" font-size="10" font-weight="700" fill="#FBBF24">02 &#183; SIEVE</text>
+    <text x="14" y="56" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, sans-serif" font-size="16" font-weight="800" fill="#F8FAFC">3-Scope Rigor</text>
+    <text x="14" y="80" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, sans-serif" font-size="12.5" fill="#CBD5E1">Comparison: 1 sess (~5m)</text>
+    <text x="14" y="98" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, sans-serif" font-size="12.5" fill="#CBD5E1">Decision: 1&#8211;3 sess (~30m)</text>
+    <text x="14" y="116" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, sans-serif" font-size="12.5" fill="#CBD5E1">Project: 4&#8211;30 DAG plan</text>
+    <rect x="14" y="140" width="156" height="22" rx="5" fill="#0B1120" stroke="#1E293B" stroke-width="0.8"/>
+    <text x="92" y="154.5" text-anchor="middle" font-family="'JetBrains Mono', ui-monospace, monospace" font-size="10.5" font-weight="600" fill="#FBBF24">vivechak_start</text>
+  </g>
+
+  <!-- Connector 2 -->
+  <g transform="translate(422, 132)">
+    <line x1="3" y1="0" x2="19" y2="0" stroke="#64748B" stroke-width="1.8"/>
+    <polygon points="18,-4.5 25,0 18,4.5" fill="#64748B"/>
+  </g>
+
+  <!-- Stage 3 -->
+  <g transform="translate(448, 44)">
+    <rect width="184" height="176" rx="10" fill="#111A2E" stroke="#26344E" stroke-width="1.2"/>
+    <path d="M 12 1.2 L 172 1.2" stroke="#F2A33A" stroke-width="3" stroke-linecap="round"/>
+    <rect x="14" y="14" width="96" height="20" rx="10" fill="#2B180C" stroke="#9A3412" stroke-width="0.8"/>
+    <text x="62" y="27.5" text-anchor="middle" font-family="'JetBrains Mono', ui-monospace, monospace" font-size="10" font-weight="700" fill="#FB923C">03 &#183; EVIDENCE</text>
+    <text x="14" y="56" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, sans-serif" font-size="16" font-weight="800" fill="#F8FAFC">Agent Research</text>
+    <text x="14" y="80" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, sans-serif" font-size="12.5" fill="#CBD5E1">Agent runs live search,</text>
+    <text x="14" y="98" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, sans-serif" font-size="12.5" fill="#CBD5E1">grades claims A&#8211;E + URLs,</text>
+    <text x="14" y="116" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, sans-serif" font-size="12.5" fill="#CBD5E1">caps LLM recall at D.</text>
+    <rect x="14" y="140" width="156" height="22" rx="5" fill="#0B1120" stroke="#1E293B" stroke-width="0.8"/>
+    <text x="92" y="154.5" text-anchor="middle" font-family="'JetBrains Mono', ui-monospace, monospace" font-size="10.5" font-weight="600" fill="#FB923C">vivechak_save</text>
+  </g>
+
+  <!-- Connector 3 -->
+  <g transform="translate(632, 132)">
+    <line x1="3" y1="0" x2="19" y2="0" stroke="#64748B" stroke-width="1.8"/>
+    <polygon points="18,-4.5 25,0 18,4.5" fill="#64748B"/>
+  </g>
+
+  <!-- Stage 4 -->
+  <g transform="translate(658, 44)">
+    <rect width="184" height="176" rx="10" fill="#111A2E" stroke="#26344E" stroke-width="1.2"/>
+    <path d="M 12 1.2 L 172 1.2" stroke="#F97316" stroke-width="3" stroke-linecap="round"/>
+    <rect x="14" y="14" width="102" height="20" rx="10" fill="#2B180C" stroke="#9A3412" stroke-width="0.8"/>
+    <text x="65" y="27.5" text-anchor="middle" font-family="'JetBrains Mono', ui-monospace, monospace" font-size="10" font-weight="700" fill="#FB923C">04 &#183; CHALLENGE</text>
+    <text x="14" y="56" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, sans-serif" font-size="16" font-weight="800" fill="#F8FAFC">Git Artifacts</text>
+    <text x="14" y="80" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, sans-serif" font-size="12.5" fill="#CBD5E1">Markdown ADRs in repo,</text>
+    <text x="14" y="98" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, sans-serif" font-size="12.5" fill="#CBD5E1">red-team hash record,</text>
+    <text x="14" y="116" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, sans-serif" font-size="12.5" fill="#CBD5E1">TTY human vck signoff.</text>
+    <rect x="14" y="140" width="156" height="22" rx="5" fill="#0B1120" stroke="#1E293B" stroke-width="0.8"/>
+    <text x="92" y="154.5" text-anchor="middle" font-family="'JetBrains Mono', ui-monospace, monospace" font-size="10.5" font-weight="600" fill="#FB923C">red_team + signoff</text>
+  </g>
+
+  <!-- Connector 4 -->
+  <g transform="translate(842, 132)">
+    <line x1="3" y1="0" x2="19" y2="0" stroke="#10B981" stroke-width="1.8"/>
+    <polygon points="18,-4.5 25,0 18,4.5" fill="#10B981"/>
+  </g>
+
+  <!-- Stage 5 -->
+  <g transform="translate(868, 44)">
+    <rect width="184" height="176" rx="10" fill="#0D1F22" stroke="#10B981" stroke-width="1.4"/>
+    <path d="M 12 1.4 L 172 1.4" stroke="#10B981" stroke-width="3" stroke-linecap="round"/>
+    <rect x="14" y="14" width="98" height="20" rx="10" fill="#062E24" stroke="#059669" stroke-width="0.8"/>
+    <text x="63" y="27.5" text-anchor="middle" font-family="'JetBrains Mono', ui-monospace, monospace" font-size="10" font-weight="700" fill="#34D399">05 &#183; EXIT GATE</text>
+    <text x="14" y="56" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, sans-serif" font-size="16" font-weight="800" fill="#F8FAFC">Phase 0 Gate</text>
+    <text x="14" y="80" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, sans-serif" font-size="12.5" fill="#CBD5E1">Checks rules G1&#8211;G12,</text>
+    <text x="14" y="98" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, sans-serif" font-size="12.5" fill="#CBD5E1">blocks unverified ADRs,</text>
+    <text x="14" y="116" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, sans-serif" font-size="12.5" fill="#CBD5E1">exits 0/1 in local &amp; CI.</text>
+    <rect x="14" y="140" width="156" height="22" rx="5" fill="#062E24" stroke="#059669" stroke-width="0.8"/>
+    <text x="92" y="154.5" text-anchor="middle" font-family="'JetBrains Mono', ui-monospace, monospace" font-size="10.5" font-weight="700" fill="#34D399">vck gate : PASS</text>
+  </g>
+
+  <!-- Bottom Legend Strip -->
+  <text x="540" y="244" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, sans-serif" font-size="11.5" font-weight="500" fill="#94A3B8">
+    <tspan font-weight="700" fill="#F7F4EC">Track A (Two-Way Doors):</tspan> Fast-track reversibility check (G12)   &#183;   <tspan font-weight="700" fill="#FB923C">Track B (One-Way Doors):</tspan> Grades A/B + Red-Team + Human Terminal Sign-Off (G1&#8211;G11)
+  </text>
+</svg>
