@@ -507,6 +507,37 @@ Postgres [Grade A: https://postgresql.org].
 		}
 	})
 
+	t.Run("Pass_G9_NaturalLanguageTimeUnits", func(t *testing.T) {
+		dir, ws := setupPassingBase(t)
+		d1 := `---
+id: D-001
+title: Datastore
+door_type: one-way
+status: accepted
+review_trigger: "Maintenance exceeds 8 hours/month or latency > 15 minutes"
+human_reviewed: true
+informed_by_sessions: ["T0-01"]
+---
+# Context
+Datastore
+# Decision
+Postgres [Grade A: https://postgresql.org].
+# Alternatives Considered
+- MySQL: lacked JSONB support required for fast document query.
+- MongoDB: lacks relational joins.
+## Challenge Findings
+Evaluated D-001-R1 failover latency with Gary Klein premortem substantive findings.
+`
+		_ = os.WriteFile(filepath.Join(dir, DecisionsDir, "D-001.md"), []byte(d1), 0o644)
+		info := InspectWorkspace(dir)
+		res := EvaluateGate(ws, info, dir)
+		for _, r := range res.Rules {
+			if r.ID == "G9" && r.Status != "PASS" {
+				t.Errorf("expected G9 to pass for natural language time units, got: %s", r.Reason)
+			}
+		}
+	})
+
 	// 11. Negative G11: One-Way Door lacks human_reviewed: true
 	t.Run("Fail_G11_MissingHumanReview", func(t *testing.T) {
 		dir, ws := setupPassingBase(t)

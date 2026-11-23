@@ -625,7 +625,7 @@ func EvaluateGateWithTarget(ws WorkspaceFS, info WorkspaceInfo, root string, tar
 		})
 	} else {
 		var g9Failing []string
-		measRe := regexp.MustCompile(`(?i)(?:[><=]\s*\d+|\d+\s*(?:%|ms|s|m|h|d|k|M|G|req|events|qps|rps|users|ops|writes|reads)|\d{4}-\d{2}-\d{2})`)
+		measRe := regexp.MustCompile(`(?i)(?:[><=]\s*\d+|\d+\s*(?:%|ms|s|sec|secs|seconds?|m|min|mins|minutes?|h|hr|hrs|hours?|d|days?|weeks?|months?|years?|k|M|G|req|events|qps|rps|users|ops|writes|reads)|\d{4}-\d{2}-\d{2})`)
 		for _, adr := range acceptedOneWay {
 			trigger := strings.TrimSpace(adr.ReviewTrigger)
 			if trigger == "" || strings.HasPrefix(trigger, "[") || !measRe.MatchString(trigger) {
