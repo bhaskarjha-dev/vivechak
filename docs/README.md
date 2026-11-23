@@ -2,7 +2,9 @@
 
 Welcome to the documentation hub for **Vivechak** (*vivechaka* — "the discerning analyst") — the local-first Model Context Protocol (MCP) server and CLI (`vck` / `vivechak`) for evidence-graded technical decisions.
 
-Official Website: **[vivechak.bhaskarjha.dev](https://vivechak.bhaskarjha.dev)** &middot; Live Documentation: **[vivechak.bhaskarjha.dev/docs](https://vivechak.bhaskarjha.dev/docs)** &middot; Source Repository: **[github.com/bhaskarjha-dev/vivechak](https://github.com/bhaskarjha-dev/vivechak)**
+- 🌐 **Official Web Platform:** [vivechak.bhaskarjha.dev](https://vivechak.bhaskarjha.dev) &mdash; Interactive Playground, 1-Click Host Configurator & Visual Gate Inspector
+- 📖 **Live Documentation Hub:** [vivechak.bhaskarjha.dev/docs](https://vivechak.bhaskarjha.dev/docs)
+- 💻 **Source Repository:** [github.com/bhaskarjha-dev/vivechak](https://github.com/bhaskarjha-dev/vivechak)
 
 ---
 

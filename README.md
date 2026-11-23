@@ -21,21 +21,23 @@
 
 <p align="center">
   <a href="https://github.com/bhaskarjha-dev/vivechak/actions/workflows/ci.yml"><img src="https://github.com/bhaskarjha-dev/vivechak/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI"></a>
+  <a href="https://vivechak.bhaskarjha.dev"><img src="https://img.shields.io/badge/Official_Website-vivechak.bhaskarjha.dev-12203F?logo=googlechrome&logoColor=F2A33A" alt="Official Website"></a>
+  <a href="https://vivechak.bhaskarjha.dev/docs"><img src="https://img.shields.io/badge/Live_Docs-Documentation-00ADD8?logo=gitbook&logoColor=white" alt="Live Docs"></a>
   <a href="go.mod"><img src="https://img.shields.io/badge/Go-1.26%2B-00ADD8?logo=go&logoColor=white" alt="Go 1.26+"></a>
   <a href="docs/MCP-TOOLS.md"><img src="https://img.shields.io/badge/MCP-stdio%20%C2%B7%209%20tools-F2A33A?labelColor=12203F" alt="MCP Server"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT"></a>
 </p>
 
 <p align="center">
-  <a href="https://vivechak.bhaskarjha.dev">Website</a> &middot;
-  <a href="https://vivechak.bhaskarjha.dev/docs">Docs</a> &middot;
+  <a href="https://vivechak.bhaskarjha.dev"><strong>🌐 Website</strong></a> &nbsp;&middot;&nbsp;
+  <a href="https://vivechak.bhaskarjha.dev/docs"><strong>📖 Docs</strong></a> &nbsp;&middot;&nbsp;
+  <a href="https://vivechak.bhaskarjha.dev/playground"><strong>🎮 Playground</strong></a> &nbsp;&middot;&nbsp;
   <a href="#quickstart">Quickstart</a> &middot;
   <a href="#why-vivechak">Why Vivechak</a> &middot;
   <a href="#three-scopes">Three Scopes</a> &middot;
-  <a href="#what-lives-in-research">Artifacts &amp; Grading</a> &middot;
-  <a href="#mechanical-gate-proof">Gate Proof</a> &middot;
-  <a href="#mcp-surface--cli">MCP &amp; CLI</a> &middot;
-  <a href="#limits--trust-boundaries">Limits</a>
+  <a href="#what-lives-in-research">Artifacts</a> &middot;
+  <a href="#mechanical-gate-proof">Phase 0 Gate</a> &middot;
+  <a href="#mcp-surface--cli">MCP &amp; CLI</a>
 </p>
 
 <p align="center">
@@ -45,6 +47,10 @@
     <img src="docs/assets/workflow-light.svg" alt="Vivechak 5-Stage Decision Lifecycle" width="100%">
   </picture>
 </p>
+
+> [!TIP]
+> **Experience Vivechak Interactively &mdash; [vivechak.bhaskarjha.dev](https://vivechak.bhaskarjha.dev)**  
+> Explore the framework before installing: test research scoping in the **[Playground](https://vivechak.bhaskarjha.dev/playground)**, generate 1-click host configs for Cursor/Claude/VS Code, simulate the **[Phase 0 Gate](https://vivechak.bhaskarjha.dev/#gate)**, or search the full **[Live Documentation](https://vivechak.bhaskarjha.dev/docs)** with keyboard shortcut `⌘K`.
 
 ---
 
@@ -293,8 +299,8 @@ Skip Vivechak for routine bug fixes, refactors, and reversible local implementat
 
 ## Documentation & Links
 
-- **Official Website:** [vivechak.bhaskarjha.dev](https://vivechak.bhaskarjha.dev)
-- **Live Documentation:** [vivechak.bhaskarjha.dev/docs](https://vivechak.bhaskarjha.dev/docs)
+- **Official Web Platform:** [vivechak.bhaskarjha.dev](https://vivechak.bhaskarjha.dev) &mdash; Interactive landing page, [Playground](https://vivechak.bhaskarjha.dev/playground), visual host setup generator, and Gate simulator.
+- **Searchable Documentation Hub:** [vivechak.bhaskarjha.dev/docs](https://vivechak.bhaskarjha.dev/docs) &mdash; Live web documentation, global search index, and cheat sheets.
 - **Guides ([docs/](docs/README.md)):** [Quickstart](docs/QUICKSTART.md) · [Host Setup](docs/HOST-SETUP.md) · [Verified Hosts](docs/hosts.md) · [Manual Workflow](docs/MANUAL-WORKFLOW.md) · [Hybrid Execution](docs/HYBRID-EXECUTION.md) · [Parallel Subagents](docs/PARALLEL-EXECUTION.md) · [Troubleshooting](docs/TROUBLESHOOTING.md)
 - **Generated Reference ([docs/reference/](docs/reference/)):** [MCP Tools Schema](docs/reference/tools.md) · [Gate Rules G1–G12](docs/reference/gate.md) · [Diagnostic Codes](docs/reference/codes.md)
 - **Walkthroughs ([examples/](examples/README.md)):** [Comparison (Pino vs Winston)](examples/SAMPLE-COMPARISON.md) · [Decision (Postgres to ClickHouse)](examples/SAMPLE-DECISION.md) · [Project (Katha FAD)](examples/SAMPLE-PROJECT.md) · [Dogfood ADRs](examples/dogfood/research/)
