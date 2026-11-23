@@ -45,6 +45,9 @@ temp/
 tmp/
 scratch/
 
+# Web platform repository (git-ignored subrepo)
+/vivechak-web/
+
 # Lock files left by advisory locking
 *.lock
 !flake.lock
