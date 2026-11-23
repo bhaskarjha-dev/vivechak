@@ -38,4 +38,4 @@ uvx vck gate
 
 ## Documentation & License
 
-Full documentation, 3-scope workflows (`Comparison`, `Decision`, `Project`), 9 MCP tool schemas, and Gate rules (`G1`–`G12`): **[github.com/bhaskarjha-dev/vivechak](https://github.com/bhaskarjha-dev/vivechak)** · [MIT](https://github.com/bhaskarjha-dev/vivechak/blob/main/LICENSE) © [Bhaskar Jha](https://bhaskarjha.dev).
+Official Website: **[vivechak.bhaskarjha.dev](https://vivechak.bhaskarjha.dev)** · Documentation: **[vivechak.bhaskarjha.dev/docs](https://vivechak.bhaskarjha.dev/docs)** · Source: **[github.com/bhaskarjha-dev/vivechak](https://github.com/bhaskarjha-dev/vivechak)** · [MIT](https://github.com/bhaskarjha-dev/vivechak/blob/main/LICENSE) © [Bhaskar Jha](https://bhaskarjha.dev).

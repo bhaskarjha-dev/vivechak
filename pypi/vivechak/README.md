@@ -66,4 +66,4 @@ For irreversible **One-Way Door** ADRs, `vck gate` requires an adversarial red-t
 
 ## Documentation & Source
 
-Full documentation, methodology (`FRAMEWORK.md`), 9 MCP tool schemas, and Gate rules (`G1`–`G12`): **[github.com/bhaskarjha-dev/vivechak](https://github.com/bhaskarjha-dev/vivechak)** · MIT License © [Bhaskar Jha](https://bhaskarjha.dev).
+Official Website: **[vivechak.bhaskarjha.dev](https://vivechak.bhaskarjha.dev)** · Documentation: **[vivechak.bhaskarjha.dev/docs](https://vivechak.bhaskarjha.dev/docs)** · Source: **[github.com/bhaskarjha-dev/vivechak](https://github.com/bhaskarjha-dev/vivechak)** · MIT License © [Bhaskar Jha](https://bhaskarjha.dev).

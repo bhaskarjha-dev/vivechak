@@ -21,3 +21,8 @@ classifiers = [
 [project.scripts]
 vivechak = "vivechak.cli:main"
 vck = "vivechak.cli:main"
+
+[project.urls]
+Homepage = "https://vivechak.bhaskarjha.dev"
+Repository = "https://github.com/bhaskarjha-dev/vivechak"
+Documentation = "https://vivechak.bhaskarjha.dev/docs"

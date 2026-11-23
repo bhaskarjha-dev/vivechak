@@ -27,14 +27,15 @@
 </p>
 
 <p align="center">
+  <a href="https://vivechak.bhaskarjha.dev">Website</a> &middot;
+  <a href="https://vivechak.bhaskarjha.dev/docs">Docs</a> &middot;
   <a href="#quickstart">Quickstart</a> &middot;
   <a href="#why-vivechak">Why Vivechak</a> &middot;
   <a href="#three-scopes">Three Scopes</a> &middot;
   <a href="#what-lives-in-research">Artifacts &amp; Grading</a> &middot;
   <a href="#mechanical-gate-proof">Gate Proof</a> &middot;
   <a href="#mcp-surface--cli">MCP &amp; CLI</a> &middot;
-  <a href="#limits--trust-boundaries">Limits</a> &middot;
-  <a href="docs/README.md">Docs</a>
+  <a href="#limits--trust-boundaries">Limits</a>
 </p>
 
 <p align="center">
@@ -292,6 +293,8 @@ Skip Vivechak for routine bug fixes, refactors, and reversible local implementat
 
 ## Documentation & Links
 
+- **Official Website:** [vivechak.bhaskarjha.dev](https://vivechak.bhaskarjha.dev)
+- **Live Documentation:** [vivechak.bhaskarjha.dev/docs](https://vivechak.bhaskarjha.dev/docs)
 - **Guides ([docs/](docs/README.md)):** [Quickstart](docs/QUICKSTART.md) · [Host Setup](docs/HOST-SETUP.md) · [Verified Hosts](docs/hosts.md) · [Manual Workflow](docs/MANUAL-WORKFLOW.md) · [Hybrid Execution](docs/HYBRID-EXECUTION.md) · [Parallel Subagents](docs/PARALLEL-EXECUTION.md) · [Troubleshooting](docs/TROUBLESHOOTING.md)
 - **Generated Reference ([docs/reference/](docs/reference/)):** [MCP Tools Schema](docs/reference/tools.md) · [Gate Rules G1–G12](docs/reference/gate.md) · [Diagnostic Codes](docs/reference/codes.md)
 - **Walkthroughs ([examples/](examples/README.md)):** [Comparison (Pino vs Winston)](examples/SAMPLE-COMPARISON.md) · [Decision (Postgres to ClickHouse)](examples/SAMPLE-DECISION.md) · [Project (Katha FAD)](examples/SAMPLE-PROJECT.md) · [Dogfood ADRs](examples/dogfood/research/)

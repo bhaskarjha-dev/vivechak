@@ -186,7 +186,7 @@ nfpms:
     ids:
       - vivechak-linux
       - vck-linux
-    homepage: https://github.com/bhaskarjha-dev/vivechak
+    homepage: https://vivechak.bhaskarjha.dev
     description: Evidence-grounded research for technical decisions — MCP server
     maintainer: Bhaskar Jha <me@bhaskarjha.dev>
     license: MIT
@@ -266,7 +266,7 @@ homebrew_casks:
       token: "{{ .Env.TAP_GITHUB_TOKEN }}"
     skip_upload: auto
     directory: Casks
-    homepage: https://github.com/bhaskarjha-dev/vivechak
+    homepage: https://vivechak.bhaskarjha.dev
     description: Evidence-grounded research for technical decisions — MCP server
     license: MIT
     hooks:
@@ -289,6 +289,6 @@ scoops:
       name: scoop-bucket
       token: "{{ .Env.TAP_GITHUB_TOKEN }}"
     skip_upload: auto
-    homepage: https://github.com/bhaskarjha-dev/vivechak
+    homepage: https://vivechak.bhaskarjha.dev
     description: Evidence-grounded research for technical decisions — MCP server
     license: MIT

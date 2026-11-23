@@ -6,7 +6,7 @@ Publisher: bhaskarjha-dev
 PublisherUrl: https://github.com/bhaskarjha-dev
 PublisherSupportUrl: https://github.com/bhaskarjha-dev/vivechak/issues
 PackageName: Vivechak
-PackageUrl: https://github.com/bhaskarjha-dev/vivechak
+PackageUrl: https://vivechak.bhaskarjha.dev
 License: MIT
 LicenseUrl: https://github.com/bhaskarjha-dev/vivechak/blob/main/LICENSE
 ShortDescription: Evidence-graded technical decisions for AI coding agents — MCP server & CLI (vck)

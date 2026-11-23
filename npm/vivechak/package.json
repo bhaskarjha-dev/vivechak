@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "mcpName": "io.github.bhaskarjha-dev/vivechak",
   "description": "Evidence-grounded research for technical decisions — MCP server",
+  "homepage": "https://vivechak.bhaskarjha.dev",
   "main": "bin/runner.js",
   "bin": {
     "vivechak": "bin/runner.js",
