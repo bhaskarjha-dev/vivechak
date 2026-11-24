@@ -20,6 +20,9 @@ RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
 FROM alpine:3.20
 
 LABEL io.modelcontextprotocol.server.name="io.github.bhaskarjha-dev/vivechak"
+LABEL org.opencontainers.image.source="https://github.com/bhaskarjha-dev/vivechak"
+LABEL org.opencontainers.image.description="Evidence-graded technical decisions for AI coding agents — MCP server and CLI"
+LABEL org.opencontainers.image.licenses="MIT"
 
 COPY --from=builder /build/vivechak /usr/local/bin/vivechak
 COPY --from=builder /build/vck /usr/local/bin/vck

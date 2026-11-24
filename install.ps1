@@ -2,10 +2,17 @@
 # Vivechak installer for Windows
 # Usage: irm https://vivechak.bhaskarjha.dev/install.ps1 | iex
 
+param(
+    [string]$Tag = '',
+    [string]$InstallDir = ''
+)
+
 $ErrorActionPreference = 'Stop'
 
 $Repo = 'bhaskarjha-dev/vivechak'
-$InstallDir = Join-Path $env:LOCALAPPDATA 'Programs\vivechak'
+if (-not $InstallDir) {
+    $InstallDir = Join-Path $env:LOCALAPPDATA 'Programs\vivechak'
+}
 
 # Detect architecture
 $Arch = if ([Environment]::Is64BitOperatingSystem) {
@@ -21,34 +28,44 @@ $Arch = if ([Environment]::Is64BitOperatingSystem) {
 
 Write-Host "Detected: windows/$Arch" -ForegroundColor Cyan
 
-# Get latest release
-Write-Host 'Fetching latest release...'
-try {
-    $Release = Invoke-RestMethod -Uri "https://api.github.com/repos/$Repo/releases/latest" -UseBasicParsing
-    $Tag = $Release.tag_name
-} catch {
-    # Fallback to redirect URL on API rate limits (using .NET HttpWebRequest to avoid IE COM engine dependency and properly capture 302 location)
+# Get release tag if not provided
+if (-not $Tag) {
+    Write-Host 'Fetching latest release...'
     try {
-        $Req = [System.Net.HttpWebRequest]::Create("https://github.com/$Repo/releases/latest")
-        $Req.AllowAutoRedirect = $false
-        $Resp = $Req.GetResponse()
-        $Loc = $Resp.Headers['Location']
-        $Resp.Close()
-        if ($Loc) {
-            $Tag = Split-Path $Loc -Leaf
-        }
-    } catch [System.Net.WebException] {
-        if ($_.Exception.Response) {
-            $Loc = $_.Exception.Response.Headers['Location']
-            $_.Exception.Response.Close()
-            if ($Loc) {
-                $Tag = Split-Path $Loc -Leaf
+        $Release = Invoke-RestMethod -Uri "https://api.github.com/repos/$Repo/releases/latest" -UseBasicParsing
+        $Tag = $Release.tag_name
+    } catch {
+        # Fallback to general releases list (in case latest is a prerelease or rate-limited)
+        try {
+            $Releases = Invoke-RestMethod -Uri "https://api.github.com/repos/$Repo/releases" -UseBasicParsing
+            if ($Releases -and $Releases.Count -gt 0) {
+                $Tag = $Releases[0].tag_name
+            }
+        } catch {
+            # Fallback to redirect URL on API rate limits (using .NET HttpWebRequest to avoid IE COM engine dependency and properly capture 302 location)
+            try {
+                $Req = [System.Net.HttpWebRequest]::Create("https://github.com/$Repo/releases/latest")
+                $Req.AllowAutoRedirect = $false
+                $Resp = $Req.GetResponse()
+                $Loc = $Resp.Headers['Location']
+                $Resp.Close()
+                if ($Loc) {
+                    $Tag = Split-Path $Loc -Leaf
+                }
+            } catch [System.Net.WebException] {
+                if ($_.Exception.Response) {
+                    $Loc = $_.Exception.Response.Headers['Location']
+                    $_.Exception.Response.Close()
+                    if ($Loc) {
+                        $Tag = Split-Path $Loc -Leaf
+                    }
+                }
             }
         }
-    }
-    if (-not $Tag -or $Tag -eq 'releases' -or $Tag -eq 'latest') {
-        Write-Error "Could not determine latest release: $_"
-        return
+        if (-not $Tag -or $Tag -eq 'releases' -or $Tag -eq 'latest') {
+            Write-Error "Could not determine latest release: $_"
+            return
+        }
     }
 }
 $Version = $Tag.TrimStart('v')
@@ -107,8 +124,17 @@ try {
             $RawPath = $RegKey.GetValue('PATH', '', [Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames)
             $PathParts = $RawPath -split ';' | Where-Object { $_ -ne '' }
             if ($PathParts -notcontains $InstallDir) {
-                $NewPath = if ($RawPath) { "$InstallDir;$RawPath" } else { $InstallDir }
-                $Kind = try { $RegKey.GetValueKind('PATH') } catch { [Microsoft.Win32.RegistryValueKind]::ExpandString }
+                if ($RawPath) {
+                    $NewPath = "$InstallDir;$RawPath"
+                } else {
+                    $NewPath = $InstallDir
+                }
+                $Kind = [Microsoft.Win32.RegistryValueKind]::ExpandString
+                try {
+                    $Kind = $RegKey.GetValueKind('PATH')
+                } catch {
+                    $Kind = [Microsoft.Win32.RegistryValueKind]::ExpandString
+                }
                 $RegKey.SetValue('PATH', $NewPath, $Kind)
                 Write-Host "Added $InstallDir to user PATH" -ForegroundColor Yellow
                 Write-Host 'Note: restart your terminal for PATH changes to take effect' -ForegroundColor Yellow

@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [0.1.0] - 2026-11-17 — Initial Production Release: 9-Tool MCP Server, CLI & Multi-Scope Epistemic Engine
+## [0.1.0] - 2026-11-24 — Initial Production Release: 9-Tool MCP Server, CLI & Multi-Scope Epistemic Engine
 
 First production release of **Vivechak (`vck` / `vivechak`)**, delivering the settled 9-tool MCP surface (`<= 10 KB` always-loaded wire footprint), strict `yaml vivechak-plan` DAG engine, mechanical G1–G12 Phase 0 exit gate, interactive human sign-off (`vck signoff`), single-source generated documentation, and fail-closed release automation.
 
