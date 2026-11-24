@@ -1,4 +1,4 @@
-# yaml-language-server: $schema=https://aka.ms/winget-manifest.defaultLocale.1.6.0.schema.json
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.defaultLocale.1.28.0.schema.json
 PackageIdentifier: bhaskarjha-dev.Vivechak
 PackageVersion: 0.1.0
 PackageLocale: en-US
@@ -26,4 +26,4 @@ Tags:
   - research
 ReleaseNotesUrl: https://github.com/bhaskarjha-dev/vivechak/releases/tag/v0.1.0
 ManifestType: defaultLocale
-ManifestVersion: 1.6.0
+ManifestVersion: 1.28.0

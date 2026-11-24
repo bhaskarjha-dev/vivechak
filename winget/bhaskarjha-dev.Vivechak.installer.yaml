@@ -1,6 +1,6 @@
 # Reference installer manifest for microsoft/winget-pkgs (manifests/b/bhaskarjha-dev/Vivechak/0.1.0/).
 # Replace PLACEHOLDER values with the Windows archive SHA-256 digests from checksums.txt after v0.1.0 is published.
-# yaml-language-server: $schema=https://aka.ms/winget-manifest.installer.1.6.0.schema.json
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.installer.1.28.0.schema.json
 PackageIdentifier: bhaskarjha-dev.Vivechak
 PackageVersion: 0.1.0
 InstallerType: zip
@@ -18,4 +18,4 @@ Installers:
     InstallerUrl: https://github.com/bhaskarjha-dev/vivechak/releases/download/v0.1.0/vivechak_0.1.0_windows_arm64.zip
     InstallerSha256: PLACEHOLDER
 ManifestType: installer
-ManifestVersion: 1.6.0
+ManifestVersion: 1.28.0

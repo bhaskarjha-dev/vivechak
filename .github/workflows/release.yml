@@ -47,25 +47,28 @@ jobs:
           fi
           echo "✓ All publishing credentials present"
 
-          # Fail-closed registry ownership checks: verify package endpoints respond HTTP 200
+          # Verify package endpoints respond HTTP 200 (already claimed) or HTTP 404 (available for initial release)
           echo "Checking registry package endpoints..."
-          curl -s -f -o /dev/null https://registry.npmjs.org/vivechak || {
-            echo "::error::npm package 'vivechak' is not claimed or reachable (HTTP 200 expected)"
+          NPM_STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://registry.npmjs.org/vivechak)
+          if [ "$NPM_STATUS" != "200" ] && [ "$NPM_STATUS" != "404" ]; then
+            echo "::error::npm registry returned unexpected status $NPM_STATUS for 'vivechak' (expected 200 or 404)"
             exit 1
-          }
-          echo "✓ npm vivechak endpoint verified"
+          fi
+          echo "✓ npm vivechak endpoint verified (HTTP $NPM_STATUS)"
 
-          curl -s -f -o /dev/null https://pypi.org/pypi/vivechak/json || {
-            echo "::error::PyPI package 'vivechak' is not claimed or reachable (HTTP 200 expected)"
+          PYPI_VIVECHAK_STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://pypi.org/pypi/vivechak/json)
+          if [ "$PYPI_VIVECHAK_STATUS" != "200" ] && [ "$PYPI_VIVECHAK_STATUS" != "404" ]; then
+            echo "::error::PyPI registry returned unexpected status $PYPI_VIVECHAK_STATUS for 'vivechak' (expected 200 or 404)"
             exit 1
-          }
-          echo "✓ PyPI vivechak endpoint verified"
+          fi
+          echo "✓ PyPI vivechak endpoint verified (HTTP $PYPI_VIVECHAK_STATUS)"
 
-          curl -s -f -o /dev/null https://pypi.org/pypi/vck/json || {
-            echo "::error::PyPI package 'vck' is not claimed or reachable (HTTP 200 expected)"
+          PYPI_VCK_STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://pypi.org/pypi/vck/json)
+          if [ "$PYPI_VCK_STATUS" != "200" ] && [ "$PYPI_VCK_STATUS" != "404" ]; then
+            echo "::error::PyPI registry returned unexpected status $PYPI_VCK_STATUS for 'vck' (expected 200 or 404)"
             exit 1
-          }
-          echo "✓ PyPI vck endpoint verified"
+          fi
+          echo "✓ PyPI vck endpoint verified (HTTP $PYPI_VCK_STATUS)"
 
       - name: Verify push access to the Homebrew tap and the Scoop bucket
         env:
