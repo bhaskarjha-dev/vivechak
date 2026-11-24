@@ -1,6 +1,6 @@
 #Requires -Version 5.1
 # Vivechak installer for Windows
-# Usage: irm https://raw.githubusercontent.com/bhaskarjha-dev/vivechak/main/install.ps1 | iex
+# Usage: irm https://vivechak.bhaskarjha.dev/install.ps1 | iex
 
 $ErrorActionPreference = 'Stop'
 

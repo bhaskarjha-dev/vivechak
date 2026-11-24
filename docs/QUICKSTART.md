@@ -59,8 +59,8 @@ sudo rpm -i vivechak_0.1.0_linux_amd64.rpm    # Fedora / RHEL
 nix run github:bhaskarjha-dev/vivechak
 
 # Direct Shell Installers
-curl -fsSL https://raw.githubusercontent.com/bhaskarjha-dev/vivechak/main/install.sh | sh      # macOS/Linux
-irm https://raw.githubusercontent.com/bhaskarjha-dev/vivechak/main/install.ps1 | iex           # Windows
+curl -fsSL https://vivechak.bhaskarjha.dev/install.sh | bash                                  # macOS/Linux
+irm https://vivechak.bhaskarjha.dev/install.ps1 | iex                                         # Windows
 ```
 
 **Or Build from Source (Go 1.26+, toolchain Go 1.26.11):**

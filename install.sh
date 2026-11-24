@@ -1,6 +1,6 @@
 #!/bin/sh
 # Vivechak installer for macOS and Linux
-# Usage: curl -fsSL https://raw.githubusercontent.com/bhaskarjha-dev/vivechak/main/install.sh | sh
+# Usage: curl -fsSL https://vivechak.bhaskarjha.dev/install.sh | bash
 set -e
 
 REPO="bhaskarjha-dev/vivechak"

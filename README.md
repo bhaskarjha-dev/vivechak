@@ -73,7 +73,7 @@ When you work with an AI coding agent (Claude Code, Cursor, VS Code, Antigravity
 
 ```sh
 # 1. Install vck + vivechak (macOS / Linux)
-curl -fsSL https://raw.githubusercontent.com/bhaskarjha-dev/vivechak/main/install.sh | sh
+curl -fsSL https://vivechak.bhaskarjha.dev/install.sh | bash
 
 # 2. Register the MCP server in your AI host (auto-detects workspace or target a preset)
 vck setup               # auto-detects workspace host, or pass: claude-code, cursor, vscode, claude, agy, windsurf, zed, roo, opencode, goose
@@ -91,8 +91,8 @@ vck gate
 
 | Environment | Install / Run Command |
 |---|---|
-| **macOS / Linux Shell** | `curl -fsSL https://raw.githubusercontent.com/bhaskarjha-dev/vivechak/main/install.sh \| sh` |
-| **Windows PowerShell** | `irm https://raw.githubusercontent.com/bhaskarjha-dev/vivechak/main/install.ps1 \| iex` |
+| **macOS / Linux Shell** | `curl -fsSL https://vivechak.bhaskarjha.dev/install.sh \| bash` |
+| **Windows PowerShell** | `irm https://vivechak.bhaskarjha.dev/install.ps1 \| iex` |
 | **Homebrew** *(macOS & Linux)* | `brew install --cask bhaskarjha-dev/tap/vivechak` |
 | **Windows Package Managers** | `winget install bhaskarjha-dev.Vivechak` &nbsp;or&nbsp; `scoop bucket add vivechak https://github.com/bhaskarjha-dev/scoop-bucket && scoop install vivechak` |
 | **Zero-Install Runners** | `npx -y vivechak serve` *(Node.js)* &nbsp;or&nbsp; `uvx vck serve` *(Python / `uv`)* |
@@ -243,7 +243,7 @@ Phase 0 Gate: FAIL
    ```
 3. **Enforce in CI:** Because `vck gate` is a single static binary exiting `1` on `FAIL`, any pull request can gate merges on `G1`–`G12`:
    ```yaml
-   - run: curl -fsSL https://raw.githubusercontent.com/bhaskarjha-dev/vivechak/main/install.sh | sh
+   - run: curl -fsSL https://vivechak.bhaskarjha.dev/install.sh | bash
    - run: vck doctor && vck gate
    ```
 
