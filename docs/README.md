@@ -1,9 +1,10 @@
 # Vivechak Documentation
 
-Welcome to the documentation hub for **Vivechak** (*vivechaka* — "the discerning analyst") — the local-first Model Context Protocol (MCP) server and CLI (`vck` / `vivechak`) for evidence-graded technical decisions.
+Welcome to the documentation hub for **Vivechak (विवेचक)** (*vivechaka* — "the discerning analyst") — the local-first Model Context Protocol (MCP) server and CLI (`vck` / `vivechak`) for evidence-graded technical decisions.
 
-- 🌐 **Official Web Platform:** [vivechak.bhaskarjha.dev](https://vivechak.bhaskarjha.dev) &mdash; Interactive Playground, 1-Click Host Configurator & Visual Gate Inspector
+- 🌐 **Official Web Platform:** [vivechak.bhaskarjha.dev](https://vivechak.bhaskarjha.dev) &mdash; Interactive [Playground](https://vivechak.bhaskarjha.dev/playground), 1-Click Host Configurator & Visual Gate Inspector
 - 📖 **Live Documentation Hub:** [vivechak.bhaskarjha.dev/docs](https://vivechak.bhaskarjha.dev/docs)
+- ⚡ **Dual-Mode Agent Skill:** [`skills/vivechak/SKILL.md`](../skills/vivechak/SKILL.md) &mdash; `npx skills add bhaskarjha-dev/vivechak` *(works with MCP or standalone without installing a binary)*
 - 💻 **Source Repository:** [github.com/bhaskarjha-dev/vivechak](https://github.com/bhaskarjha-dev/vivechak)
 
 ---
@@ -12,7 +13,7 @@ Welcome to the documentation hub for **Vivechak** (*vivechaka* — "the discerni
 
 | Guide | What It Covers |
 |---|---|
-| [**Quickstart (`QUICKSTART.md`)**](QUICKSTART.md) | End-to-end 5-minute walkthrough across MCP (`Path A`) and manual browser chat (`Path B`). |
+| [**Quickstart (`QUICKSTART.md`)**](QUICKSTART.md) | End-to-end 5-minute walkthrough across MCP (`Path A`), Standalone Agent Skill (`Path B`), and Manual Browser Chat (`Path C`). |
 | [**Host Setup (`HOST-SETUP.md`)**](HOST-SETUP.md) | Configuring Claude Code, Cursor, VS Code, Antigravity, Windsurf, Zed, Roo Code, OpenCode, Goose, and ephemeral `npx` / `uvx` / Docker runners. |
 | [**Verified Host Presets (`hosts.md`)**](hosts.md) | Auto-generated table of all 10 verified `vck setup <preset>` targets, config file paths, schema keys, and upstream host docs. |
 | [**Troubleshooting (`TROUBLESHOOTING.md`)**](TROUBLESHOOTING.md) | Running `vck doctor`, resolving workspace root errors (`E-ROOT-*`), and closing Phase 0 Exit Gate failures (`G1`–`G12`). |

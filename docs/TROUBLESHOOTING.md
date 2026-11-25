@@ -42,7 +42,15 @@ Every operational error (`E-*`), structural or `vivechak-plan` validation error 
 - Pass `"project_root": "/abs/path/to/project"` in the tool call, or configure `"env": { "VCK_PROJECT_ROOT": "${workspaceFolder}" }` in your host's MCP config (see [`docs/hosts.md`](hosts.md)).
 
 ### Corrupt Host Configuration File on `vck setup`
-- `vck setup` and `vck mcp-config --write` fail closed on malformed JSON/JSONC/YAML and never overwrite or truncate an unparseable config file. Fix the syntax error in the target config file (or pass `--dry-run` to preview the minimal unified diff).
+- `vck setup` and `vck mcp-config --write` fail closed on malformed JSON/JSONC/YAML and never overwrite or truncate an unparseable config file. Fix the syntax error in the target config file (or pass `--dry-run` to preview the minimal unified diff; successful writes leave a backup at `<config>.vivechak-bak-<timestamp>`).
+
+### Artifact Overwrite Refused (`E-REVISE-REQUIRED`)
+- `vivechak_save` refuses silent replacement of an existing file with different content to protect prior research. Pass `revise=true` on intentional updates (the previous version is archived under `research/.history/`), or omit `id` when creating a new comparison or decision.
+
+### Interactive Sign-Off Refused or Stale (`E-TTY-REQUIRED`, `E-HUMAN-ONLY-FIELD`, Stale `reviewed_hash`)
+- **`E-TTY-REQUIRED`:** `vck signoff` refuses non-interactive pipes, agent shell wrappers, and CI runners by design. Open a real interactive terminal and run `vck signoff D-001 --reviewer "Your Name"`.
+- **`E-HUMAN-ONLY-FIELD`:** MCP tools reject agent-supplied `human_reviewed`, `reviewed_by`, `reviewed_at`, or `reviewed_hash` keys. Omit them from agent saves and sign off out-of-band in a terminal.
+- **Stale sign-off hash (`G11` FAIL):** Editing an accepted ADR after sign-off invalidates `reviewed_hash`. Re-run `vck signoff D-001 --reviewer "Your Name"` after reviewing the updated outcome.
 
 ### Interactive Protocol Inspection
 ```sh

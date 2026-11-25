@@ -1,6 +1,6 @@
 # Server Architecture Guide
 
-> **Last verified against code:** 2026-11-17 (v0.1.0)
+> **Last verified against code:** 2026-11-24 (v0.1.0)
 > If you find discrepancies with the actual code, please file an issue.
 
 Welcome to the internal architecture guide for **Vivechak** (विवेचक). This document is written for Go developers and contributors who want to understand, extend, or maintain the Vivechak MCP server codebase.
@@ -127,7 +127,7 @@ Implemented in [`internal/workspace`](../internal/workspace) and exposed via [`i
 The workspace layout is standard across Vivechak projects:
 - `research/` — Workspace root (containing `.vivechak.json` and `.gitignore` ignoring `*.lock` and `.history/`)
 - `research/sessions/` — Markdown outputs from individual research sessions
-- `research/.history/` — Automatic timestamped snapshots written when `revision=true` overwrites an existing artifact
+- `research/.history/` — Automatic timestamped snapshots written when `revise=true` overwrites an existing artifact
 - `research/RESEARCH-PIPELINE.md` — Project DAG plan containing the fenced `yaml vivechak-plan` block and session prompts (or `research/D-NNN-plan.md` in Decision scope)
 - `research/D-NNN-*.md` & `research/DECISIONS.md` — Canonical standalone ADRs and the auto-compiled central decision registry
 - `research/D-NNN-R1.md` — Adversarial red-team challenge records tied to an ADR's Decision Outcome SHA-256 hash
@@ -226,7 +226,7 @@ sequenceDiagram
     Handler->>Store: LockFile(relPath, 5s timeout)
     Store->>FS: flock.TryLockContext("path.lock")
     Store-->>Handler: unlock func
-    Handler->>Store: Snapshot prior file to research/.history/ (if revision=true)
+    Handler->>Store: Snapshot prior file to research/.history/ (if revise=true)
     Handler->>Store: WriteFileAtomic(ws.Root(), relPath, data, 0644)
     Store->>FS: Write .tmp_<nano>_<pid>_<counter> -> Sync -> Rename
     Store-->>Handler: Write success
@@ -264,9 +264,9 @@ sequenceDiagram
 ```
 
 - **`os.Root` Path Confinement** ([`internal/store/workspace.go`](../internal/store/workspace.go)): Opens the workspace with Go 1.26's `os.OpenRoot`, blocking `../` traversal and external symlink escapes at the OS handle level, while normalizing path separators across POSIX and Windows.
-- **Out-of-Band Human Attestation** ([`cmd/vivechak/signoff.go`](../cmd/vivechak/signoff.go) & [`internal/core/signoff.go`](../internal/core/signoff.go)): MCP tools reject agent attempts to set `human_reviewed`, `signed_off_by`, or `signoff_at` (`E-HUMAN-ONLY-FIELD`). Only `vck signoff <D-id> --reviewer "<name>"` connected to an interactive terminal (`/dev/tty` / `CONIN$`) can record sign-off after displaying the ADR outcome and verifying the typed decision ID.
+- **Out-of-Band Human Attestation** ([`cmd/vivechak/signoff.go`](../cmd/vivechak/signoff.go) & [`internal/core/signoff.go`](../internal/core/signoff.go)): MCP tools reject agent attempts to set `human_reviewed`, `reviewed_by`, `reviewed_at`, or `reviewed_hash` (`E-HUMAN-ONLY-FIELD`). Only `vck signoff <D-id> --reviewer "<name>"` connected to an interactive terminal (`/dev/tty` / `CONIN$`) can record sign-off after displaying the ADR outcome, rejected alternatives, and challenge findings, and verifying the typed decision ID.
 - **Cross-Process Advisory Locking** ([`internal/store/lock.go`](../internal/store/lock.go)): Mutating operations acquire `<target>.lock` via `github.com/gofrs/flock` with bounded timeouts. Empty `.lock` files are retained to prevent TOCTOU unlink races.
-- **Overwrite Protection & `.history/` Snapshots**: `vivechak_save` refuses silent content replacement (`E-ARTIFACT-EXISTS`) unless `revision=true` is passed (idempotent identical saves return `saved: false`), archiving the prior version under `research/.history/`.
+- **Overwrite Protection & `.history/` Snapshots**: `vivechak_save` refuses silent content replacement (`E-REVISE-REQUIRED`) unless `revise=true` is passed (idempotent identical saves return `saved: false`), archiving the prior version under `research/.history/`.
 - **Atomic Writes** ([`internal/store/atomic.go`](../internal/store/atomic.go)): Writes to `.tmp_<unixnano>_<pid>_<counter>`, calls `f.Sync()` and `f.Close()`, and atomically renames within `os.Root`.
 
 ---
@@ -282,7 +282,7 @@ sequenceDiagram
 | `GENERATOR-DECISION.md` | `internal/embed/generators/GENERATOR-DECISION.md` |
 | `GENERATOR-COMPARISON.md` | `internal/embed/generators/GENERATOR-COMPARISON.md` |
 | `templates/*.template.md` | `internal/embed/templates/*.template.md` |
-| `skills/vivechak/SKILL.md` | `internal/embed/skills/vivechak/SKILL.md` |
+| `skills/vivechak/SKILL.md` | `internal/embed/skills/SKILL.md` |
 | `templates/rules/*.{md,mdc}` | `internal/embed/rules/*.{md,mdc}` |
 
 Run `make embed-sync` after editing any canonical root generator, template, skill, or rule; [`TestEmbeddedFilesMatchRoot`](../internal/embed/embed_test.go) enforces byte-for-byte parity in CI.
@@ -314,7 +314,7 @@ Testing Pyramid:
 Key verification suites:
 - **Core Domain & Code Parity Tests (`internal/core/*_test.go`):** Validates strict `yaml vivechak-plan` parsing (`dag_test.go`), G1–G12 gate rules (`gate_test.go`), L1–L4 validation and `Q-*` coaching (`validate_test.go`, `validate_quality_test.go`), `<upstream-findings>` injection (`inject_test.go`), and exact 1:1 parity between every `E-*`/`V-*`/`W-*`/`Q-*` code emitted in source and `AllCodes()` (`codes_test.go`).
 - **Workspace & Store Security Tests (`internal/workspace/*_test.go`, `internal/store/*_test.go`):** Verifies the 7-step workspace resolution ladder, system/home/app-folder refusals, `os.Root` traversal confinement, advisory lock contention, and atomic writes.
-- **In-Memory Wire & Lifecycle Suites (`internal/mcp/*_test.go`):** Exercises all 9 canonical tools, 4 prompts, and 8 resources over `mcp.NewInMemoryTransports()`, verifying canonical schemas (no `outputSchema`, `W-UNKNOWN-ARG` handling on unknown keys), per-session isolation, overwrite protection (`E-ARTIFACT-EXISTS` / `.history/`), `D-NNN-R1.md` outcome hashes, and executable `README.md`/`SKILL.md` flows (`docs_flows_test.go`).
+- **In-Memory Wire & Lifecycle Suites (`internal/mcp/*_test.go`):** Exercises all 9 canonical tools, 4 prompts, and 8 resources over `mcp.NewInMemoryTransports()`, verifying canonical schemas (no `outputSchema`, `W-UNKNOWN-ARG` handling on unknown keys), per-session isolation, overwrite protection (`E-REVISE-REQUIRED` / `.history/`), `D-NNN-R1.md` outcome hashes, and executable `README.md`/`SKILL.md` flows (`docs_flows_test.go`).
 - **Live Subprocess Integration Suites (`cmd/vivechak/*_test.go`):** Spawns the compiled binary over real `stdio` pipes (`serve_test.go`, `mcp_live_lifecycle_test.go`, `gate_targets_test.go`), verifies PTY-driven `vck signoff`, tests every `vck setup` host preset against malformed/commented configs (`config_test.go`, `real_harness_integration_test.go`), and runs concurrent subagent stress tests (`concurrency_test.go`).
 
 ---

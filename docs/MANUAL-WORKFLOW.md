@@ -1,7 +1,7 @@
 # Manual Workflow Guide
 ### Complete Guide to Evidence-Grounded Research Without an MCP Server
 
-> **Audience:** Developers and technical architects who want to use Vivechak by copying and pasting prompts into web-based AI interfaces (ChatGPT Deep Research, Gemini Deep Research, Claude 3.7 Sonnet with Search, Perplexity Pro) without running the MCP server or CLI tooling.
+> **Audience:** Developers and technical architects who want to use Vivechak by copying and pasting prompts into web-based AI interfaces (ChatGPT Deep Research, Gemini Deep Research, Claude with Web Search, Perplexity) without running the MCP server or CLI tooling. You can also generate ready-to-paste prompts and lint Markdown ADRs offline in your browser at [vivechak.bhaskarjha.dev/playground](https://vivechak.bhaskarjha.dev/playground).
 
 ---
 
@@ -105,7 +105,7 @@ Uncertainties:
 
 ### Step 3: Send to AI and Extract the Deliverables
 
-1. Open a fresh browser chat with a frontier AI model (**Claude 3.7 Sonnet**, **ChatGPT o3/4o with Web Search**, or **Gemini 2.5 Pro**).
+1. Open a fresh browser chat with a frontier AI model that has live web search or Deep Research enabled (**Claude with Web Search**, **ChatGPT Deep Research**, or **Gemini Deep Research**).
 2. Paste the generator prompt containing your filled vision.
 3. Submit the prompt.
 
@@ -214,6 +214,9 @@ prediction: "ClickHouse handles 100k events/sec at <150MB RAM on edge with zstd 
 tags: [storage, logs, edge]
 authored_by: "Principal Architect"
 human_reviewed: true
+reviewed_by: "Principal Architect"
+reviewed_at: "2026-09-27T16:10:00Z"
+reviewed_hash: "a4d9f12c8e7b31059e4c1a8b7d6f20e1c9b8a7d6e5f4a3b2c1d0e9f8a7b6c5d4"
 schema_version: "0.1.0"
 ---
 
@@ -224,23 +227,26 @@ LogMesh requires an embedded or lightweight daemonset datastore capable of inges
 50k–100k events/sec with sub-second analytical queries over a 7-day rolling window on edge nodes.
 
 ## Evaluated Options
-1. **ClickHouse (Embedded / Single Binary)** — Evidence: E-101 (Grade A · official docs | fetched)
-2. **VictoriaLogs** — Evidence: E-104 (Grade B · empirical benchmarks | fetched)
-3. **OpenSearch** — Evidence: E-108 (Grade A · official docs | fetched)
+1. **ClickHouse (Embedded / Single Binary)** — [A · corroborated · fresh · direct · fetched](https://clickhouse.com/docs/en/engines/table-engines/mergetree-family/mergetree)
+2. **VictoriaLogs** — [B · single · fresh · direct · fetched](https://docs.victoriametrics.com/victorialogs/)
+3. **OpenSearch** — [A · single · fresh · direct · fetched](https://opensearch.org/docs/latest/)
 
 ## Decision Outcome
 **Chosen Option:** ClickHouse (single binary / embedded mode).
 
 ### Rationale
 ClickHouse provides column-oriented vector execution with demonstrated 10x–14x zstd compression
-on structured JSON logs (E-101). VictoriaLogs has a smaller binary size but lacks multi-column
+on structured JSON logs [A · corroborated · fresh · direct · fetched](https://clickhouse.com/docs/en/engines/table-engines/mergetree-family/mergetree). VictoriaLogs has a smaller binary size but lacks multi-column
 secondary indexing needed for high-cardinality regex filtering on Kubernetes pod namespaces.
 
 ## Rejected Alternatives & Tradeoffs
 - **OpenSearch:** Rejected due to excessive JVM memory footprint (>2GB heap required), violating
-  our strict edge memory constraint of <256MB RAM per node (E-108).
+  our strict edge memory constraint of <256MB RAM per node [A · single · fresh · direct · fetched](https://opensearch.org/docs/latest/install-and-configure/install-opensearch/index/).
 - **VictoriaLogs:** Rejected because custom log queries require pipeline transformation syntax
   unfamiliar to SQL-native DevOps teams, increasing customer adoption friction.
+
+## Challenge Findings
+Stress-tested in `D-001-R1`: rapid small-batch log flushes (<1,000 rows) trigger MergeTree part explosion and memory spikes; mitigated via `async_insert=1` batching and explicit 150 MB `max_memory_usage` caps.
 
 ## Failure Modes & Reversal Triggers
 - If memory consumption under burst ingestion exceeds 300MB RAM for >10 minutes, trigger evaluation
@@ -422,10 +428,10 @@ For best results, select models with deep research capabilities and fresh search
 
 | Model / Service | Ideal For | Notes |
 |---|---|---|
-| **Gemini 2.5 Pro / Deep Research** | Deep multi-source web investigations, benchmark retrieval | Exceptional at crawling official documentation and RFCs |
-| **ChatGPT o3 / Deep Research** | Complex DAG generation, architectural trade-offs, logic | Strong causal reasoning for ADRs and ACH matrices |
-| **Claude 3.7 Sonnet (with Search)** | Prompt generation, FAD synthesis, crisp technical writing | Produces clean Markdown with strict adherence to templates |
-| **Perplexity Pro** | Fast empirical verification, gathering peer postmortems | Excellent citation cards for building Evidence Ledgers |
+| **Gemini Deep Research** | Deep multi-source web investigations, benchmark retrieval | Strong at reading official documentation and primary specs |
+| **ChatGPT Deep Research** | Complex DAG generation, architectural trade-offs, logic | Strong causal reasoning for ADRs and ACH matrices |
+| **Claude (with Web Search)** | Prompt generation, FAD synthesis, crisp technical writing | Produces clean Markdown with strict template fidelity |
+| **Perplexity** | Fast empirical verification, gathering peer postmortems | Direct citation trails for building Evidence Ledgers |
 
 > [!WARNING]
 > **Avoid Standard Unassisted Chat:** Never run research sessions with offline models or models with browsing disabled. LLM memory recall is capped at **Grade D** under Vivechak methodology. One-Way Doors cannot be locked on Grade D evidence.
@@ -448,7 +454,7 @@ Do not trigger a full ACH conflict resolution for minor aesthetic differences or
 ### 4. Parallel Execution of Sessions
 
 - **Browser Tab Farm:** You can open 5 browser tabs simultaneously and run all Layer 0 sessions in parallel across different tabs or AI models.
-- **Model Triangulation:** For critical One-Way Doors (e.g., primary datastore or multi-tenant security boundary), run the exact same session prompt through **both** Claude 3.7 Sonnet and ChatGPT Deep Research. Compare their Evidence Ledgers to spot vendor bias or stale documentation.
+- **Model Triangulation:** For critical One-Way Doors (e.g., primary datastore or multi-tenant security boundary), run the exact same session prompt across **two independent model vendors** (e.g. Claude + ChatGPT or Gemini Deep Research). Compare their Evidence Ledgers to spot vendor bias or stale documentation.
 
 ### 5. Transitioning to the MCP Server Later
 

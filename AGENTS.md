@@ -118,16 +118,16 @@ Vivechak must **never** be invoked for:
 ---
 
 ### 2.5 Recommended AGENTS.md Snippet for User Projects
-Paste this concise 15-line block into any repository's `AGENTS.md` or `CLAUDE.md` to instruct AI coding agents how to use Vivechak:
+Paste this concise block into any repository's `AGENTS.md` or `CLAUDE.md` to instruct AI coding agents how to use Vivechak:
 
 ```markdown
 ## Architecture Decisions (Vivechak)
 When making a hard-to-reverse technical choice (new datastore, protocol, core dependency, public API, or security boundary), use the Vivechak MCP tools to record research in `research/`:
 1. Call `vivechak_start(scope="decision", question="<choice>", project_root="<repo-root>")`.
-2. Record options and graded citations (`[E-A: ...]` to `[E-E: ...]`) with `vivechak_save(kind="comparison", content="<matrix>")`.
+2. For 2–5 bounded options, save a graded WEP matrix (`[A · corroborated · fresh · direct · fetched](https://...)`) with `vivechak_save(kind="comparison", content="<matrix>")`.
 3. For complex choices, execute a session DAG with `vivechak_next()` and `vivechak_save(kind="session", id="T1-01", content="<session>")`.
-4. Record the resulting ADR with `vivechak_record_decision(id="D-001", content="<adr>")`.
-5. Run `vivechak_gate()` (or `vck gate` in CI) to verify the decision trail before authoring code.
+4. Record the resulting ADR with `vivechak_record_decision(id="D-001", content="<adr>")`, and challenge One-Way Doors via `vivechak_review(mode="red_team", id="D-001")`.
+5. Ask a human reviewer to run `vck signoff D-001 --reviewer "<name>"` for One-Way Doors (never set `human_reviewed` yourself), then run `vivechak_gate()` (or `vck gate` in CI).
 Skip Vivechak for routine bug fixes, refactors, and reversible local implementation choices.
 ```
 
@@ -181,25 +181,34 @@ vivechak/
 │
 ├── cmd/vivechak/                   ← MCP server + CLI entry point (vck alias)
 │   ├── main.go                     ← Entry point (serve, setup, mcp-config, doctor, gate, signoff, version)
-│   ├── config.go                   ← setup & mcp-config (auto-detection + 10 presets)
+│   ├── config.go                   ← mcp-config JSON generation, safe JSONC/YAML config merge & atomic write
+│   ├── setup.go                    ← setup / install CLI, workspace auto-detection & secret-safe --dry-run diffs
+│   ├── presets.go                  ← 10 verified host preset wrappers (canonical registry in internal/hosts/)
 │   ├── doctor.go                   ← Workspace integrity checker
 │   ├── gate.go                     ← Headless Phase 0 exit gate evaluator (CI-ready)
 │   └── signoff.go                  ← Interactive human architectural review sign-off
 │
 ├── internal/                       ← Server implementation (Go)
-│   ├── core/                       ← Pure logic (workspace, DAG, validation, injection, signoff)
-│   ├── workspace/                  ← Workspace resolution chain & path jailing
-│   ├── mcp/                        ← 9 consolidated MCP tools + response envelope
-│   ├── store/                      ← Atomic I/O, locking, os.Root confinement
+│   ├── core/                       ← Pure logic (workspace, DAG, validation, injection, gate, signoff)
+│   ├── workspace/                  ← 7-step fail-closed workspace resolution ladder & OS boundary guards
+│   ├── hosts/                      ← Canonical 10-preset MCP host registry (shared with tools/docgen)
+│   ├── method/                     ← Single-source evidence.json & principles.json methodology definitions
+│   ├── mcp/                        ← 9 consolidated MCP tools, 4 prompts, 8 resources & response envelope
+│   ├── store/                      ← Atomic I/O, locking, .history/ snapshots & os.Root confinement
 │   └── embed/                      ← go:embed generators, templates, skills, rules
 │
-├── templates/                      ← 6 operational contracts (copy to projects)
+├── skills/vivechak/SKILL.md        ← Universal Dual-Mode Agent Skill (works with MCP or standalone)
+│
+├── templates/                      ← 6 operational contracts + 3 editor rule templates (templates/rules/)
 │   ├── DECISIONS.template.md       ← YAML frontmatter ADR format
 │   ├── CONFLICT-RESOLUTION.template.md ← ACH-style conflict resolution
 │   ├── COMPARISON-SESSION.template.md  ← WEP comparison output format
 │   ├── FOUNDING-ARCHITECTURE.template.md ← Map-Reduce synthesis to FAD
 │   ├── PHASE-0-GATE.template.md    ← Two-track pre-codebase exit gate
-│   └── SESSION.template.md         ← Standard research session output format
+│   ├── SESSION.template.md         ← Standard research session output format
+│   └── rules/                      ← Pre-packaged rules (cursor.mdc, claude.md, antigravity.md)
+│
+├── tools/docgen/                   ← Single-source code-to-docs generator (docs/reference/, docs/hosts.md, evidence blocks)
 │
 ├── examples/                       ← Concrete adoption walkthroughs
 │   ├── SAMPLE-COMPARISON.md        ← Comparison scope walkthrough (Pino vs Winston WEP matrix)
@@ -277,7 +286,7 @@ When modifying Go code in `cmd/` or `internal/`:
 7. **Automated Phase 0 Gate:** `vivechak_gate` evaluates 12 rules (G1–G12) across Track A (reversibility confirmation for Two-Way Doors) and Track B (rigorous checks for One-Way Doors), returning gate results while auto-persisting `research/PHASE-0-GATE.md`.
 8. **Concurrency, Status Sync & Atomic I/O:** `store.WriteFileAtomic` employs monotonic `tmpFileCounter` to prevent Windows nanosecond collision races; mutating operations acquire advisory locks; valid sessions are promoted to `status: complete`.
 9. **Special research files:** Use `core.IsSpecialResearchFile` when scanning `research/` to prevent non-ADR markdown files from corrupting decision registries.
-10. **Testing:** `go test ./...` runs all tests. `internal/mcp/server_test.go` and `internal/mcp/lifecycle_test.go` have wire-level JSON-RPC and end-to-end multi-scope lifecycle tests; `cmd/vivechak/*_test.go` contains live subprocess integration, concurrency, and workspace resolution tests.
+10. **Testing:** `go test ./...` runs all tests. `internal/mcp/server_test.go` and `internal/mcp/massive_real_lifecycle_test.go` cover in-memory JSON-RPC wire contracts and multi-scope lifecycles; `cmd/vivechak/*_test.go` covers live subprocess stdio flows (`mcp_live_lifecycle_test.go`, `docs_flows_test.go`), concurrency, TTY sign-off, and workspace resolution.
 
 ---
 

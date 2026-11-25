@@ -16,7 +16,8 @@
 </h1>
 
 <p align="center">
-  <strong>Evidence-graded technical decisions for AI coding agents — researched, challenged, and gated in Markdown before you write code.</strong>
+  <strong>Prove decisions before code.</strong><br>
+  Evidence-graded research, red-team SHA-256 checks, and human sign-off for AI coding agents — stored locally in plain Git Markdown.
 </p>
 
 <p align="center">
@@ -96,7 +97,7 @@ vck gate
 | **Homebrew** *(macOS & Linux)* | `brew install --cask bhaskarjha-dev/tap/vivechak` |
 | **Windows Package Managers** | `winget install bhaskarjha-dev.Vivechak` &nbsp;or&nbsp; `scoop bucket add vivechak https://github.com/bhaskarjha-dev/scoop-bucket && scoop install vivechak` |
 | **Zero-Install Runners** | `npx -y vivechak serve` *(Node.js)* &nbsp;or&nbsp; `uvx vck serve` *(Python / `uv`)* |
-| **Universal Agent Skill** | `npx skills add bhaskarjha-dev/vivechak` |
+| **Standalone Agent Skill** | `npx skills add bhaskarjha-dev/vivechak` *(works with or without the MCP server)* |
 
 <details>
 <summary><strong>Docker, Nix Flake, Linux Packages (.deb / .rpm / .apk / Arch), Go Toolchain &amp; Any Custom MCP Host</strong></summary>
@@ -184,7 +185,9 @@ date: 2026-11-18
 informed_by_sessions: [D-001-S1, D-001-S2]
 review_trigger: "Sustained ingest > 150k events/s or monthly storage > $2,500"
 human_reviewed: true
-signed_off_by: "Jane Doe"
+reviewed_by: "Jane Doe"
+reviewed_at: "2026-11-18T14:22:09Z"
+reviewed_hash: "8f3c9d1a7e2b4c6f9a0d1e2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d"
 vivechak: 1
 ---
 

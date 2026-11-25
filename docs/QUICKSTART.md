@@ -10,7 +10,7 @@ Vivechak runs at three scope levels depending on what you are deciding:
 | **Single Decision** | [`GENERATOR-DECISION.md`](../GENERATOR-DECISION.md) | Architecture Decision Record (ADR) | 1–3 sessions |
 | **Bounded Comparison** | [`GENERATOR-COMPARISON.md`](../GENERATOR-COMPARISON.md) | Weighted Evaluation (WEP) Matrix | 1 session |
 
-Below are the two ways to use Vivechak: **Path A** via automated MCP server (recommended), or **Path B** manually in your browser.
+Below are the three ways to use Vivechak: **Path A** via the automated MCP server & CLI (recommended), **Path B** via the standalone Agent Skill (`npx skills add`, zero binary required), or **Path C** manually in browser AI chats.
 
 ---
 
@@ -116,8 +116,8 @@ Open your agent chat in your project repository and choose your scope (or invoke
 
 ### 4. How the Agent Executes Each Scope
 
-- **Comparison Scope:** Agent calls `vivechak_start(scope="comparison", question="...")` → executes prompt with search → calls `vivechak_save(kind="comparison", content="<matrix>")` to persist WEP matrix in `research/C-NNN-comparison.md`. Done in 5 minutes! Zero DAG, zero gate.
-- **Decision Scope:** Agent calls `vivechak_start(scope="decision", question="...")` → saves plan via `vivechak_save(kind="plan", id="D-NNN", content="<plan>")` → runs 1–3 sessions → calls `vivechak_record_decision(id="D-NNN", content="<adr>")` to record canonical ADR `research/D-NNN-decision.md` and compiled registry `research/DECISIONS.md`. Zero project DAG, zero FAD.
+- **Comparison Scope:** Agent calls `vivechak_start(scope="comparison", question="...")` → executes prompt with web search → calls `vivechak_save(kind="comparison", content="<matrix>")` to persist a WEP matrix with ±20% weight sensitivity in `research/C-NNN-comparison.md`. Done in 5 minutes! Zero DAG, zero gate.
+- **Decision Scope:** Agent calls `vivechak_start(scope="decision", question="...")` → saves plan via `vivechak_save(kind="plan", id="D-NNN", content="<plan>")` → runs 1–3 sessions → calls `vivechak_record_decision(id="D-NNN", content="<adr>")` to record canonical ADR `research/D-NNN-decision.md` and compiled `research/DECISIONS.md` → challenges One-Way Doors with `vivechak_review(mode="red_team", id="D-NNN")` → human runs `vck signoff D-001 --reviewer "<name>"` in an interactive terminal → `vivechak_gate(decision="D-NNN")`. Zero project DAG, zero FAD.
 - **Project Scope:** Autonomous orchestration across 9 consolidated tools:
 ```
 [Agent: vivechak_start(scope="project", question="<vision>")]
@@ -143,8 +143,8 @@ See the [MCP Tools Reference](MCP-TOOLS.md) for full tool schemas, parameter spe
 
 **To upgrade Vivechak:**
 - **Homebrew (macOS & Linux):** `brew update && brew upgrade --cask bhaskarjha-dev/tap/vivechak`
-- **Windows (PowerShell):** Re-run installer: `irm https://raw.githubusercontent.com/bhaskarjha-dev/vivechak/main/install.ps1 | iex`
-- **Linux / macOS Shell:** Re-run installer: `curl -fsSL https://raw.githubusercontent.com/bhaskarjha-dev/vivechak/main/install.sh | sh`
+- **Windows (PowerShell):** Re-run installer: `irm https://vivechak.bhaskarjha.dev/install.ps1 | iex`
+- **Linux / macOS Shell:** Re-run installer: `curl -fsSL https://vivechak.bhaskarjha.dev/install.sh | bash`
 - **WinGet / Scoop:** `winget upgrade bhaskarjha-dev.Vivechak` or `scoop update vivechak`
 - **Go toolchain:** `go install github.com/bhaskarjha-dev/vivechak/cmd/vivechak@latest`
 - **Zero-install runners (`npx` / `uvx`):** Always run the latest package automatically.
@@ -159,9 +159,21 @@ See the [MCP Tools Reference](MCP-TOOLS.md) for full tool schemas, parameter spe
 
 ---
 
-## Path B: Manual Workflow (No Installation Needed)
+## Path B: Standalone Agent Skill (Zero MCP Server Required)
 
-No binaries or CLI required. Works in ChatGPT, Gemini, or Claude web browsers with web search enabled.
+If you prefer not to run an MCP server or install a binary yet, install the dual-mode Vivechak Agent Skill directly into Claude Code, Cursor, Antigravity, or OpenCode:
+
+```sh
+npx skills add bhaskarjha-dev/vivechak
+```
+
+Your coding agent learns the exact 3-scope workflow, A–E evidence grading, ±20% WEP sensitivity check, and One-Way Door red-team discipline ([`skills/vivechak/SKILL.md`](../skills/vivechak/SKILL.md)) and writes standard Markdown artifacts directly into `research/` using its built-in file and web search tools. If you install `vck` later, every file is already compatible with `vck doctor`, `vck signoff`, and `vck gate`.
+
+---
+
+## Path C: Manual Workflow (Browser Chat, Zero Installation)
+
+No binaries, CLI, or skills required. Works in ChatGPT, Gemini, Claude, or Perplexity web browsers with web search enabled — or build prompts and lint ADRs immediately in the browser at [vivechak.bhaskarjha.dev/playground](https://vivechak.bhaskarjha.dev/playground).
 
 ### 1. Copy the Generator Prompt
 Open [`GENERATOR-PROJECT.md`](../GENERATOR-PROJECT.md) and copy the generator prompt inside the markdown code block.

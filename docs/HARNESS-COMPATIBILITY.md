@@ -34,7 +34,7 @@ Vivechak is built from the ground up to be **harness-agnostic**. It communicates
 | Harness Category | Representative Examples | Compatibility | Configuration Method | Key Capabilities & Notes |
 |---|---|---|---|---|
 | **Single-Agent IDEs** | Cursor, VS Code, Google Antigravity, Windsurf, Zed, Void Editor, ByteDance Trae | ✅ Full (Production) | `vck setup` (10 presets) or `vck setup <path>` | Native tool calling, live diffs, inline research reviews. |
-| **CLI Terminal Agents** | Claude Code, OpenCode, Block Goose, `agy` CLI, OpenHands, Aider | ✅ Full (Production) | `vck setup <preset>` or stdio launch | High-speed terminal workflows; supports script piping. |
+| **CLI Terminal Agents** | Claude Code, OpenCode, Block Goose, `agy` CLI, OpenHands | ✅ Full (Production) | `vck setup <preset>` or stdio launch | High-speed terminal workflows; supports script piping. |
 | **Open-Source Code Assistants** | Continue.dev (VS Code & JetBrains), Cline, Roo Code | ✅ Full (Production) | `vck setup roo`; Continue and Cline: `vck setup <path>` | Modular MCP configuration; zero cloud lock-in. |
 | **Cloud Background Agents** | Devin, Factory Droid, GitHub Workspaces | ✅ Full (Production) | Pre-installed binary via `install.sh` + `vck mcp-config` | Autonomous headless execution through Phase 0 Gate. |
 | **Parallel-Agent Swarms** | Subagent spawning (Antigravity subagents, Claude Code task agents) | ✅ Full (Production) | Inherited MCP server or spawned processes | Safe concurrent writes via advisory locking; `parallelism_hint` in `vivechak_next`. |
@@ -237,7 +237,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install Vivechak
-        run: curl -sSL https://raw.githubusercontent.com/bhaskarjha-dev/vivechak/main/install.sh | bash
+        run: curl -fsSL https://vivechak.bhaskarjha.dev/install.sh | bash
       - name: Run Workspace Doctor
         run: vck doctor
       - name: Evaluate Phase 0 Exit Gate

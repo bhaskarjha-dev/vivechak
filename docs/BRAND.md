@@ -5,7 +5,7 @@
 
 ## 1. Philosophical & Conceptual Foundations
 
-**Vivechak (विवेचक)** is rooted in classical Sanskrit epistemological grammar:
+**Vivechak (विवेचक)** is rooted in classical Sanskrit epistemological grammar (rendered visually via the pure-vector Devanagari wordmarks [`wordmark-light.svg`](assets/wordmark-light.svg) and [`wordmark-dark.svg`](assets/wordmark-dark.svg) with zero OS font dependency):
 - **vi-** (वि): prefix denoting *"apart"*, *"distinctly"*, *"without confusion"*
 - **√vic** (विच्): verbal root meaning *"to sift"*, *"to separate"*, *"to discern truth from appearance"*
 - **-aka** (अक): agentive suffix denoting *"the agent who performs the action"*

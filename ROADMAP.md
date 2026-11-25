@@ -3,9 +3,9 @@
 
 ---
 
-## 1. Current State: v0.1.0 (November 2026)
+## 1. Current State: v0.1.0-rc (Release Candidate)
 
-**Status:** Hardened Core, battle-tested, and automated via Model Context Protocol (MCP).
+**Status:** Hardened Core, battle-tested, and undergoing `v0.1.0-rc` release verification prior to the public `v0.1.0` tag.
 
 Vivechak delivers a unified, evidence-grounded research methodology powered by an autonomous, single-binary Go MCP server and multi-scope generators. It operates across three distinct scope levels (Project → FAD, Decision → ADR, Comparison → WEP matrix) while maintaining a strict Guided Worker pattern with zero LLM API dependencies.
 
@@ -13,18 +13,18 @@ Vivechak delivers a unified, evidence-grounded research methodology powered by a
 
 | Component | State | Description |
 |---|---|---|
-| **9 Consolidated MCP Tools** | Built (unreleased) | Full lifecycle support: `vivechak_start`, `vivechak_save`, `vivechak_record_decision`, `vivechak_next`, `vivechak_status`, `vivechak_review`, `vivechak_amend`, `vivechak_replan`, and `vivechak_gate` |
-| **Multi-Scope Generators** | Built (unreleased) | `GENERATOR-PROJECT.md` (Project), `GENERATOR-DECISION.md` (Decision), `GENERATOR-COMPARISON.md` (Comparison) with synchronized `CORE:BEGIN/END` methodology kernels, Research Depth Mandates, and token-optimized execution guidance |
-| **Unified AST-Aware Markdown Parser** | Built (unreleased) | CommonMark heading-level and code-fence-aware extraction for recommendations, alternatives, and frontmatters; eliminates sibling truncation, code comment false positives, and parser fragility |
-| **Strict Decoupled Phase 0 Exit Gate** | Built (unreleased) | Non-negotiable blocking on One-Way Door evidentiary defects (G6), verification gaps (G7), and missing alternatives (G8), preventing Potemkin passes while preserving fast spikes for Two-Way Doors |
-| **Permissive Frontmatter & ADR Supersession** | Built (unreleased) | Zero-crash frontmatter extraction for documents starting with `# Heading` or blank lines; robust non-destructive ADR supersession |
-| **Eager Concurrency Locks** | Built (unreleased) | Mutual exclusion across mid-flight replans (anti-TOCTOU) and workspace root FAD mirror synthesis |
-| **Namespaces & Protocols** | Built (unreleased) | `C-NNN` comparison namespace, `T-NNN` project tasks, `D-NNN` ADRs; ADR supersession protocol with transitive stale-reference detection |
-| **CLI & Diagnostics** | Built (unreleased) | `vck` shorthand alias, `vck setup` (1-second host configuration + 10 presets), `vck mcp-config` (universal JSON config), and `vck doctor` workspace integrity checker |
-| **FRAMEWORK.md** | Built (unreleased) | Complete standalone specification (8 principles, evidence grading A–E, prompt anatomy, Weighted Evaluation Protocol, Phase 0 Gate) |
-| **6 Operational Templates** | Built (unreleased) | `DECISIONS.template.md`, `CONFLICT-RESOLUTION.template.md`, `COMPARISON-SESSION.template.md`, `FOUNDING-ARCHITECTURE.template.md`, `PHASE-0-GATE.template.md`, `SESSION.template.md` (`schema_version: "0.1.0"`) |
-| **Distribution & Packages** | Built (unreleased) | Single-binary cross-compilation (7 platforms: Darwin, Linux, Windows, FreeBSD), macOS universal binary, Linux native packages (`.deb`, `.rpm`, `.apk`, Arch tar.zst via nFPM), Docker multi-arch images (`ghcr.io`), Homebrew (`vivechak` & `vck`), Scoop (`vivechak` & `vck`), WinGet, npm/npx runner (`vivechak` & `vck`), PyPI/uvx runner (`vivechak` & `vck`), Nix flake (`flake.nix`), and shell installers (`install.sh`, `install.ps1`) |
-| **meta-research/** | ✅ Sealed | 14 locked ADRs (D-001–D-014), 27 research artifacts, empirical evidence base validating every design decision |
+| **9 Consolidated MCP Tools, 4 Prompts & 8 Resources** | Built (`v0.1.0-rc`) | Full lifecycle support (`<= 10 KB` wire footprint): `vivechak_start`, `vivechak_save`, `vivechak_record_decision`, `vivechak_next`, `vivechak_status`, `vivechak_review`, `vivechak_amend`, `vivechak_replan`, and `vivechak_gate`, plus 4 slash prompts (`compare`, `decision`, `project`, `gate`) and 8 read-only resources |
+| **Multi-Scope Generators** | Built (`v0.1.0-rc`) | `GENERATOR-PROJECT.md` (Project), `GENERATOR-DECISION.md` (Decision), `GENERATOR-COMPARISON.md` (Comparison) with single-source `CORE:BEGIN/END` methodology kernels driven by `internal/method/evidence.json` |
+| **Dual-Mode Universal Agent Skill & Editor Rules** | Built (`v0.1.0-rc`) | `npx skills add bhaskarjha-dev/vivechak` (`skills/vivechak/SKILL.md` works both with MCP and standalone zero-binary) plus pre-packaged rules (`cursor.mdc`, `claude.md`, `antigravity.md`) |
+| **Unified AST-Aware Markdown & `yaml vivechak-plan` Parser** | Built (`v0.1.0-rc`) | Strict `yaml vivechak-plan` DAG parsing (`V-PLAN-*` diagnostics) and CommonMark heading/fence-aware extraction for recommendations, alternatives, and frontmatter |
+| **Strict Phase 0 Exit Gate (`G1`–`G12`) & TTY Sign-Off** | Built (`v0.1.0-rc`) | Mechanical Track A (Two-Way Door reversibility) & Track B (One-Way Door Grade A/B URLs, `fetched`/`human` provenance, red-team SHA-256 `D-NNN-R1.md`, and interactive `vck signoff` attestation) |
+| **Permissive Frontmatter & ADR Supersession** | Built (`v0.1.0-rc`) | Zero-crash frontmatter extraction for documents starting with `# Heading` or `<details>` registry blocks, plus non-destructive ADR supersession and `research/.history/` revision snapshots |
+| **Eager Concurrency Locks & `os.Root` Confinement** | Built (`v0.1.0-rc`) | Advisory file locks (`flock`) across concurrent subagents, monotonic atomic temp files, and Go 1.26 `os.Root` path jailing inside `research/` |
+| **CLI & Diagnostics (`vck` / `vivechak`)** | Built (`v0.1.0-rc`) | `vck setup` (10 verified host presets + `<path>` merge + `--dry-run`), `vck serve`, `vck doctor`, `vck gate` (CI-ready `0`/`1`), `vck signoff`, `vck mcp-config`, and `vck version` |
+| **FRAMEWORK.md & Generated Reference Manuals** | Built (`v0.1.0-rc`) | Complete specification (8 principles, A–E grading, WEP ±20%, Phase 0 Gate) plus single-source `tools/docgen` reference tables (`docs/reference/{tools,codes,gate}.md`, `docs/hosts.md`) |
+| **6 Operational Templates** | Built (`v0.1.0-rc`) | `DECISIONS.template.md`, `CONFLICT-RESOLUTION.template.md`, `COMPARISON-SESSION.template.md`, `FOUNDING-ARCHITECTURE.template.md`, `PHASE-0-GATE.template.md`, `SESSION.template.md` (`schema_version: "0.1.0"`) |
+| **Distribution & Interactive Web Platform** | Built (`v0.1.0-rc`) | Cross-compiled binaries (macOS universal, Linux `.deb`/`.rpm`/`.apk`/Arch, Windows, FreeBSD), Docker (`ghcr.io`), Homebrew, Scoop, WinGet, npm (`npx`), PyPI (`uvx`), Nix flake, shell installers, and [vivechak.bhaskarjha.dev](https://vivechak.bhaskarjha.dev) (Playground, Gate simulator, Live Docs) |
+| **meta-research/** | ✅ Sealed | 14 locked ADRs (D-001–D-014), empirical evidence base validating every design decision |
 
 ---
 

@@ -33,11 +33,11 @@ vck setup cursor --dry-run
 `vck setup` automatically resolves the target configuration file, detects whether global or workspace scope is active, formats Windows/macOS/Linux paths cleanly, and merges the Vivechak MCP server block without overwriting existing servers.
 
 ### Universal Agent Skill (`npx skills add`)
-For agent harnesses that support decentralized skills (Claude Code, Cursor, Antigravity, OpenCode), install Vivechak's skill directly:
+For agent harnesses that support decentralized skills (Claude Code, Cursor, Antigravity, OpenCode), install Vivechak's dual-mode skill directly:
 ```sh
 npx skills add bhaskarjha-dev/vivechak
 ```
-This automatically installs the calibrated agent playbook (`skills/vivechak/SKILL.md`) into your workspace or global skill catalog.
+This installs the calibrated agent playbook (`skills/vivechak/SKILL.md`), which **works both standalone (zero MCP server required)** using native web search + file tools and automatically upgrades to the full 9-tool MCP orchestration loop whenever `vck` is connected.
 
 ### Smithery CLI (`@smithery/cli`)
 If you use [Smithery.ai](https://smithery.ai) for automatic MCP client discovery and installation:
@@ -126,7 +126,7 @@ If you prefer not to install the binary onto your system `$PATH`, configure any 
 
 ### Supported Desktop Hosts & Harness Presets
 
-Each preset writes the file and key that the host's own documentation names (the documentation URL is next to each preset in `cmd/vivechak/presets.go`).
+Each preset writes the file and key that the host's own documentation names (the documentation URL is next to each preset in `internal/hosts/presets.go`). Before modifying any existing file, `vck setup` saves a single immutable backup at `<config>.vivechak-bak-<timestamp>`.
 
 | Environment / Harness | Fast Setup Command | Preset Shortcut | Default Config Location | Schema Key |
 |---|---|---|---|---|

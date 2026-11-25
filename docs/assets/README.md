@@ -1,6 +1,6 @@
 # Vivechak Brand & Diagram Assets
 
-This directory contains the official production vector and raster assets for **Vivechak** (*vivechaka*).
+This directory contains the official production vector and raster assets for **Vivechak (विवेचक)**.
 
 For complete geometric construction blueprints, mathematical verification metrics, optical sizing rules, and color tokens, see [**`docs/BRAND.md`**](../BRAND.md).
 
