@@ -8,10 +8,11 @@ alwaysApply: false
 
 When the user asks to compare technologies, evaluate architectural choices, or design systems:
 1. **Always Ground in Evidence:** Do not answer comparative or architectural choices from ungrounded training recall.
-2. **Comparison Scope (2–5 options):** Call `vivechak_start(scope="comparison", question="...")` (or trigger `/compare`). Produce a Weighted Evaluation Protocol (WEP) matrix and save via `vivechak_save(kind="comparison", content="<matrix>")`.
-3. **Decision Scope (ADRs):** Call `vivechak_start(scope="decision", question="...")` (or trigger `/decision`). Record canonical ADRs with quantitative reversal triggers in `research/D-NNN-decision.md` via `vivechak_record_decision(id="D-NNN", content="<adr>")`.
-4. **Project Scope (Founding Architecture):** Call `vivechak_start(scope="project", question="...")` (or trigger `/project`) to decompose greenfield systems across an adaptive dependency DAG to a Founding Architecture Document (`research/FAD.md`).
-5. **Evidence Taxonomy:** Grade every factual claim:
+2. **Comparison Scope (2–5 options):** Call `vivechak_start(scope="comparison", question="...")` (or trigger `/compare`). Produce a Weighted Evaluation Protocol (WEP) matrix with a ±20% sensitivity check and save via `vivechak_save(kind="comparison", content="<matrix>")`.
+3. **Decision Scope (ADRs):** Call `vivechak_start(scope="decision", question="...")` (or trigger `/decision`). Record canonical ADRs with quantitative reversal triggers in `research/D-001-decision.md` via `vivechak_record_decision(id="D-001", content="<adr>")`.
+4. **One-Way Door Red-Team & Human Sign-Off:** Stress-test irreversible One-Way Doors with `vivechak_review(mode="red_team", id="D-001")` and cite `D-001-R1` in `## Challenge Findings`. Never set `human_reviewed: true` yourself — ask the user to run `vck signoff D-001 --reviewer "<name>"` in an interactive terminal before `vivechak_gate()`.
+5. **Project Scope (Founding Architecture):** Call `vivechak_start(scope="project", question="...")` (or trigger `/project`) to decompose greenfield systems across an adaptive dependency DAG to a Founding Architecture Document (`research/FAD.md`).
+6. **Evidence Taxonomy:** Grade every factual claim:
    <!-- docgen:begin evidence-grades (generated from internal/method/evidence.json by tools/docgen; do not edit by hand) -->
    - **Grade A (Primary Empirical):** Official specifications, canonical source code, RFCs, or primary documentation with explicit URL anchor.
    - **Grade B (Secondary Empirical):** Peer-reviewed papers, reproducible third-party benchmarks, published postmortems, or corroborated engineering reports.
@@ -19,4 +20,4 @@ When the user asks to compare technologies, evaluate architectural choices, or d
    - **Grade D (Informal & Opinion):** Blog posts, forum discussions, StackOverflow answers, or model memory recall (capped at Grade D).
    - **Grade E (Speculative & Unsubstantiated):** Unverified hypotheses, uncorroborated parametric recall, or ungrounded assertions.
    <!-- docgen:end evidence-grades -->
-6. **Guardrails:** NEVER invoke Vivechak for direct code authoring, syntax queries, debugging, or micro-refactoring (write code directly).
+7. **Guardrails:** NEVER invoke Vivechak for direct code authoring, syntax queries, debugging, or micro-refactoring (write code directly).

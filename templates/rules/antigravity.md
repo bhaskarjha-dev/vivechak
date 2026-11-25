@@ -1,9 +1,9 @@
-# Vivechak Skill for Google Antigravity
+# Vivechak Rules for Google Antigravity
 
-This skill operationalizes Vivechak's epistemic grounding meta-framework inside Google Antigravity agents.
+This rule operationalizes Vivechak's epistemic grounding meta-framework inside Google Antigravity agents (`.agents/rules/vivechak.md`).
 
 ## When to Activate
-Activate this skill whenever the user asks to:
+Activate Vivechak whenever the user asks to:
 - Compare 2–5 competing technologies, libraries, algorithms, or datastores.
 - Resolve an architectural dilemma or migration fork in an active codebase.
 - Architect a greenfield platform, system, or comprehensive subsystem rewrite.
@@ -12,13 +12,14 @@ Activate this skill whenever the user asks to:
 ## Scope Routing & Execution
 1. **Comparison Scope (`ScopeComparison`):**
    - Call `vivechak_start(scope="comparison", question="...")`.
-   - Run grounded web search.
+   - Run grounded web search and compute a WEP matrix with ±20% weight sensitivity.
    - Save output via `vivechak_save(kind="comparison", id="C-001", content="<matrix>")`.
 2. **Decision Scope (`ScopeDecision`):**
    - Call `vivechak_start(scope="decision", question="...")`.
-   - Save decision plan via `vivechak_save(kind="plan", id="D-NNN", content="<plan>")`.
-   - Execute 1–3 sessions (`vivechak_next()` → `vivechak_save(kind="session", id="D-NNN-S1", content="<session>")`).
-   - Lock ADR via `vivechak_record_decision(id="D-NNN", auto_draft_from="D-NNN-S1", auto_save=true)`.
+   - Save decision plan via `vivechak_save(kind="plan", id="D-001", content="<plan>")`.
+   - Execute 1–3 sessions (`vivechak_next()` → `vivechak_save(kind="session", id="D-001-S1", content="<session>")`).
+   - Record ADR via `vivechak_record_decision(id="D-001", content="<adr>")`.
+   - For One-Way Doors, challenge via `vivechak_review(mode="red_team", id="D-001")`, cite `D-001-R1` in `## Challenge Findings`, and ask the user to run `vck signoff D-001 --reviewer "<name>"` (never set `human_reviewed: true` yourself).
 3. **Project Scope (`ScopeProject`):**
    - Call `vivechak_start(scope="project", question="...")`.
    - Save DAG via `vivechak_save(kind="plan", id="DAG", content="<pipeline>")`.
