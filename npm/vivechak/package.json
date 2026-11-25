@@ -2,7 +2,7 @@
   "name": "vivechak",
   "version": "0.1.0",
   "mcpName": "io.github.bhaskarjha-dev/vivechak",
-  "description": "Evidence-grounded research for technical decisions — MCP server",
+  "description": "Prove decisions before code — evidence-graded research, red-teaming, and Phase 0 exit gates for AI coding agents (MCP server & CLI)",
   "homepage": "https://vivechak.bhaskarjha.dev",
   "main": "bin/runner.js",
   "bin": {

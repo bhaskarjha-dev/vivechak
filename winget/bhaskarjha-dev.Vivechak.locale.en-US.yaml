@@ -9,7 +9,7 @@ PackageName: Vivechak
 PackageUrl: https://vivechak.bhaskarjha.dev
 License: MIT
 LicenseUrl: https://github.com/bhaskarjha-dev/vivechak/blob/main/LICENSE
-ShortDescription: Evidence-graded technical decisions for AI coding agents — MCP server & CLI (vck)
+ShortDescription: Prove decisions before code — evidence-graded research & Phase 0 gates for AI coding agents (MCP & CLI)
 Description: |-
   Vivechak is an epistemic grounding meta-framework, Model Context Protocol (MCP) server,
   and CLI (vck / vivechak) that structures evidence-graded technical research, Architecture

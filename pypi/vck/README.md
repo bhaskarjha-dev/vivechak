@@ -2,7 +2,7 @@
 
 <!-- mcp-name: io.github.bhaskarjha-dev/vivechak -->
 
-**Evidence-graded technical decisions for AI coding agents — researched, challenged, and gated in Markdown before you write code.**
+**Prove decisions before code.** Evidence-graded research, red-team SHA-256 checks, and human sign-off for AI coding agents — stored locally in plain Git Markdown.
 
 Official shorthand companion package for [**`vivechak`**](https://pypi.org/project/vivechak/). Installing or invoking `vck` delegates directly to `vivechak`, downloading, SHA-256-verifying, and caching the native Go MCP server and CLI binary for your platform.
 
@@ -38,4 +38,4 @@ uvx vck gate
 
 ## Documentation & License
 
-Official Website: **[vivechak.bhaskarjha.dev](https://vivechak.bhaskarjha.dev)** · Documentation: **[vivechak.bhaskarjha.dev/docs](https://vivechak.bhaskarjha.dev/docs)** · Source: **[github.com/bhaskarjha-dev/vivechak](https://github.com/bhaskarjha-dev/vivechak)** · [MIT](https://github.com/bhaskarjha-dev/vivechak/blob/main/LICENSE) © [Bhaskar Jha](https://bhaskarjha.dev).
+Official Website: **[vivechak.bhaskarjha.dev](https://vivechak.bhaskarjha.dev)** · Playground: **[vivechak.bhaskarjha.dev/playground](https://vivechak.bhaskarjha.dev/playground)** · Docs: **[vivechak.bhaskarjha.dev/docs](https://vivechak.bhaskarjha.dev/docs)** · Source: **[github.com/bhaskarjha-dev/vivechak](https://github.com/bhaskarjha-dev/vivechak)** · [MIT](https://github.com/bhaskarjha-dev/vivechak/blob/main/LICENSE) © [Bhaskar Jha](https://bhaskarjha.dev).

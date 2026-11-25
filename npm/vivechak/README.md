@@ -1,6 +1,6 @@
 # Vivechak (`vck`)
 
-**Evidence-graded technical decisions for AI coding agents — researched, challenged, and gated in Markdown before you write code.**
+**Prove decisions before code.** Evidence-graded research, red-team SHA-256 checks, and human sign-off for AI coding agents — stored locally in plain Git Markdown.
 
 Official Node.js runner for **Vivechak** (exposing both `vivechak` and shorthand CLI `vck`). Automatically downloads, SHA-256-verifies, and caches the pre-compiled static Go binary for your OS and architecture (`darwin`, `linux`, `windows`, `freebsd`) while keeping `stdout` 100% clean for MCP JSON-RPC over `stdio`.
 
@@ -12,7 +12,7 @@ Official Node.js runner for **Vivechak** (exposing both `vivechak` and shorthand
 # Configure your AI coding host in one command (10 verified presets)
 npx -y vivechak setup claude-code   # or: cursor, vscode, claude, agy, windsurf, zed, roo, opencode, goose
 
-# Optional: install the Universal Agent Skill playbook
+# Optional: install the Dual-Mode Agent Skill playbook (works with MCP or standalone)
 npx skills add bhaskarjha-dev/vivechak
 
 # Check workspace integrity and evaluate the pre-code Phase 0 Gate (exits 1 on FAIL)
@@ -68,4 +68,4 @@ For irreversible **One-Way Door** ADRs, `vck gate` requires an adversarial red-t
 
 ## Documentation & Source
 
-Official Website: **[vivechak.bhaskarjha.dev](https://vivechak.bhaskarjha.dev)** · Documentation: **[vivechak.bhaskarjha.dev/docs](https://vivechak.bhaskarjha.dev/docs)** · Source: **[github.com/bhaskarjha-dev/vivechak](https://github.com/bhaskarjha-dev/vivechak)** · MIT License.
+Official Website: **[vivechak.bhaskarjha.dev](https://vivechak.bhaskarjha.dev)** · Playground: **[vivechak.bhaskarjha.dev/playground](https://vivechak.bhaskarjha.dev/playground)** · Docs: **[vivechak.bhaskarjha.dev/docs](https://vivechak.bhaskarjha.dev/docs)** · Source: **[github.com/bhaskarjha-dev/vivechak](https://github.com/bhaskarjha-dev/vivechak)** · MIT License.

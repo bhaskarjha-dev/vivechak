@@ -2,7 +2,7 @@
 
 <!-- mcp-name: io.github.bhaskarjha-dev/vivechak -->
 
-**Evidence-graded technical decisions for AI coding agents — researched, challenged, and gated in Markdown before you write code.**
+**Prove decisions before code.** Evidence-graded research, red-team SHA-256 checks, and human sign-off for AI coding agents — stored locally in plain Git Markdown.
 
 Official Python runner for **Vivechak** and shorthand CLI **`vck`**. Automatically downloads, SHA-256-verifies, and caches the pre-compiled static Go binary for your OS and architecture (`darwin`, `linux`, `windows`, `freebsd`) while keeping `stdout` 100% clean for MCP JSON-RPC over `stdio`.
 
@@ -66,4 +66,4 @@ For irreversible **One-Way Door** ADRs, `vck gate` requires an adversarial red-t
 
 ## Documentation & Source
 
-Official Website: **[vivechak.bhaskarjha.dev](https://vivechak.bhaskarjha.dev)** · Documentation: **[vivechak.bhaskarjha.dev/docs](https://vivechak.bhaskarjha.dev/docs)** · Source: **[github.com/bhaskarjha-dev/vivechak](https://github.com/bhaskarjha-dev/vivechak)** · MIT License © [Bhaskar Jha](https://bhaskarjha.dev).
+Official Website: **[vivechak.bhaskarjha.dev](https://vivechak.bhaskarjha.dev)** · Playground: **[vivechak.bhaskarjha.dev/playground](https://vivechak.bhaskarjha.dev/playground)** · Docs: **[vivechak.bhaskarjha.dev/docs](https://vivechak.bhaskarjha.dev/docs)** · Source: **[github.com/bhaskarjha-dev/vivechak](https://github.com/bhaskarjha-dev/vivechak)** · MIT License © [Bhaskar Jha](https://bhaskarjha.dev).
