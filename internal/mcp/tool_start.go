@@ -432,35 +432,65 @@ func handleStart(ctx context.Context, req *sdkmcp.CallToolRequest, in StartInput
 
 var (
 	comparisonDelimRe  = regexp.MustCompile(`(?i)\s+(?:vs\.?|versus)\s+`)
-	comparisonPrefixRe = regexp.MustCompile(`(?i)^(?:compare|evaluate|benchmark|choose between|decide between|which one is better:|which is better,|which is better:)\s+`)
+	comparisonPrefixRe = regexp.MustCompile(`(?i)^(?:use\s+vivechak\s+to\s+|please\s+)?(?:compare|evaluate|benchmark|choose\s+between|decide\s+between|which\s+one\s+is\s+better:?|which\s+is\s+better[:,]?)\s+`)
 	comparisonSuffixRe = regexp.MustCompile(`(?i)\s+(?:for|in|with|when|under|on|as|to|across|over|within)\s+.*$`)
-	comparisonMidRe    = regexp.MustCompile(`(?i)\s+(?:vs\.?|versus|or)\s+`)
+	comparisonMidRe    = regexp.MustCompile(`(?i)(?:,\s*(?:and|or)\s+|\s+(?:vs\.?|versus|and|or)\s+|,\s+)`)
+	comparisonFromToRe = regexp.MustCompile(`(?i)\bfrom\s+(.+?)\s+to\s+(.+)$`)
 	reDecisionLine     = regexp.MustCompile(`(?m)^DECISION:.*$`)
 	reContextLine      = regexp.MustCompile(`(?m)^CONTEXT:.*$`)
 )
 
 func extractComparisonOptions(ctx string) string {
-	loc := comparisonDelimRe.FindStringIndex(ctx)
-	if loc == nil {
+	trimmed := strings.TrimSpace(ctx)
+	if trimmed == "" {
 		return ""
 	}
-	left := strings.TrimSpace(ctx[:loc[0]])
-	right := strings.TrimSpace(ctx[loc[1]:])
 
-	left = comparisonPrefixRe.ReplaceAllString(left, "")
-	left = strings.TrimSpace(left)
-
-	right = comparisonSuffixRe.ReplaceAllString(right, "")
-	right = strings.TrimSpace(right)
-
-	right = comparisonMidRe.ReplaceAllString(right, ", ")
-
-	left = strings.Trim(left, "?!.,:;")
-	right = strings.Trim(right, "?!.,:;")
-	if left != "" && right != "" {
-		return left + ", " + right
+	// 1. Explicit "A vs B [vs C]" / "A versus B"
+	if loc := comparisonDelimRe.FindStringIndex(trimmed); loc != nil {
+		left := strings.TrimSpace(comparisonPrefixRe.ReplaceAllString(strings.TrimSpace(trimmed[:loc[0]]), ""))
+		right := strings.TrimSpace(comparisonSuffixRe.ReplaceAllString(strings.TrimSpace(trimmed[loc[1]:]), ""))
+		parts := splitAndCleanOptions(left + ", " + comparisonMidRe.ReplaceAllString(right, ", "))
+		if len(parts) >= 2 {
+			return strings.Join(parts, ", ")
+		}
 	}
+
+	// 2. "compare A and B", "compare A, B, and C", "choose between A and B"
+	if comparisonPrefixRe.MatchString(trimmed) {
+		body := strings.TrimSpace(comparisonPrefixRe.ReplaceAllString(trimmed, ""))
+		body = strings.TrimSpace(comparisonSuffixRe.ReplaceAllString(body, ""))
+		if comparisonMidRe.MatchString(body) {
+			parts := splitAndCleanOptions(comparisonMidRe.ReplaceAllString(body, ", "))
+			if len(parts) >= 2 && len(parts) <= 5 {
+				return strings.Join(parts, ", ")
+			}
+		}
+	}
+
+	// 3. "from A to B"
+	if m := comparisonFromToRe.FindStringSubmatch(trimmed); len(m) == 3 {
+		left := strings.TrimSpace(m[1])
+		right := strings.TrimSpace(comparisonSuffixRe.ReplaceAllString(strings.TrimSpace(m[2]), ""))
+		parts := splitAndCleanOptions(left + ", " + right)
+		if len(parts) >= 2 {
+			return strings.Join(parts, ", ")
+		}
+	}
+
 	return ""
+}
+
+func splitAndCleanOptions(joined string) []string {
+	raw := strings.Split(joined, ",")
+	out := make([]string, 0, len(raw))
+	for _, item := range raw {
+		clean := strings.Trim(strings.TrimSpace(item), "?!.,:;\"'`")
+		if clean != "" {
+			out = append(out, clean)
+		}
+	}
+	return out
 }
 
 func splitBriefIntoParts(prompt string, targetPartSize int) []string {

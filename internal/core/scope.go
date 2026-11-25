@@ -108,6 +108,7 @@ func InferScope(contextText string) Scope {
 	fullArchSignals := []string{
 		"full architecture", "entire architecture", "system design", "system architecture",
 		"founding architecture", "fad", "research pipeline", "complete stack", "tech stack for",
+		"architect a ", "architect an ", "architect our ", "architect the ", "greenfield ",
 		"market entry pipeline", "market entry plan", "market entry research", "go-to-market plan",
 	}
 	for _, sig := range fullArchSignals {

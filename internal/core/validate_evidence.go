@@ -6,14 +6,14 @@ import (
 	"strings"
 )
 
-// EvidenceGradePattern matches inline evidence grades like "A (source)", "[Grade A]", "[Grade: A]", "(Grade B · ...)", "(A · corroborated · fresh | fetched)", "[E-01]", "E-001", etc.
-var EvidenceGradePattern = regexp.MustCompile(`(?:\[?[Gg]rade\s*[:\s]\s*[A-E][^\]\)\n]*\]?|\b[A-E]\s*\([^)]+\)|\([Gg]rade\s*[:\s]\s*[A-E][^)]*\)|\([A-E]\s*[·|][^)]*\)|\[[A-E]\s*[·|][^\]]*\]|\[E-\d+\]|\bE-\d+\b)`)
+// EvidenceGradePattern matches inline evidence grades like "A (source)", "[Grade A]", "[Grade: A]", "(Grade B · ...)", "(A · corroborated · fresh | fetched)", "[E-A: url | fetched]", "[E-01]", "E-001", etc.
+var EvidenceGradePattern = regexp.MustCompile(`(?:\[?[Gg]rade\s*[:\s]\s*[A-E][^\]\)\n]*\]?|\b[A-E]\s*\([^)]+\)|\([Gg]rade\s*[:\s]\s*[A-E][^)]*\)|\([A-E]\s*[·|][^)]*\)|\[[A-E]\s*[·|][^\]]*\]|\[E-[A-E](?:\s*[:·|][^\]]*)?\]|\(E-[A-E](?:\s*[:·|][^)]*)?\)|\[E-\d+\]|\bE-\d+\b)`)
 
 var evidenceGradePattern = EvidenceGradePattern
 
 // recalledHighGradePattern matches Grade A, B, or C claims that rely on recalled/parametric memory.
 // Per Principle P3 (Evidentiary Grounding), unverified recall must be capped at Grade D.
-var recalledHighGradePattern = regexp.MustCompile(`(?i)(?:\[(?:Grade\s+)?[ABC]\s*[·|:,][^\]\n]*\b(?:recalled|memory|parametric\s+memory|model\s+memory|ai\s+memory)\b[^\]\n]*\]|\((?:Grade\s+)?[ABC]\s*[·|:,][^)\n]*\b(?:recalled|memory|parametric\s+memory|model\s+memory|ai\s+memory)\b[^)\n]*\)|\b(?:Grade\s+)?[ABC]\s*\([^)\n]*\b(?:recalled|memory|parametric\s+memory|model\s+memory|ai\s+memory)\b[^)\n]*\)|\b(?:Grade\s+)?[ABC]\s*\[[^\]\n]*\b(?:recalled|memory|parametric\s+memory|model\s+memory|ai\s+memory)\b[^\]\n]*\]|\[(?:Grade\s+)[ABC][^\]\n]*\b(?:recalled|memory|parametric\s+memory|model\s+memory|ai\s+memory)\b[^\]\n]*\])`)
+var recalledHighGradePattern = regexp.MustCompile(`(?i)(?:\[(?:Grade\s+|E-)?[ABC]\s*[·|:,][^\]\n]*\b(?:recalled|memory|parametric\s+memory|model\s+memory|ai\s+memory)\b[^\]\n]*\]|\((?:Grade\s+|E-)?[ABC]\s*[·|:,][^)\n]*\b(?:recalled|memory|parametric\s+memory|model\s+memory|ai\s+memory)\b[^)\n]*\)|\b(?:Grade\s+)?[ABC]\s*\([^)\n]*\b(?:recalled|memory|parametric\s+memory|model\s+memory|ai\s+memory)\b[^)\n]*\)|\b(?:Grade\s+)?[ABC]\s*\[[^\]\n]*\b(?:recalled|memory|parametric\s+memory|model\s+memory|ai\s+memory)\b[^\]\n]*\]|\[(?:Grade\s+)[ABC][^\]\n]*\b(?:recalled|memory|parametric\s+memory|model\s+memory|ai\s+memory)\b[^\]\n]*\])`)
 
 var (
 	qualifiedSourceRe = regexp.MustCompile(

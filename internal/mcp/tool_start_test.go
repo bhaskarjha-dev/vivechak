@@ -275,3 +275,22 @@ func TestStart_ScopeInference(t *testing.T) {
 		t.Errorf("expected inferred scope 'comparison', got: %v", data["scope"])
 	}
 }
+
+func TestExtractComparisonOptions(t *testing.T) {
+	cases := []struct {
+		input string
+		want  string
+	}{
+		{"Pino vs Winston for high-throughput Node.js", "Pino, Winston"},
+		{"Compare Pino and Winston for our high-throughput Node.js service.", "Pino, Winston"},
+		{"Use Vivechak to compare Redis, Dragonfly, and KeyDB for cache clustering", "Redis, Dragonfly, KeyDB"},
+		{"Choose between Auth0, Clerk, or custom OIDC for B2B SSO", "Auth0, Clerk, custom OIDC"},
+		{"Migrate from RabbitMQ to NATS JetStream for telemetry", "RabbitMQ, NATS JetStream"},
+		{"PostgreSQL vs TimescaleDB vs ClickHouse for 20M events/day", "PostgreSQL, TimescaleDB, ClickHouse"},
+	}
+	for _, tc := range cases {
+		if got := extractComparisonOptions(tc.input); got != tc.want {
+			t.Errorf("extractComparisonOptions(%q) = %q, want %q", tc.input, got, tc.want)
+		}
+	}
+}

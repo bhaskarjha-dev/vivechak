@@ -322,6 +322,16 @@ func TestInferScope(t *testing.T) {
 			input:    "full architecture for our new startup",
 			expected: ScopeProject,
 		},
+		{
+			name:     "Architect a platform mentioning vs in constraints should remain project",
+			input:    "Architect a multi-tenant platform (Postgres vs ClickHouse, GDPR)",
+			expected: ScopeProject,
+		},
+		{
+			name:     "Greenfield rewrite mentioning vs should remain project",
+			input:    "Greenfield streaming pipeline comparing Kafka vs NATS inside the design",
+			expected: ScopeProject,
+		},
 	}
 
 	for _, tt := range tests {

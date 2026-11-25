@@ -168,8 +168,16 @@ func runSignoffWithStreams(args []string, stdin io.Reader, stdout io.Writer, isT
 	fmt.Fprintln(stdout, "-------------------------------------------------------")
 
 	bodyStr := string(body)
+	if outcome := core.ExtractSection(bodyStr, "decision outcome", "chosen option", "decision", "verdict"); outcome != "" {
+		fmt.Fprintf(stdout, "Decision Outcome:\n%s\n", strings.TrimSpace(outcome))
+		fmt.Fprintln(stdout, "-------------------------------------------------------")
+	}
 	if rejected := core.ExtractSection(bodyStr, "rejected alternatives", "rejected alternative"); rejected != "" {
 		fmt.Fprintf(stdout, "Rejected Alternatives:\n%s\n", strings.TrimSpace(rejected))
+		fmt.Fprintln(stdout, "-------------------------------------------------------")
+	}
+	if challenge := core.ExtractSection(bodyStr, "challenge findings", "red-team", "stress test"); challenge != "" {
+		fmt.Fprintf(stdout, "Challenge Findings:\n%s\n", strings.TrimSpace(challenge))
 		fmt.Fprintln(stdout, "-------------------------------------------------------")
 	}
 

@@ -88,9 +88,9 @@ func ObserveSessionQuality(content []byte) []QualityObservation {
 	gradeCPlusCount := 0
 	for _, g := range gradeMatches {
 		upper := strings.ToUpper(g)
-		if strings.Contains(upper, "GRADE A") || strings.Contains(upper, "GRADE: A") || strings.Contains(upper, "GRADE:A") || strings.Contains(upper, "[A]") || strings.Contains(upper, "[A ") || strings.Contains(upper, "[A·") || strings.Contains(upper, "[A|") || strings.Contains(upper, "(A ") || strings.Contains(upper, "(A·") || strings.Contains(upper, "(A|") || strings.Contains(upper, "(A:") {
+		if strings.Contains(upper, "GRADE A") || strings.Contains(upper, "GRADE: A") || strings.Contains(upper, "GRADE:A") || strings.Contains(upper, "[A]") || strings.Contains(upper, "[A ") || strings.Contains(upper, "[A·") || strings.Contains(upper, "[A|") || strings.Contains(upper, "(A ") || strings.Contains(upper, "(A·") || strings.Contains(upper, "(A|") || strings.Contains(upper, "(A:") || strings.HasPrefix(upper, "[E-A") || strings.HasPrefix(upper, "(E-A") {
 			gradeACount++
-		} else if strings.Contains(upper, "GRADE B") || strings.Contains(upper, "GRADE: B") || strings.Contains(upper, "GRADE:B") || strings.Contains(upper, "[B]") || strings.Contains(upper, "[B ") || strings.Contains(upper, "[B·") || strings.Contains(upper, "[B|") || strings.Contains(upper, "(B ") || strings.Contains(upper, "(B·") || strings.Contains(upper, "(B|") || strings.Contains(upper, "(B:") {
+		} else if strings.Contains(upper, "GRADE B") || strings.Contains(upper, "GRADE: B") || strings.Contains(upper, "GRADE:B") || strings.Contains(upper, "[B]") || strings.Contains(upper, "[B ") || strings.Contains(upper, "[B·") || strings.Contains(upper, "[B|") || strings.Contains(upper, "(B ") || strings.Contains(upper, "(B·") || strings.Contains(upper, "(B|") || strings.Contains(upper, "(B:") || strings.HasPrefix(upper, "[E-B") || strings.HasPrefix(upper, "(E-B") {
 			gradeBCount++
 		} else {
 			gradeCPlusCount++
@@ -336,7 +336,7 @@ func hasSectionHeading(body string, keywords ...string) bool {
 	return false
 }
 
-var gradeALineRe = regexp.MustCompile(`(?i)(?:\[(?:Grade\s*[:\s]\s*)A[^\]\n]*\]|\((?:Grade\s*[:\s]\s*)A[^)\n]*\)|\bGrade\s*[:\s]\s*A\b|\[A\s*[·|:,][^\]\n]*\]|\(A\s*[·|:,][^)\n]*\))`)
+var gradeALineRe = regexp.MustCompile(`(?i)(?:\[(?:Grade\s*[:\s]\s*|E-)A[^\]\n]*\]|\((?:Grade\s*[:\s]\s*|E-)A[^)\n]*\)|\bGrade\s*[:\s]\s*A\b|\[A\s*[·|:,][^\]\n]*\]|\(A\s*[·|:,][^)\n]*\))`)
 
 func findLinesWithGradeA(text string) []string {
 	lines := strings.Split(text, "\n")

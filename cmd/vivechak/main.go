@@ -2,11 +2,12 @@
 //
 // Usage:
 //
-//	vck setup <host|path>       # Set up Vivechak in an AI host or config file
+//	vck setup [host|path]       # Set up Vivechak in an AI host or config file
 //	vck                         # Start MCP server on stdio (default)
 //	vck serve                   # Explicit serve subcommand
-//	vck doctor                  # Check workspace integrity
+//	vck doctor [path]           # Check workspace integrity
 //	vck gate [flags] [path]     # Evaluate Phase 0 exit gate
+//	vck signoff <decision-id>   # Interactive human sign-off for One-Way Doors
 //	vck mcp-config              # Universal MCP config (pipeable)
 //	vck version                 # Print version
 package main
@@ -38,16 +39,17 @@ func getVersion() string {
 }
 
 func printUsage(w io.Writer) {
-	fmt.Fprintf(w, "vivechak (vck) %s\n\n", getVersion())
+	fmt.Fprintf(w, "vivechak (vck) %s — Prove decisions before code.\n\n", getVersion())
 	fmt.Fprintf(w, "Usage: vck <command>  (or: vivechak <command>)\n\n")
 	fmt.Fprintf(w, "Commands:\n")
-	fmt.Fprintf(w, "  setup <host|path>  Set up Vivechak in an AI host or config file (alias: install)\n")
-	fmt.Fprintf(w, "  serve              Start MCP server over stdio (default — connects to ANY MCP client)\n")
-	fmt.Fprintf(w, "  doctor [path]      Check workspace integrity (default: current workspace)\n")
-	fmt.Fprintf(w, "  gate [flags] [path] Evaluate Phase 0 exit gate (flags: --track, --format, --verbose)\n")
+	fmt.Fprintf(w, "  setup [host|path]     Set up Vivechak in an AI host or config file (alias: install)\n")
+	fmt.Fprintf(w, "  serve                 Start MCP server over stdio (default — connects to ANY MCP client)\n")
+	fmt.Fprintf(w, "  doctor [path]         Check workspace integrity (default: current workspace)\n")
+	fmt.Fprintf(w, "  gate [flags] [path]   Evaluate Phase 0 exit gate (flags: --track, --format, --verbose)\n")
 	fmt.Fprintf(w, "  signoff <decision-id> Sign off on an Architectural Decision (interactive TTY required)\n")
-	fmt.Fprintf(w, "  mcp-config         Output universal MCP JSON configuration (pipeable)\n")
-	fmt.Fprintf(w, "  version            Print version\n")
+	fmt.Fprintf(w, "  mcp-config            Output universal MCP JSON configuration (pipeable)\n")
+	fmt.Fprintf(w, "  version               Print version\n\n")
+	fmt.Fprintf(w, "Docs & Playground: https://vivechak.bhaskarjha.dev\n")
 }
 
 func main() {

@@ -63,10 +63,15 @@ status: proposed
 review_trigger: Migration to distributed database
 ---
 # Decision
-Adopt PostgreSQL.
+
+## Decision Outcome
+Adopt PostgreSQL for primary transactional persistence.
 
 ## Rejected Alternatives
 MySQL was evaluated and rejected due to JSON querying limitations.
+
+## Challenge Findings
+Stress-tested in D-001-R1: write amplification mitigated via monthly partitioning.
 `
 	if err := os.WriteFile(filepath.Join(decisionsDir, "D-001.md"), []byte(adrContent), 0644); err != nil {
 		t.Fatalf("failed to write ADR: %v", err)
@@ -77,6 +82,14 @@ MySQL was evaluated and rejected due to JSON querying limitations.
 	err := runSignoffWithStreams([]string{"D-001", "--project-root", tmpDir, "--reviewer", "Alice"}, stdin, &stdout, func() bool { return true })
 	if err != nil {
 		t.Fatalf("expected successful signoff, got: %v", err)
+	}
+
+	promptOut := stdout.String()
+	if !strings.Contains(promptOut, "Decision Outcome:") || !strings.Contains(promptOut, "Adopt PostgreSQL") {
+		t.Errorf("expected signoff prompt to display Decision Outcome, got:\n%s", promptOut)
+	}
+	if !strings.Contains(promptOut, "Challenge Findings:") || !strings.Contains(promptOut, "D-001-R1") {
+		t.Errorf("expected signoff prompt to display Challenge Findings, got:\n%s", promptOut)
 	}
 
 	updated, err := os.ReadFile(filepath.Join(decisionsDir, "D-001.md"))

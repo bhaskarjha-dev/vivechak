@@ -60,6 +60,26 @@ Grade A (RFC 7636) for security.
 	}
 }
 
+// TestEvidenceGradePattern_ShorthandEA verifies [E-A: ...] through [E-E: ...] tags match validator and recalled cap.
+func TestEvidenceGradePattern_ShorthandEA(t *testing.T) {
+	body := "ClickHouse MergeTree supports async inserts [E-A: https://clickhouse.com/docs | fetched] and benchmarks confirm throughput [E-B: https://benchmark.example.org | fetched]."
+	if !EvidenceGradePattern.MatchString(body) {
+		t.Fatalf("expected EvidenceGradePattern to match [E-A: ...] shorthand tags")
+	}
+	res := &ValidationResult{Valid: true, Status: "valid"}
+	checkEvidenceGrades(body, res)
+	if res.WarningCount() != 0 {
+		t.Errorf("expected 0 warnings for [E-A: ...] tags, got: %+v", res.Issues)
+	}
+
+	recalledBody := "Claim from memory [E-A: recalled] without web search."
+	recRes := &ValidationResult{Valid: true, Status: "valid"}
+	checkRecalledGradeCap(recalledBody, recRes)
+	if recRes.WarningCount() == 0 {
+		t.Errorf("expected W-RECALLED-GRADE-CAP warning for [E-A: recalled], got none")
+	}
+}
+
 // TestObserveSessionQuality_NoPrior verifies observation when Prior section is missing.
 func TestObserveSessionQuality_NoPrior(t *testing.T) {
 	content := []byte("# Research\nSome findings here. Grade A (docs)")
